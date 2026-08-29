@@ -334,7 +334,10 @@ export const OptionChainHeatmap: React.FC = () => {
           <thead className="sticky top-0 z-20 bg-terminal-card border-b border-terminal-border shadow-sm">
             {/* Super Header */}
             <tr className="border-b border-terminal-border/50 text-[10px] uppercase font-bold tracking-wider">
-              <th colSpan={3} className="py-1 px-2 text-center bg-bear/10 text-bear border-r border-terminal-border lg:hidden">
+              <th colSpan={2} className="py-1 px-2 text-center bg-bear/10 text-bear border-r border-terminal-border sm:hidden">
+                ◀ CALLS (CE)
+              </th>
+              <th colSpan={3} className="hidden sm:table-cell lg:hidden py-1 px-2 text-center bg-bear/10 text-bear border-r border-terminal-border">
                 ◀ CALLS (CE)
               </th>
               <th colSpan={6} className="hidden lg:table-cell py-1 px-3 text-center bg-bear/10 text-bear border-r border-terminal-border">
@@ -343,7 +346,10 @@ export const OptionChainHeatmap: React.FC = () => {
               <th className="py-1 px-2 sm:px-3 text-center bg-terminal-panel text-terminal-text font-black border-r border-terminal-border">
                 STRIKE (ATM)
               </th>
-              <th colSpan={3} className="py-1 px-2 text-center bg-bull/10 text-bull lg:hidden">
+              <th colSpan={2} className="py-1 px-2 text-center bg-bull/10 text-bull sm:hidden">
+                PUTS (PE) ▶
+              </th>
+              <th colSpan={3} className="hidden sm:table-cell lg:hidden py-1 px-2 text-center bg-bull/10 text-bull">
                 PUTS (PE) ▶
               </th>
               <th colSpan={6} className="hidden lg:table-cell py-1 px-3 text-center bg-bull/10 text-bull">
@@ -355,7 +361,7 @@ export const OptionChainHeatmap: React.FC = () => {
             <tr className="text-terminal-muted text-[10px] uppercase">
               {/* Call Columns */}
               <th className="py-2 px-1.5 sm:px-2 text-right">1-Min ΔOI</th>
-              <th className="py-2 px-1.5 sm:px-2 text-right">Total OI</th>
+              <th className="hidden sm:table-cell py-2 px-1.5 sm:px-2 text-right">Total OI</th>
               <th className="hidden lg:table-cell py-2 px-2 text-right">Buy / Sell Vol</th>
               <th className="hidden lg:table-cell py-2 px-1.5 text-right">Theta (₹/d)</th>
               <th className="hidden lg:table-cell py-2 px-1.5 text-right">IV (%)</th>
@@ -371,7 +377,7 @@ export const OptionChainHeatmap: React.FC = () => {
               <th className="hidden lg:table-cell py-2 px-1.5 text-left">IV (%)</th>
               <th className="hidden lg:table-cell py-2 px-1.5 text-left">Theta (₹/d)</th>
               <th className="hidden lg:table-cell py-2 px-2 text-left">Buy / Sell Vol</th>
-              <th className="py-2 px-1.5 sm:px-2 text-left">Total OI</th>
+              <th className="hidden sm:table-cell py-2 px-1.5 sm:px-2 text-left">Total OI</th>
               <th className="py-2 px-1.5 sm:px-2 text-left">1-Min ΔOI</th>
             </tr>
           </thead>
@@ -418,8 +424,8 @@ export const OptionChainHeatmap: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* 3. Call Total OI (Visible on Mobile) */}
-                  <td className="py-2 px-1.5 sm:px-2 text-right relative tabular-nums">
+                  {/* 3. Call Total OI (Hidden on Mobile, Visible on >= sm) */}
+                  <td className="hidden sm:table-cell py-2 px-1.5 sm:px-2 text-right relative tabular-nums">
                     <div
                       className="absolute right-0 top-1 bottom-1 bg-bear/15 rounded-l pointer-events-none"
                       style={{ width: `${Math.min(100, callOiPct)}%` }}
@@ -533,8 +539,8 @@ export const OptionChainHeatmap: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* 5. Put Total OI (Visible on Mobile) */}
-                  <td className="py-2 px-1.5 sm:px-2 text-left relative tabular-nums">
+                  {/* 5. Put Total OI (Hidden on Mobile, Visible on >= sm) */}
+                  <td className="hidden sm:table-cell py-2 px-1.5 sm:px-2 text-left relative tabular-nums">
                     <div
                       className="absolute left-0 top-1 bottom-1 bg-bull/15 rounded-r pointer-events-none"
                       style={{ width: `${Math.min(100, putOiPct)}%` }}
