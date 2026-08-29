@@ -159,26 +159,28 @@ export const HeaderBar: React.FC = () => {
 
   return (
     <header className="border-b border-terminal-border bg-terminal-panel/95 backdrop-blur sticky top-0 z-40 px-2 sm:px-4 py-1.5 sm:py-2 shadow-md">
-      {/* 1st Row: Master Control Header Bar */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
-        {/* Left Side: Brand Logo, One-Liner Asset Selector & Quick Badges */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0 min-w-0">
+      {/* 1st Row: Master Control Header Bar (2 Lines on Mobile, Single Row on Desktop) */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 sm:gap-2 min-w-0">
+        {/* LINE 1 ON MOBILE / LEFT SIDE ON DESKTOP */}
+        <div className="flex items-center justify-between md:justify-start space-x-2 shrink-0 min-w-0 w-full md:w-auto">
+          {/* Brand Logo (Enlarged and prominent on mobile top-left) */}
           <div className="flex items-center shrink-0">
             <img
               src="/fayda-logo.png"
               alt="Fayda Logo"
-              className="h-6 sm:h-8.5 w-auto max-w-[85px] sm:max-w-[125px] object-contain drop-shadow-[0_0_10px_rgba(0,229,255,0.25)] transition-transform duration-200 hover:scale-105"
+              className="h-7 xs:h-8 md:h-8.5 w-auto max-w-[110px] xs:max-w-[125px] md:max-w-[125px] object-contain drop-shadow-[0_0_10px_rgba(0,229,255,0.25)] transition-transform duration-200 hover:scale-105"
             />
           </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
+          {/* DESKTOP-ONLY INLINE CONTROLS (Hidden on mobile < md) */}
+          <div className="hidden md:flex items-center space-x-1.5 shrink-0">
             {/* ONE-LINER SELECT ASSET DROPDOWN */}
             <StockSelectorDropdown />
 
             {/* Verified Account Name / Connect Fyers */}
             <button
               onClick={() => setIsFyersModalOpen(true)}
-              className={`inline-flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs font-mono rounded-xl border transition shrink-0 ${
+              className={`inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-mono rounded-xl border transition shrink-0 ${
                 fyersConfig.isConnected
                   ? 'bg-bull/15 border-bull/50 text-bull font-bold hover:bg-bull/25'
                   : 'bg-accent-cyan/10 border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/20'
@@ -187,13 +189,13 @@ export const HeaderBar: React.FC = () => {
             >
               {fyersConfig.isConnected ? (
                 <>
-                  <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-bull shrink-0" />
-                  <span className="font-semibold text-[10px] sm:text-xs">SRS</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-bull shrink-0" />
+                  <span className="font-semibold text-xs">SRS</span>
                 </>
               ) : (
                 <>
-                  <KeyRound className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Connect Fyers</span>
+                  <KeyRound className="w-3.5 h-3.5 shrink-0" />
+                  <span>Connect Fyers</span>
                 </>
               )}
             </button>
@@ -239,98 +241,39 @@ export const HeaderBar: React.FC = () => {
               {isLiveMarketOpen ? 'LIVE' : 'OFFICIAL EOD'}
             </div>
           </div>
-        </div>
 
-        {/* Right Side: Expiry, Quick Actions, Clock & Responsive More Dropdown */}
-        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-          {/* Option Expiry Selector */}
-          <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 space-x-1 text-xs font-mono shrink-0">
-            <Calendar className="w-3 h-3 text-amber shrink-0" />
-            {expiryDates.length > 0 ? (
-              <select
-                value={selectedExpiry}
-                onChange={(e) => setOptionExpiry(e.target.value)}
-                className="bg-transparent text-terminal-text font-bold focus:outline-none cursor-pointer text-[10px] sm:text-xs max-w-[70px] xs:max-w-[85px] sm:max-w-none"
-              >
-                {expiryDates.map((exp: string) => (
-                  <option key={exp} value={exp} className="bg-terminal-card text-terminal-text">
-                    {exp}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="font-bold text-terminal-text text-[10px] sm:text-xs">{selectedExpiry}</span>
-            )}
-            <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-amber/10 border border-amber/30 text-amber font-bold hidden xs:inline">
-              {daysToExpiry === 0 ? '0D' : `${daysToExpiry}D`}
-            </span>
-          </div>
-
-          {/* Audio Chime Toggle (Visible on screens >= 768px) */}
-          <div className="hidden md:flex items-center bg-terminal-card border border-terminal-border rounded-lg p-0.5 text-xs shrink-0">
+          {/* MOBILE-ONLY TOP-RIGHT ROW: Fullscreen Button + Clock + Settings */}
+          <div className="flex md:hidden items-center space-x-1.5 shrink-0">
+            {/* Fullscreen Button */}
             <button
-              onClick={toggleMute}
-              title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
-              className={`p-1 sm:p-1.5 rounded transition ${
-                isMuted ? 'text-terminal-muted hover:text-terminal-text' : 'bg-bull/20 text-bull'
-              }`}
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-1 xs:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
+              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode"}
             >
-              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              {isFullscreen ? (
+                <Minimize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-accent-cyan" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-terminal-muted hover:text-accent-cyan" />
+              )}
             </button>
-          </div>
 
-          {/* 1-Click Light / Dark Theme Toggle Button (Visible on screens >= 640px) */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="hidden sm:flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-terminal-card border border-terminal-border hover:border-accent-cyan transition shadow-sm font-mono text-[10px] font-bold text-terminal-text shrink-0"
-            title={theme === 'dark' ? 'Current: Dark Mode (Click for Light Theme ☀️)' : 'Current: Light Mode (Click for Dark Theme 🌙)'}
-          >
-            {theme === 'dark' ? (
-              <>
-                <Moon className="w-3.5 h-3.5 text-accent-cyan" />
-                <span className="text-terminal-text">DARK</span>
-              </>
-            ) : (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber" />
-                <span className="text-terminal-text">LIGHT</span>
-              </>
-            )}
-          </button>
+            {/* Digital Market Clock */}
+            <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
+              <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
+              <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
+                {currentTime}
+              </span>
+              <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
+                IST
+              </span>
+            </div>
 
-          {/* 1-Tap Native Fullscreen Mode Button */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="p-1 sm:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
-            title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode (All Mobile & Desktop Devices)"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-cyan" />
-            ) : (
-              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-terminal-muted hover:text-accent-cyan" />
-            )}
-          </button>
-
-          {/* PROMINENT DIGITAL MARKET CLOCK */}
-          <div className="flex items-center space-x-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
-            <Clock className="w-3 h-3 text-accent-cyan animate-pulse shrink-0" />
-            <span className="text-[10px] sm:text-xs md:text-sm font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
-              <span className="inline xs:hidden">{currentTime.slice(0, 5)}</span>
-              <span className="hidden xs:inline">{currentTime}</span>
-            </span>
-            <span className="text-[7px] sm:text-[8px] text-accent-cyan font-extrabold uppercase hidden sm:inline">
-              IST
-            </span>
-          </div>
-
-          {/* RESPONSIVE INSTITUTIONAL MORE (•••) DROPDOWN MENU */}
-          <div className="relative font-mono shrink-0" ref={moreMenuRef}>
+            {/* More Controls (•••) */}
             <button
               type="button"
               onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-              className={`p-1 sm:p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
+              className={`p-1 xs:p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
                 isMoreMenuOpen 
                   ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' 
                   : 'bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-terminal-text'
