@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color-scheme: dark;
+
+  /* Dark Terminal Theme (Default) */
+  --color-terminal-bg: 8 11 17;        /* #080B11 */
+  --color-terminal-card: 15 20 31;     /* #0F141F */
+  --color-terminal-panel: 20 28 43;    /* #141C2B */
+  --color-terminal-border: 30 42 62;   /* #1E2A3E */
+  --color-terminal-hover: 34 49 74;    /* #22314A */
+  --color-terminal-text: 226 232 240;  /* #E2E8F0 */
+  --color-terminal-muted: 100 116 139; /* #64748B */
+  --color-bull: 0 245 155;             /* #00F59B */
+  --color-bear: 255 59 105;            /* #FF3B69 */
+  --color-amber: 255 184 0;            /* #FFB800 */
+  --color-accent-cyan: 0 229 255;      /* #00E5FF */
+  --color-accent-purple: 168 85 247;   /* #A855F7 */
+}
+
+[data-theme="light"], .light {
+  color-scheme: light;
+
+  /* Light Professional Theme */
+  --color-terminal-bg: 243 244 246;    /* #F3F4F6 */
+  --color-terminal-card: 255 255 255;  /* #FFFFFF */
+  --color-terminal-panel: 229 231 235; /* #E5E7EB */
+  --color-terminal-border: 209 213 219;/* #D1D5DB */
+  --color-terminal-hover: 243 244 246; /* #F3F4F6 */
+  --color-terminal-text: 15 23 42;     /* #0F172A */
+  --color-terminal-muted: 71 85 105;   /* #475569 */
+  --color-bull: 5 150 105;             /* #059669 Emerald */
+  --color-bear: 225 29 72;             /* #E11D48 Rose */
+  --color-amber: 217 119 6;            /* #D97706 Amber */
+  --color-accent-cyan: 2 132 199;      /* #0284C7 Sky */
+  --color-accent-purple: 147 51 234;   /* #9333EA Purple */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: rgb(var(--color-terminal-bg));
+  color: rgb(var(--color-terminal-text));
+  overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Monospace font standard for financial figures */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F141F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E2A3E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2D3E5B;
+}
+
+/* Seamless infinite marquee animation for regulatory disclaimer */
+@keyframes marqueeSeamless {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-seamless {
+  display: flex;
+  width: max-content;
+  animation: marqueeSeamless 38s linear infinite;
+}
+
+.animate-marquee-seamless:hover {
+  animation-play-state: paused;
+}
+
+/* Seamless infinite ticker animation for active strike signals */
+@keyframes tickerSeamless {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker-seamless {
+  display: flex;
+  width: max-content;
+  animation: tickerSeamless 55s linear infinite;
+}
+
+.animate-ticker-seamless:hover {
+  animation-play-state: paused;
+}

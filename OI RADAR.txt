@@ -1,0 +1,27 @@
+OI RADAR
+
+Fyers app ID : KMSSMU5OGR-100
+SID : MVADUMZWBM
+
+Client ID : YS04036
+
+https://trade.fyers.in/api-login/redirect-uri/index.html
+
+https://api-t1.fyers.in/api/v3/generate-authcode?client_id=KMSSMU5OGR-100&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state
+
+auth code
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiJLTVNTTVU1T0dSIiwidXVpZCI6Ijg3ZDVmM2I2NmYxZTRlN2Y4NDFjYjdlY2M2NDNhNDE2IiwiaXBBZGRyIjoiIiwibm9uY2UiOiIiLCJzY29wZSI6IiIsImRpc3BsYXlfbmFtZSI6IllTMDQwMzYiLCJvbXMiOiJLMSIsImhzbV9rZXkiOiIyYTUwN2Q1ZDI5ZGU5MzIxNmU2M2Q0MjM4ZWQyZDQ3MTY1NDI2Yzc2NTMyOTlmM2E4NjdkMzQxZCIsImlzRGRwaUVuYWJsZWQiOiJOIiwiaXNNdGZFbmFibGVkIjoiTiIsImF1ZCI6IltcImQ6MVwiLFwiZDoyXCIsXCJ4OjBcIixcIng6MVwiXSIsImV4cCI6MTc4Nzg4NTE1MSwiaWF0IjoxNzg3ODU1MTUxLCJpc3MiOiJhcGkubG9naW4uZnllcnMuaW4iLCJuYmYiOjE3ODc4NTUxNTEsInN1YiI6ImF1dGhfY29kZSJ9.clnt_QjRg4f15mUYDm8ftOG5hfGLjr2eALoeMSK9ib0
+
+How the App Saves Your Time:
+During the Day (Zero Re-Logins):
+
+Once connected in the morning, your token is securely saved in fyersConfig.json.
+If you refresh your browser, close the tab, or restart your computer during the trading day, you do NOT need to re-enter anything — the app auto-connects automatically.
+Next Morning Routine (Takes only 10 Seconds): Each morning before market opens (around 09:00 AM):
+
+Click Connect Fyers in the top navigation bar.
+Click Open Fyers Login Page (logs in with your Fyers PIN / OTP).
+Copy the auth_code= from the address bar and paste it into the Auth Code box.
+Click Connect Fyers Account.
+The app automatically generates the SHA-256 hash, retrieves your new Access Token, and keeps your live stream active for the entire trading day (09:15 AM to 03:40 PM IST).

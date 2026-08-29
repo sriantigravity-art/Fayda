@@ -1,0 +1,16 @@
+{
+  "name": "market-nifty-oi-surge-ticker",
+  "version": "1.0.0",
+  "description": "Real-Time Indian Options OI Surge Ticker & Activity Radar",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "build": "npm run build:server && npm run build:client",
+    "start": "node server/dist/index.js"
+  },
+  "keywords": ["options", "nifty", "banknifty", "oi-surge", "radar", "nse"],
+  "author": "",
+  "license": "ISC"
+}
