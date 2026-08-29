@@ -75,28 +75,37 @@ export const GlobalIndicesSidebar: React.FC = () => {
 
   return (
     <>
-      {/* 1. Floating Toggle Button (Always visible on mobile & desktop right edge when closed) */}
+      {/* 1. Floating Toggle Button (Icon-only on mobile, full vertical tab on desktop) */}
       {!isOpen && (
         <button
           type="button"
           onClick={toggleSidebar}
-          className="fixed right-0 top-32 sm:top-1/2 sm:-translate-y-1/2 z-40 flex items-center gap-1.5 py-3 px-2 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-6px_0_25px_rgba(0,229,255,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/70 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
+          className="fixed right-0 top-32 sm:top-1/2 sm:-translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(0,229,255,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/70 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
           title="Expand Top International Indices & Market Sentiment"
-          style={{ writingMode: 'vertical-rl' }}
         >
-          <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
-            <ChevronLeft className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
-            <span className="w-1.5 h-1.5 rounded-full bg-bull animate-ping" />
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <Globe className="w-3.5 h-3.5 rotate-90 text-accent-cyan" />
-            <span>GLOBAL INDICES</span>
+          {/* Mobile View (< sm): Compact Glowing Globe Icon Only */}
+          <div className="flex sm:hidden items-center justify-center relative p-0.5">
+            <Globe className="w-5 h-5 text-accent-cyan drop-shadow-[0_0_10px_rgba(0,229,255,0.7)] animate-pulse" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bull animate-ping" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bull shadow-[0_0_6px_#00F59B]" />
           </div>
 
-          <span className="text-[9px] px-1 py-0.2 rounded bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 font-mono mt-1 font-extrabold">
-            {globalIndices.length}
-          </span>
+          {/* Desktop View (>= sm): Full Vertical Tab */}
+          <div className="hidden sm:flex flex-col items-center gap-1.5" style={{ writingMode: 'vertical-rl' }}>
+            <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
+              <ChevronLeft className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-bull animate-ping" />
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <Globe className="w-3.5 h-3.5 rotate-90 text-accent-cyan" />
+              <span>GLOBAL INDICES</span>
+            </div>
+
+            <span className="text-[9px] px-1 py-0.2 rounded bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 font-mono mt-1 font-extrabold">
+              {globalIndices.length}
+            </span>
+          </div>
         </button>
       )}
 

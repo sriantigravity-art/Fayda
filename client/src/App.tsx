@@ -15,7 +15,6 @@ import { SquareOffAlertBanner } from './components/SquareOffAlertBanner';
 import { HighlightSignalTicker } from './components/HighlightSignalTicker';
 import { DisclaimerTicker } from './components/DisclaimerTicker';
 import { GlobalIndicesSidebar } from './components/GlobalIndicesSidebar';
-import { InstallAppButton } from './components/InstallAppButton';
 import { Layers, Activity } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -111,8 +110,6 @@ const DashboardContent: React.FC = () => {
           <span className="text-terminal-text font-bold">@vertexinfo.co.in (All Rights Reserved)</span>
         </div>
         <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5 text-center">
-          <InstallAppButton />
-          <span>•</span>
           <span>Market Hours: <strong className="text-terminal-text font-bold">09:15 – 15:40 IST</strong></span>
         </div>
       </footer>
