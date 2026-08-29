@@ -42,7 +42,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 const engine = new OIEngine();
 const activeClients = new Set<WebSocket>();
 
-let currentDataSource: DataSourceMode = 'FYERS_LIVE';
+let currentDataSource: DataSourceMode = 'NSE_LIVE'; // Default to NSE on Railway (no Fyers credentials)
 let nsePollTimer: NodeJS.Timeout | null = null;
 let fyersPollTimer: NodeJS.Timeout | null = null;
 const selectedExpiries: Map<IndexSymbol, string> = new Map();
@@ -200,8 +200,15 @@ const startNsePolling = () => {
   nsePollTimer = setInterval(pollLiveNse, 15000);
 };
 
-// Start Fyers polling by default
-startFyersPolling();
+// Start polling — use Fyers if configured, otherwise fall back to NSE
+const hasFyersConfig = !!fyersService.getConfig().appId && !!fyersService.getConfig().accessToken;
+if (hasFyersConfig) {
+  currentDataSource = 'FYERS_LIVE';
+  startFyersPolling();
+} else {
+  currentDataSource = 'NSE_LIVE';
+  startNsePolling();
+}
 
 // WebSocket connection lifecycle
 wss.on('connection', async (ws: WebSocket) => {
@@ -413,4 +420,14 @@ app.post('/api/expiry', (req, res) => {
 server.listen(PORT, () => {
   console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT}`);
   console.log(`📡 WebSocket stream active at ws://localhost:${PORT}/ws`);
+  console.log(`📊 Data source: ${currentDataSource}`);
+});
+
+// Prevent unhandled promise rejections from crashing the process
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught Exception:', err);
 });
