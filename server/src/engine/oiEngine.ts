@@ -70,7 +70,8 @@ export class OIEngine {
     expiryDates: string[] = [],
     selectedExpiry?: string,
     exchangeTotalCallOI?: number,
-    exchangeTotalPutOI?: number
+    exchangeTotalPutOI?: number,
+    indiaVix?: number
   ): { indexState: MarketIndexState; newSurges: SurgeEvent[] } {
     const now = Date.now();
     const hist = this.history.get(symbol) || [];
@@ -91,9 +92,44 @@ export class OIEngine {
     const fiveMinAgo = now - 5 * 60 * 1000;
     const prevEntry5m = hist.find(h => h.timestamp <= fiveMinAgo) || (hist.length > 4 ? hist[hist.length - 5] : hist[0]);
 
-    const avgCallOiChange1m = 45000;
-    const avgPutOiChange1m = 45000;
-    const avgVolume = 80000;
+    // Dynamic OI/volume baselines — self-calibrate from rolling 1-min history.
+    // When history is sparse (<5 entries), bootstrap from total chain OI (0.15% per minute is realistic).
+    // This replaces fixed magic numbers that don't adapt to actual market conditions.
+    let avgCallOiChange1m: number;
+    let avgPutOiChange1m: number;
+    let avgVolume: number;
+
+    if (hist.length >= 5) {
+      // Compute rolling averages from the most recent 10 snapshots
+      const recentHist = hist.slice(-10);
+      let sumCallDelta = 0, sumPutDelta = 0, sumVol = 0, count = 0;
+      for (const entry of recentHist) {
+        let entryCallDelta = 0, entryPutDelta = 0, entryVol = 0;
+        entry.strikes.forEach(s => {
+          entryCallDelta += Math.abs(s.callOI);
+          entryPutDelta  += Math.abs(s.putOI);
+          entryVol       += (s.callVolume || 0) + (s.putVolume || 0);
+        });
+        const strikeCount = Math.max(1, entry.strikes.size);
+        sumCallDelta += entryCallDelta / strikeCount * 0.002;  // ~0.2% of OI per min
+        sumPutDelta  += entryPutDelta  / strikeCount * 0.002;
+        sumVol       += entryVol       / strikeCount;
+        count++;
+      }
+      avgCallOiChange1m = Math.max(5000, Math.round(sumCallDelta / count));
+      avgPutOiChange1m  = Math.max(5000, Math.round(sumPutDelta  / count));
+      avgVolume         = Math.max(20000, Math.round(sumVol / count));
+    } else {
+      // Bootstrap: derive from the current snapshot's total OI
+      // 0.15% of per-strike OI per minute is a reasonable baseline
+      const strikeCount = Math.max(1, strikesRaw.length);
+      const totalCallOIEst = strikesRaw.reduce((acc, s) => acc + (s.callOI || 0), 0);
+      const totalPutOIEst  = strikesRaw.reduce((acc, s) => acc + (s.putOI  || 0), 0);
+      const totalVolEst    = strikesRaw.reduce((acc, s) => acc + (s.callVolume || 0) + (s.putVolume || 0), 0);
+      avgCallOiChange1m = Math.max(5000, Math.round(totalCallOIEst / strikeCount * 0.0015));
+      avgPutOiChange1m  = Math.max(5000, Math.round(totalPutOIEst  / strikeCount * 0.0015));
+      avgVolume         = Math.max(20000, Math.round(totalVolEst    / strikeCount));
+    }
 
     let totalCallOI = 0;
     let totalPutOI = 0;
@@ -633,7 +669,8 @@ export class OIEngine {
         straddleRange,
         daysToExpiry,
         PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')
-      )
+      ),
+      indiaVix
     };
 
     return {

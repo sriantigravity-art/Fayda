@@ -157,6 +157,17 @@ export const HeaderBar: React.FC = () => {
               )}
             </button>
 
+            {/* GLOBAL INDICES RADAR QUICK-ACCESS BUTTON (Prominently visible on top) */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-global-indices'))}
+              className="inline-flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs font-mono font-bold rounded-xl border bg-accent-cyan/10 hover:bg-accent-cyan/20 border-accent-cyan/40 text-accent-cyan transition shrink-0 shadow-sm"
+              title="Open Global Market Indices Radar"
+            >
+              <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent-cyan shrink-0 animate-pulse" />
+              <span>Global</span>
+            </button>
+
             {/* LIVE MARKET SENTIMENT BADGE (Visible on screens >= 1380px) */}
             <div
               className={`hidden 2xl:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono font-bold uppercase rounded-lg border transition shadow-sm shrink-0 ${
@@ -402,7 +413,7 @@ export const HeaderBar: React.FC = () => {
       </div>
 
       {/* 2nd Row: Horizontal Swipeable Ticker Tape of Asset Cards */}
-      <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1.5 border-t border-terminal-border/40 mt-1.5">
+      <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1.5 pb-0.5 border-t border-terminal-border/40 mt-1.5 touch-pan-x">
         {visibleIndices.map((sym) => {
           const state = indices[sym];
           const isSelected = selectedIndex === sym;

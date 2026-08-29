@@ -55,23 +55,67 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Custom Scrollbars */
+/* Cross-browser no-scrollbar utility */
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* ── Custom Scrollbars (Theme-Aware) ─────────────────────────────────────── */
+
+/* Standard CSS Scrollbar (Firefox & modern browsers) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-terminal-border)) transparent;
+}
+
+[data-theme="light"] *,
+.light * {
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+/* WebKit Custom Scrollbars (Chrome, Edge, Safari, Opera) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F141F;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E2A3E;
+  background: rgb(var(--color-terminal-border));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2D3E5B;
+  background: rgb(var(--color-terminal-hover));
+}
+
+/* Light Theme Scrollbars */
+[data-theme="light"] ::-webkit-scrollbar-track,
+.light ::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Seamless infinite marquee animation for regulatory disclaimer */

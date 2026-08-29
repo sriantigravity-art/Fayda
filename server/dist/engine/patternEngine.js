@@ -1,35 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PatternEngine = void 0;
+const volatilityRangeService_js_1 = require("../services/volatilityRangeService.js");
 class PatternEngine {
     /**
      * Generates comprehensive Multi-Timeframe Levels (1D, 1W, 1M, 6M)
      */
     static calculateMTFLevels(symbol, spotPrice) {
         const levels = [];
-        // Calibrated volatility step based on asset class
-        let dRange = 180;
-        let wRange = 450;
-        let mRange = 900;
-        let h6Range = 2200;
-        if (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX') {
-            dRange = 400;
-            wRange = 1100;
-            mRange = 2400;
-            h6Range = 5500;
-        }
-        else if (symbol === 'CRUDEOIL') {
-            dRange = 120;
-            wRange = 300;
-            mRange = 600;
-            h6Range = 1500;
-        }
-        else if (symbol === 'GOLD') {
-            dRange = 400;
-            wRange = 1200;
-            mRange = 2500;
-            h6Range = 6000;
-        }
+        // Fetch live volatility ranges derived from 6-month Yahoo Finance OHLC data.
+        // Falls back to calibrated defaults synchronously if live data not yet available.
+        const { dRange, wRange, mRange, h6Range } = volatilityRangeService_js_1.volatilityRangeService.getRange(symbol);
         // 1. Day Levels (1D): PDH, PDL, PDC, Central Pivot Range (CPR)
         const pdh = spotPrice + dRange * 0.55;
         const pdl = spotPrice - dRange * 0.45;

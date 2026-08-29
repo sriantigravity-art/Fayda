@@ -219,11 +219,11 @@ export const HighlightSignalTicker: React.FC = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center max-w-[1840px] mx-auto px-3 py-1.5">
-        {/* Left Badge: Status & Title */}
-        <div className="flex items-center space-x-2 shrink-0 pr-3 border-r border-terminal-border z-10 bg-terminal-card">
-          <span className="w-1.5 h-4 rounded-full bg-accent-cyan shadow-[0_0_8px_#00E5FF] shrink-0" />
+      <div className="flex flex-col sm:flex-row sm:items-center max-w-[1840px] mx-auto px-2.5 sm:px-3 py-1 sm:py-1.5 gap-1 sm:gap-0">
+        {/* Line 1 on Mobile / Left on Desktop: Status, Title & Mobile Controls */}
+        <div className="flex items-center justify-between sm:justify-start space-x-2 shrink-0 sm:pr-3 sm:border-r border-terminal-border z-10 bg-terminal-card pb-0.5 sm:pb-0">
           <div className="flex items-center space-x-1.5">
+            <span className="w-1.5 h-3.5 sm:h-4 rounded-full bg-accent-cyan shadow-[0_0_8px_#00E5FF] shrink-0" />
             <span className="font-black text-[10px] sm:text-xs tracking-wider uppercase text-terminal-text drop-shadow-[0_0_8px_rgba(0,229,255,0.4)] flex items-center gap-1">
               <Zap className="w-3 h-3 text-accent-cyan animate-pulse" />
               <span>RADAR PICKS:</span>
@@ -236,12 +236,29 @@ export const HighlightSignalTicker: React.FC = () => {
               {isLiveMarket ? 'LIVE' : 'EOD'}
             </span>
           </div>
+
+          {/* Mobile Right Controls on Line 1 */}
+          <div className="flex sm:hidden items-center space-x-1.5 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className={`p-1 px-1.5 rounded-md border transition flex items-center gap-1 ${
+                isPaused 
+                  ? 'bg-amber/20 border-amber text-amber font-bold' 
+                  : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
+              }`}
+              title={isPaused ? "Resume Ticker Scrolling" : "Pause Ticker"}
+            >
+              {isPaused ? <Play className="w-2.5 h-2.5" /> : <Pause className="w-2.5 h-2.5" />}
+              <span className="text-[8px] font-bold">{isPaused ? 'RESUME' : 'PAUSE'}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Scrolling Tape Container */}
-        <div className="flex-1 overflow-hidden relative mx-2">
+        {/* Line 2 on Mobile / Center on Desktop: Full-Width Scrolling Tape Container */}
+        <div className="flex-1 overflow-hidden relative mx-0 sm:mx-2 w-full pt-0.5 sm:pt-0 border-t sm:border-t-0 border-terminal-border/40">
           <div
-            className="flex items-center space-x-3 w-max"
+            className="flex items-center space-x-2.5 sm:space-x-3 w-max"
             style={{
               animation: `marquee-scroll ${speedSeconds}s linear infinite`,
               animationPlayState: isAnimationPaused ? 'paused' : 'running'
@@ -253,8 +270,8 @@ export const HighlightSignalTicker: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Controls: Pause / Play & Speed */}
-        <div className="flex items-center space-x-1.5 shrink-0 pl-3 border-l border-terminal-border z-10 bg-terminal-card text-[10px]">
+        {/* Desktop Controls (hidden on mobile, right-docked on desktop) */}
+        <div className="hidden sm:flex items-center space-x-1.5 shrink-0 pl-3 border-l border-terminal-border z-10 bg-terminal-card text-[10px]">
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
@@ -268,7 +285,7 @@ export const HighlightSignalTicker: React.FC = () => {
             {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
           </button>
 
-          <div className="hidden sm:flex items-center space-x-0.5 bg-terminal-panel p-0.5 rounded-md border border-terminal-border">
+          <div className="flex items-center space-x-0.5 bg-terminal-panel p-0.5 rounded-md border border-terminal-border">
             {(['SLOW', 'NORMAL', 'FAST'] as const).map((spd) => (
               <button
                 key={spd}

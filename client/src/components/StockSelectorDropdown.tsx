@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import type { SymbolConfig } from '../types';
+import { McxOfflineModal } from './McxOfflineModal';
 import { 
   Search, 
   ChevronDown, 
@@ -12,14 +13,39 @@ import {
   X,
   Flame,
   Coins,
-  Droplets
+  Droplets,
+  WifiOff
 } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+async function checkMcxOpen(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/mcx-status`, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return false;
+    const d = await res.json();
+    return !!d.isOpen;
+  } catch {
+    // Fallback: compute client-side from IST time
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + 3600000 * 5.5);
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
+    const min = ist.getHours() * 60 + ist.getMinutes();
+    return min >= 9 * 60 && min < 23 * 60 + 30;
+  }
+}
 
 export const StockSelectorDropdown: React.FC = () => {
   const { selectedIndex, setSelectedIndex, indices, visibleIndices, toggleIndexVisibility } = useMarket();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'INDICES' | 'COMMODITIES' | 'NIFTY50_STOCKS'>('ALL');
+
+  // MCX offline modal state
+  const [offlineSymbol, setOfflineSymbol] = useState<string | null>(null);
+  const [checkingMcx, setCheckingMcx] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -70,11 +96,37 @@ export const StockSelectorDropdown: React.FC = () => {
     return true;
   });
 
-  const handleSelect = (symbol: string) => {
+  const handleSelect = useCallback(async (symbol: string) => {
+    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+    const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.exchange === 'MCX';
+
+    // For MCX commodities: check if market is open before proceeding
+    if (isCommodity) {
+      setCheckingMcx(true);
+      const isOpen = await checkMcxOpen();
+      setCheckingMcx(false);
+
+      if (!isOpen) {
+        // Market is closed — show offline data modal instead of loading option chain
+        setOfflineSymbol(symbol);
+        setIsOpen(false);
+        setSearchQuery('');
+        return;
+      }
+    }
+
     setSelectedIndex(symbol);
     setIsOpen(false);
     setSearchQuery('');
-  };
+  }, [setSelectedIndex]);
+
+  const handleOfflineProceed = useCallback(() => {
+    // User clicked "View Option Chain (Offline Data)" — load it anyway
+    if (offlineSymbol) {
+      setSelectedIndex(offlineSymbol);
+    }
+    setOfflineSymbol(null);
+  }, [offlineSymbol, setSelectedIndex]);
 
   const getSymbolIcon = (item: SymbolConfig) => {
     if (item.category === 'COMMODITIES') {
@@ -205,14 +257,15 @@ export const StockSelectorDropdown: React.FC = () => {
                 const state = indices[item.symbol];
 
                 return (
-                  <div
-                    key={item.symbol}
+                  <div key={item.symbol}
                     onClick={() => handleSelect(item.symbol)}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer ${
                       isSelected
                         ? 'bg-accent-cyan/15 border-accent-cyan text-terminal-text shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                        : item.category === 'COMMODITIES'
+                        ? 'bg-terminal-bg/60 border-transparent hover:border-amber/40 hover:bg-amber/5'
                         : 'bg-terminal-bg/60 border-transparent hover:border-terminal-border hover:bg-terminal-panel'
-                    }`}
+                    } ${checkingMcx && item.symbol === selectedIndex ? 'opacity-70' : ''}`}
                   >
                     <div className="flex items-center space-x-2.5">
                       <div className={`p-1.5 rounded-lg border ${
@@ -233,6 +286,13 @@ export const StockSelectorDropdown: React.FC = () => {
                           <span className="text-[9px] px-1 py-0.2 rounded bg-terminal-panel border border-terminal-border text-terminal-muted font-semibold">
                             Lot {item.lot} • Step ₹{item.step}
                           </span>
+                          {/* MCX offline badge — shown only for commodities */}
+                          {item.category === 'COMMODITIES' && (
+                            <span className="text-[8px] px-1 py-0.5 rounded bg-amber/10 border border-amber/30 text-amber font-bold flex items-center gap-0.5">
+                              <WifiOff className="w-2 h-2" />
+                              MCX
+                            </span>
+                          )}
                         </div>
                         <p className="text-[10px] text-terminal-muted truncate max-w-[160px] sm:max-w-[200px]">
                           {item.name}
@@ -285,6 +345,15 @@ export const StockSelectorDropdown: React.FC = () => {
             <span className="font-bold text-accent-cyan">Active: {selectedIndex}</span>
           </div>
         </div>
+      )}
+
+      {/* MCX Market Offline Modal — shown when commodity is clicked while MCX is closed */}
+      {offlineSymbol && (
+        <McxOfflineModal
+          symbol={offlineSymbol}
+          onClose={() => setOfflineSymbol(null)}
+          onProceedAnyway={handleOfflineProceed}
+        />
       )}
     </div>
   );

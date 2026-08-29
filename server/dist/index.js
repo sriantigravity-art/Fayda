@@ -13,6 +13,7 @@ const nseService_js_1 = require("./services/nseService.js");
 const fyersService_js_1 = require("./services/fyersService.js");
 const newsService_js_1 = require("./services/newsService.js");
 const globalIndicesService_js_1 = require("./services/globalIndicesService.js");
+const mcxOfflineService_js_1 = require("./services/mcxOfflineService.js");
 const types_js_1 = require("./types.js");
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
@@ -114,7 +115,14 @@ const fetchSymbolSnapshot = async (symConfig) => {
             usedSource = 'NSE_LIVE';
         }
         if (res && res.strikes.length > 0) {
-            const { indexState, newSurges } = engine.processSnapshot(symConfig.symbol, res.spotPrice, res.spotChange ?? 0, res.spotPctChange ?? 0, res.strikes, symConfig.step, symConfig.lot, symConfig.defaultRange, usedSource, res.expiryDates, res.selectedExpiry, res.totalCallOI, res.totalPutOI);
+            // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
+            let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
+            if (!indiaVix) {
+                const vixEntry = globalIndicesService_js_1.globalIndicesService.getIndices().find(i => i.id === 'INDIA_VIX');
+                if (vixEntry && vixEntry.price > 0)
+                    indiaVix = vixEntry.price;
+            }
+            const { indexState, newSurges } = engine.processSnapshot(symConfig.symbol, res.spotPrice, res.spotChange ?? 0, res.spotPctChange ?? 0, res.strikes, symConfig.step, symConfig.lot, symConfig.defaultRange, usedSource, res.expiryDates, res.selectedExpiry, res.totalCallOI, res.totalPutOI, indiaVix);
             cachedIndexStates.set(symConfig.symbol, indexState);
             broadcast({
                 type: 'INDEX_UPDATE',
@@ -268,6 +276,27 @@ app.get('/api/surges', (req, res) => {
 });
 app.get('/api/global-indices', (req, res) => {
     res.json(globalIndicesService_js_1.globalIndicesService.getIndices());
+});
+// MCX Market Status Endpoint
+app.get('/api/mcx-status', (req, res) => {
+    const { isOpen, status } = mcxOfflineService_js_1.McxOfflineService.getMcxStatus();
+    res.json({
+        isOpen,
+        status, // 'OPEN' | 'CLOSED' | 'HOLIDAY' | 'PRE_OPEN'
+        timestamp: new Date().toISOString()
+    });
+});
+// MCX Offline Data Endpoint — after-hours settlement/closing prices
+// Returns Gold, Silver, CrudeOil etc. from mcxindia.com / IBJA when market is closed
+app.get('/api/mcx-offline', async (req, res) => {
+    try {
+        const data = await mcxOfflineService_js_1.mcxOfflineService.getOfflineData();
+        res.json(data);
+    }
+    catch (err) {
+        console.error('[MCX-Offline] API error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch MCX offline data' });
+    }
 });
 // Periodic broadcast of Global International Indices updates
 setInterval(() => {

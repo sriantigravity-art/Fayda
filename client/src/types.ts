@@ -467,6 +467,7 @@ export interface MarketIndexState {
   heroZeroSignals?: HeroZeroSignal[];
   patternBreakout?: PatternBreakoutAnalysis;
   masterConfluence?: MasterStrategyConfluence;
+  indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
 }
 
 export interface GlobalIndexItem {

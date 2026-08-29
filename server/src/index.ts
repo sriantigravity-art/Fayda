@@ -7,6 +7,7 @@ import { nseService } from './services/nseService.js';
 import { fyersService } from './services/fyersService.js';
 import { newsService } from './services/newsService.js';
 import { globalIndicesService } from './services/globalIndicesService.js';
+import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { 
   IndexSymbol, 
   DataSourceMode, 
@@ -131,6 +132,13 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
     }
 
     if (res && res.strikes.length > 0) {
+      // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
+      let indiaVix: number | undefined = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
+      if (!indiaVix) {
+        const vixEntry = globalIndicesService.getIndices().find(i => i.id === 'INDIA_VIX');
+        if (vixEntry && vixEntry.price > 0) indiaVix = vixEntry.price;
+      }
+
       const { indexState, newSurges } = engine.processSnapshot(
         symConfig.symbol,
         res.spotPrice,
@@ -144,7 +152,8 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
         res.expiryDates,
         res.selectedExpiry,
         res.totalCallOI,
-        res.totalPutOI
+        res.totalPutOI,
+        indiaVix
       );
 
       cachedIndexStates.set(symConfig.symbol, indexState);
@@ -315,6 +324,28 @@ app.get('/api/surges', (req, res) => {
 
 app.get('/api/global-indices', (req, res) => {
   res.json(globalIndicesService.getIndices());
+});
+
+// MCX Market Status Endpoint
+app.get('/api/mcx-status', (req, res) => {
+  const { isOpen, status } = McxOfflineService.getMcxStatus();
+  res.json({
+    isOpen,
+    status,  // 'OPEN' | 'CLOSED' | 'HOLIDAY' | 'PRE_OPEN'
+    timestamp: new Date().toISOString()
+  });
+});
+
+// MCX Offline Data Endpoint — after-hours settlement/closing prices
+// Returns Gold, Silver, CrudeOil etc. from mcxindia.com / IBJA when market is closed
+app.get('/api/mcx-offline', async (req, res) => {
+  try {
+    const data = await mcxOfflineService.getOfflineData();
+    res.json(data);
+  } catch (err: any) {
+    console.error('[MCX-Offline] API error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch MCX offline data' });
+  }
 });
 
 // Periodic broadcast of Global International Indices updates

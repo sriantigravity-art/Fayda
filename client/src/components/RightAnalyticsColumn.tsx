@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { RadarFeed } from './RadarFeed';
 import { NewsWireTab } from './NewsWireTab';
+import { IndiaVixCard } from './IndiaVixCard';
 
 export const RightAnalyticsColumn: React.FC = () => {
   const { currentIndexState, newsList } = useMarket();
@@ -144,7 +145,10 @@ export const RightAnalyticsColumn: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. MAX PAIN STRIKE & ATM STRADDLE RANGE */}
+      {/* 3. INDIA VIX — VOLATILITY FEAR GAUGE + STRATEGIES */}
+      <IndiaVixCard />
+
+      {/* 4. MAX PAIN STRIKE & ATM STRADDLE RANGE */}
       <div className="grid grid-cols-2 gap-2.5 font-mono">
         <div className="bg-terminal-card border border-terminal-border rounded-xl p-3 shadow-md">
           <div className="flex items-center space-x-1.5 text-terminal-muted mb-1">

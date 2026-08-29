@@ -27,6 +27,19 @@ export const GlobalIndicesSidebar: React.FC = () => {
     });
   };
 
+  // Listen to external toggle events (e.g. from top HeaderBar button on mobile)
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen((prev) => {
+        const next = !prev;
+        localStorage.setItem('oi_radar_global_sidebar_open', String(next));
+        return next;
+      });
+    };
+    window.addEventListener('toggle-global-indices', handleToggle);
+    return () => window.removeEventListener('toggle-global-indices', handleToggle);
+  }, []);
+
   const filteredIndices = useMemo(() => {
     if (regionFilter === 'ALL') return globalIndices;
     if (regionFilter === 'YIELDS') {
@@ -66,21 +79,21 @@ export const GlobalIndicesSidebar: React.FC = () => {
       {isOpen && (
         <div
           onClick={toggleSidebar}
-          className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-30 transition-opacity animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-in fade-in duration-200"
         />
       )}
 
-      {/* 2. Slide-out Drawer Panel with Protruding Left Vertical Toggle Handle */}
+      {/* 2. Slide-out Drawer Panel (Full width on mobile, sleek docked drawer on desktop) */}
       <aside
-        className={`fixed top-14 bottom-10 right-0 w-[310px] sm:w-[360px] md:w-[390px] bg-terminal-bg/95 backdrop-blur-2xl border-l border-t border-b border-terminal-border z-40 shadow-[0_0_60px_rgba(0,0,0,0.85)] rounded-l-3xl flex flex-col font-mono transition-transform duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[380px] md:w-[410px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Protruding Vertical Toggle Handle on Left Edge */}
+        {/* Protruding Vertical Toggle Handle on Left Edge (visible on desktop >= sm) */}
         <button
           type="button"
           onClick={toggleSidebar}
-          className="absolute -left-[38px] top-1/2 -translate-y-1/2 z-50 flex items-center gap-1.5 py-3 px-1.5 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-6px_0_20px_rgba(0,229,255,0.35)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/60 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
+          className="hidden sm:flex absolute -left-[38px] top-1/2 -translate-y-1/2 z-50 items-center gap-1.5 py-3 px-1.5 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-6px_0_20px_rgba(0,229,255,0.35)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/60 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
           title={isOpen ? 'Collapse Global Indices Panel (Esc)' : 'Expand Top International Indices'}
           style={{ writingMode: 'vertical-rl' }}
         >
@@ -103,12 +116,12 @@ export const GlobalIndicesSidebar: React.FC = () => {
           </span>
         </button>
         {/* Header Bar */}
-        <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/80 rounded-tl-3xl flex flex-col gap-2 relative">
+        <div className="p-3 sm:p-4 border-b border-terminal-border bg-terminal-panel/85 sm:rounded-tl-3xl flex flex-col gap-2 relative">
           {/* Ambient Glow */}
           <div className="absolute top-0 right-0 w-32 h-20 bg-accent-cyan/10 rounded-full blur-2xl pointer-events-none" />
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
+            <div className="flex items-center space-x-2 sm:space-x-2.5">
               <span className="w-1.5 h-5 rounded-full bg-accent-cyan shadow-[0_0_8px_#00E5FF] shrink-0" />
               <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shadow-[0_0_10px_rgba(0,229,255,0.2)] shrink-0">
                 <Globe className="w-4 h-4" />
@@ -117,7 +130,7 @@ export const GlobalIndicesSidebar: React.FC = () => {
                 <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(0,229,255,0.3)]">
                   GLOBAL MARKET RADAR
                 </h2>
-                <span className="text-[10px] text-terminal-muted block">
+                <span className="text-[9px] sm:text-[10px] text-terminal-muted block">
                   Top International Indices & Sentiment
                 </span>
               </div>
@@ -136,34 +149,34 @@ export const GlobalIndicesSidebar: React.FC = () => {
           </div>
 
           {/* Net Sentiment Banner */}
-          <div className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between text-[11px] font-bold ${
+          <div className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between text-[10px] sm:text-[11px] font-bold ${
             stats.isNetBullish 
               ? 'bg-bull/10 border-bull/30 text-bull' 
               : 'bg-bear/10 border-bear/30 text-bear'
           }`}>
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>OVERALL GLOBAL BIAS:</span>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>GLOBAL BIAS: {stats.isNetBullish ? 'POSITIVE (BULLISH)' : 'NEGATIVE (BEARISH)'}</span>
             </span>
-            <span className="font-black uppercase">
-              {stats.isNetBullish ? '🟢 POSITIVE FOR INDIA' : '🔴 CAUTION / HEADWIND'}
+            <span className="font-mono text-[9px] sm:text-[10px] text-terminal-text font-bold">
+              {stats.pos} ▲ | {stats.neg} ▼
             </span>
           </div>
 
-          {/* Region Filter Tabs */}
-          <div className="flex flex-wrap gap-1 text-[10px] pt-1">
+          {/* Region Tabs (Horizontal Scrollable on Mobile) */}
+          <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar pb-0.5 text-[9px] sm:text-[11px] font-bold">
             {(['ALL', 'US', 'ASIA', 'EUROPE', 'COMMODITIES', 'YIELDS'] as const).map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setRegionFilter(r)}
-                className={`px-2 py-0.5 rounded-md font-bold transition ${
+                className={`px-2 py-1 rounded-lg border transition shrink-0 uppercase whitespace-nowrap ${
                   regionFilter === r
-                    ? 'bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 shadow-sm'
-                    : 'bg-terminal-card text-terminal-muted hover:text-terminal-text border border-terminal-border'
+                    ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan shadow-sm'
+                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
                 }`}
               >
-                {r}
+                {r === 'COMMODITIES' ? 'COMMODITY' : r}
               </button>
             ))}
           </div>
@@ -186,20 +199,20 @@ export const GlobalIndicesSidebar: React.FC = () => {
                 }`}
               >
                 {/* Top Row: Flag + Name + Status */}
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-base leading-none">{item.flag}</span>
-                    <span className="font-mono font-black text-xs text-terminal-text">
+                <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <span className="text-base leading-none shrink-0">{item.flag}</span>
+                    <span className="font-mono font-black text-xs sm:text-sm text-terminal-text truncate">
                       {item.name}
                     </span>
                     {isGiftNifty && (
-                      <span className="px-1.5 py-0.2 rounded text-[8px] font-black bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40">
-                        KEY BENCHMARK
+                      <span className="px-1.5 py-0.2 rounded text-[7px] sm:text-[8px] font-black bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shrink-0">
+                        BENCHMARK
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1 shrink-0">
                     <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-mono font-bold uppercase ${
                       item.status === 'OPEN'
                         ? 'bg-bull/15 text-bull border border-bull/30'
@@ -211,8 +224,8 @@ export const GlobalIndicesSidebar: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Second Row: Price & Changes */}
-                <div className="flex items-baseline justify-between mb-1">
+                {/* Second Row: Price & Changes (Wraps gracefully on small mobile screens) */}
+                <div className="flex items-center justify-between gap-1.5 flex-wrap mb-1">
                   <span className="font-mono font-extrabold text-sm sm:text-base text-terminal-text">
                     {item.region === 'COMMODITIES' && item.id.includes('CRUDE')
                       ? `$${item.price.toFixed(2)}`
@@ -225,7 +238,7 @@ export const GlobalIndicesSidebar: React.FC = () => {
                       : item.price.toLocaleString('en-US', { minimumFractionDigits: 1 })}
                   </span>
 
-                  <span className={`font-mono text-xs font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                  <span className={`font-mono text-[11px] sm:text-xs font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 ${
                     isPositive
                       ? 'bg-bull/15 text-bull border border-bull/30'
                       : isNegative
@@ -239,9 +252,9 @@ export const GlobalIndicesSidebar: React.FC = () => {
 
                 {/* Third Row: Impact Notes on Indian Market */}
                 {item.notes && (
-                  <div className="text-[10px] text-terminal-muted bg-terminal-bg/70 px-2 py-1 rounded-lg border border-terminal-border/40 mt-1 flex items-start gap-1">
+                  <div className="text-[10px] text-terminal-muted bg-terminal-bg/70 px-2 py-1 rounded-lg border border-terminal-border/40 mt-1 flex items-start gap-1 leading-snug break-words">
                     <span className="text-accent-cyan font-bold shrink-0">💡</span>
-                    <span className="leading-tight">{item.notes}</span>
+                    <span>{item.notes}</span>
                   </div>
                 )}
               </div>
@@ -250,10 +263,10 @@ export const GlobalIndicesSidebar: React.FC = () => {
         </div>
 
         {/* Drawer Footer */}
-        <div className="p-2.5 border-t border-terminal-border bg-terminal-panel/80 text-[10px] font-mono text-terminal-muted flex items-center justify-between">
+        <div className="p-2.5 sm:p-3 border-t border-terminal-border bg-terminal-panel/80 text-[9px] sm:text-[10px] font-mono text-terminal-muted flex items-center justify-between">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3 text-accent-cyan" />
-            <span>Auto-refreshing every 4s</span>
+            <span>Updates every 4s</span>
           </span>
           <span className="text-accent-cyan font-bold">NSE IX • CME • ICE</span>
         </div>

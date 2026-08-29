@@ -1,7 +1,7 @@
 OI RADAR
 
 Fyers app ID : KMSSMU5OGR-100
-SID : MVADUMZWBM
+Secret key : MVADUMZWBM
 
 Client ID : YS04036
 
@@ -25,3 +25,10 @@ Click Open Fyers Login Page (logs in with your Fyers PIN / OTP).
 Copy the auth_code= from the address bar and paste it into the Auth Code box.
 Click Connect Fyers Account.
 The app automatically generates the SHA-256 hash, retrieves your new Access Token, and keeps your live stream active for the entire trading day (09:15 AM to 03:40 PM IST).
+
+can i make it like app, and after app installation on desktop or mobile user can enter his fyers credentials and token to run this app> please implement this plan
+
+github>railway DB>sriantigravity acc>
+fayda-production-a914.up.railway.app>>india vix
+
+ LIVE OI ACTIVITY RADAR,  THETA TIME DECAY METER, PCR Sentiment & OI Momentum,  1-MIN OI DELTA, IV, THETA & ORDER FLOW HEATMAP, and other titles should be shown differently and should be highlighted with fix style for all catch user eyes easily

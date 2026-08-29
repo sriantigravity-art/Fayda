@@ -27,7 +27,7 @@ class OIEngine {
         this.history.set('COPPER', []);
         this.history.set('ZINC', []);
     }
-    processSnapshot(symbol, spotPrice, spotChange, spotPctChange, strikesRaw, strikeStep, lotSize, defaultRange = 200, dataSource = 'FYERS_LIVE', expiryDates = [], selectedExpiry, exchangeTotalCallOI, exchangeTotalPutOI) {
+    processSnapshot(symbol, spotPrice, spotChange, spotPctChange, strikesRaw, strikeStep, lotSize, defaultRange = 200, dataSource = 'FYERS_LIVE', expiryDates = [], selectedExpiry, exchangeTotalCallOI, exchangeTotalPutOI, indiaVix) {
         const now = Date.now();
         const hist = this.history.get(symbol) || [];
         // Use official expiry dates provided by live feed, or fallback to NSE service
@@ -42,9 +42,44 @@ class OIEngine {
         const prevEntry1m = hist.length > 0 ? hist[hist.length - 1] : null;
         const fiveMinAgo = now - 5 * 60 * 1000;
         const prevEntry5m = hist.find(h => h.timestamp <= fiveMinAgo) || (hist.length > 4 ? hist[hist.length - 5] : hist[0]);
-        const avgCallOiChange1m = 45000;
-        const avgPutOiChange1m = 45000;
-        const avgVolume = 80000;
+        // Dynamic OI/volume baselines — self-calibrate from rolling 1-min history.
+        // When history is sparse (<5 entries), bootstrap from total chain OI (0.15% per minute is realistic).
+        // This replaces fixed magic numbers that don't adapt to actual market conditions.
+        let avgCallOiChange1m;
+        let avgPutOiChange1m;
+        let avgVolume;
+        if (hist.length >= 5) {
+            // Compute rolling averages from the most recent 10 snapshots
+            const recentHist = hist.slice(-10);
+            let sumCallDelta = 0, sumPutDelta = 0, sumVol = 0, count = 0;
+            for (const entry of recentHist) {
+                let entryCallDelta = 0, entryPutDelta = 0, entryVol = 0;
+                entry.strikes.forEach(s => {
+                    entryCallDelta += Math.abs(s.callOI);
+                    entryPutDelta += Math.abs(s.putOI);
+                    entryVol += (s.callVolume || 0) + (s.putVolume || 0);
+                });
+                const strikeCount = Math.max(1, entry.strikes.size);
+                sumCallDelta += entryCallDelta / strikeCount * 0.002; // ~0.2% of OI per min
+                sumPutDelta += entryPutDelta / strikeCount * 0.002;
+                sumVol += entryVol / strikeCount;
+                count++;
+            }
+            avgCallOiChange1m = Math.max(5000, Math.round(sumCallDelta / count));
+            avgPutOiChange1m = Math.max(5000, Math.round(sumPutDelta / count));
+            avgVolume = Math.max(20000, Math.round(sumVol / count));
+        }
+        else {
+            // Bootstrap: derive from the current snapshot's total OI
+            // 0.15% of per-strike OI per minute is a reasonable baseline
+            const strikeCount = Math.max(1, strikesRaw.length);
+            const totalCallOIEst = strikesRaw.reduce((acc, s) => acc + (s.callOI || 0), 0);
+            const totalPutOIEst = strikesRaw.reduce((acc, s) => acc + (s.putOI || 0), 0);
+            const totalVolEst = strikesRaw.reduce((acc, s) => acc + (s.callVolume || 0) + (s.putVolume || 0), 0);
+            avgCallOiChange1m = Math.max(5000, Math.round(totalCallOIEst / strikeCount * 0.0015));
+            avgPutOiChange1m = Math.max(5000, Math.round(totalPutOIEst / strikeCount * 0.0015));
+            avgVolume = Math.max(20000, Math.round(totalVolEst / strikeCount));
+        }
         let totalCallOI = 0;
         let totalPutOI = 0;
         let totalCallOIChange1m = 0;
@@ -495,7 +530,8 @@ class OIEngine {
             },
             heroZeroSignals,
             patternBreakout: patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
-            masterConfluence: confluenceEngine_js_1.ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'))
+            masterConfluence: confluenceEngine_js_1.ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')),
+            indiaVix
         };
         return {
             indexState,
