@@ -168,7 +168,7 @@ export const HeaderBar: React.FC = () => {
             <img
               src="/fayda-logo.png"
               alt="Fayda Logo"
-              className="h-7 xs:h-8 md:h-8.5 w-auto max-w-[110px] xs:max-w-[125px] md:max-w-[125px] object-contain drop-shadow-[0_0_10px_rgba(0,229,255,0.25)] transition-transform duration-200 hover:scale-105"
+              className="h-8.5 xs:h-9.5 md:h-8.5 w-auto max-w-[125px] xs:max-w-[145px] md:max-w-[125px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
             />
           </div>
 
@@ -242,8 +242,19 @@ export const HeaderBar: React.FC = () => {
             </div>
           </div>
 
-          {/* MOBILE-ONLY TOP-RIGHT ROW: Fullscreen Button + Clock + Settings */}
+          {/* MOBILE-ONLY TOP-RIGHT ROW: Clock (Left of Fullscreen) + Fullscreen Button + Settings */}
           <div className="flex md:hidden items-center space-x-1.5 shrink-0">
+            {/* Digital Market Clock (Left of Fullscreen) */}
+            <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
+              <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
+              <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
+                {currentTime}
+              </span>
+              <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
+                IST
+              </span>
+            </div>
+
             {/* Fullscreen Button */}
             <button
               type="button"
@@ -257,17 +268,6 @@ export const HeaderBar: React.FC = () => {
                 <Maximize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-terminal-muted hover:text-accent-cyan" />
               )}
             </button>
-
-            {/* Digital Market Clock */}
-            <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
-              <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
-              <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
-                {currentTime}
-              </span>
-              <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
-                IST
-              </span>
-            </div>
 
             {/* More Controls (•••) */}
             <button
