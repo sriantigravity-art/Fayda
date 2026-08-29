@@ -153,10 +153,16 @@ export const RadarFeed: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-terminal-bg border border-terminal-border text-[10px] font-mono text-terminal-muted hidden xs:inline-flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-bull animate-ping" />
-              <span className="font-bold text-terminal-text">1-MIN STREAM</span>
+          {/* Right Action Suite & Filter Controls */}
+          <div className="flex items-center justify-center sm:justify-end space-x-2 font-mono text-xs w-full sm:w-auto sm:ml-auto">
+            {/* Live Filter Indicator Pills (visible when collapsed or expanded) */}
+            <div className="hidden sm:flex items-center space-x-1">
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted border border-terminal-border">
+                {indexFilter === 'ALL' ? 'ALL STRIKES' : indexFilter}
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-bull/10 text-bull border border-bull/30">
+                1-Sec Live
+              </span>
             </div>
 
             {/* Standardized Dropdown Toggle Button */}
@@ -166,7 +172,7 @@ export const RadarFeed: React.FC = () => {
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
               }}
-              className={`px-3 py-1.5 rounded-xl border-2 font-mono font-black text-[11px] sm:text-xs transition-all hover:scale-105 flex items-center gap-2 shrink-0 shadow-sm ${
+              className={`px-3 py-1.5 rounded-xl border-2 font-mono font-black text-[11px] sm:text-xs transition-all hover:scale-105 flex items-center justify-center gap-2 shrink-0 shadow-sm ${
                 isExpanded
                   ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.3)]'
                   : 'bg-terminal-card border-accent-cyan/70 text-terminal-text hover:border-accent-cyan hover:text-accent-cyan'
