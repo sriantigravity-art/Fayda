@@ -410,9 +410,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     connectWs();
 
-    const host = window.location.hostname || 'localhost';
     // Immediate initial state fetch via HTTP REST for instant load
-    fetch(`http://${host}:3001/api/index-states`)
+    fetch(`${getApiBase()}/api/index-states`)
       .then((r) => r.json())
       .then((states) => {
         if (states && Object.keys(states).length > 0) {
@@ -421,7 +420,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .catch(() => {});
 
-    fetch(`http://${host}:3001/api/index-state?symbol=${selectedIndex}`)
+    fetch(`${getApiBase()}/api/index-state?symbol=${selectedIndex}`)
       .then((r) => r.json())
       .then((st) => {
         if (st) {
@@ -447,8 +446,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return prev;
     });
 
-    const host = window.location.hostname || 'localhost';
-    fetch(`http://${host}:3001/api/index-state?symbol=${sym}`)
+    fetch(`${getApiBase()}/api/index-state?symbol=${sym}`)
       .then((r) => r.json())
       .then((st) => {
         if (st) {
@@ -457,7 +455,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .catch(() => {});
 
-    fetch(`http://${host}:3001/api/symbol/watch`, {
+    fetch(`${getApiBase()}/api/symbol/watch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol: sym })
