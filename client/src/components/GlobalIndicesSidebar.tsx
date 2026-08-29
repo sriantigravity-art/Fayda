@@ -80,7 +80,7 @@ export const GlobalIndicesSidebar: React.FC = () => {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="fixed right-0 top-32 sm:top-1/2 sm:-translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(0,229,255,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/70 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(0,229,255,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/70 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
           title="Expand Top International Indices & Market Sentiment"
         >
           {/* Mobile View (< sm): Compact Glowing Globe Icon Only */}
