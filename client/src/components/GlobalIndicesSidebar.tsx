@@ -110,8 +110,8 @@ export const GlobalIndicesSidebar: React.FC = () => {
 
       {/* 3. Slide-out Drawer Panel (Full width on mobile, sleek docked drawer on desktop) */}
       <aside
-        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[380px] md:w-[410px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[380px] md:w-[410px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
+          isOpen ? 'translate-x-0 opacity-100 visible pointer-events-auto' : 'translate-x-full opacity-0 invisible pointer-events-none'
         }`}
       >
         {/* Header Bar */}

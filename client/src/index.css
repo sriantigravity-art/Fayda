@@ -41,12 +41,19 @@
   --color-accent-purple: 147 51 234;   /* #9333EA Purple */
 }
 
-body {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
   background-color: rgb(var(--color-terminal-bg));
   color: rgb(var(--color-terminal-text));
-  overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 

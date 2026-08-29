@@ -23,7 +23,7 @@ const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'HEATMAP' | 'ANALYTICS'>('HEATMAP');
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-cyan selection:text-terminal-bg font-sans antialiased pb-9">
+    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-cyan selection:text-terminal-bg font-sans antialiased pb-9 w-full max-w-[100vw] overflow-x-hidden">
       {/* Right Side Docked International Indices Drawer with Vertical Toggle */}
       <GlobalIndicesSidebar />
 

@@ -22,7 +22,7 @@ export const DisclaimerTicker: React.FC = () => {
       </div>
 
       {/* Infinite Seamless Scrolling Disclaimer Stream */}
-      <div className="overflow-hidden whitespace-nowrap flex-1 relative flex items-center">
+      <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center">
         <div className="flex animate-marquee-seamless whitespace-nowrap text-[10px] sm:text-[11px] font-mono text-terminal-muted/90 font-medium">
           {/* First loop */}
           <div className="flex items-center space-x-8 shrink-0 pr-8">
