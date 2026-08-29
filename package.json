@@ -6,8 +6,9 @@
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build:server": "npm --prefix server run build",
-    "build:client": "npm --prefix client run build",
-    "build": "npm --prefix client run build",
+    "build:client": "npm --prefix client install && npm --prefix client run build",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "postinstall": "npm --prefix client install",
     "start": "node server/dist/index.js"
   },
   "keywords": ["options", "nifty", "banknifty", "oi-surge", "radar", "nse"],
