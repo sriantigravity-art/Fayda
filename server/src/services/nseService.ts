@@ -29,7 +29,8 @@ export interface NseFetchResult {
 const NSE_DERIVATIVE_INDEX_MAP: Record<string, string> = {
   NIFTY: 'nse50_opt',
   BANKNIFTY: 'nifty_bank_opt',
-  FINNIFTY: 'finnifty_opt'
+  FINNIFTY: 'finnifty_opt',
+  MIDCPNIFTY: 'midcap_nifty_opt'
 };
 
 export class NseService {
@@ -176,42 +177,57 @@ export class NseService {
       return cached.result;
     }
 
-    // Fallback: Exact official NSE 28-Aug-2026 closing settlement data snapshot
-    const defaultSpot = symbol === 'BANKNIFTY' ? 57496.3 : (symbol === 'FINNIFTY' ? 26286.5 : 24175.65);
-    const step = symbol === 'BANKNIFTY' ? 100 : 50;
-    const atmStrike = Math.round(defaultSpot / step) * step;
-    const expiryDates = ['01-Sep-2026', '08-Sep-2026', '15-Sep-2026', '29-Sep-2026'];
-    const selectedExpiry = expiry || expiryDates[0];
+  // Fallback: Approximate closing data per index
+  const FALLBACK: Record<string, { spot: number; step: number }> = {
+    NIFTY:       { spot: 24175.65, step: 50 },
+    BANKNIFTY:   { spot: 57496.30, step: 100 },
+    FINNIFTY:    { spot: 26286.50, step: 50 },
+    MIDCPNIFTY:  { spot: 13245.00, step: 25 },
+    NIFTYNXT50:  { spot: 67500.00, step: 100 },
+    SENSEX:      { spot: 79218.00, step: 100 },
+    BANKEX:      { spot: 60845.00, step: 100 },
+    CRUDEOIL:    { spot: 5720.00,  step: 50 },
+    NATURALGAS:  { spot: 215.00,   step: 5 },
+    GOLD:        { spot: 73500.00, step: 200 },
+    SILVER:      { spot: 88000.00, step: 500 },
+  };
 
-    const fallbackStrikes: RawStrikeSnapshot[] = [];
-    for (let i = -15; i <= 15; i++) {
-      const strikePrice = atmStrike + (i * step);
-      fallbackStrikes.push({
-        strikePrice,
-        callOI: Math.round(120000 * Math.exp(-Math.abs(i) * 0.15)),
-        callOIChangeTotal: 500,
-        callLtp: Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, 4 / 365, 0.07, 0.14, 'CE')).toFixed(2)),
-        callVolume: 150000,
-        putOI: Math.round(130000 * Math.exp(-Math.abs(i) * 0.15)),
-        putOIChangeTotal: 600,
-        putLtp: Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, 4 / 365, 0.07, 0.14, 'PE')).toFixed(2)),
-        putVolume: 160000
-      });
-    }
+  const fb = FALLBACK[symbol] || { spot: 24175.65, step: 50 };
+  const defaultSpot = fb.spot;
+  const step = fb.step;
+  const atmStrike = Math.round(defaultSpot / step) * step;
+  const expiryDates = ['01-Sep-2026', '08-Sep-2026', '15-Sep-2026', '29-Sep-2026'];
+  const selectedExpiry = expiry || expiryDates[0];
 
-    return {
-      symbol,
-      spotPrice: defaultSpot,
-      spotChange: 84.80,
-      spotPctChange: 0.35,
-      timestamp: '28-Aug-2026 15:40:00',
-      strikes: fallbackStrikes,
-      expiryDates,
-      selectedExpiry,
-      totalCallOI: 1500000,
-      totalPutOI: 1650000
-    };
+  const fallbackStrikes: RawStrikeSnapshot[] = [];
+  for (let i = -15; i <= 15; i++) {
+    const strikePrice = atmStrike + (i * step);
+    fallbackStrikes.push({
+      strikePrice,
+      callOI: Math.round(120000 * Math.exp(-Math.abs(i) * 0.15)),
+      callOIChangeTotal: 500,
+      callLtp: Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, 4 / 365, 0.07, 0.14, 'CE')).toFixed(2)),
+      callVolume: 150000,
+      putOI: Math.round(130000 * Math.exp(-Math.abs(i) * 0.15)),
+      putOIChangeTotal: 600,
+      putLtp: Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, 4 / 365, 0.07, 0.14, 'PE')).toFixed(2)),
+      putVolume: 160000
+    });
   }
+
+  return {
+    symbol,
+    spotPrice: defaultSpot,
+    spotChange: 84.80,
+    spotPctChange: 0.35,
+    timestamp: '28-Aug-2026 15:40:00',
+    strikes: fallbackStrikes,
+    expiryDates,
+    selectedExpiry,
+    totalCallOI: 1500000,
+    totalPutOI: 1650000
+  };
+}
 }
 
 export const nseService = new NseService();
