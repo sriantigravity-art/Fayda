@@ -11,8 +11,12 @@
     "dev:client": "npm run dev --workspace=client",
     "build:server": "npm run build --workspace=server",
     "build:client": "npm run build --workspace=client",
-    "build": "npm run build --workspace=client",
+    "build": "cd client && npm install && npm run build",
     "start": "node server/dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^8.2.2"
   },
   "keywords": ["options", "nifty", "banknifty", "oi-surge", "radar", "nse"],
   "author": "",
