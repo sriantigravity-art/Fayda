@@ -1,6 +1,9 @@
 {
-  "name": "Fayda - Advanced OI & Option Flow Terminal",
+  "name": "Fayda - Live Indian Market Trading Analytics Terminal",
   "short_name": "Fayda",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,7 +16,6 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0B0E14",
-  "background_color": "#0B0E14",
-  "display": "standalone"
+  "theme_color": "#080B11",
+  "background_color": "#080B11"
 }

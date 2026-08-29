@@ -14,10 +14,12 @@ import {
   TrendingDown, 
   Activity, 
   Sun, 
-  Moon,
-  X,
-  MoreHorizontal,
-  Sliders
+  Moon, 
+  X, 
+  MoreHorizontal, 
+  Sliders, 
+  Maximize2, 
+  Minimize2 
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { FyersModal } from './FyersModal';
@@ -44,7 +46,46 @@ export const HeaderBar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Sync fullscreen state with browser events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        } else if ((elem as any).webkitRequestFullscreen) {
+          await (elem as any).webkitRequestFullscreen();
+        } else if ((elem as any).msRequestFullscreen) {
+          await (elem as any).msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('[Fullscreen Mode] Browser prevented fullscreen:', err);
+    }
+  };
 
   // Close more menu on outside click
   useEffect(() => {
@@ -157,17 +198,6 @@ export const HeaderBar: React.FC = () => {
               )}
             </button>
 
-            {/* GLOBAL INDICES RADAR QUICK-ACCESS BUTTON (Prominently visible on top) */}
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('toggle-global-indices'))}
-              className="inline-flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs font-mono font-bold rounded-xl border bg-accent-cyan/10 hover:bg-accent-cyan/20 border-accent-cyan/40 text-accent-cyan transition shrink-0 shadow-sm"
-              title="Open Global Market Indices Radar"
-            >
-              <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent-cyan shrink-0 animate-pulse" />
-              <span>Global</span>
-            </button>
-
             {/* LIVE MARKET SENTIMENT BADGE (Visible on screens >= 1380px) */}
             <div
               className={`hidden 2xl:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono font-bold uppercase rounded-lg border transition shadow-sm shrink-0 ${
@@ -269,6 +299,20 @@ export const HeaderBar: React.FC = () => {
             )}
           </button>
 
+          {/* 1-Tap Native Fullscreen Mode Button */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-1 sm:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
+            title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode (All Mobile & Desktop Devices)"}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-cyan" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-terminal-muted hover:text-accent-cyan" />
+            )}
+          </button>
+
           {/* PROMINENT DIGITAL MARKET CLOCK */}
           <div className="flex items-center space-x-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
             <Clock className="w-3 h-3 text-accent-cyan animate-pulse shrink-0" />
@@ -306,6 +350,23 @@ export const HeaderBar: React.FC = () => {
                   </span>
                   <button onClick={() => setIsMoreMenuOpen(false)} className="text-terminal-muted hover:text-terminal-text">
                     <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Fullscreen Mode Toggle */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
+                  <div className="flex items-center space-x-2">
+                    {isFullscreen ? <Minimize2 className="w-4 h-4 text-accent-cyan" /> : <Maximize2 className="w-4 h-4 text-accent-cyan" />}
+                    <div>
+                      <span className="font-bold text-terminal-text block text-[11px]">Full Screen Mode</span>
+                      <span className="text-[10px] text-terminal-muted">{isFullscreen ? 'Active (Full View)' : 'All Mobile & Desktop'}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    {isFullscreen ? 'Exit Full' : 'Full Screen'}
                   </button>
                 </div>
 
