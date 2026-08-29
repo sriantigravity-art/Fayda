@@ -75,34 +75,17 @@ export const GlobalIndicesSidebar: React.FC = () => {
 
   return (
     <>
-      {/* 1. Backdrop Click-to-Dismiss Overlay */}
-      {isOpen && (
-        <div
-          onClick={toggleSidebar}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-in fade-in duration-200"
-        />
-      )}
-
-      {/* 2. Slide-out Drawer Panel (Full width on mobile, sleek docked drawer on desktop) */}
-      <aside
-        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[380px] md:w-[410px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        {/* Protruding Vertical Toggle Handle on Left Edge (visible on desktop >= sm) */}
+      {/* 1. Floating Toggle Button (Always visible on mobile & desktop right edge when closed) */}
+      {!isOpen && (
         <button
           type="button"
           onClick={toggleSidebar}
-          className="hidden sm:flex absolute -left-[38px] top-1/2 -translate-y-1/2 z-50 items-center gap-1.5 py-3 px-1.5 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-6px_0_20px_rgba(0,229,255,0.35)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/60 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
-          title={isOpen ? 'Collapse Global Indices Panel (Esc)' : 'Expand Top International Indices'}
+          className="fixed right-0 top-32 sm:top-1/2 sm:-translate-y-1/2 z-40 flex items-center gap-1.5 py-3 px-2 rounded-l-2xl border-l border-t border-b font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-6px_0_25px_rgba(0,229,255,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-accent-cyan/70 text-terminal-text hover:text-accent-cyan hover:border-accent-cyan cursor-pointer"
+          title="Expand Top International Indices & Market Sentiment"
           style={{ writingMode: 'vertical-rl' }}
         >
           <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
-            {isOpen ? (
-              <ChevronRight className="w-3.5 h-3.5 text-accent-cyan" />
-            ) : (
-              <ChevronLeft className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
-            )}
+            <ChevronLeft className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
             <span className="w-1.5 h-1.5 rounded-full bg-bull animate-ping" />
           </div>
           
@@ -111,10 +94,26 @@ export const GlobalIndicesSidebar: React.FC = () => {
             <span>GLOBAL INDICES</span>
           </div>
 
-          <span className="text-[9px] px-1 py-0.2 rounded bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 font-mono mt-1">
+          <span className="text-[9px] px-1 py-0.2 rounded bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 font-mono mt-1 font-extrabold">
             {globalIndices.length}
           </span>
         </button>
+      )}
+
+      {/* 2. Backdrop Click-to-Dismiss Overlay */}
+      {isOpen && (
+        <div
+          onClick={toggleSidebar}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-in fade-in duration-200"
+        />
+      )}
+
+      {/* 3. Slide-out Drawer Panel (Full width on mobile, sleek docked drawer on desktop) */}
+      <aside
+        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[380px] md:w-[410px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-transform duration-300 ease-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         {/* Header Bar */}
         <div className="p-3 sm:p-4 border-b border-terminal-border bg-terminal-panel/85 sm:rounded-tl-3xl flex flex-col gap-2 relative">
           {/* Ambient Glow */}
