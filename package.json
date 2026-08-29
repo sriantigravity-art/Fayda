@@ -2,6 +2,9 @@
   "name": "market-nifty-oi-surge-ticker",
   "version": "1.0.0",
   "description": "Real-Time Indian Options OI Surge Ticker & Activity Radar",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
