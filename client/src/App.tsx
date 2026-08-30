@@ -15,6 +15,7 @@ import { SquareOffAlertBanner } from './components/SquareOffAlertBanner';
 import { HighlightSignalTicker } from './components/HighlightSignalTicker';
 import { DisclaimerTicker } from './components/DisclaimerTicker';
 import { GlobalIndicesSidebar } from './components/GlobalIndicesSidebar';
+import { SplashScreen } from './components/SplashScreen';
 import { Layers, Activity } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -23,6 +24,9 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-cyan selection:text-terminal-bg font-sans antialiased pb-9 w-full max-w-[100vw] overflow-x-hidden">
+      {/* App Launch Video Splash Screen */}
+      <SplashScreen />
+
       {/* Right Side Docked International Indices Drawer with Vertical Toggle */}
       <GlobalIndicesSidebar />
 

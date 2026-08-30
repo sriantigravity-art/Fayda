@@ -101,10 +101,6 @@ export const GlobalIndicesSidebar: React.FC = () => {
               <Globe className="w-3.5 h-3.5 rotate-90 text-accent-cyan" />
               <span>GLOBAL INDICES</span>
             </div>
-
-            <span className="text-[9px] px-1 py-0.2 rounded bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 font-mono mt-1 font-extrabold">
-              {globalIndices.length}
-            </span>
           </div>
         </button>
       )}

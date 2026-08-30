@@ -161,9 +161,9 @@ export const StockSelectorDropdown: React.FC = () => {
 
       {/* Popover Dropdown Panel */}
       {isOpen && (
-        <div className="fixed sm:absolute left-3 sm:left-0 top-14 sm:top-full mt-1 w-[calc(100vw-24px)] sm:w-[440px] max-h-[480px] bg-terminal-card/95 backdrop-blur-xl border-2 border-accent-cyan/60 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.85)] z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
+        <div className="fixed sm:absolute left-3 sm:left-0 top-14 sm:top-full mt-1 w-[calc(100vw-24px)] sm:w-[440px] max-h-[480px] bg-terminal-card border-2 border-accent-cyan/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
           {/* Header & Search Bar */}
-          <div className="p-3 border-b border-terminal-border bg-terminal-panel/60 space-y-2.5">
+          <div className="p-3 border-b border-terminal-border bg-terminal-panel space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-terminal-text uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />

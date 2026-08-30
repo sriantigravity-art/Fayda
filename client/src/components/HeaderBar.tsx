@@ -158,263 +158,441 @@ export const HeaderBar: React.FC = () => {
   const isBearishSentiment = activePcr <= 0.88;
 
   return (
-    <header className="border-b border-terminal-border bg-terminal-panel/95 backdrop-blur sticky top-0 z-40 px-2 sm:px-4 py-1.5 sm:py-2 shadow-md">
-      {/* 1st Row: Master Control Header Bar (2 Lines on Mobile, Single Row on Desktop) */}
+    <header className="border-b border-terminal-border bg-terminal-panel sticky top-0 z-40 px-2 sm:px-4 py-1.5 sm:py-2 shadow-md">
+      {/* 1st Row: Master Control Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 sm:gap-2 min-w-0">
-        {/* LINE 1 ON MOBILE / LEFT SIDE ON DESKTOP */}
-        <div className="flex items-center justify-between md:justify-start space-x-2 shrink-0 min-w-0 w-full md:w-auto">
-          {/* Brand Logo (Enlarged and prominent on mobile top-left) */}
-          <div className="flex items-center shrink-0">
-            <img
-              src="/fayda-logo.png"
-              alt="Fayda Logo"
-              className="h-8.5 xs:h-9.5 md:h-8.5 w-auto max-w-[125px] xs:max-w-[145px] md:max-w-[125px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
-            />
+        
+        {/* ========================================================================= */}
+        {/* MOBILE VIEW (< md): 2-LINE CLEAN TITLEBAR                                 */}
+        {/* ========================================================================= */}
+        <div className="flex md:hidden flex-col gap-1.5 w-full">
+          {/* MOBILE LINE 1: Brand Logo (Left) + Clock & Fullscreen & Settings (Right) */}
+          <div className="flex items-center justify-between w-full">
+            {/* Logo */}
+            <div className="flex items-center shrink-0">
+              <img
+                src="/fayda-logo.png"
+                alt="Fayda Logo"
+                className="h-8.5 xs:h-9.5 w-auto max-w-[125px] xs:max-w-[145px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
+              />
+            </div>
+
+            {/* Mobile Top-Right Controls: Clock (Left of Fullscreen) + Fullscreen Button + Settings */}
+            <div className="flex items-center space-x-1.5 shrink-0">
+              {/* Digital Market Clock */}
+              <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
+                <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
+                <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
+                  {currentTime}
+                </span>
+                <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
+                  IST
+                </span>
+              </div>
+
+              {/* Fullscreen Button */}
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="p-1 xs:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
+                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-accent-cyan" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-terminal-muted hover:text-accent-cyan" />
+                )}
+              </button>
+
+              {/* More Controls (•••) */}
+              <button
+                type="button"
+                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                className={`p-1 xs:p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
+                  isMoreMenuOpen 
+                    ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' 
+                    : 'bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="More Institutional Controls & Settings"
+              >
+                <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* DESKTOP-ONLY INLINE CONTROLS (Hidden on mobile < md) */}
-          <div className="hidden md:flex items-center space-x-1.5 shrink-0">
-            {/* ONE-LINER SELECT ASSET DROPDOWN */}
-            <StockSelectorDropdown />
+          {/* MOBILE LINE 2: Controls Row (Asset Selector & Expiry) */}
+          <div className="flex items-center justify-between w-full pt-1 border-t border-terminal-border/30">
+            {/* Left: Asset Dropdown */}
+            <div className="flex items-center space-x-1 shrink-0">
+              <StockSelectorDropdown />
+            </div>
 
-            {/* Verified Account Name / Connect Fyers */}
+            {/* Right: Expiry Selector */}
+            <div className="flex items-center space-x-1 shrink-0">
+              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg px-1.5 py-0.5 space-x-1 text-xs font-mono shrink-0">
+                <Calendar className="w-3 h-3 text-amber shrink-0" />
+                <span className="text-[9px] text-terminal-muted font-bold uppercase">Expiry:</span>
+                {expiryDates.length > 0 ? (
+                  <select
+                    value={selectedExpiry}
+                    onChange={(e) => setOptionExpiry(e.target.value)}
+                    className="bg-transparent text-terminal-text font-bold focus:outline-none cursor-pointer text-[10px] max-w-[85px]"
+                  >
+                    {expiryDates.map((exp: string) => (
+                      <option key={exp} value={exp} className="bg-terminal-card text-terminal-text">
+                        {exp}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-bold text-terminal-text text-[10px]">{selectedExpiry}</span>
+                )}
+                <span className="text-[8px] px-1 py-0.2 rounded bg-amber/10 border border-amber/30 text-amber font-bold">
+                  {daysToExpiry === 0 ? '0D' : `${daysToExpiry}D`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DESKTOP VIEW (>= md): COMPLETE INSTITUTIONAL 1-ROW MASTER BAR             */}
+        {/* ========================================================================= */}
+        <div className="hidden md:flex items-center justify-between w-full">
+          {/* DESKTOP LEFT SIDE: Brand Logo, Asset Selector, Expiry Selector, Sentiment */}
+          <div className="flex items-center space-x-2 shrink-0 min-w-0">
+            <div className="flex items-center shrink-0">
+              <img
+                src="/fayda-logo.png"
+                alt="Fayda Logo"
+                className="h-8.5 w-auto max-w-[125px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
+              />
+            </div>
+
+            <div className="flex items-center space-x-1.5 shrink-0">
+              {/* ONE-LINER SELECT ASSET DROPDOWN */}
+              <StockSelectorDropdown />
+
+              {/* Option Expiry Selector (Beside Select Asset) */}
+              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-xl px-2.5 py-1 space-x-1.5 text-xs font-mono shrink-0 shadow-sm">
+                <Calendar className="w-3.5 h-3.5 text-amber shrink-0" />
+                <span className="text-[11px] text-terminal-muted font-bold uppercase tracking-wider">Expiry:</span>
+                {expiryDates.length > 0 ? (
+                  <select
+                    value={selectedExpiry}
+                    onChange={(e) => setOptionExpiry(e.target.value)}
+                    className="bg-transparent text-terminal-text font-bold focus:outline-none cursor-pointer text-xs"
+                  >
+                    {expiryDates.map((exp: string) => (
+                      <option key={exp} value={exp} className="bg-terminal-card text-terminal-text">
+                        {exp}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-bold text-terminal-text text-xs">{selectedExpiry}</span>
+                )}
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber/10 border border-amber/30 text-amber font-bold">
+                  {daysToExpiry === 0 ? '0D' : `${daysToExpiry}D`}
+                </span>
+              </div>
+
+              {/* LIVE MARKET SENTIMENT BADGE (Visible on screens >= 1200px) */}
+              <div
+                className={`hidden xl:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono font-bold uppercase rounded-lg border transition shadow-sm shrink-0 ${
+                  isBullishSentiment
+                    ? 'bg-bull/20 border-bull text-bull shadow-[0_0_12px_rgba(0,245,155,0.35)] animate-pulse'
+                    : isBearishSentiment
+                    ? 'bg-bear/20 border-bear text-bear shadow-[0_0_12px_rgba(255,59,105,0.35)] animate-pulse'
+                    : 'bg-amber/15 border-amber/50 text-amber'
+                }`}
+                title={`Live OI Market Sentiment for ${selectedIndex}: PCR ${activePcr.toFixed(2)}`}
+              >
+                {isBullishSentiment ? (
+                  <>
+                    <TrendingUp className="w-3.5 h-3.5 text-bull shrink-0" />
+                    <span>BULLISH ({activePcr.toFixed(2)})</span>
+                  </>
+                ) : isBearishSentiment ? (
+                  <>
+                    <TrendingDown className="w-3.5 h-3.5 text-bear shrink-0" />
+                    <span>BEARISH ({activePcr.toFixed(2)})</span>
+                  </>
+                ) : (
+                  <>
+                    <Activity className="w-3.5 h-3.5 text-amber shrink-0" />
+                    <span>NEUTRAL ({activePcr.toFixed(2)})</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP RIGHT SIDE: Audio, Theme, Fullscreen, Clock, Settings */}
+          <div className="flex items-center space-x-1.5 shrink-0">
+            {/* Audio Chime Toggle */}
+            <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg p-0.5 text-xs shrink-0">
+              <button
+                onClick={toggleMute}
+                title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
+                className={`p-1.5 rounded transition ${
+                  isMuted ? 'text-terminal-muted hover:text-terminal-text' : 'bg-bull/20 text-bull'
+                }`}
+              >
+                {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {/* Light / Dark Theme Toggle Button */}
             <button
-              onClick={() => setIsFyersModalOpen(true)}
-              className={`inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-mono rounded-xl border transition shrink-0 ${
-                fyersConfig.isConnected
-                  ? 'bg-bull/15 border-bull/50 text-bull font-bold hover:bg-bull/25'
-                  : 'bg-accent-cyan/10 border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/20'
-              }`}
-              title="Click to view or update Fyers API token"
+              type="button"
+              onClick={toggleTheme}
+              className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-terminal-card border border-terminal-border hover:border-accent-cyan transition shadow-sm font-mono text-[10px] font-bold text-terminal-text shrink-0"
+              title={theme === 'dark' ? 'Current: Dark Mode (Click for Light Theme ☀️)' : 'Current: Light Mode (Click for Dark Theme 🌙)'}
             >
-              {fyersConfig.isConnected ? (
+              {theme === 'dark' ? (
                 <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-bull shrink-0" />
-                  <span className="font-semibold text-xs">SRS</span>
+                  <Moon className="w-3.5 h-3.5 text-accent-cyan" />
+                  <span className="text-terminal-text">DARK</span>
                 </>
               ) : (
                 <>
-                  <KeyRound className="w-3.5 h-3.5 shrink-0" />
-                  <span>Connect Fyers</span>
+                  <Sun className="w-3.5 h-3.5 text-amber" />
+                  <span className="text-terminal-text">LIGHT</span>
                 </>
               )}
             </button>
 
-            {/* LIVE MARKET SENTIMENT BADGE (Visible on screens >= 1380px) */}
-            <div
-              className={`hidden 2xl:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono font-bold uppercase rounded-lg border transition shadow-sm shrink-0 ${
-                isBullishSentiment
-                  ? 'bg-bull/20 border-bull text-bull shadow-[0_0_12px_rgba(0,245,155,0.35)] animate-pulse'
-                  : isBearishSentiment
-                  ? 'bg-bear/20 border-bear text-bear shadow-[0_0_12px_rgba(255,59,105,0.35)] animate-pulse'
-                  : 'bg-amber/15 border-amber/50 text-amber'
-              }`}
-              title={`Live OI Market Sentiment for ${selectedIndex}: PCR ${activePcr.toFixed(2)}`}
+            {/* 1-Tap Native Fullscreen Mode Button */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
+              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode (All Mobile & Desktop Devices)"}
             >
-              {isBullishSentiment ? (
-                <>
-                  <TrendingUp className="w-3.5 h-3.5 text-bull shrink-0" />
-                  <span>BULLISH ({activePcr.toFixed(2)})</span>
-                </>
-              ) : isBearishSentiment ? (
-                <>
-                  <TrendingDown className="w-3.5 h-3.5 text-bear shrink-0" />
-                  <span>BEARISH ({activePcr.toFixed(2)})</span>
-                </>
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4 text-accent-cyan" />
               ) : (
-                <>
-                  <Activity className="w-3.5 h-3.5 text-amber shrink-0" />
-                  <span>NEUTRAL ({activePcr.toFixed(2)})</span>
-                </>
+                <Maximize2 className="w-4 h-4 text-terminal-muted hover:text-accent-cyan" />
               )}
-            </div>
+            </button>
 
-            {/* Market Status (Visible on screens >= 1024px) */}
-            <div
-              className={`hidden lg:inline-flex items-center px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded-md border shrink-0 ${
-                isLiveMarketOpen
-                  ? 'bg-bull-subtle border-bull text-bull shadow-[0_0_8px_rgba(0,245,155,0.4)]'
-                  : 'bg-amber/15 border-amber/40 text-amber'
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full mr-1 ${isLiveMarketOpen ? 'bg-bull animate-ping' : 'bg-amber'}`} />
-              {isLiveMarketOpen ? 'LIVE' : 'OFFICIAL EOD'}
-            </div>
-          </div>
-
-          {/* MOBILE-ONLY TOP-RIGHT ROW: Clock (Left of Fullscreen) + Fullscreen Button + Settings */}
-          <div className="flex md:hidden items-center space-x-1.5 shrink-0">
-            {/* Digital Market Clock (Left of Fullscreen) */}
-            <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
-              <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
-              <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
+            {/* PROMINENT DIGITAL MARKET CLOCK */}
+            <div className="flex items-center space-x-1 px-2.5 py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
+              <Clock className="w-3.5 h-3.5 text-accent-cyan animate-pulse shrink-0" />
+              <span className="text-xs md:text-sm font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
                 {currentTime}
               </span>
-              <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
+              <span className="text-[8px] text-accent-cyan font-extrabold uppercase">
                 IST
               </span>
             </div>
 
-            {/* Fullscreen Button */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="p-1 xs:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
-              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode"}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-accent-cyan" />
-              ) : (
-                <Maximize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-terminal-muted hover:text-accent-cyan" />
-              )}
-            </button>
-
-            {/* More Controls (•••) */}
+            {/* RESPONSIVE INSTITUTIONAL MORE (•••) DROPDOWN MENU BUTTON */}
             <button
               type="button"
               onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-              className={`p-1 xs:p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
+              className={`p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
                 isMoreMenuOpen 
                   ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' 
                   : 'bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-terminal-text'
               }`}
               title="More Institutional Controls & Settings"
             >
-              <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <MoreHorizontal className="w-4 h-4" />
             </button>
-
-            {/* Popover Dropdown Panel */}
-            {isMoreMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[280px] sm:w-[320px] bg-terminal-card/95 backdrop-blur-xl border-2 border-accent-cyan/60 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.7)] z-50 p-3 space-y-2.5 text-xs animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-terminal-border">
-                  <span className="font-bold text-terminal-text flex items-center gap-1.5 uppercase text-[11px] tracking-wider">
-                    <Sliders className="w-3.5 h-3.5 text-accent-cyan" />
-                    <span>TERMINAL CONTROLS</span>
-                  </span>
-                  <button onClick={() => setIsMoreMenuOpen(false)} className="text-terminal-muted hover:text-terminal-text">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Fullscreen Mode Toggle */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
-                  <div className="flex items-center space-x-2">
-                    {isFullscreen ? <Minimize2 className="w-4 h-4 text-accent-cyan" /> : <Maximize2 className="w-4 h-4 text-accent-cyan" />}
-                    <div>
-                      <span className="font-bold text-terminal-text block text-[11px]">Full Screen Mode</span>
-                      <span className="text-[10px] text-terminal-muted">{isFullscreen ? 'Active (Full View)' : 'All Mobile & Desktop'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleFullscreen}
-                    className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
-                  >
-                    {isFullscreen ? 'Exit Full' : 'Full Screen'}
-                  </button>
-                </div>
-
-                {/* Market Sentiment & PCR Row */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-accent-cyan" />
-                    <div>
-                      <span className="font-bold text-terminal-text block text-[11px]">{selectedIndex} Sentiment</span>
-                      <span className="text-[10px] text-terminal-muted">ATM PCR: {activePcr.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    isBullishSentiment ? 'bg-bull/20 text-bull border border-bull/40' : isBearishSentiment ? 'bg-bear/20 text-bear border border-bear/40' : 'bg-amber/20 text-amber border border-amber/40'
-                  }`}>
-                    {isBullishSentiment ? '▲ BULLISH' : isBearishSentiment ? '▼ BEARISH' : '⬌ NEUTRAL'}
-                  </span>
-                </div>
-
-                {/* Data Source Switcher */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
-                  <div className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4 text-bull" />
-                    <div>
-                      <span className="font-bold text-terminal-text block text-[11px]">Data Source</span>
-                      <span className="text-[10px] text-terminal-muted">{dataSource === 'FYERS_LIVE' ? 'Fyers WebSocket API' : 'NSE Official Bhavcopy'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setDataSource(dataSource === 'FYERS_LIVE' ? 'NSE_LIVE' : 'FYERS_LIVE')}
-                    className="px-2 py-1 rounded-lg bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan font-bold text-[10px] transition"
-                  >
-                    Switch
-                  </button>
-                </div>
-
-                {/* Audio Alerts & Voice Chime */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
-                  <div className="flex items-center space-x-2">
-                    {isMuted ? <VolumeX className="w-4 h-4 text-terminal-muted" /> : <Volume2 className="w-4 h-4 text-bull" />}
-                    <div>
-                      <span className="font-bold text-terminal-text block text-[11px]">Audio Alerts</span>
-                      <span className="text-[10px] text-terminal-muted">{isMuted ? 'Muted' : 'Live Audio Active'}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={toggleMute}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
-                        isMuted ? 'bg-terminal-bg text-terminal-muted border-terminal-border' : 'bg-bull/20 text-bull border-bull/40'
-                      }`}
-                    >
-                      {isMuted ? 'Unmute' : 'Mute'}
-                    </button>
-                    <button
-                      onClick={testSound}
-                      className="px-1.5 py-1 rounded-lg bg-terminal-bg text-terminal-text border border-terminal-border text-[10px] hover:border-accent-cyan"
-                    >
-                      Test
-                    </button>
-                  </div>
-                </div>
-
-                {/* Theme Mode Toggle */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border">
-                  <div className="flex items-center space-x-2">
-                    {theme === 'dark' ? <Moon className="w-4 h-4 text-accent-cyan" /> : <Sun className="w-4 h-4 text-amber" />}
-                    <div>
-                      <span className="font-bold text-terminal-text block text-[11px]">Appearance</span>
-                      <span className="text-[10px] text-terminal-muted">{theme === 'dark' ? 'Dark Terminal Mode' : 'Light Pro Mode'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleTheme}
-                    className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
-                  >
-                    {theme === 'dark' ? (
-                      <>
-                        <Sun className="w-3 h-3 text-amber" />
-                        <span>Light Mode</span>
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="w-3 h-3 text-accent-cyan" />
-                        <span>Dark Mode</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Connection Status */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border text-[11px]">
-                  <div className="flex items-center space-x-2">
-                    <Radio className={`w-4 h-4 ${isConnected ? 'text-bull' : 'text-bear'}`} />
-                    <span className="text-terminal-muted">Connection:</span>
-                  </div>
-                  <span className={`font-bold ${isConnected ? 'text-bull' : 'text-bear animate-pulse'}`}>
-                    {isConnected ? '100% ONLINE (1-Sec Stream)' : 'OFFLINE'}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
+
       </div>
+
+      {/* POPOVER CONTROLS PANEL (Accessible on both mobile and desktop) */}
+      {isMoreMenuOpen && (
+        <div 
+          ref={moreMenuRef} 
+          className="absolute right-2 sm:right-4 top-full mt-2 w-[290px] sm:w-[330px] bg-terminal-card border-2 border-accent-cyan/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-50 p-3 space-y-2.5 text-xs animate-in fade-in zoom-in-95 duration-150 font-mono"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-terminal-border">
+            <span className="font-bold text-terminal-text flex items-center gap-1.5 uppercase text-[11px] tracking-wider">
+              <Sliders className="w-3.5 h-3.5 text-accent-cyan" />
+              <span>TERMINAL CONTROLS</span>
+            </span>
+            <button onClick={() => setIsMoreMenuOpen(false)} className="text-terminal-muted hover:text-terminal-text">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Fullscreen Mode Toggle */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              {isFullscreen ? <Minimize2 className="w-4 h-4 text-accent-cyan" /> : <Maximize2 className="w-4 h-4 text-accent-cyan" />}
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Full Screen Mode</span>
+                <span className="text-[10px] text-terminal-muted">{isFullscreen ? 'Active (Full View)' : 'All Mobile & Desktop'}</span>
+              </div>
+            </div>
+            <button
+              onClick={toggleFullscreen}
+              className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
+            >
+              {isFullscreen ? 'Exit Full' : 'Full Screen'}
+            </button>
+          </div>
+
+          {/* Market Sentiment & PCR Row */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              <Activity className="w-4 h-4 text-accent-cyan" />
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">{selectedIndex} Sentiment</span>
+                <span className="text-[10px] text-terminal-muted">ATM PCR: {activePcr.toFixed(2)}</span>
+              </div>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              isBullishSentiment ? 'bg-bull/20 text-bull border border-bull/40' : isBearishSentiment ? 'bg-bear/20 text-bear border border-bear/40' : 'bg-amber/20 text-amber border border-amber/40'
+            }`}>
+              {isBullishSentiment ? '▲ BULLISH' : isBearishSentiment ? '▼ BEARISH' : '⬌ NEUTRAL'}
+            </span>
+          </div>
+
+          {/* Fyers Broker API Account */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              <KeyRound className={`w-4 h-4 ${fyersConfig.isConnected ? 'text-bull' : 'text-accent-cyan'}`} />
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Fyers Broker API</span>
+                <span className="text-[10px] text-terminal-muted">
+                  {fyersConfig.isConnected ? 'Connected: SRS Trading Account' : 'Connect API Token'}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
+                setIsFyersModalOpen(true);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition flex items-center gap-1 shadow-sm ${
+                fyersConfig.isConnected
+                  ? 'bg-bull/15 border-bull/50 text-bull hover:bg-bull/25'
+                  : 'bg-accent-cyan/15 border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/25'
+              }`}
+            >
+              {fyersConfig.isConnected ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 text-bull shrink-0" />
+                  <span>Config SRS</span>
+                </>
+              ) : (
+                <span>Connect</span>
+              )}
+            </button>
+          </div>
+
+          {/* Live Market / Official EOD Session Status */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isLiveMarketOpen ? 'bg-bull animate-ping' : 'bg-amber'}`} />
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Market Session</span>
+                <span className="text-[10px] text-terminal-muted">
+                  {isLiveMarketOpen ? 'NSE / BSE / MCX Regular Trading' : 'Official Settlement Close / EOD'}
+                </span>
+              </div>
+            </div>
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0 ${
+                isLiveMarketOpen
+                  ? 'bg-bull-subtle border-bull text-bull shadow-[0_0_8px_rgba(0,245,155,0.4)]'
+                  : 'bg-amber/15 border-amber/40 text-amber'
+              }`}
+            >
+              {isLiveMarketOpen ? 'LIVE MARKET' : 'OFFICIAL EOD'}
+            </span>
+          </div>
+
+          {/* Data Source Switcher */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              <Globe className="w-4 h-4 text-bull" />
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Data Source</span>
+                <span className="text-[10px] text-terminal-muted">{dataSource === 'FYERS_LIVE' ? 'Fyers WebSocket API' : 'NSE Official Bhavcopy'}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setDataSource(dataSource === 'FYERS_LIVE' ? 'NSE_LIVE' : 'FYERS_LIVE')}
+              className="px-2 py-1 rounded-lg bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan font-bold text-[10px] transition"
+            >
+              Switch
+            </button>
+          </div>
+
+          {/* Audio Alerts & Voice Chime */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              {isMuted ? <VolumeX className="w-4 h-4 text-terminal-muted" /> : <Volume2 className="w-4 h-4 text-bull" />}
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Audio Alerts</span>
+                <span className="text-[10px] text-terminal-muted">{isMuted ? 'Muted' : 'Live Audio Active'}</span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={toggleMute}
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
+                  isMuted ? 'bg-terminal-bg text-terminal-muted border-terminal-border' : 'bg-bull/20 text-bull border-bull/40'
+                }`}
+              >
+                {isMuted ? 'Unmute' : 'Mute'}
+              </button>
+              <button
+                onClick={testSound}
+                className="px-1.5 py-1 rounded-lg bg-terminal-bg text-terminal-text border border-terminal-border text-[10px] hover:border-accent-cyan"
+              >
+                Test
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Mode Toggle */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              {theme === 'dark' ? <Moon className="w-4 h-4 text-accent-cyan" /> : <Sun className="w-4 h-4 text-amber" />}
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Appearance</span>
+                <span className="text-[10px] text-terminal-muted">{theme === 'dark' ? 'Dark Terminal Mode' : 'Light Pro Mode'}</span>
+              </div>
+            </div>
+            <button
+              onClick={toggleTheme}
+              className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-3 h-3 text-amber" />
+                  <span>Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3 h-3 text-accent-cyan" />
+                  <span>Dark Mode</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Connection Status */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border text-[11px]">
+            <div className="flex items-center space-x-2">
+              <Radio className={`w-4 h-4 ${isConnected ? 'text-bull' : 'text-bear'}`} />
+              <span className="text-terminal-muted">Connection:</span>
+            </div>
+            <span className={`font-bold ${isConnected ? 'text-bull' : 'text-bear animate-pulse'}`}>
+              {isConnected ? '100% ONLINE (1-Sec Stream)' : 'OFFLINE'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 2nd Row: Horizontal Swipeable Ticker Tape of Asset Cards */}
       <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1.5 pb-0.5 border-t border-terminal-border/40 mt-1.5 touch-pan-x">
