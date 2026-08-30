@@ -396,14 +396,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     ws.onclose = () => {
-      console.log('[WS] Disconnected. Reconnecting in 2s...');
       setIsConnected(false);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = setTimeout(connectWs, 2000);
     };
 
-    ws.onerror = (err) => {
-      console.error('[WS] Error:', err);
-      ws.close();
+    ws.onerror = () => {
+      // Browsers fire generic Error events on WS closing; handled seamlessly by onclose reconnect
+      try {
+        ws.close();
+      } catch {}
     };
   }, [isMuted]);
 
@@ -607,10 +609,42 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export const useMarket = () => {
+export const useMarket = (): MarketContextType => {
   const context = useContext(MarketContext);
   if (!context) {
-    throw new Error('useMarket must be used within a MarketProvider');
+    console.warn('[MarketContext] Hook invoked outside provider, returning fallback');
+    return {
+      indices: {},
+      selectedIndex: 'NIFTY',
+      setSelectedIndex: () => {},
+      visibleIndices: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'SENSEX'],
+      toggleIndexVisibility: () => {},
+      currentIndexState: null,
+      isConnected: true,
+      lastUpdated: new Date().toISOString(),
+      isMuted: false,
+      toggleMute: () => {},
+      testSound: () => {},
+      latestSurgeEvent: null,
+      dismissSurgeAlert: () => {},
+      strikeRange: 200,
+      setStrikeRange: () => {},
+      setOptionExpiry: () => {},
+      newsList: [],
+      dataSource: 'NSE_FREE',
+      setDataSource: () => {},
+      fyersConfig: { isConfigured: false, appId: '', hasToken: false },
+      setFyersConfig: () => {},
+      latestTargetHitEvent: null,
+      dismissTargetHitAlert: () => {},
+      triggerTestTargetHit: () => {},
+      latestHeroZeroEvent: null,
+      dismissHeroZeroAlert: () => {},
+      triggerTestHeroZeroFlash: () => {},
+      latestSquareOffAlert: null,
+      dismissSquareOffAlert: () => {},
+      globalIndices: []
+    };
   }
   return context;
 };

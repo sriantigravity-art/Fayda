@@ -8,13 +8,23 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const defaultThemeContext: ThemeContextType = {
+  theme: 'dark',
+  toggleTheme: () => {},
+  setTheme: () => {}
+};
+
+const ThemeContext = createContext<ThemeContextType>(defaultThemeContext);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('oi_radar_theme');
-    if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark';
+    try {
+      const saved = localStorage.getItem('oi_radar_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      return 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   useEffect(() => {
@@ -27,7 +37,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('dark');
       root.classList.remove('light');
     }
-    localStorage.setItem('oi_radar_theme', theme);
+    try {
+      localStorage.setItem('oi_radar_theme', theme);
+    } catch (e) {
+      console.warn('Could not save theme:', e);
+    }
   }, [theme]);
 
   const toggleTheme = () => {
@@ -45,10 +59,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-export const useTheme = () => {
+export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+  return context || defaultThemeContext;
 };

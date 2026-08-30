@@ -7,13 +7,9 @@ import {
   Activity, 
   Hourglass, 
   Zap,
-  ChevronDown,
-  TrendingUp,
-  TrendingDown,
-  Sliders,
-  Maximize2
+  ChevronDown
 } from 'lucide-react';
-import type { SurgeLevel, ThetaIntensity, IvStatus, OptionStrikeData } from '../types';
+import type { SurgeLevel, ThetaIntensity, OptionStrikeData } from '../types';
 import { StrikeDetailModal } from './StrikeDetailModal';
 
 export const OptionChainHeatmap: React.FC = () => {
@@ -28,7 +24,7 @@ export const OptionChainHeatmap: React.FC = () => {
   
   const atmRowRef = useRef<HTMLTableRowElement>(null);
 
-  if (!currentIndexState) {
+  if (!currentIndexState || !currentIndexState.strikes || currentIndexState.strikes.length === 0) {
     return (
       <div className="bg-terminal-card border border-terminal-border rounded-xl p-8 flex flex-col items-center justify-center min-h-[380px] text-terminal-muted">
         <Activity className="w-6 h-6 animate-spin mb-3 text-accent-sky" />
@@ -37,7 +33,7 @@ export const OptionChainHeatmap: React.FC = () => {
     );
   }
 
-  const { strikes, atmStrike, spotPrice, strikeStep, selectedExpiry, daysToExpiry } = currentIndexState;
+  const { strikes, atmStrike, spotPrice, selectedExpiry } = currentIndexState;
 
   // Filter strikes based on range (+- 200 pts or full)
   const filteredStrikes = showFullChain
@@ -45,14 +41,14 @@ export const OptionChainHeatmap: React.FC = () => {
     : strikes.filter((s) => Math.abs(s.strikePrice - atmStrike) <= strikeRange);
 
   // Maximum OI for scaling proportional bars
-  const maxCallOi = Math.max(...strikes.map((s) => s.call.openInterest), 1000);
-  const maxPutOi = Math.max(...strikes.map((s) => s.put.openInterest), 1000);
+  const maxCallOi = Math.max(...strikes.map((s) => s.callOI || 0), 1000);
+  const maxPutOi = Math.max(...strikes.map((s) => s.putOI || 0), 1000);
 
   const jumpToAtm = () => {
     atmRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const getIvPill = (iv: number) => {
+  const getIvPill = (iv?: number) => {
     const ivVal = +(iv || 13.5).toFixed(1);
     if (ivVal < 12.5) {
       return (
@@ -75,23 +71,24 @@ export const OptionChainHeatmap: React.FC = () => {
     );
   };
 
-  const getThetaPill = (theta: number, intensity: ThetaIntensity) => {
-    if (!highlightTheta) return <span className="font-mono text-terminal-muted">{theta.toFixed(1)}</span>;
-    if (intensity === 'EXTREME') {
+  const getThetaPill = (theta?: number) => {
+    const th = theta || 0;
+    if (!highlightTheta) return <span className="font-mono text-terminal-muted">{th.toFixed(1)}</span>;
+    if (Math.abs(th) > 20) {
       return (
         <span className="text-bear font-mono font-bold text-[11px]" title="Extreme Theta Decay Rate">
-          {theta.toFixed(1)}
+          {th.toFixed(1)}
         </span>
       );
     }
-    if (intensity === 'HIGH') {
+    if (Math.abs(th) > 10) {
       return (
         <span className="text-amber font-mono font-medium text-[11px]" title="Accelerated Decay Rate">
-          {theta.toFixed(1)}
+          {th.toFixed(1)}
         </span>
       );
     }
-    return <span className="font-mono text-terminal-muted text-[11px]">{theta.toFixed(1)}</span>;
+    return <span className="font-mono text-terminal-muted text-[11px]">{th.toFixed(1)}</span>;
   };
 
   return (
@@ -184,7 +181,6 @@ export const OptionChainHeatmap: React.FC = () => {
               {showGreeks && (
                 <>
                   <th className="py-2 px-2 text-right text-bull font-bold bg-bull/5 border-r border-terminal-borderSubtle">IV</th>
-                  <th className="py-2 px-2 text-right text-bull font-bold bg-bull/5 border-r border-terminal-borderSubtle">Delta</th>
                   <th className="py-2 px-2 text-right text-bull font-bold bg-bull/5 border-r border-terminal-borderSubtle">Theta</th>
                 </>
               )}
@@ -200,7 +196,6 @@ export const OptionChainHeatmap: React.FC = () => {
               {showGreeks && (
                 <>
                   <th className="py-2 px-2 text-left text-bear font-bold bg-bear/5 border-r border-terminal-borderSubtle">Theta</th>
-                  <th className="py-2 px-2 text-left text-bear font-bold bg-bear/5 border-r border-terminal-borderSubtle">Delta</th>
                   <th className="py-2 px-2 text-left text-bear font-bold bg-bear/5 border-r border-terminal-borderSubtle">IV</th>
                 </>
               )}
@@ -216,8 +211,8 @@ export const OptionChainHeatmap: React.FC = () => {
               const isCallItm = s.strikePrice < spotPrice;
               const isPutItm = s.strikePrice > spotPrice;
 
-              const callOiPct = (s.call.openInterest / maxCallOi) * 100;
-              const putOiPct = (s.put.openInterest / maxPutOi) * 100;
+              const callOiPct = ( (s.callOI || 0) / maxCallOi ) * 100;
+              const putOiPct = ( (s.putOI || 0) / maxPutOi ) * 100;
 
               return (
                 <tr
@@ -240,14 +235,14 @@ export const OptionChainHeatmap: React.FC = () => {
                       style={{ width: `${Math.min(100, callOiPct)}%` }}
                     />
                     <span className="relative z-10 tabular-nums text-terminal-text font-medium">
-                      {s.call.openInterest.toLocaleString('en-IN')}
+                      {(s.callOI || 0).toLocaleString('en-IN')}
                     </span>
                   </td>
 
                   {/* CALL OI CHANGE */}
                   <td className={`${rowPaddingClass} text-right tabular-nums border-r border-terminal-borderSubtle ${isCallItm ? 'bg-bull/5' : ''}`}>
-                    <span className={`font-semibold ${s.call.changeInOpenInterest >= 0 ? 'text-bull' : 'text-bear'}`}>
-                      {s.call.changeInOpenInterest > 0 ? '+' : ''}{s.call.changeInOpenInterest.toLocaleString('en-IN')}
+                    <span className={`font-semibold ${(s.callOIChangeTotal || 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                      {(s.callOIChangeTotal || 0) > 0 ? '+' : ''}{(s.callOIChangeTotal || 0).toLocaleString('en-IN')}
                     </span>
                   </td>
 
@@ -255,20 +250,17 @@ export const OptionChainHeatmap: React.FC = () => {
                   {showGreeks && (
                     <>
                       <td className={`${rowPaddingClass} text-right tabular-nums border-r border-terminal-borderSubtle ${isCallItm ? 'bg-bull/5' : ''}`}>
-                        {getIvPill(s.call.iv)}
-                      </td>
-                      <td className={`${rowPaddingClass} text-right tabular-nums text-terminal-muted border-r border-terminal-borderSubtle ${isCallItm ? 'bg-bull/5' : ''}`}>
-                        {s.call.delta.toFixed(2)}
+                        {getIvPill(s.callIv)}
                       </td>
                       <td className={`${rowPaddingClass} text-right tabular-nums border-r border-terminal-borderSubtle ${isCallItm ? 'bg-bull/5' : ''}`}>
-                        {getThetaPill(s.call.theta, s.call.thetaIntensity)}
+                        {getThetaPill(s.callTheta)}
                       </td>
                     </>
                   )}
 
                   {/* CALL LTP */}
                   <td className={`${rowPaddingClass} text-right tabular-nums font-bold text-bull bg-bull/10 border-r border-terminal-border`}>
-                    ₹{s.call.ltp.toFixed(2)}
+                    ₹{(s.callLtp || 0).toFixed(2)}
                   </td>
 
                   {/* CENTER STRIKE PRICE */}
@@ -287,28 +279,25 @@ export const OptionChainHeatmap: React.FC = () => {
 
                   {/* PUT LTP */}
                   <td className={`${rowPaddingClass} text-left tabular-nums font-bold text-bear bg-bear/10 border-r border-terminal-borderSubtle`}>
-                    ₹{s.put.ltp.toFixed(2)}
+                    ₹{(s.putLtp || 0).toFixed(2)}
                   </td>
 
                   {/* PUT GREEKS */}
                   {showGreeks && (
                     <>
                       <td className={`${rowPaddingClass} text-left tabular-nums border-r border-terminal-borderSubtle ${isPutItm ? 'bg-bear/5' : ''}`}>
-                        {getThetaPill(s.put.theta, s.put.thetaIntensity)}
-                      </td>
-                      <td className={`${rowPaddingClass} text-left tabular-nums text-terminal-muted border-r border-terminal-borderSubtle ${isPutItm ? 'bg-bear/5' : ''}`}>
-                        {s.put.delta.toFixed(2)}
+                        {getThetaPill(s.putTheta)}
                       </td>
                       <td className={`${rowPaddingClass} text-left tabular-nums border-r border-terminal-borderSubtle ${isPutItm ? 'bg-bear/5' : ''}`}>
-                        {getIvPill(s.put.iv)}
+                        {getIvPill(s.putIv)}
                       </td>
                     </>
                   )}
 
                   {/* PUT OI CHANGE */}
                   <td className={`${rowPaddingClass} text-right tabular-nums border-r border-terminal-borderSubtle ${isPutItm ? 'bg-bear/5' : ''}`}>
-                    <span className={`font-semibold ${s.put.changeInOpenInterest >= 0 ? 'text-bull' : 'text-bear'}`}>
-                      {s.put.changeInOpenInterest > 0 ? '+' : ''}{s.put.changeInOpenInterest.toLocaleString('en-IN')}
+                    <span className={`font-semibold ${(s.putOIChangeTotal || 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                      {(s.putOIChangeTotal || 0) > 0 ? '+' : ''}{(s.putOIChangeTotal || 0).toLocaleString('en-IN')}
                     </span>
                   </td>
 
@@ -319,7 +308,7 @@ export const OptionChainHeatmap: React.FC = () => {
                       style={{ width: `${Math.min(100, putOiPct)}%` }}
                     />
                     <span className="relative z-10 tabular-nums text-terminal-text font-medium">
-                      {s.put.openInterest.toLocaleString('en-IN')}
+                      {(s.putOI || 0).toLocaleString('en-IN')}
                     </span>
                   </td>
                 </tr>

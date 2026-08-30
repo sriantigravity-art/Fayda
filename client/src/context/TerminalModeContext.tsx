@@ -10,19 +10,35 @@ interface TerminalModeContextType {
   isExpert: boolean;
 }
 
-const TerminalModeContext = createContext<TerminalModeContextType | undefined>(undefined);
+const defaultTerminalModeContext: TerminalModeContextType = {
+  mode: 'INTERMEDIATE',
+  setMode: () => {},
+  isBeginner: false,
+  isIntermediate: true,
+  isExpert: false
+};
+
+const TerminalModeContext = createContext<TerminalModeContextType>(defaultTerminalModeContext);
 
 export const TerminalModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setModeState] = useState<TerminalMode>(() => {
-    const saved = localStorage.getItem('fayda_terminal_mode');
-    if (saved === 'BEGINNER' || saved === 'INTERMEDIATE' || saved === 'EXPERT') {
-      return saved as TerminalMode;
+    try {
+      const saved = localStorage.getItem('fayda_terminal_mode');
+      if (saved === 'BEGINNER' || saved === 'INTERMEDIATE' || saved === 'EXPERT') {
+        return saved as TerminalMode;
+      }
+      return 'INTERMEDIATE';
+    } catch {
+      return 'INTERMEDIATE';
     }
-    return 'INTERMEDIATE'; // default balanced mode
   });
 
   useEffect(() => {
-    localStorage.setItem('fayda_terminal_mode', mode);
+    try {
+      localStorage.setItem('fayda_terminal_mode', mode);
+    } catch (e) {
+      console.warn('Could not save terminal mode:', e);
+    }
   }, [mode]);
 
   const setMode = (m: TerminalMode) => {
@@ -44,10 +60,7 @@ export const TerminalModeProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-export const useTerminalMode = () => {
+export const useTerminalMode = (): TerminalModeContextType => {
   const context = useContext(TerminalModeContext);
-  if (!context) {
-    throw new Error('useTerminalMode must be used within a TerminalModeProvider');
-  }
-  return context;
+  return context || defaultTerminalModeContext;
 };

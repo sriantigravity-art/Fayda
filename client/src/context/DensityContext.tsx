@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export type TerminalDensity = 'COMPACT' | 'STANDARD' | 'COMFORTABLE';
 
@@ -10,17 +10,33 @@ interface DensityContextType {
   cardPaddingClass: string;
 }
 
-const DensityContext = createContext<DensityContextType | undefined>(undefined);
+const defaultDensityContext: DensityContextType = {
+  density: 'STANDARD',
+  setDensity: () => {},
+  rowPaddingClass: 'py-1.5 px-2',
+  tableTextClass: 'text-[11.5px]',
+  cardPaddingClass: 'p-3 sm:p-3.5'
+};
+
+const DensityContext = createContext<DensityContextType>(defaultDensityContext);
 
 export const DensityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [density, setDensityState] = useState<TerminalDensity>(() => {
-    const saved = localStorage.getItem('fayda_terminal_density');
-    return (saved as TerminalDensity) || 'STANDARD';
+    try {
+      const saved = localStorage.getItem('fayda_terminal_density');
+      return (saved as TerminalDensity) || 'STANDARD';
+    } catch {
+      return 'STANDARD';
+    }
   });
 
   const setDensity = (mode: TerminalDensity) => {
     setDensityState(mode);
-    localStorage.setItem('fayda_terminal_density', mode);
+    try {
+      localStorage.setItem('fayda_terminal_density', mode);
+    } catch (e) {
+      console.warn('Could not save density to localStorage:', e);
+    }
   };
 
   const rowPaddingClass = 
@@ -61,8 +77,5 @@ export const DensityProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
 export const useDensity = (): DensityContextType => {
   const context = useContext(DensityContext);
-  if (!context) {
-    throw new Error('useDensity must be used within a DensityProvider');
-  }
-  return context;
+  return context || defaultDensityContext;
 };

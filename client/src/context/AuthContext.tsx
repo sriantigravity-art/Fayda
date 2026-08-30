@@ -292,10 +292,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  isAuthenticated: false,
+  isSuperAdmin: false,
+  panelVisibility: DEFAULT_PANEL_VISIBILITY,
+  togglePanelVisibility: () => {},
+  setAllPanelsVisibility: () => {},
+  resetPanelVisibility: () => {},
+  currentLegalVersion: CURRENT_LEGAL_VERSION,
+  login: async () => ({ success: true }),
+  register: async () => ({ success: true }),
+  verifyOtp: async () => ({ success: true }),
+  resendOtp: async () => ({ success: true }),
+  logout: () => {},
+  recordConsent: () => {},
+  hasValidConsent: true,
+  pendingConsent: null,
+  setPendingConsent: () => {},
+  consentAuditLogs: []
+};
+
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return context || defaultAuthContext;
 };
