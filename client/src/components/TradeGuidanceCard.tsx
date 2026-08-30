@@ -10,13 +10,13 @@ import {
   ShieldCheck, 
   Target, 
   ShieldAlert, 
-  ChevronDown,
-  CheckCircle2,
-  AlertTriangle,
-  Calculator,
-  Layers,
-  Activity,
-  Sliders
+  ChevronDown, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Calculator, 
+  Layers, 
+  Activity, 
+  Sliders 
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 
@@ -39,8 +39,8 @@ export const TradeGuidanceCard: React.FC = () => {
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const isIndex = cfg ? cfg.isIndex : true;
 
-  const r1 = resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= 400);
-  const s1 = supportLevels.find(s => Math.abs(s.strikePrice - atmStrike) <= 400);
+  const r1 = resistanceLevels && resistanceLevels.length > 0 ? resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= 400) : null;
+  const s1 = supportLevels && supportLevels.length > 0 ? supportLevels.find(s => Math.abs(s.strikePrice - atmStrike) <= 400) : null;
 
   // Helper to generate reference levels for EOD / Key Walls within ±400 pts
   const getEODReferenceSetup = (type: 'BULLISH' | 'BEARISH') => {
@@ -50,11 +50,17 @@ export const TradeGuidanceCard: React.FC = () => {
       : (s1 ? s1.strikePrice : Math.max(atmStrike - 400, atmStrike - (selectedIndex === 'BANKNIFTY' || selectedIndex === 'SENSEX' ? 200 : 100)));
     
     const optType = isBull ? 'CE' : 'PE';
-    const strikeObj = strikes.find(s => s.strikePrice === targetStrikePrice);
+    const strikeObj = strikes && strikes.length > 0 ? strikes.find(s => s.strikePrice === targetStrikePrice) : null;
     const ltp = strikeObj ? (isBull ? strikeObj.callLtp : strikeObj.putLtp) : 120;
-    const cleanLtp = Math.max(10, ltp);
+    const cleanLtp = Math.max(10, ltp || 100);
 
     const dyn = calculateDynamicTarget(cleanLtp, targetStrikePrice, atmStrike);
+
+    const rawIv = strikeObj ? (isBull ? strikeObj.callIv : strikeObj.putIv) : 13.5;
+    const rawTheta = strikeObj ? (isBull ? strikeObj.callTheta : strikeObj.putTheta) : -8.5;
+    const computedDelta = isBull 
+      ? (targetStrikePrice > atmStrike ? 0.42 : 0.58) 
+      : (targetStrikePrice < atmStrike ? -0.42 : -0.58);
 
     return {
       symbol: `${selectedIndex} ${targetStrikePrice} ${optType}`,
@@ -65,10 +71,10 @@ export const TradeGuidanceCard: React.FC = () => {
       stoploss: `₹${dyn.slPrice.toFixed(2)} (-${dyn.slPct}%)`,
       target: `₹${dyn.targetPrice.toFixed(2)} (+${dyn.targetPct}%)`,
       riskReward: dyn.riskReward,
-      iv: strikeObj ? (isBull ? strikeObj.callIv : strikeObj.putIv) : 13.5,
-      delta: strikeObj ? (isBull ? strikeObj.callDelta : strikeObj.putDelta) : 0.50,
-      gamma: strikeObj ? strikeObj.callGamma : 0.002,
-      theta: strikeObj ? strikeObj.callTheta : -8.5,
+      iv: typeof rawIv === 'number' && !isNaN(rawIv) ? rawIv : 13.5,
+      delta: computedDelta,
+      gamma: 0.0028,
+      theta: typeof rawTheta === 'number' && !isNaN(rawTheta) ? rawTheta : -8.5,
       actionTitle: isBull ? `Call Wall Resistance: ${targetStrikePrice} CE` : `Put Floor Support: ${targetStrikePrice} PE`,
       actionDescription: isBull
         ? `Major resistance at ${targetStrikePrice} with ${r1 ? r1.oiFormatted : 'heavy'} Calls. Upside target on breakout above ₹${cleanLtp.toFixed(1)}.`
@@ -76,7 +82,7 @@ export const TradeGuidanceCard: React.FC = () => {
     };
   };
 
-  const primaryBias = mc?.primaryBias || (currentIndexState.pcr.atmPlusMinus5Pcr >= 1.05 ? 'BUY CALL' : currentIndexState.pcr.atmPlusMinus5Pcr <= 0.90 ? 'BUY PUT' : 'NO TRADE');
+  const primaryBias = mc?.primaryBias || (currentIndexState.pcr && currentIndexState.pcr.atmPlusMinus5Pcr >= 1.05 ? 'BUY CALL' : currentIndexState.pcr && currentIndexState.pcr.atmPlusMinus5Pcr <= 0.90 ? 'BUY PUT' : 'NO TRADE');
   const setupGrade = mc?.setupGrade || 'B';
   const confidenceScore = mc?.totalScore || 70;
 
@@ -244,10 +250,10 @@ export const TradeGuidanceCard: React.FC = () => {
                 <span className="text-[10px] text-terminal-muted font-sans">ATM ± 1 Delta Profile</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                <div>Delta: <strong className="text-terminal-text">{activeSetup.delta.toFixed(2)}</strong></div>
-                <div>Gamma: <strong className="text-terminal-text">{activeSetup.gamma.toFixed(4)}</strong></div>
-                <div>Theta: <strong className="text-bear">{activeSetup.theta.toFixed(1)}/day</strong></div>
-                <div>IV: <strong className="text-amber">{activeSetup.iv.toFixed(1)}%</strong></div>
+                <div>Delta: <strong className="text-terminal-text">{(activeSetup.delta ?? 0.50).toFixed(2)}</strong></div>
+                <div>Gamma: <strong className="text-terminal-text">{(activeSetup.gamma ?? 0.0028).toFixed(4)}</strong></div>
+                <div>Theta: <strong className="text-bear">{(activeSetup.theta ?? -8.5).toFixed(1)}/day</strong></div>
+                <div>IV: <strong className="text-amber">{(activeSetup.iv ?? 13.5).toFixed(1)}%</strong></div>
               </div>
             </div>
           )}
