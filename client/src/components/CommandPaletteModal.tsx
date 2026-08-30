@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode, type TerminalMode } from '../context/TerminalModeContext';
 import { useDensity, type TerminalDensity } from '../context/DensityContext';
@@ -228,7 +229,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div 
       className="fixed inset-0 z-[120000] flex items-start justify-center pt-16 sm:pt-24 px-3 bg-black/80 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
@@ -316,6 +317,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           <span>Fayda Command Center</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

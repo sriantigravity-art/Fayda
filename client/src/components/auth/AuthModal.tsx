@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth, CURRENT_LEGAL_VERSION } from '../../context/AuthContext';
 import { LegalDocumentModal, type LegalDocType } from './LegalDocumentModal';
 import { 
@@ -267,7 +268,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     onClose();
   };
 
-  return (
+  if (!isOpen) return null;
+
+  return createPortal(
     <>
       {/* Legal Document Viewer Overlay */}
       <LegalDocumentModal
@@ -276,18 +279,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         initialDoc={activeLegalDoc}
       />
 
-      <div className="fixed inset-0 z-[105000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
-        <div className="bg-terminal-card border border-accent-cyan/40 rounded-2xl shadow-[0_0_60px_rgba(0,229,255,0.25)] max-w-xl w-full p-5 sm:p-6 overflow-hidden flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
-          {/* Top Bar with Brand & Close */}
-          <div className="flex items-center justify-between border-b border-terminal-border/60 pb-3">
+      <div className="fixed inset-0 z-[105000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+        <div className="relative w-full max-w-xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
+          {/* Pinned Top Bar with Brand & Close */}
+          <div className="shrink-0 px-5 py-3.5 border-b border-terminal-border bg-terminal-panel/80 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <img src="/favicon-32x32.png" className="w-6 h-6 object-contain" alt="" />
+              <img src="/favicon-32x32.png" className="w-5 h-5 object-contain" alt="" />
               <div>
-                <span className="font-mono font-black text-sm sm:text-base text-terminal-text tracking-wider flex items-center gap-1.5">
-                  <span>FAYDA AUTHENTICATION</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-accent-cyan/15 text-accent-cyan font-bold">PRO</span>
+                <span className="font-sans font-bold text-sm text-terminal-text tracking-tight flex items-center gap-1.5">
+                  <span>Fayda Authentication</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-accent-sky/15 text-accent-sky font-mono font-bold">PRO</span>
                 </span>
-                <span className="text-[10px] text-terminal-muted block font-mono">
+                <span className="text-[10px] text-terminal-muted block font-sans">
                   SEBI-Aligned Indian Market Decision Terminal
                 </span>
               </div>
@@ -298,24 +301,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Feedback Messages */}
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-bear/10 border border-bear/30 text-bear text-xs font-mono flex items-start gap-2 animate-shake">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          {/* Scrollable Modal Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar">
+            {/* Feedback Messages */}
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-bear/10 border border-bear/30 text-bear text-xs font-mono flex items-start gap-2 animate-shake">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
-          {successMsg && (
-            <div className="p-3 rounded-xl bg-bull/10 border border-bull/30 text-bull text-xs font-mono flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{successMsg}</span>
-            </div>
-          )}
+            {successMsg && (
+              <div className="p-3 rounded-xl bg-bull/10 border border-bull/30 text-bull text-xs font-mono flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{successMsg}</span>
+              </div>
+            )}
 
           {/* ========================================================================= */}
           {/* SCREEN 1: MANDATORY RISK DISCLOSURE & GRANULAR CONSENT SCREEN */}
@@ -944,8 +949,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };

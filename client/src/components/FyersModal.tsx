@@ -154,43 +154,47 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
 
   const modalContent = (
     <div 
-      className="fixed inset-0 w-screen h-screen z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[99999] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in"
       style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div 
-        className="bg-terminal-card border-2 border-accent-cyan/50 rounded-2xl max-w-xl w-full p-6 shadow-[0_0_60px_rgba(0,229,255,0.3)] relative font-sans text-xs my-auto"
+        className="relative w-full max-w-xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up font-sans text-xs"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-terminal-muted hover:text-terminal-text bg-terminal-panel hover:bg-terminal-bg p-1.5 rounded-lg border border-terminal-border transition"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="flex items-center space-x-3.5 mb-4 pb-3 border-b border-terminal-border">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-bull/20 to-accent-cyan/20 text-bull border border-bull/40 shadow-md">
-            <KeyRound className="w-6 h-6 text-accent-cyan" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h3 className="font-mono font-bold text-base text-terminal-text">
-                FYERS API v3 CONNECTION
-              </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-bull/20 text-bull font-bold border border-bull/40">
-                OFFICIAL BROKER API
-              </span>
+        {/* Pinned Modal Header */}
+        <div className="shrink-0 px-5 py-4 border-b border-terminal-border bg-terminal-panel/80 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-xl bg-accent-sky/15 text-accent-sky border border-accent-sky/30">
+              <KeyRound className="w-5 h-5 text-accent-sky" />
             </div>
-            <p className="text-terminal-muted text-xs mt-0.5">
-              100% Real-time direct exchange stream with sub-second orderflow
-            </p>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-sans font-bold text-sm sm:text-base text-terminal-text">
+                  Fyers API v3 Integration
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-bull/15 text-bull font-bold border border-bull/30">
+                  OFFICIAL BROKER API
+                </span>
+              </div>
+              <p className="text-terminal-muted text-xs font-sans mt-0.5">
+                Real-time direct exchange stream with sub-second orderflow
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={onClose}
+            className="text-terminal-muted hover:text-terminal-text bg-terminal-panel hover:bg-terminal-bg p-1.5 rounded-lg border border-terminal-border transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
+
+        {/* Scrollable Modal Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar">
 
         {/* Active Account Banner */}
         {fyersConfig.isConnected && (
@@ -407,13 +411,14 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
               <button
                 type="submit"
                 disabled={loading || !accessToken.trim()}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-bull via-accent-cyan to-accent-cyan text-terminal-bg font-black tracking-wide hover:opacity-90 transition shadow-[0_0_15px_rgba(0,229,255,0.4)] disabled:opacity-50 text-xs font-mono"
+                className="px-5 py-2.5 rounded-xl bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold transition shadow-subtle disabled:opacity-50 text-xs cursor-pointer"
               >
                 {loading ? 'Connecting...' : 'Connect Fyers'}
               </button>
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth, type PanelVisibilityConfig } from '../../context/AuthContext';
 import { 
   ShieldCheck, 
@@ -121,23 +122,23 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
     return <AlertTriangle {...props} />;
   }
 
-  return (
-    <div className="fixed inset-0 z-[115000] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md select-none animate-fade-in">
-      <div className="bg-terminal-card border-2 border-purple-500/60 rounded-2xl shadow-[0_0_60px_rgba(168,85,247,0.3)] max-w-4xl w-full flex flex-col max-h-[92vh] overflow-hidden">
-        {/* Drawer Top Header */}
-        <div className="flex items-center justify-between p-4 border-b border-terminal-border bg-gradient-to-r from-purple-950/40 via-terminal-panel to-purple-950/40">
+  return createPortal(
+    <div className="fixed inset-0 z-[115000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+      <div className="relative w-full max-w-4xl max-h-[88vh] bg-terminal-card border border-accent-purple/50 rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
+        {/* Pinned Drawer Top Header */}
+        <div className="shrink-0 flex items-center justify-between p-4 border-b border-terminal-border bg-terminal-panel/80">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/50 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+            <div className="p-2 rounded-xl bg-accent-purple/20 border border-accent-purple/40 text-accent-purple shadow-subtle">
               <Zap className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-terminal-text flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-sans font-bold text-terminal-text flex items-center gap-2">
                 <span>SuperAdmin Platform Control Matrix</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-mono font-bold border border-purple-500/40">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-purple/20 text-accent-purple font-mono font-bold border border-accent-purple/40">
                   ⚡ SUPERADMIN RIGHTS ACTIVE
                 </span>
               </h2>
-              <p className="text-xs text-terminal-muted font-mono">
+              <p className="text-xs text-terminal-muted font-sans">
                 Live control over UI panels, design element visibility, and compliance audit logs
               </p>
             </div>
@@ -146,9 +147,9 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-bg transition cursor-pointer"
+            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -388,12 +389,13 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-purple-500/20 border border-purple-500/50 text-purple-400 hover:bg-purple-500/30 font-mono font-bold text-xs transition cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-accent-purple/20 border border-accent-purple/50 text-accent-purple hover:bg-accent-purple/30 font-sans font-bold text-xs transition cursor-pointer"
           >
             Apply & Close
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

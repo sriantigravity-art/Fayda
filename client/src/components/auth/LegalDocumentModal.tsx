@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ShieldAlert, 
   FileText, 
@@ -29,23 +30,23 @@ export const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[110000] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md select-none animate-fade-in">
-      <div className="bg-terminal-card border border-terminal-border rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] max-w-3xl w-full flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Modal Top Header */}
-        <div className="flex items-center justify-between p-4 border-b border-terminal-border bg-terminal-panel/80">
+  return createPortal(
+    <div className="fixed inset-0 z-[110000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+      <div className="relative w-full max-w-3xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
+        {/* Pinned Modal Top Header */}
+        <div className="shrink-0 flex items-center justify-between p-4 border-b border-terminal-border bg-terminal-panel/80">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan">
+            <div className="p-2 rounded-xl bg-accent-sky/15 border border-accent-sky/30 text-accent-sky">
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-terminal-text flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-sans font-bold text-terminal-text flex items-center gap-2">
                 <span>Fayda Legal & Compliance Center</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-cyan/15 text-accent-cyan font-mono font-bold">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-sky/15 text-accent-sky font-mono font-bold">
                   v{CURRENT_LEGAL_VERSION}
                 </span>
               </h2>
-              <p className="text-xs text-terminal-muted">
+              <p className="text-xs text-terminal-muted font-sans">
                 Official regulatory disclosures and user agreements
               </p>
             </div>
@@ -54,9 +55,9 @@ export const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-bg transition cursor-pointer"
+            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -251,12 +252,13 @@ export const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-accent-cyan/20 border border-accent-cyan/50 text-accent-cyan hover:bg-accent-cyan/30 font-mono font-bold text-xs transition cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-accent-sky/20 border border-accent-sky/40 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold text-xs transition cursor-pointer"
           >
             Close & Return
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

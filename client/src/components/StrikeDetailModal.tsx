@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { OptionStrikeData } from '../types';
 import { 
   X, 
@@ -93,23 +94,23 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
     return 'text-amber bg-amber/15 border-amber/40';
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-[105000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
       {/* Modal Container */}
       <div 
-        className="relative w-full max-w-4xl max-h-[92vh] bg-terminal-card border-2 border-accent-cyan/60 rounded-2xl sm:rounded-3xl shadow-[0_10px_60px_rgba(0,229,255,0.25)] flex flex-col overflow-hidden font-mono text-terminal-text animate-in zoom-in-95 duration-150"
+        className="relative w-full max-w-4xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up font-sans text-terminal-text"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="p-3.5 sm:p-5 border-b border-terminal-border bg-gradient-to-r from-terminal-panel via-terminal-card to-terminal-panel flex items-center justify-between gap-2 shrink-0">
+        {/* Pinned Modal Header */}
+        <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/80 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center space-x-2.5 sm:space-x-3">
-            <div className="p-2 sm:p-2.5 rounded-xl bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shadow-sm shrink-0">
-              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="p-2 rounded-xl bg-accent-sky/15 text-accent-sky border border-accent-sky/30 shadow-subtle shrink-0">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h2 className="font-black text-sm sm:text-lg text-terminal-text tracking-wide">
-                  {symbol} STRIKE <span className="text-accent-cyan font-extrabold">{strikePrice}</span>
+                <h2 className="font-bold text-sm sm:text-base text-terminal-text tracking-tight">
+                  {symbol} STRIKE <span className="text-accent-sky font-mono font-bold">{strikePrice}</span>
                 </h2>
                 {isAtm ? (
                   <span className="px-2 py-0.5 rounded-full bg-amber text-terminal-bg font-black text-[10px] shadow-sm flex items-center gap-1">
@@ -365,12 +366,13 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
           </span>
           <button
             onClick={onClose}
-            className="px-3 sm:px-4 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan font-bold transition text-xs"
+            className="px-3 sm:px-4 py-1.5 rounded-xl bg-accent-sky/15 hover:bg-accent-sky/25 border border-accent-sky/40 text-accent-sky font-bold transition text-xs cursor-pointer"
           >
             Close
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

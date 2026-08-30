@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { 
@@ -66,20 +67,22 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
   const actualRiskAmount = slPoints * maxQuantity;
   const riskRewardRatio = slPoints > 0 ? (targetPoints / slPoints).toFixed(1) : '0.0';
 
-  return (
-    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
-      <div className="bg-terminal-card border border-accent-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.2)] max-w-xl w-full p-5 sm:p-6 overflow-hidden flex flex-col space-y-4 max-h-[95vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-terminal-border pb-3.5">
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+      <div className="relative w-full max-w-xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
+        {/* Pinned Header */}
+        <div className="shrink-0 flex items-center justify-between border-b border-terminal-border p-4 sm:p-5 bg-terminal-panel/80">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan">
+            <div className="p-2 rounded-xl bg-accent-sky/15 border border-accent-sky/30 text-accent-sky">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-terminal-text flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-sans font-bold text-terminal-text flex items-center gap-2">
                 <span>SEBI-Compliant Risk & Sizing Calculator</span>
               </h2>
-              <p className="text-xs text-terminal-muted">
+              <p className="text-xs text-terminal-muted font-sans">
                 Mathematical capital preservation for {selectedIndex} (Lot Size: {lotSize})
               </p>
             </div>
@@ -87,11 +90,14 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
+            className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar">
 
         {/* Inputs Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs font-mono">
@@ -241,12 +247,14 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-accent-cyan/20 border border-accent-cyan/50 text-accent-cyan hover:bg-accent-cyan/30 font-mono font-bold text-xs transition cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-accent-sky/15 border border-accent-sky/40 text-accent-sky hover:bg-accent-sky/25 font-sans font-bold text-xs transition cursor-pointer"
           >
             Done & Apply
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
