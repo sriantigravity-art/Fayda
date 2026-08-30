@@ -10,6 +10,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [isFading, setIsFading] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768 || window.innerHeight > window.innerWidth;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768 || window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleDismiss = () => {
     if (isFading || !isVisible) return;
     setIsFading(true);
@@ -32,9 +45,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     }
 
     return () => clearTimeout(safetyTimer);
-  }, []);
+  }, [isMobile]);
 
   if (!isVisible) return null;
+
+  const videoSrc = isMobile ? '/Fayda_logo_9-16.mp4' : '/Fayda_logo_16-9.mp4';
 
   return (
     <div
@@ -42,8 +57,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         isFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Responsive Video: 100% fits mobile, tablet, and desktop screens without cropping */}
+      {/* Responsive Video: 16:9 for Desktop, 9:16 for Mobile */}
       <video
+        key={videoSrc}
         ref={videoRef}
         className="w-full h-full max-w-full max-h-full object-contain"
         autoPlay
@@ -51,7 +67,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         playsInline
         onEnded={handleDismiss}
       >
-        <source src="/fayda-splash.mp4" type="video/mp4" />
+        <source src={videoSrc} type="video/mp4" />
       </video>
 
       {/* Top Right Skip Button */}
@@ -67,3 +83,4 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     </div>
   );
 };
+

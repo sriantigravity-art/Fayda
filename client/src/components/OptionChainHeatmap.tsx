@@ -59,9 +59,9 @@ export const OptionChainHeatmap: React.FC = () => {
 
   /**
    * Color-codes IV value strictly according to percentage:
-   * IV < 12.5% = GREEN (Cheap Options / Buy Value)
-   * IV > 18.0% = RED (Expensive / Crush Danger)
-   * 12.5% - 18.0% = AMBER (Fair Value)
+   * IV < 12.5% = GREEN (C - Cheap Options / Buy Value)
+   * IV > 18.0% = RED (E - Expensive / Crush Danger)
+   * 12.5% - 18.0% = AMBER (F - Fair Value)
    */
   const getIvBadge = (iv: number, _status?: IvStatus) => {
     const ivVal = +(iv || 13.5).toFixed(1);
@@ -70,9 +70,9 @@ export const OptionChainHeatmap: React.FC = () => {
       return (
         <span 
           className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-bull/20 text-bull border border-bull/50 shadow-[0_0_8px_rgba(0,245,155,0.25)]"
-          title={`IV ${ivVal}% (<12.5%): Cheap Option Premium (High Buy Value, Minimal Volatility Crush Risk)`}
+          title={`IV ${ivVal}% (<12.5%): Cheap Option Premium (C - High Buy Value, Minimal Volatility Crush Risk)`}
         >
-          {ivVal}% <span className="text-[8px] ml-0.5 font-black">CHEAP</span>
+          {ivVal}% <span className="text-[8px] ml-0.5 font-black">C</span>
         </span>
       );
     }
@@ -81,9 +81,9 @@ export const OptionChainHeatmap: React.FC = () => {
       return (
         <span 
           className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-bear/25 text-bear border border-bear/50 shadow-[0_0_8px_rgba(255,59,105,0.25)]"
-          title={`IV ${ivVal}% (>18%): Expensive Option Premium (High IV Crush Risk for Buyers, Favors Option Sellers)`}
+          title={`IV ${ivVal}% (>18%): Expensive Option Premium (E - High IV Crush Risk for Buyers, Favors Option Sellers)`}
         >
-          {ivVal}% <span className="text-[8px] ml-0.5 font-black">HIGH</span>
+          {ivVal}% <span className="text-[8px] ml-0.5 font-black">E</span>
         </span>
       );
     }
@@ -91,9 +91,9 @@ export const OptionChainHeatmap: React.FC = () => {
     return (
       <span 
         className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-amber/15 text-amber border border-amber/30"
-        title={`IV ${ivVal}% (12.5% - 18%): Fair Value Pricing`}
+        title={`IV ${ivVal}% (12.5% - 18%): Fair Value Pricing (F)`}
       >
-        {ivVal}% <span className="text-[8px] ml-0.5 opacity-80">FAIR</span>
+        {ivVal}% <span className="text-[8px] ml-0.5 font-bold opacity-90">F</span>
       </span>
     );
   };
@@ -344,7 +344,7 @@ export const OptionChainHeatmap: React.FC = () => {
                 ◀ CALL OPTIONS (CE) — RESISTANCE & WRITING
               </th>
               <th className="py-1 px-2 sm:px-3 text-center bg-terminal-panel text-terminal-text font-black border-r border-terminal-border">
-                STRIKE (ATM)
+                STRIKE
               </th>
               <th colSpan={2} className="py-1 px-2 text-center bg-bull/10 text-bull sm:hidden">
                 PUTS (PE) ▶

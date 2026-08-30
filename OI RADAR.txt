@@ -29,6 +29,11 @@ The app automatically generates the SHA-256 hash, retrieves your new Access Toke
 can i make it like app, and after app installation on desktop or mobile user can enter his fyers credentials and token to run this app> please implement this plan
 
 github>railway DB>sriantigravity acc>
+
+Splash screen animation for a stock trading app. The scene starts static with the Fhayda logo centered on a soft blue candlestick chart background. A bright diagonal light ray sweeps smoothly across the logo from left to right, causing the teal letters to gleam as the light passes. The green upward arrow subtly pulses and scales up slightly, as if signaling market growth, then settles. In the background, the blue wave shapes and candlestick bars gently drift and shimmer, adding subtle motion and depth. The final frame holds on the crisp, glowing logo perfectly centered, radiating a premium, trustworthy, modern fintech feel. Smooth cinematic pacing throughout, no camera cuts needed, just elegant continuous motion. Intelligently choose between continuous camera movement or active cutting/focus shifting based on the narrative rhythm. Automatically storyboard based on the above content and multi-shot.
 fayda-production-a914.up.railway.app>>india vix
 
  LIVE OI ACTIVITY RADAR,  THETA TIME DECAY METER, PCR Sentiment & OI Momentum,  1-MIN OI DELTA, IV, THETA & ORDER FLOW HEATMAP, and other titles should be shown differently and should be highlighted with fix style for all catch user eyes easily
+
+Fayda
+Your logic. Your capital. Your way.
