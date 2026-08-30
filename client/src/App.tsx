@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MarketProvider } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { TerminalModeProvider } from './context/TerminalModeContext';
+import { DensityProvider } from './context/DensityContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { HeaderBar } from './components/HeaderBar';
 import { OptionChainHeatmap } from './components/OptionChainHeatmap';
@@ -18,15 +19,16 @@ import { HighlightSignalTicker } from './components/HighlightSignalTicker';
 import { DisclaimerTicker } from './components/DisclaimerTicker';
 import { GlobalIndicesSidebar } from './components/GlobalIndicesSidebar';
 import { SplashScreen } from './components/SplashScreen';
-import { Layers, Activity } from 'lucide-react';
+import { MobileNavBar, type MobileTabType } from './components/MobileNavBar';
+import { RiskCalculatorModal } from './components/RiskCalculatorModal';
 
 const DashboardContent: React.FC = () => {
-  // Mobile / Tablet Tab Navigation ('HEATMAP' | 'ANALYTICS')
-  const [mobileTab, setMobileTab] = useState<'HEATMAP' | 'ANALYTICS'>('HEATMAP');
+  const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
+  const [isMobileRiskOpen, setIsMobileRiskOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-cyan selection:text-terminal-bg font-sans antialiased pb-9 w-full max-w-[100vw] overflow-x-hidden">
+    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-16 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
       {/* App Launch Video Splash Screen */}
       <SplashScreen />
 
@@ -54,41 +56,13 @@ const DashboardContent: React.FC = () => {
       {/* Live Highlight Trade Signal Ticker (Strike Price, Entry, Exit, Target) */}
       {panelVisibility.highlightSignalTicker && <HighlightSignalTicker />}
 
-      {/* Mobile / Tablet Segmented Tab Switcher (Visible only below XL screens < 1280px) */}
-      <div className="xl:hidden px-3 pt-2.5 max-w-[1840px] w-full mx-auto">
-        <div className="flex bg-terminal-card border border-terminal-border rounded-xl p-1 font-mono text-xs shadow-md">
-          <button
-            onClick={() => setMobileTab('HEATMAP')}
-            className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg font-bold transition ${
-              mobileTab === 'HEATMAP'
-                ? 'bg-accent-cyan/20 border border-accent-cyan/40 text-accent-cyan shadow-sm'
-                : 'text-terminal-muted hover:text-terminal-text'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Option Chain Heatmap</span>
-          </button>
-
-          <button
-            onClick={() => setMobileTab('ANALYTICS')}
-            className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg font-bold transition ${
-              mobileTab === 'ANALYTICS'
-                ? 'bg-amber/20 border border-amber/40 text-amber shadow-sm'
-                : 'text-terminal-muted hover:text-terminal-text'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span>Greeks, Levels & Radar</span>
-          </button>
-        </div>
-      </div>
-
       {/* Main Terminal Workspace */}
-      <main className="flex-1 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-4 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
-        {/* Dual-Pane Institutional Workspace Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 flex-1 items-start">
+      <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
+        
+        {/* DESKTOP 12-COLUMN DUAL-PANE WORKSPACE */}
+        <div className="hidden xl:grid xl:grid-cols-12 gap-3.5 flex-1 items-start">
           {/* Left / Center 8 Columns: Option Chain Heatmap, Breakout Pattern Radar, 0DTE Radar & AI Trade Guidance */}
-          <div className={`xl:col-span-8 flex flex-col space-y-3.5 transition-all duration-300 ${mobileTab === 'HEATMAP' ? 'block' : 'hidden xl:block'}`}>
+          <div className="xl:col-span-8 flex flex-col space-y-3.5">
             {panelVisibility.optionChain && <OptionChainHeatmap />}
             {panelVisibility.patternRadar && <BreakoutPatternRadar />}
             {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
@@ -96,33 +70,61 @@ const DashboardContent: React.FC = () => {
           </div>
 
           {/* Right 4 Columns: PCR Momentum, Max Pain, Resistance/Support Walls, Theta Meter, Radar & News Wire */}
-          <div className={`xl:col-span-4 flex flex-col space-y-3.5 ${mobileTab === 'ANALYTICS' ? 'block' : 'hidden xl:block'}`}>
+          <div className="xl:col-span-4 flex flex-col space-y-3.5">
             {panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           </div>
+        </div>
+
+        {/* MOBILE DEDICATED TABBED WORKSPACE (< 1280px) */}
+        <div className="xl:hidden flex flex-col space-y-3">
+          {mobileTab === 'CHAIN' && panelVisibility.optionChain && <OptionChainHeatmap />}
+          {mobileTab === 'SIGNALS' && panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+          {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
+          {mobileTab === 'RADAR' && (
+            <div className="flex flex-col space-y-3">
+              {panelVisibility.patternRadar && <BreakoutPatternRadar />}
+              {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+            </div>
+          )}
+          {mobileTab === 'NEWS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
         </div>
       </main>
 
       {/* Terminal Status Footer */}
-      <footer className="border-t border-terminal-border bg-terminal-panel/90 px-4 py-2.5 text-[11px] font-mono text-terminal-muted flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto mb-2">
+      <footer className="border-t border-terminal-border bg-terminal-card px-4 py-2.5 text-[11px] font-sans text-terminal-muted flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto">
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-          <span className="font-bold text-accent-cyan tracking-wider flex items-center gap-1.5">
+          <span className="font-bold text-terminal-text tracking-tight flex items-center gap-1.5">
             <img src="/favicon-32x32.png" className="w-3.5 h-3.5 object-contain" alt="" />
             <span>FAYDA PRO</span>
           </span>
           <span>•</span>
-          <span>Official Exchange Stream</span>
+          <span>Official NSE / BSE Real-time Stream</span>
           <span>•</span>
           <span className="text-bull font-semibold">Fyers API v3 Authorized</span>
           <span>•</span>
-          <span className="text-terminal-text font-bold">@vertexinfo.co.in (All Rights Reserved)</span>
+          <span>@vertexinfo.co.in</span>
         </div>
-        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5 text-center">
-          <span>Market Hours: <strong className="text-terminal-text font-bold">09:15 – 15:40 IST</strong></span>
+        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5 text-center font-mono">
+          <span>Market Hours: <strong className="text-terminal-text">09:15 – 15:40 IST</strong></span>
         </div>
       </footer>
 
       {/* Fixed Sticky SEBI Compliance Ticker (Permanently Pinned to Viewport Bottom) */}
       {panelVisibility.sebiTicker && <DisclaimerTicker />}
+
+      {/* Dedicated Mobile Native Bottom Nav */}
+      <MobileNavBar
+        activeTab={mobileTab}
+        onTabChange={(tab) => setMobileTab(tab)}
+        onOpenRiskCalc={() => setIsMobileRiskOpen(true)}
+      />
+
+      {/* Mobile Risk Calculator Launcher */}
+      <RiskCalculatorModal
+        isOpen={isMobileRiskOpen}
+        onClose={() => setIsMobileRiskOpen(false)}
+        defaultLtp={100}
+      />
     </div>
   );
 };
@@ -132,9 +134,11 @@ export function App() {
     <ThemeProvider>
       <AuthProvider>
         <TerminalModeProvider>
-          <MarketProvider>
-            <DashboardContent />
-          </MarketProvider>
+          <DensityProvider>
+            <MarketProvider>
+              <DashboardContent />
+            </MarketProvider>
+          </DensityProvider>
         </TerminalModeProvider>
       </AuthProvider>
     </ThemeProvider>
@@ -142,3 +146,4 @@ export function App() {
 }
 
 export default App;
+

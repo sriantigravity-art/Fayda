@@ -7,7 +7,7 @@ const INDICES = [
         baseSpot: 25042.30,
         strikeStep: 50,
         numStrikesEachSide: 12,
-        lotSize: 75,
+        lotSize: 65,
         defaultRange: 200
     },
     {

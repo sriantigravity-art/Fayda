@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,37 +8,64 @@
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
 
-  /* Dark Terminal Theme (Default) */
-  --color-terminal-bg: 8 11 17;        /* #080B11 */
-  --color-terminal-card: 15 20 31;     /* #0F141F */
-  --color-terminal-panel: 20 28 43;    /* #141C2B */
-  --color-terminal-border: 30 42 62;   /* #1E2A3E */
-  --color-terminal-hover: 34 49 74;    /* #22314A */
-  --color-terminal-text: 226 232 240;  /* #E2E8F0 */
-  --color-terminal-muted: 100 116 139; /* #64748B */
-  --color-bull: 0 245 155;             /* #00F59B */
-  --color-bear: 255 59 105;            /* #FF3B69 */
-  --color-amber: 255 184 0;            /* #FFB800 */
-  --color-accent-cyan: 0 229 255;      /* #00E5FF */
-  --color-accent-purple: 168 85 247;   /* #A855F7 */
+  /* Modern Institutional Dark Palette (Default) */
+  --color-terminal-bg: 8 11 16;            /* #080B10 Base canvas */
+  --color-terminal-card: 13 19 28;         /* #0D131C Surface Layer 1 */
+  --color-terminal-panel: 20 28 40;        /* #141C28 Surface Layer 2 */
+  --color-terminal-elevated: 27 38 54;     /* #1B2636 Surface Layer 3 */
+  --color-terminal-border: 30 41 59;       /* #1E293B Subtle 1px borders */
+  --color-terminal-border-subtle: 21 30 45;/* #151E2D Micro borders */
+  --color-terminal-hover: 30 41 59;        /* #1E293B Row hover */
+  --color-terminal-text: 241 245 249;      /* #F1F5F9 Primary text */
+  --color-terminal-muted: 100 116 139;     /* #64748B Secondary text */
+  
+  /* Semantic Trading Signals (Calm & High Contrast) */
+  --color-bull: 34 197 94;                 /* #22C55E Emerald */
+  --color-bull-subtle: 34 197 94 / 0.12;
+  --color-bull-border: 34 197 94 / 0.35;
+  
+  --color-bear: 244 63 94;                 /* #F43F5E Rose */
+  --color-bear-subtle: 244 63 94 / 0.12;
+  --color-bear-border: 244 63 94 / 0.35;
+  
+  --color-amber: 245 158 11;               /* #F59E0B Amber */
+  --color-amber-subtle: 245 158 11 / 0.12;
+  --color-amber-border: 245 158 11 / 0.35;
+  
+  --color-accent-cyan: 0 229 255;          /* #00E5FF Accent */
+  --color-accent-sky: 2 132 199;           /* #0284C7 Sky Blue */
+  --color-accent-purple: 139 92 246;       /* #8B5CF6 Violet */
 }
 
 [data-theme="light"], .light {
   color-scheme: light;
 
-  /* Light Professional Theme */
-  --color-terminal-bg: 243 244 246;    /* #F3F4F6 */
-  --color-terminal-card: 255 255 255;  /* #FFFFFF */
-  --color-terminal-panel: 229 231 235; /* #E5E7EB */
-  --color-terminal-border: 209 213 219;/* #D1D5DB */
-  --color-terminal-hover: 243 244 246; /* #F3F4F6 */
-  --color-terminal-text: 15 23 42;     /* #0F172A */
-  --color-terminal-muted: 71 85 105;   /* #475569 */
-  --color-bull: 5 150 105;             /* #059669 Emerald */
-  --color-bear: 225 29 72;             /* #E11D48 Rose */
-  --color-amber: 217 119 6;            /* #D97706 Amber */
-  --color-accent-cyan: 2 132 199;      /* #0284C7 Sky */
-  --color-accent-purple: 147 51 234;   /* #9333EA Purple */
+  /* Modern Institutional Light Palette */
+  --color-terminal-bg: 248 250 252;        /* #F8FAFC Clean off-white background */
+  --color-terminal-card: 255 255 255;      /* #FFFFFF Pure white card surfaces */
+  --color-terminal-panel: 241 245 249;     /* #F1F5F9 Secondary light surface */
+  --color-terminal-elevated: 226 232 240;  /* #E2E8F0 Elevated elements */
+  --color-terminal-border: 226 232 240;    /* #E2E8F0 Subtle borders */
+  --color-terminal-border-subtle: 241 245 249;
+  --color-terminal-hover: 241 245 249;     /* #F1F5F9 Hover state */
+  --color-terminal-text: 15 23 42;         /* #0F172A Deep slate typography */
+  --color-terminal-muted: 100 116 139;     /* #64748B Muted labels */
+  
+  --color-bull: 22 163 74;                 /* #16A34A Emerald */
+  --color-bull-subtle: 22 163 74 / 0.1;
+  --color-bull-border: 22 163 74 / 0.3;
+  
+  --color-bear: 225 29 72;                 /* #E11D48 Rose */
+  --color-bear-subtle: 225 29 72 / 0.1;
+  --color-bear-border: 225 29 72 / 0.3;
+  
+  --color-amber: 217 119 6;                /* #D97706 Amber */
+  --color-amber-subtle: 217 119 6 / 0.1;
+  --color-amber-border: 217 119 6 / 0.3;
+  
+  --color-accent-cyan: 2 132 199;          /* #0284C7 Sky */
+  --color-accent-sky: 3 105 161;           /* #0369A1 */
+  --color-accent-purple: 124 58 237;       /* #7C3AED */
 }
 
 html,

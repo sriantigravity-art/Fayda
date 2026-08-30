@@ -6,6 +6,7 @@ export default {
     "./client/index.html",
     "./client/src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
@@ -13,47 +14,69 @@ export default {
           bg: "rgb(var(--color-terminal-bg) / <alpha-value>)",
           card: "rgb(var(--color-terminal-card) / <alpha-value>)",
           panel: "rgb(var(--color-terminal-panel) / <alpha-value>)",
+          elevated: "rgb(var(--color-terminal-elevated) / <alpha-value>)",
           border: "rgb(var(--color-terminal-border) / <alpha-value>)",
+          borderSubtle: "rgb(var(--color-terminal-border-subtle) / <alpha-value>)",
           hover: "rgb(var(--color-terminal-hover) / <alpha-value>)",
           text: "rgb(var(--color-terminal-text) / <alpha-value>)",
           muted: "rgb(var(--color-terminal-muted) / <alpha-value>)"
         },
         bull: {
           DEFAULT: "rgb(var(--color-bull) / <alpha-value>)",
-          glow: "rgba(var(--color-bull), 0.25)",
-          dark: "#008B58",
-          subtle: "rgba(var(--color-bull), 0.1)"
+          subtle: "rgb(var(--color-bull-subtle) / <alpha-value>)",
+          text: "rgb(var(--color-bull) / <alpha-value>)",
+          border: "rgb(var(--color-bull-border) / <alpha-value>)"
         },
         bear: {
           DEFAULT: "rgb(var(--color-bear) / <alpha-value>)",
-          glow: "rgba(var(--color-bear), 0.25)",
-          dark: "#A31B39",
-          subtle: "rgba(var(--color-bear), 0.1)"
+          subtle: "rgb(var(--color-bear-subtle) / <alpha-value>)",
+          text: "rgb(var(--color-bear) / <alpha-value>)",
+          border: "rgb(var(--color-bear-border) / <alpha-value>)"
         },
         amber: {
           DEFAULT: "rgb(var(--color-amber) / <alpha-value>)",
-          glow: "rgba(var(--color-amber), 0.25)",
-          subtle: "rgba(var(--color-amber), 0.1)"
+          subtle: "rgb(var(--color-amber-subtle) / <alpha-value>)",
+          text: "rgb(var(--color-amber) / <alpha-value>)",
+          border: "rgb(var(--color-amber-border) / <alpha-value>)"
         },
         accent: {
           cyan: "rgb(var(--color-accent-cyan) / <alpha-value>)",
+          sky: "rgb(var(--color-accent-sky) / <alpha-value>)",
           purple: "rgb(var(--color-accent-purple) / <alpha-value>)"
         }
       },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      borderRadius: {
+        'terminal': '8px',
+        'terminal-lg': '12px',
+        'terminal-xl': '16px',
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'elevated': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'atm-glow': '0 0 15px rgba(2, 132, 199, 0.25)',
+      },
       animation: {
-        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'flash-red': 'flashRed 1.2s infinite',
-        'flash-green': 'flashGreen 1.2s infinite',
-        'radar-sweep': 'radarSweep 4s linear infinite',
+        'pulse-subtle': 'pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'fade-in': 'fadeIn 0.15s ease-out forwards',
+        'slide-down': 'slideDown 0.15s ease-out forwards',
       },
       keyframes: {
-        flashRed: {
-          '0%, 100%': { borderColor: '#FF3B69', boxShadow: '0 0 15px rgba(255, 59, 105, 0.6)' },
-          '50%': { borderColor: 'transparent', boxShadow: 'none' },
+        pulseSubtle: {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.7 },
         },
-        flashGreen: {
-          '0%, 100%': { borderColor: '#00F59B', boxShadow: '0 0 15px rgba(0, 245, 155, 0.6)' },
-          '50%': { borderColor: 'transparent', boxShadow: 'none' },
+        fadeIn: {
+          '0%': { opacity: 0 },
+          '100%': { opacity: 1 },
+        },
+        slideDown: {
+          '0%': { opacity: 0, transform: 'translateY(-6px)' },
+          '100%': { opacity: 1, transform: 'translateY(0)' },
         }
       }
     },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode, type TerminalMode } from '../context/TerminalModeContext';
+import { useDensity, type TerminalDensity } from '../context/DensityContext';
 import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { 
@@ -27,7 +28,9 @@ import {
   User,
   LogOut,
   Sparkles,
-  Zap
+  Zap,
+  Search,
+  Command
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { FyersModal } from './FyersModal';
@@ -35,6 +38,7 @@ import { StockSelectorDropdown } from './StockSelectorDropdown';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { AuthModal } from './auth/AuthModal';
 import { SuperAdminControlDrawer } from './admin/SuperAdminControlDrawer';
+import { CommandPaletteModal } from './CommandPaletteModal';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -56,14 +60,29 @@ export const HeaderBar: React.FC = () => {
 
   const { theme, toggleTheme } = useTheme();
   const { mode, setMode } = useTerminalMode();
+  const { density, setDensity } = useDensity();
   const { user, isAuthenticated, isSuperAdmin, logout, panelVisibility } = useAuth();
+  
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Global Ctrl + K / Cmd + K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sync fullscreen state with browser events
   useEffect(() => {
@@ -158,706 +177,405 @@ export const HeaderBar: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const getPcrBadgeColor = (pcr: number) => {
-    if (pcr >= 1.1) return 'bg-bull-subtle text-bull border-bull/30';
-    if (pcr <= 0.88) return 'bg-bear-subtle text-bear border-bear/30';
-    return 'bg-amber-subtle text-amber border-amber/30';
-  };
-
   const expiryDates = currentIndexState?.expiryDates || [];
   const selectedExpiry = currentIndexState?.selectedExpiry || 'Current Expiry';
   const daysToExpiry = currentIndexState?.daysToExpiry ?? 0;
 
-  // Active Index Sentiment
+  // Active Index Sentiment & Calculations
+  const spotPrice = currentIndexState?.spotPrice ?? 0;
+  const prevClose = currentIndexState?.previousClose ?? spotPrice;
+  const changePoints = spotPrice - prevClose;
+  const changePct = prevClose > 0 ? (changePoints / prevClose) * 100 : 0;
+  const isPositiveChange = changePoints >= 0;
+
   const activePcr = currentIndexState?.pcr.atmPlusMinus5Pcr ?? 1.0;
   const isBullishSentiment = activePcr >= 1.10;
   const isBearishSentiment = activePcr <= 0.88;
 
   return (
-    <header className="border-b border-terminal-border bg-terminal-panel sticky top-0 z-40 px-2 sm:px-4 py-1.5 sm:py-2 shadow-md">
-      {/* 1st Row: Master Control Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 sm:gap-2 min-w-0">
+    <header className="border-b border-terminal-border bg-terminal-card sticky top-0 z-40 px-3 sm:px-4 py-2 shadow-subtle select-none">
+      <div className="flex items-center justify-between gap-3 min-w-0 max-w-[1840px] mx-auto">
         
         {/* ========================================================================= */}
-        {/* MOBILE VIEW (< md): 2-LINE CLEAN TITLEBAR                                 */}
+        {/* ZONE 1: LEFT BRAND & PRIMARY MARKET STATE (LEVEL 1 INFORMATION) */}
         {/* ========================================================================= */}
-        <div className="flex md:hidden flex-col gap-1.5 w-full">
-          {/* MOBILE LINE 1: Brand Logo (Left) + Clock & Fullscreen & Settings (Right) */}
-          <div className="flex items-center justify-between w-full">
-            {/* Logo */}
-            <div className="flex items-center shrink-0">
-              <img
-                src="/fayda-logo.png"
-                alt="Fayda Logo"
-                className="h-8.5 xs:h-9.5 w-auto max-w-[125px] xs:max-w-[145px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
-              />
-            </div>
+        <div className="flex items-center space-x-3 shrink-0 min-w-0">
+          {/* Fayda Brand Badge */}
+          <div className="flex items-center space-x-2">
+            <img src="/favicon-32x32.png" className="w-5 h-5 object-contain shrink-0" alt="Fayda" />
+            <span className="font-sans font-extrabold text-sm sm:text-base tracking-tight text-terminal-text hidden xs:inline">
+              FAYDA<span className="text-accent-sky font-bold text-xs ml-1">PRO</span>
+            </span>
+          </div>
 
-            {/* Mobile Top-Right Controls: Clock (Left of Fullscreen) + Fullscreen Button + Settings */}
-            <div className="flex items-center space-x-1.5 shrink-0">
-              {/* Digital Market Clock */}
-              <div className="flex items-center space-x-1 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
-                <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-accent-cyan animate-pulse shrink-0" />
-                <span className="text-[11px] xs:text-xs font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
-                  {currentTime}
-                </span>
-                <span className="text-[7px] xs:text-[8px] text-accent-cyan font-extrabold uppercase">
-                  IST
-                </span>
-              </div>
+          <div className="h-5 w-[1px] bg-terminal-border hidden sm:block" />
 
-              {/* Fullscreen Button */}
-              <button
-                type="button"
-                onClick={toggleFullscreen}
-                className="p-1 xs:p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
-                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode"}
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-accent-cyan" />
-                ) : (
-                  <Maximize2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-terminal-muted hover:text-accent-cyan" />
-                )}
-              </button>
+          {/* Asset Selector Dropdown */}
+          <StockSelectorDropdown />
 
-              {/* More Controls (•••) */}
-              <button
-                type="button"
-                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                className={`p-1 xs:p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
-                  isMoreMenuOpen 
-                    ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' 
-                    : 'bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-terminal-text'
+          {/* Live Spot Price & Change Delta */}
+          {currentIndexState && (
+            <div className="flex items-baseline space-x-2 shrink-0">
+              <span className="font-mono font-bold text-sm sm:text-base md:text-lg text-terminal-text tabular-nums tracking-tight">
+                ₹{spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+              </span>
+
+              <span
+                className={`font-mono text-xs font-semibold flex items-center tabular-nums ${
+                  isPositiveChange ? 'text-bull' : 'text-bear'
                 }`}
-                title="More Institutional Controls & Settings"
               >
-                <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
+                {isPositiveChange ? '+' : ''}{changePoints.toFixed(1)} ({isPositiveChange ? '+' : ''}{changePct.toFixed(2)}%)
+              </span>
 
-          {/* MOBILE LINE 2: Controls Row (Asset Selector & Expiry) */}
-          <div className="flex items-center justify-between w-full pt-1 border-t border-terminal-border/30">
-            {/* Left: Asset Dropdown */}
-            <div className="flex items-center space-x-1 shrink-0">
-              <StockSelectorDropdown />
+              {/* Live Market Status Pill */}
+              <span
+                className={`hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-sans font-semibold border ${
+                  isLiveMarketOpen
+                    ? 'bg-bull/10 text-bull border-bull/30'
+                    : 'bg-terminal-panel text-terminal-muted border-terminal-border'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isLiveMarketOpen ? 'bg-bull animate-pulse' : 'bg-terminal-muted'}`} />
+                {isLiveMarketOpen ? 'LIVE' : 'CLOSED'}
+              </span>
             </div>
+          )}
 
-            {/* Right: Expiry Selector */}
-            <div className="flex items-center space-x-1 shrink-0">
-              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg px-1.5 py-0.5 space-x-1 text-xs font-mono shrink-0">
-                <Calendar className="w-3 h-3 text-amber shrink-0" />
-                <span className="text-[9px] text-terminal-muted font-bold uppercase">Expiry:</span>
-                {expiryDates.length > 0 ? (
-                  <select
-                    value={selectedExpiry}
-                    onChange={(e) => setOptionExpiry(e.target.value)}
-                    className="bg-transparent text-terminal-text font-bold focus:outline-none cursor-pointer text-[10px] max-w-[85px]"
-                  >
-                    {expiryDates.map((exp: string) => (
-                      <option key={exp} value={exp} className="bg-terminal-card text-terminal-text">
-                        {exp}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="font-bold text-terminal-text text-[10px]">{selectedExpiry}</span>
-                )}
-                <span className="text-[8px] px-1 py-0.2 rounded bg-amber/10 border border-amber/30 text-amber font-bold">
-                  {daysToExpiry === 0 ? '0D' : `${daysToExpiry}D`}
-                </span>
-              </div>
+          {/* Expiry Selector Dropdown */}
+          {expiryDates.length > 0 && (
+            <div className="hidden xl:flex items-center space-x-1 pl-1">
+              <Calendar className="w-3.5 h-3.5 text-terminal-muted" />
+              <select
+                value={selectedExpiry}
+                onChange={(e) => setOptionExpiry(e.target.value)}
+                className="bg-terminal-panel border border-terminal-border rounded-lg px-2 py-1 text-xs font-mono font-semibold text-terminal-text focus:outline-none focus:border-accent-sky cursor-pointer transition"
+              >
+                {expiryDates.map((exp: string, idx: number) => (
+                  <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
+                    {exp} {idx === 0 ? '(Near)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
-        {/* DESKTOP VIEW (>= md): COMPLETE INSTITUTIONAL 1-ROW MASTER BAR             */}
+        {/* ZONE 2: CENTER KEY CONTEXT METRICS */}
         {/* ========================================================================= */}
-        <div className="hidden md:flex items-center justify-between w-full">
-          {/* DESKTOP LEFT SIDE: Brand Logo, Asset Selector, Expiry Selector, Sentiment */}
-          <div className="flex items-center space-x-2 shrink-0 min-w-0">
-            <div className="flex items-center shrink-0">
-              <img
-                src="/fayda-logo.png"
-                alt="Fayda Logo"
-                className="h-8.5 w-auto max-w-[125px] object-contain drop-shadow-[0_0_12px_rgba(0,229,255,0.3)] transition-transform duration-200 hover:scale-105"
-              />
+        {currentIndexState && (
+          <div className="hidden 2xl:flex items-center space-x-4 px-3 py-1 rounded-xl bg-terminal-panel/60 border border-terminal-border text-xs font-sans">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-terminal-muted font-medium text-[11px]">ATM Strike:</span>
+              <span className="font-mono font-bold text-terminal-text">{currentIndexState.atmStrike}</span>
             </div>
 
-            <div className="flex items-center space-x-1.5 shrink-0">
-              {/* ONE-LINER SELECT ASSET DROPDOWN */}
-              <StockSelectorDropdown />
+            <div className="h-3 w-[1px] bg-terminal-border" />
 
-              {/* Option Expiry Selector (Beside Select Asset) */}
-              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-xl px-2.5 py-1 space-x-1.5 text-xs font-mono shrink-0 shadow-sm">
-                <Calendar className="w-3.5 h-3.5 text-amber shrink-0" />
-                <span className="text-[11px] text-terminal-muted font-bold uppercase tracking-wider">Expiry:</span>
-                {expiryDates.length > 0 ? (
-                  <select
-                    value={selectedExpiry}
-                    onChange={(e) => setOptionExpiry(e.target.value)}
-                    className="bg-transparent text-terminal-text font-bold focus:outline-none cursor-pointer text-xs"
-                  >
-                    {expiryDates.map((exp: string) => (
-                      <option key={exp} value={exp} className="bg-terminal-card text-terminal-text">
-                        {exp}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="font-bold text-terminal-text text-xs">{selectedExpiry}</span>
-                )}
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber/10 border border-amber/30 text-amber font-bold">
-                  {daysToExpiry === 0 ? '0D' : `${daysToExpiry}D`}
-                </span>
-              </div>
-
-              {/* LIVE MARKET SENTIMENT BADGE (Visible on screens >= 1200px) */}
-              <div
-                className={`hidden xl:inline-flex items-center space-x-1.5 px-2.5 py-1 text-[10px] font-mono font-bold uppercase rounded-lg border transition shadow-sm shrink-0 ${
-                  isBullishSentiment
-                    ? 'bg-bull/20 border-bull text-bull shadow-[0_0_12px_rgba(0,245,155,0.35)] animate-pulse'
-                    : isBearishSentiment
-                    ? 'bg-bear/20 border-bear text-bear shadow-[0_0_12px_rgba(255,59,105,0.35)] animate-pulse'
-                    : 'bg-amber/15 border-amber/50 text-amber'
-                }`}
-                title={`Live OI Market Sentiment for ${selectedIndex}: PCR ${activePcr.toFixed(2)}`}
-              >
-                {isBullishSentiment ? (
-                  <>
-                    <TrendingUp className="w-3.5 h-3.5 text-bull shrink-0" />
-                    <span>BULLISH ({activePcr.toFixed(2)})</span>
-                  </>
-                ) : isBearishSentiment ? (
-                  <>
-                    <TrendingDown className="w-3.5 h-3.5 text-bear shrink-0" />
-                    <span>BEARISH ({activePcr.toFixed(2)})</span>
-                  </>
-                ) : (
-                  <>
-                    <Activity className="w-3.5 h-3.5 text-amber shrink-0" />
-                    <span>NEUTRAL ({activePcr.toFixed(2)})</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* DESKTOP RIGHT SIDE: SuperAdmin Matrix, Trader Mode, Risk Calc, Auth, Audio, Theme, Fullscreen, Clock, Settings */}
-          <div className="flex items-center space-x-1.5 shrink-0">
-            {/* SUPERADMIN PLATFORM CONTROL MATRIX BUTTON (Visible when SuperAdmin) */}
-            {isSuperAdmin && (
-              <button
-                type="button"
-                onClick={() => setIsAdminDrawerOpen(true)}
-                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-purple-500/20 border border-purple-500/60 hover:bg-purple-500/30 text-purple-400 font-mono text-[10px] font-bold shadow-[0_0_15px_rgba(168,85,247,0.35)] transition cursor-pointer shrink-0 animate-pulse"
-                title="SuperAdmin Live Control: Show/Hide any panel, review SEBI consent audit logs, and manage legal versions"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">⚡ ADMIN MATRIX</span>
-              </button>
-            )}
-
-            {/* 3-MODE TRADER LEVEL TOGGLE (BEGINNER / INTERMEDIATE / EXPERT) */}
-            {panelVisibility.traderModeToggle && (
-              <div className="hidden lg:flex items-center bg-terminal-card border border-terminal-border rounded-xl p-0.5 font-mono text-[10px] font-bold shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setMode('BEGINNER')}
-                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                    mode === 'BEGINNER'
-                      ? 'bg-bull/20 border border-bull/40 text-bull shadow-sm'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
-                  title="Beginner Mode: Plain-English bias, capital preservation guardrails, simplified risk"
-                >
-                  <span>🟢</span>
-                  <span>BEGINNER</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode('INTERMEDIATE')}
-                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                    mode === 'INTERMEDIATE'
-                      ? 'bg-amber/20 border border-amber/40 text-amber shadow-sm'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
-                  title="Intermediate Mode: Master 7-strategy confluence scoring, strike selection, and R:R ratios"
-                >
-                  <span>🟡</span>
-                  <span>INTERMEDIATE</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode('EXPERT')}
-                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                    mode === 'EXPERT'
-                      ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400 shadow-sm'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
-                  title="Expert Mode: Live Greeks (Delta, Gamma, Theta, Vega), 1-min OI Delta squeeze, and structural BOS"
-                >
-                  <span>🟣</span>
-                  <span>EXPERT</span>
-                </button>
-              </div>
-            )}
-
-            {/* SEBI Position Sizing & Risk Calculator Button */}
-            {panelVisibility.riskCalc && (
-              <button
-                type="button"
-                onClick={() => setIsRiskModalOpen(true)}
-                className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-accent-cyan/15 border border-accent-cyan/40 hover:bg-accent-cyan/25 text-accent-cyan transition shadow-sm font-mono text-[10px] font-bold shrink-0 cursor-pointer"
-                title="SEBI Position Sizing & Account Risk Calculator"
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">RISK CALC</span>
-              </button>
-            )}
-
-            {/* USER AUTH / PROFILE BADGE */}
-            {isAuthenticated && user ? (
-              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-xl px-2 py-1 gap-1.5 font-mono text-[10px] shadow-sm shrink-0">
-                <div className="w-5 h-5 rounded-full bg-accent-cyan/20 border border-accent-cyan/50 text-accent-cyan flex items-center justify-center font-bold text-[9px]">
-                  {user.fullName.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden sm:flex flex-col leading-none text-left">
-                  <span className="text-terminal-text font-bold max-w-[90px] truncate">{user.fullName}</span>
-                  <span className="text-[8px] text-accent-cyan font-bold">
-                    {user.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'PRO TRADER'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="p-1 rounded text-terminal-muted hover:text-bear transition cursor-pointer ml-1"
-                  title="Sign Out"
-                >
-                  <LogOut className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-accent-cyan/20 border border-accent-cyan/60 hover:bg-accent-cyan/30 text-accent-cyan font-mono text-[10px] font-bold shadow-[0_0_15px_rgba(0,229,255,0.25)] transition cursor-pointer shrink-0"
-                title="Sign In or Create Account with SEBI Consent"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>SIGN IN</span>
-              </button>
-            )}
-
-            {/* Audio Chime Toggle */}
-            <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg p-0.5 text-xs shrink-0">
-              <button
-                onClick={toggleMute}
-                title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
-                className={`p-1.5 rounded transition ${
-                  isMuted ? 'text-terminal-muted hover:text-terminal-text' : 'bg-bull/20 text-bull'
-                }`}
-              >
-                {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {/* Light / Dark Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-terminal-card border border-terminal-border hover:border-accent-cyan transition shadow-sm font-mono text-[10px] font-bold text-terminal-text shrink-0"
-              title={theme === 'dark' ? 'Current: Dark Mode (Click for Light Theme ☀️)' : 'Current: Light Mode (Click for Dark Theme 🌙)'}
-            >
-              {theme === 'dark' ? (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-accent-cyan" />
-                  <span className="text-terminal-text">DARK</span>
-                </>
-              ) : (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-amber" />
-                  <span className="text-terminal-text">LIGHT</span>
-                </>
-              )}
-            </button>
-
-            {/* 1-Tap Native Fullscreen Mode Button */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="p-1.5 rounded-xl border bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-accent-cyan transition shadow-sm flex items-center justify-center shrink-0"
-              title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen Mode (All Mobile & Desktop Devices)"}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="w-4 h-4 text-accent-cyan" />
-              ) : (
-                <Maximize2 className="w-4 h-4 text-terminal-muted hover:text-accent-cyan" />
-              )}
-            </button>
-
-            {/* PROMINENT DIGITAL MARKET CLOCK */}
-            <div className="flex items-center space-x-1 px-2.5 py-1 bg-gradient-to-r from-terminal-card via-terminal-bg to-terminal-card border-2 border-accent-cyan/60 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.2)] font-mono shrink-0">
-              <Clock className="w-3.5 h-3.5 text-accent-cyan animate-pulse shrink-0" />
-              <span className="text-xs md:text-sm font-black text-terminal-text tracking-wider tabular-nums font-mono drop-shadow-[0_0_6px_rgba(0,229,255,0.4)]">
-                {currentTime}
-              </span>
-              <span className="text-[8px] text-accent-cyan font-extrabold uppercase">
-                IST
+            <div className="flex items-center space-x-1.5">
+              <span className="text-terminal-muted font-medium text-[11px]">PCR (ATM±5):</span>
+              <span className={`font-mono font-bold ${
+                isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
+              }`}>
+                {activePcr.toFixed(2)}
               </span>
             </div>
 
-            {/* RESPONSIVE INSTITUTIONAL MORE (•••) DROPDOWN MENU BUTTON */}
+            <div className="h-3 w-[1px] bg-terminal-border" />
+
+            <div className="flex items-center space-x-1.5">
+              <span className="text-terminal-muted font-medium text-[11px]">Days to Expiry:</span>
+              <span className="font-mono font-bold text-terminal-text">{daysToExpiry}d</span>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ZONE 3: RIGHT ACTIONS & SETTINGS */}
+        {/* ========================================================================= */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+          
+          {/* Command Palette Trigger Button (Ctrl + K) */}
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text transition text-xs font-sans cursor-pointer shadow-subtle"
+            title="Open Command Palette (Ctrl+K or ⌘K)"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-medium hidden md:inline">Command</span>
+            <kbd className="px-1.5 py-0.2 rounded bg-terminal-elevated text-terminal-muted text-[10px] font-mono border border-terminal-border">
+              ⌘K
+            </kbd>
+          </button>
+
+          {/* SuperAdmin Matrix Button (If Active) */}
+          {isSuperAdmin && (
             <button
               type="button"
-              onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-              className={`p-1.5 rounded-xl border transition shadow-sm flex items-center justify-center shrink-0 ${
-                isMoreMenuOpen 
-                  ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan' 
-                  : 'bg-terminal-card border-terminal-border hover:border-accent-cyan/60 text-terminal-muted hover:text-terminal-text'
-              }`}
-              title="More Institutional Controls & Settings"
+              onClick={() => setIsAdminDrawerOpen(true)}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-accent-purple/15 border border-accent-purple/40 text-accent-purple hover:bg-accent-purple/25 font-sans text-xs font-bold transition cursor-pointer shrink-0"
+              title="SuperAdmin Live Control: Show/Hide panels & compliance audit"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <Zap className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Admin Matrix</span>
             </button>
-          </div>
+          )}
+
+          {/* 3-Mode Trader Toggle (Beginner / Intermediate / Expert) */}
+          {panelVisibility.traderModeToggle && (
+            <div className="hidden lg:flex items-center bg-terminal-panel border border-terminal-border rounded-lg p-0.5 text-xs font-sans font-semibold">
+              <button
+                type="button"
+                onClick={() => setMode('BEGINNER')}
+                className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
+                  mode === 'BEGINNER'
+                    ? 'bg-bull/15 text-bull font-bold'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Beginner Mode: Capital preservation guardrails and simplified risk"
+              >
+                Beginner
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('INTERMEDIATE')}
+                className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
+                  mode === 'INTERMEDIATE'
+                    ? 'bg-amber/15 text-amber font-bold'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Intermediate Mode: Master 7-strategy confluence scoring and R:R ratios"
+              >
+                Interm.
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('EXPERT')}
+                className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
+                  mode === 'EXPERT'
+                    ? 'bg-accent-purple/15 text-accent-purple font-bold'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Expert Mode: Live Greeks, 1-min OI squeeze, and structural breakout levels"
+              >
+                Expert
+              </button>
+            </div>
+          )}
+
+          {/* Density Mode Switcher (Compact / Standard) */}
+          <button
+            type="button"
+            onClick={() => setDensity(density === 'COMPACT' ? 'STANDARD' : 'COMPACT')}
+            className="hidden lg:flex items-center space-x-1 px-2 py-1 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-sans font-medium transition cursor-pointer"
+            title={`Current Density: ${density}. Click to switch.`}
+          >
+            <Activity className="w-3 h-3 text-accent-sky" />
+            <span>{density === 'COMPACT' ? 'Compact' : 'Standard'}</span>
+          </button>
+
+          {/* SEBI Position Sizing & Risk Calculator Button */}
+          {panelVisibility.riskCalc && (
+            <button
+              type="button"
+              onClick={() => setIsRiskModalOpen(true)}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky transition font-sans text-xs font-bold shrink-0 cursor-pointer"
+              title="SEBI Position Sizing & Account Risk Calculator"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Risk Calc</span>
+            </button>
+          )}
+
+          {/* Audio Chime Toggle */}
+          <button
+            type="button"
+            onClick={toggleMute}
+            title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              isMuted
+                ? 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
+                : 'bg-bull/15 border-bull/30 text-bull'
+            }`}
+          >
+            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Light / Dark Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+            title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="hidden sm:inline-flex p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* User Auth Profile Badge or Sign In */}
+          {isAuthenticated && user ? (
+            <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg px-2 py-1 gap-1.5 font-sans text-xs shrink-0">
+              <div className="w-5 h-5 rounded-full bg-accent-sky/20 text-accent-sky font-bold text-[10px] flex items-center justify-center">
+                {user.fullName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-terminal-text font-semibold max-w-[80px] truncate hidden sm:inline">
+                {user.fullName}
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="p-0.5 text-terminal-muted hover:text-bear transition cursor-pointer"
+                title="Sign Out"
+              >
+                <LogOut className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition cursor-pointer shrink-0"
+              title="Sign In with SEBI Consent"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
+
+          {/* Overflow Menu for Small Screens */}
+          <button
+            type="button"
+            onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+            className="lg:hidden p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
         </div>
-
       </div>
 
-      {/* POPOVER CONTROLS PANEL (Accessible on both mobile and desktop) */}
+      {/* Popover Controls Menu for Mobile/Small Displays */}
       {isMoreMenuOpen && (
         <div 
-          ref={moreMenuRef} 
-          className="absolute right-2 sm:right-4 top-full mt-2 w-[290px] sm:w-[330px] bg-terminal-card border-2 border-accent-cyan/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-50 p-3 space-y-2.5 text-xs animate-in fade-in zoom-in-95 duration-150 font-mono"
+          ref={moreMenuRef}
+          className="absolute right-3 top-full mt-2 w-72 bg-terminal-card border border-terminal-border rounded-xl shadow-elevated z-50 p-3 space-y-3 font-sans text-xs animate-slide-down"
         >
           <div className="flex items-center justify-between pb-2 border-b border-terminal-border">
-            <span className="font-bold text-terminal-text flex items-center gap-1.5 uppercase text-[11px] tracking-wider">
-              <Sliders className="w-3.5 h-3.5 text-accent-cyan" />
-              <span>TERMINAL CONTROLS</span>
-            </span>
+            <span className="font-semibold text-terminal-text">Terminal Settings</span>
             <button onClick={() => setIsMoreMenuOpen(false)} className="text-terminal-muted hover:text-terminal-text">
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Trader Level 3-Mode Selector in Popover */}
-          <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border space-y-1.5">
-            <span className="font-bold text-terminal-text block text-[11px]">Trader Experience Mode</span>
+          {/* Mode switch */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-terminal-muted font-medium block">Trader Experience Mode</span>
             <div className="grid grid-cols-3 gap-1">
               <button
-                onClick={() => setMode('BEGINNER')}
-                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
-                  mode === 'BEGINNER'
-                    ? 'bg-bull/20 border-bull text-bull shadow-sm'
-                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
-                }`}
+                onClick={() => { setMode('BEGINNER'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${mode === 'BEGINNER' ? 'bg-bull/15 border-bull/40 text-bull' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
               >
-                🟢 Beginner
+                Beginner
               </button>
               <button
-                onClick={() => setMode('INTERMEDIATE')}
-                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
-                  mode === 'INTERMEDIATE'
-                    ? 'bg-amber/20 border-amber text-amber shadow-sm'
-                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
-                }`}
+                onClick={() => { setMode('INTERMEDIATE'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${mode === 'INTERMEDIATE' ? 'bg-amber/15 border-amber/40 text-amber' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
               >
-                🟡 Interm.
+                Interm.
               </button>
               <button
-                onClick={() => setMode('EXPERT')}
-                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
-                  mode === 'EXPERT'
-                    ? 'bg-purple-500/20 border-purple-500 text-purple-400 shadow-sm'
-                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
-                }`}
+                onClick={() => { setMode('EXPERT'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${mode === 'EXPERT' ? 'bg-accent-purple/15 border-accent-purple/40 text-accent-purple' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
               >
-                🟣 Expert
+                Expert
               </button>
             </div>
           </div>
 
-          {/* Risk Calculator Trigger in Popover */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              <Calculator className="w-4 h-4 text-accent-cyan" />
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Position Sizing</span>
-                <span className="text-[10px] text-terminal-muted">SEBI Risk & Capital Guard</span>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setIsMoreMenuOpen(false);
-                setIsRiskModalOpen(true);
-              }}
-              className="px-2.5 py-1 rounded-lg bg-accent-cyan/20 border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/30 text-[10px] font-bold transition cursor-pointer"
-            >
-              Open Calc
-            </button>
-          </div>
-
-          {/* Fullscreen Mode Toggle */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              {isFullscreen ? <Minimize2 className="w-4 h-4 text-accent-cyan" /> : <Maximize2 className="w-4 h-4 text-accent-cyan" />}
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Full Screen Mode</span>
-                <span className="text-[10px] text-terminal-muted">{isFullscreen ? 'Active (Full View)' : 'All Mobile & Desktop'}</span>
-              </div>
-            </div>
-            <button
-              onClick={toggleFullscreen}
-              className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
-            >
-              {isFullscreen ? 'Exit Full' : 'Full Screen'}
-            </button>
-          </div>
-
-          {/* Market Sentiment & PCR Row */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              <Activity className="w-4 h-4 text-accent-cyan" />
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">{selectedIndex} Sentiment</span>
-                <span className="text-[10px] text-terminal-muted">ATM PCR: {activePcr.toFixed(2)}</span>
-              </div>
-            </div>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              isBullishSentiment ? 'bg-bull/20 text-bull border border-bull/40' : isBearishSentiment ? 'bg-bear/20 text-bear border border-bear/40' : 'bg-amber/20 text-amber border border-amber/40'
-            }`}>
-              {isBullishSentiment ? '▲ BULLISH' : isBearishSentiment ? '▼ BEARISH' : '⬌ NEUTRAL'}
-            </span>
-          </div>
-
-          {/* Fyers Broker API Account */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              <KeyRound className={`w-4 h-4 ${fyersConfig.isConnected ? 'text-bull' : 'text-accent-cyan'}`} />
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Fyers Broker API</span>
-                <span className="text-[10px] text-terminal-muted">
-                  {fyersConfig.isConnected ? 'Connected: SRS Trading Account' : 'Connect API Token'}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setIsMoreMenuOpen(false);
-                setIsFyersModalOpen(true);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition flex items-center gap-1 shadow-sm ${
-                fyersConfig.isConnected
-                  ? 'bg-bull/15 border-bull/50 text-bull hover:bg-bull/25'
-                  : 'bg-accent-cyan/15 border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/25'
-              }`}
-            >
-              {fyersConfig.isConnected ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3 text-bull shrink-0" />
-                  <span>Config SRS</span>
-                </>
-              ) : (
-                <span>Connect</span>
-              )}
-            </button>
-          </div>
-
-          {/* Live Market / Official EOD Session Status */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${isLiveMarketOpen ? 'bg-bull animate-ping' : 'bg-amber'}`} />
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Market Session</span>
-                <span className="text-[10px] text-terminal-muted">
-                  {isLiveMarketOpen ? 'NSE / BSE / MCX Regular Trading' : 'Official Settlement Close / EOD'}
-                </span>
-              </div>
-            </div>
-            <span
-              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0 ${
-                isLiveMarketOpen
-                  ? 'bg-bull-subtle border-bull text-bull shadow-[0_0_8px_rgba(0,245,155,0.4)]'
-                  : 'bg-amber/15 border-amber/40 text-amber'
-              }`}
-            >
-              {isLiveMarketOpen ? 'LIVE MARKET' : 'OFFICIAL EOD'}
-            </span>
-          </div>
-
-          {/* Data Source Switcher */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              <Globe className="w-4 h-4 text-bull" />
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Data Source</span>
-                <span className="text-[10px] text-terminal-muted">{dataSource === 'FYERS_LIVE' ? 'Fyers WebSocket API' : 'NSE Official Bhavcopy'}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setDataSource(dataSource === 'FYERS_LIVE' ? 'NSE_LIVE' : 'FYERS_LIVE')}
-              className="px-2 py-1 rounded-lg bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan font-bold text-[10px] transition"
-            >
-              Switch
-            </button>
-          </div>
-
-          {/* Audio Alerts & Voice Chime */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              {isMuted ? <VolumeX className="w-4 h-4 text-terminal-muted" /> : <Volume2 className="w-4 h-4 text-bull" />}
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Audio Alerts</span>
-                <span className="text-[10px] text-terminal-muted">{isMuted ? 'Muted' : 'Live Audio Active'}</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-1">
+          {/* Density switch */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-terminal-muted font-medium block">Table Density</span>
+            <div className="grid grid-cols-3 gap-1">
               <button
-                onClick={toggleMute}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
-                  isMuted ? 'bg-terminal-bg text-terminal-muted border-terminal-border' : 'bg-bull/20 text-bull border-bull/40'
-                }`}
+                onClick={() => { setDensity('COMPACT'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${density === 'COMPACT' ? 'bg-accent-sky/15 border-accent-sky/40 text-accent-sky' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
               >
-                {isMuted ? 'Unmute' : 'Mute'}
+                Compact
               </button>
               <button
-                onClick={testSound}
-                className="px-1.5 py-1 rounded-lg bg-terminal-bg text-terminal-text border border-terminal-border text-[10px] hover:border-accent-cyan"
+                onClick={() => { setDensity('STANDARD'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${density === 'STANDARD' ? 'bg-accent-sky/15 border-accent-sky/40 text-accent-sky' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
               >
-                Test
+                Standard
+              </button>
+              <button
+                onClick={() => { setDensity('COMFORTABLE'); setIsMoreMenuOpen(false); }}
+                className={`py-1 rounded text-[11px] font-semibold border ${density === 'COMFORTABLE' ? 'bg-accent-sky/15 border-accent-sky/40 text-accent-sky' : 'bg-terminal-panel border-terminal-border text-terminal-muted'}`}
+              >
+                Comfort
               </button>
             </div>
-          </div>
-
-          {/* Theme Mode Toggle */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
-            <div className="flex items-center space-x-2">
-              {theme === 'dark' ? <Moon className="w-4 h-4 text-accent-cyan" /> : <Sun className="w-4 h-4 text-amber" />}
-              <div>
-                <span className="font-bold text-terminal-text block text-[11px]">Appearance</span>
-                <span className="text-[10px] text-terminal-muted">{theme === 'dark' ? 'Dark Terminal Mode' : 'Light Pro Mode'}</span>
-              </div>
-            </div>
-            <button
-              onClick={toggleTheme}
-              className="px-2.5 py-1 rounded-lg bg-terminal-card hover:bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] transition flex items-center gap-1.5 shadow-sm"
-            >
-              {theme === 'dark' ? (
-                <>
-                  <Sun className="w-3 h-3 text-amber" />
-                  <span>Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-3 h-3 text-accent-cyan" />
-                  <span>Dark Mode</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Connection Status */}
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border text-[11px]">
-            <div className="flex items-center space-x-2">
-              <Radio className={`w-4 h-4 ${isConnected ? 'text-bull' : 'text-bear'}`} />
-              <span className="text-terminal-muted">Connection:</span>
-            </div>
-            <span className={`font-bold ${isConnected ? 'text-bull' : 'text-bear animate-pulse'}`}>
-              {isConnected ? '100% ONLINE (1-Sec Stream)' : 'OFFLINE'}
-            </span>
           </div>
         </div>
       )}
 
-      {/* 2nd Row: Horizontal Swipeable Ticker Tape of Asset Cards */}
-      <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pt-1.5 pb-0.5 border-t border-terminal-border/40 mt-1.5 touch-pan-x">
-        {visibleIndices.map((sym) => {
-          const state = indices[sym];
+      {/* Multi-Index Mini Strip */}
+      <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1 mt-1 border-t border-terminal-border/50">
+        {indices.map((sym: string) => {
           const isSelected = selectedIndex === sym;
-          const isPositive = state ? state.change >= 0 : true;
-          const pcrVal = state?.pcr.atmPlusMinus5Pcr ?? 1.0;
-          const cardBull = pcrVal >= 1.10;
-          const cardBear = pcrVal <= 0.88;
-
-          const changeSign = isPositive ? '+' : '';
-          const pointsFormatted = state ? `${changeSign}${state.change.toFixed(2)}` : '0.00';
-          const pctFormatted = state ? `${changeSign}${state.pctChange.toFixed(2)}%` : '0.00%';
+          const state = sym === selectedIndex ? currentIndexState : undefined;
+          const isPos = state ? state.spotPrice >= state.previousClose : true;
+          const pts = state ? state.spotPrice - state.previousClose : 0;
+          const pct = state && state.previousClose > 0 ? (pts / state.previousClose) * 100 : 0;
 
           return (
             <div
               key={sym}
-              onClick={() => setSelectedIndex(sym)}
-              className={`cursor-pointer rounded-xl p-2 transition border flex flex-col justify-between shrink-0 min-w-[145px] sm:min-w-[170px] ${
+              onClick={() => {
+                if (sym !== selectedIndex) {
+                  setSelectedIndex(sym as any);
+                }
+              }}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-lg border transition cursor-pointer select-none min-w-[130px] font-sans ${
                 isSelected
-                  ? 'bg-terminal-card border-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.2)] ring-1 ring-accent-cyan/40'
-                  : 'bg-terminal-bg/80 border-terminal-border hover:border-terminal-hover hover:bg-terminal-card/50'
+                  ? 'bg-accent-sky/10 border-accent-sky/50 shadow-subtle'
+                  : 'bg-terminal-panel/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5">
-                  <span className={`font-mono font-black text-[11px] sm:text-xs ${isSelected ? 'text-accent-cyan' : 'text-terminal-text'}`}>
-                    {sym}
-                  </span>
-                  {isSelected && (
-                    <span className="inline-flex items-center px-1 py-0.2 text-[7px] font-mono uppercase rounded bg-accent-cyan/20 text-accent-cyan font-bold">
-                      ACTIVE
-                    </span>
-                  )}
-                </div>
-
-                {state && (
-                  <div className="flex items-center space-x-1">
-                    {cardBull ? (
-                      <TrendingUp className="w-3 h-3 text-bull shrink-0" />
-                    ) : cardBear ? (
-                      <TrendingDown className="w-3 h-3 text-bear shrink-0" />
-                    ) : (
-                      <Activity className="w-3 h-3 text-amber shrink-0" />
-                    )}
-                    <span className={`font-mono text-[8px] px-1 py-0.2 rounded border ${getPcrBadgeColor(pcrVal)} font-bold`}>
-                      PCR {pcrVal.toFixed(2)}
-                    </span>
-                    {visibleIndices.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleIndexVisibility(sym);
-                        }}
-                        className="opacity-40 hover:opacity-100 hover:bg-bear/25 hover:text-bear p-0.5 rounded text-terminal-muted transition ml-0.5"
-                        title={`Deselect ${sym}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
+                <span className="font-mono font-bold text-[11px] text-terminal-text">{sym}</span>
+                {isSelected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-sky" />
                 )}
               </div>
 
               {state ? (
-                <div className="flex items-baseline justify-between mt-1">
-                  <div className="flex flex-col">
-                    <span className="font-mono font-bold text-xs sm:text-sm text-terminal-text">
-                      ₹{state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 1 })}
-                    </span>
-                    <span
-                      className={`font-mono text-[9px] font-bold ${
-                        isPositive ? 'text-bull' : 'text-bear'
-                      }`}
-                    >
-                      {pointsFormatted} ({pctFormatted})
-                    </span>
-                  </div>
-                  <div className="text-[9px] font-mono text-terminal-muted self-end">
-                    ATM <span className="text-amber font-semibold">{state.atmStrike}</span>
-                  </div>
+                <div className="flex items-baseline justify-between mt-0.5">
+                  <span className="font-mono font-semibold text-xs text-terminal-text tabular-nums">
+                    ₹{state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 1 })}
+                  </span>
+                  <span
+                    className={`font-mono text-[10px] font-medium tabular-nums ${
+                      isPos ? 'text-bull' : 'text-bear'
+                    }`}
+                  >
+                    {isPos ? '+' : ''}{pct.toFixed(2)}%
+                  </span>
                 </div>
               ) : (
-                <div className="text-[10px] font-mono text-terminal-muted mt-1 animate-pulse">
+                <div className="text-[10px] font-mono text-terminal-muted mt-0.5">
                   Streaming...
                 </div>
               )}
@@ -866,26 +584,31 @@ export const HeaderBar: React.FC = () => {
         })}
       </div>
 
-      {/* Fyers Connect Modal */}
+      {/* Modals & Drawers */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onOpenRiskCalc={() => setIsRiskModalOpen(true)}
+        onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+        onOpenFyersModal={() => setIsFyersModalOpen(true)}
+      />
+
       <FyersModal
         isOpen={isFyersModalOpen}
         onClose={() => setIsFyersModalOpen(false)}
       />
 
-      {/* SEBI Position Sizing & Risk Calculator Modal */}
       <RiskCalculatorModal
         isOpen={isRiskModalOpen}
         onClose={() => setIsRiskModalOpen(false)}
         defaultLtp={100}
       />
 
-      {/* Modern Authentication & SEBI Consent Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
 
-      {/* SuperAdmin Platform Control Matrix Drawer */}
       <SuperAdminControlDrawer
         isOpen={isAdminDrawerOpen}
         onClose={() => setIsAdminDrawerOpen(false)}

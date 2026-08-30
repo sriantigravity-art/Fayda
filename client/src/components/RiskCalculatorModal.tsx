@@ -29,7 +29,7 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
 }) => {
   const { selectedIndex, currentIndexState } = useMarket();
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
-  const lotSize = cfg ? cfg.lot : (currentIndexState?.lotSize || 75);
+  const lotSize = cfg ? cfg.lot : (currentIndexState?.lotSize || 65);
 
   const [capital, setCapital] = useState<number>(() => {
     const saved = localStorage.getItem('fayda_user_capital');
