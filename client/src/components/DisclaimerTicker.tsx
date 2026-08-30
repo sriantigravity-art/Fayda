@@ -12,7 +12,7 @@ export const DisclaimerTicker: React.FC = () => {
   return (
     <aside 
       aria-label="SEBI Statutory Compliance Ticker"
-      className="fixed bottom-0 left-0 right-0 w-full z-50 bg-terminal-panel/95 backdrop-blur-md border-t border-amber/40 shadow-md py-1.5 px-3 flex items-center select-none"
+      className="fixed bottom-14 md:bottom-0 left-0 right-0 w-full z-40 md:z-50 bg-terminal-panel/95 backdrop-blur-md border-t border-amber/40 shadow-md py-1.5 px-3 flex items-center select-none"
     >
       {/* Permanent Fixed Compliance Badge on Left */}
       <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-amber/20 text-amber border border-amber/50 shrink-0 mr-3 font-mono font-black text-[10px] shadow-sm">

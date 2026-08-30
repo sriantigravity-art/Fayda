@@ -28,7 +28,7 @@ const DashboardContent: React.FC = () => {
   const { panelVisibility } = useAuth();
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-16 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
+    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
       {/* App Launch Video Splash Screen */}
       <SplashScreen />
 
@@ -59,24 +59,28 @@ const DashboardContent: React.FC = () => {
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
         
-        {/* DESKTOP 12-COLUMN DUAL-PANE WORKSPACE */}
-        <div className="hidden xl:grid xl:grid-cols-12 gap-3.5 flex-1 items-start">
-          {/* Left / Center 8 Columns: Option Chain Heatmap, Breakout Pattern Radar, 0DTE Radar & AI Trade Guidance */}
-          <div className="xl:col-span-8 flex flex-col space-y-3.5">
+        {/* ========================================================================= */}
+        {/* DESKTOP & TABLET ADAPTIVE WORKSPACE (>= 768px) */}
+        {/* ========================================================================= */}
+        <div className="hidden md:grid md:grid-cols-12 gap-3.5 flex-1 items-start">
+          {/* Left Column (8 cols on xl, 7 cols on lg, 12 cols on md) */}
+          <div className="md:col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col space-y-3.5">
             {panelVisibility.optionChain && <OptionChainHeatmap />}
+            {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
             {panelVisibility.patternRadar && <BreakoutPatternRadar />}
             {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
-            {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
           </div>
 
-          {/* Right 4 Columns: PCR Momentum, Max Pain, Resistance/Support Walls, Theta Meter, Radar & News Wire */}
-          <div className="xl:col-span-4 flex flex-col space-y-3.5">
+          {/* Right Column (4 cols on xl, 5 cols on lg, 12 cols on md) */}
+          <div className="md:col-span-12 lg:col-span-5 xl:col-span-4 flex flex-col space-y-3.5">
             {panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           </div>
         </div>
 
-        {/* MOBILE DEDICATED TABBED WORKSPACE (< 1280px) */}
-        <div className="xl:hidden flex flex-col space-y-3">
+        {/* ========================================================================= */}
+        {/* MOBILE DEDICATED TABBED WORKSPACE (< 768px) */}
+        {/* ========================================================================= */}
+        <div className="md:hidden flex flex-col space-y-3">
           {mobileTab === 'CHAIN' && panelVisibility.optionChain && <OptionChainHeatmap />}
           {mobileTab === 'SIGNALS' && panelVisibility.tradeGuidance && <TradeGuidanceCard />}
           {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
@@ -112,7 +116,7 @@ const DashboardContent: React.FC = () => {
       {/* Fixed Sticky SEBI Compliance Ticker (Permanently Pinned to Viewport Bottom) */}
       {panelVisibility.sebiTicker && <DisclaimerTicker />}
 
-      {/* Dedicated Mobile Native Bottom Nav */}
+      {/* Dedicated Mobile Native Bottom Nav (Visible only on < 768px) */}
       <MobileNavBar
         activeTab={mobileTab}
         onTabChange={(tab) => setMobileTab(tab)}
@@ -146,4 +150,3 @@ export function App() {
 }
 
 export default App;
-
