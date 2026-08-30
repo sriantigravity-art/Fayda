@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode, type TerminalMode } from '../context/TerminalModeContext';
+import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { 
   Volume2, 
@@ -22,12 +23,18 @@ import {
   Maximize2, 
   Minimize2,
   Calculator,
-  ShieldAlert
+  ShieldAlert,
+  User,
+  LogOut,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { FyersModal } from './FyersModal';
 import { StockSelectorDropdown } from './StockSelectorDropdown';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
+import { AuthModal } from './auth/AuthModal';
+import { SuperAdminControlDrawer } from './admin/SuperAdminControlDrawer';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -49,8 +56,11 @@ export const HeaderBar: React.FC = () => {
 
   const { theme, toggleTheme } = useTheme();
   const { mode, setMode } = useTerminalMode();
+  const { user, isAuthenticated, isSuperAdmin, logout, panelVisibility } = useAuth();
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -334,63 +344,113 @@ export const HeaderBar: React.FC = () => {
             </div>
           </div>
 
-          {/* DESKTOP RIGHT SIDE: Trader Mode, Risk Calc, Audio, Theme, Fullscreen, Clock, Settings */}
+          {/* DESKTOP RIGHT SIDE: SuperAdmin Matrix, Trader Mode, Risk Calc, Auth, Audio, Theme, Fullscreen, Clock, Settings */}
           <div className="flex items-center space-x-1.5 shrink-0">
+            {/* SUPERADMIN PLATFORM CONTROL MATRIX BUTTON (Visible when SuperAdmin) */}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsAdminDrawerOpen(true)}
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-purple-500/20 border border-purple-500/60 hover:bg-purple-500/30 text-purple-400 font-mono text-[10px] font-bold shadow-[0_0_15px_rgba(168,85,247,0.35)] transition cursor-pointer shrink-0 animate-pulse"
+                title="SuperAdmin Live Control: Show/Hide any panel, review SEBI consent audit logs, and manage legal versions"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">⚡ ADMIN MATRIX</span>
+              </button>
+            )}
+
             {/* 3-MODE TRADER LEVEL TOGGLE (BEGINNER / INTERMEDIATE / EXPERT) */}
-            <div className="hidden lg:flex items-center bg-terminal-card border border-terminal-border rounded-xl p-0.5 font-mono text-[10px] font-bold shadow-sm">
-              <button
-                type="button"
-                onClick={() => setMode('BEGINNER')}
-                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                  mode === 'BEGINNER'
-                    ? 'bg-bull/20 border border-bull/40 text-bull shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-                title="Beginner Mode: Plain-English bias, capital preservation guardrails, simplified risk"
-              >
-                <span>🟢</span>
-                <span>BEGINNER</span>
-              </button>
+            {panelVisibility.traderModeToggle && (
+              <div className="hidden lg:flex items-center bg-terminal-card border border-terminal-border rounded-xl p-0.5 font-mono text-[10px] font-bold shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode('BEGINNER')}
+                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    mode === 'BEGINNER'
+                      ? 'bg-bull/20 border border-bull/40 text-bull shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                  title="Beginner Mode: Plain-English bias, capital preservation guardrails, simplified risk"
+                >
+                  <span>🟢</span>
+                  <span>BEGINNER</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setMode('INTERMEDIATE')}
-                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                  mode === 'INTERMEDIATE'
-                    ? 'bg-amber/20 border border-amber/40 text-amber shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-                title="Intermediate Mode: Master 7-strategy confluence scoring, strike selection, and R:R ratios"
-              >
-                <span>🟡</span>
-                <span>INTERMEDIATE</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('INTERMEDIATE')}
+                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    mode === 'INTERMEDIATE'
+                      ? 'bg-amber/20 border border-amber/40 text-amber shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                  title="Intermediate Mode: Master 7-strategy confluence scoring, strike selection, and R:R ratios"
+                >
+                  <span>🟡</span>
+                  <span>INTERMEDIATE</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setMode('EXPERT')}
-                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                  mode === 'EXPERT'
-                    ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400 shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-                title="Expert Mode: Live Greeks (Delta, Gamma, Theta, Vega), 1-min OI Delta squeeze, and structural BOS"
-              >
-                <span>🟣</span>
-                <span>EXPERT</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setMode('EXPERT')}
+                  className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    mode === 'EXPERT'
+                      ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400 shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                  title="Expert Mode: Live Greeks (Delta, Gamma, Theta, Vega), 1-min OI Delta squeeze, and structural BOS"
+                >
+                  <span>🟣</span>
+                  <span>EXPERT</span>
+                </button>
+              </div>
+            )}
 
             {/* SEBI Position Sizing & Risk Calculator Button */}
-            <button
-              type="button"
-              onClick={() => setIsRiskModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-accent-cyan/15 border border-accent-cyan/40 hover:bg-accent-cyan/25 text-accent-cyan transition shadow-sm font-mono text-[10px] font-bold shrink-0 cursor-pointer"
-              title="SEBI Position Sizing & Account Risk Calculator"
-            >
-              <Calculator className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">RISK CALC</span>
-            </button>
+            {panelVisibility.riskCalc && (
+              <button
+                type="button"
+                onClick={() => setIsRiskModalOpen(true)}
+                className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-accent-cyan/15 border border-accent-cyan/40 hover:bg-accent-cyan/25 text-accent-cyan transition shadow-sm font-mono text-[10px] font-bold shrink-0 cursor-pointer"
+                title="SEBI Position Sizing & Account Risk Calculator"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">RISK CALC</span>
+              </button>
+            )}
+
+            {/* USER AUTH / PROFILE BADGE */}
+            {isAuthenticated && user ? (
+              <div className="flex items-center bg-terminal-card border border-terminal-border rounded-xl px-2 py-1 gap-1.5 font-mono text-[10px] shadow-sm shrink-0">
+                <div className="w-5 h-5 rounded-full bg-accent-cyan/20 border border-accent-cyan/50 text-accent-cyan flex items-center justify-center font-bold text-[9px]">
+                  {user.fullName.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden sm:flex flex-col leading-none text-left">
+                  <span className="text-terminal-text font-bold max-w-[90px] truncate">{user.fullName}</span>
+                  <span className="text-[8px] text-accent-cyan font-bold">
+                    {user.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'PRO TRADER'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="p-1 rounded text-terminal-muted hover:text-bear transition cursor-pointer ml-1"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-accent-cyan/20 border border-accent-cyan/60 hover:bg-accent-cyan/30 text-accent-cyan font-mono text-[10px] font-bold shadow-[0_0_15px_rgba(0,229,255,0.25)] transition cursor-pointer shrink-0"
+                title="Sign In or Create Account with SEBI Consent"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>SIGN IN</span>
+              </button>
+            )}
 
             {/* Audio Chime Toggle */}
             <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg p-0.5 text-xs shrink-0">
@@ -817,6 +877,18 @@ export const HeaderBar: React.FC = () => {
         isOpen={isRiskModalOpen}
         onClose={() => setIsRiskModalOpen(false)}
         defaultLtp={100}
+      />
+
+      {/* Modern Authentication & SEBI Consent Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      {/* SuperAdmin Platform Control Matrix Drawer */}
+      <SuperAdminControlDrawer
+        isOpen={isAdminDrawerOpen}
+        onClose={() => setIsAdminDrawerOpen(false)}
       />
     </header>
   );

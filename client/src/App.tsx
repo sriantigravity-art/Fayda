@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MarketProvider } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { TerminalModeProvider } from './context/TerminalModeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { HeaderBar } from './components/HeaderBar';
 import { OptionChainHeatmap } from './components/OptionChainHeatmap';
 import { BreakoutPatternRadar } from './components/BreakoutPatternRadar';
@@ -22,6 +23,7 @@ import { Layers, Activity } from 'lucide-react';
 const DashboardContent: React.FC = () => {
   // Mobile / Tablet Tab Navigation ('HEATMAP' | 'ANALYTICS')
   const [mobileTab, setMobileTab] = useState<'HEATMAP' | 'ANALYTICS'>('HEATMAP');
+  const { panelVisibility } = useAuth();
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-cyan selection:text-terminal-bg font-sans antialiased pb-9 w-full max-w-[100vw] overflow-x-hidden">
@@ -29,10 +31,10 @@ const DashboardContent: React.FC = () => {
       <SplashScreen />
 
       {/* Right Side Docked International Indices Drawer with Vertical Toggle */}
-      <GlobalIndicesSidebar />
+      {panelVisibility.globalSidebar && <GlobalIndicesSidebar />}
 
       {/* Emergency Square Off Reversal Banner */}
-      <SquareOffAlertBanner />
+      {panelVisibility.squareOffBanner && <SquareOffAlertBanner />}
 
       {/* Target Hit Flash Celebration Modal */}
       <TargetHitFlashModal />
@@ -41,16 +43,16 @@ const DashboardContent: React.FC = () => {
       <HeroZeroFlashModal />
 
       {/* 10-Second Floating Breaking Flash News Banner */}
-      <FlashNewsBanner />
+      {panelVisibility.newsBanner && <FlashNewsBanner />}
 
       {/* Flashing Top Surge Alert Banner for extreme surge events */}
-      <SurgeAlertBanner />
+      {panelVisibility.surgeBanner && <SurgeAlertBanner />}
 
       {/* Top Header & Navigation Bar */}
       <HeaderBar />
 
       {/* Live Highlight Trade Signal Ticker (Strike Price, Entry, Exit, Target) */}
-      <HighlightSignalTicker />
+      {panelVisibility.highlightSignalTicker && <HighlightSignalTicker />}
 
       {/* Mobile / Tablet Segmented Tab Switcher (Visible only below XL screens < 1280px) */}
       <div className="xl:hidden px-3 pt-2.5 max-w-[1840px] w-full mx-auto">
@@ -87,15 +89,15 @@ const DashboardContent: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 flex-1 items-start">
           {/* Left / Center 8 Columns: Option Chain Heatmap, Breakout Pattern Radar, 0DTE Radar & AI Trade Guidance */}
           <div className={`xl:col-span-8 flex flex-col space-y-3.5 transition-all duration-300 ${mobileTab === 'HEATMAP' ? 'block' : 'hidden xl:block'}`}>
-            <OptionChainHeatmap />
-            <BreakoutPatternRadar />
-            <HeroZeroRadar />
-            <TradeGuidanceCard />
+            {panelVisibility.optionChain && <OptionChainHeatmap />}
+            {panelVisibility.patternRadar && <BreakoutPatternRadar />}
+            {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+            {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
           </div>
 
           {/* Right 4 Columns: PCR Momentum, Max Pain, Resistance/Support Walls, Theta Meter, Radar & News Wire */}
           <div className={`xl:col-span-4 flex flex-col space-y-3.5 ${mobileTab === 'ANALYTICS' ? 'block' : 'hidden xl:block'}`}>
-            <RightAnalyticsColumn />
+            {panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           </div>
         </div>
       </main>
@@ -120,7 +122,7 @@ const DashboardContent: React.FC = () => {
       </footer>
 
       {/* Fixed Sticky SEBI Compliance Ticker (Permanently Pinned to Viewport Bottom) */}
-      <DisclaimerTicker />
+      {panelVisibility.sebiTicker && <DisclaimerTicker />}
     </div>
   );
 };
@@ -128,11 +130,13 @@ const DashboardContent: React.FC = () => {
 export function App() {
   return (
     <ThemeProvider>
-      <TerminalModeProvider>
-        <MarketProvider>
-          <DashboardContent />
-        </MarketProvider>
-      </TerminalModeProvider>
+      <AuthProvider>
+        <TerminalModeProvider>
+          <MarketProvider>
+            <DashboardContent />
+          </MarketProvider>
+        </TerminalModeProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
