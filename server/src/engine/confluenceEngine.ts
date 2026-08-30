@@ -6,12 +6,16 @@ import {
   StraddleRangeData,
   PatternBreakoutAnalysis,
   MasterStrategyConfluence,
-  StrategyScoreItem
+  StrategyScoreItem,
+  WhyNotTradeReason,
+  InstrumentSelection,
+  ScoreCategoryBreakdown
 } from '../types.js';
 
 export class ConfluenceEngine {
   /**
-   * Evaluates all platform trading strategies and fuses them into a Master Buy/Sell Prediction
+   * Evaluates all platform trading strategies and fuses them into an Institutional Decision & Risk Engine
+   * Enforces NO-TRADE, WAIT, and HEDGE states to protect trader capital per SEBI recommendations.
    */
   public static calculateMasterConfluence(
     symbol: IndexSymbol,
@@ -30,7 +34,7 @@ export class ConfluenceEngine {
     const callDelta1m = nearStrikes.reduce((acc, s) => acc + s.callOIChange1m, 0);
     const putDelta1m = nearStrikes.reduce((acc, s) => acc + s.putOIChange1m, 0);
     
-    let oiScore = 75;
+    let oiScore = 70;
     let oiSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
     let oiStatus = 'Neutral 1-Min Delta';
     let oiDetails = 'Call and Put OI change balanced.';
@@ -45,12 +49,12 @@ export class ConfluenceEngine {
       oiSignal = 'BEARISH';
       oiStatus = '🚨 Put Panic Unwinding';
       oiDetails = `Put writers capitulating (${(putDelta1m / 1000).toFixed(1)}k) with heavy Call writing (+${(callDelta1m / 1000).toFixed(1)}k).`;
-    } else if (callDelta1m < 0 || pcr.atmPlusMinus5Pcr > 1.1) {
+    } else if (callDelta1m < 0 || pcr.atmPlusMinus5Pcr > 1.15) {
       oiScore = 82;
       oiSignal = 'BULLISH';
       oiStatus = '📈 Bullish OI Bias';
       oiDetails = 'Positive Call short-covering pressure detected.';
-    } else if (putDelta1m < 0 || pcr.atmPlusMinus5Pcr < 0.9) {
+    } else if (putDelta1m < 0 || pcr.atmPlusMinus5Pcr < 0.85) {
       oiScore = 82;
       oiSignal = 'BEARISH';
       oiStatus = '📉 Bearish OI Bias';
@@ -68,16 +72,16 @@ export class ConfluenceEngine {
     };
 
     // 2. Multi-Timeframe Price Action & Breakout Strategy (Weight: 20%)
-    let boScore = patternBreakout?.predictedBreakout.probability || 85;
+    let boScore = patternBreakout?.predictedBreakout.probability || 70;
     let boSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
-    let boStatus = 'Range Consolidation';
-    let boDetails = 'Testing structural levels.';
+    let boStatus = 'Consolidation / Testing Levels';
+    let boDetails = 'Price moving within defined support/resistance range.';
 
     if (patternBreakout) {
       if (patternBreakout.predictedBreakout.direction === 'UPWARD_BREAKOUT') {
         boSignal = 'BULLISH';
         boStatus = `✓ ${patternBreakout.activePattern.patternName}`;
-        boDetails = `${patternBreakout.activePattern.patternName} on ${patternBreakout.activeTimeframe} with neckline trigger at ₹${patternBreakout.predictedBreakout.triggerPrice.toFixed(1)}.`;
+        boDetails = `${patternBreakout.activePattern.patternName} on ${patternBreakout.activeTimeframe} with trigger at ₹${patternBreakout.predictedBreakout.triggerPrice.toFixed(1)}.`;
       } else if (patternBreakout.predictedBreakout.direction === 'DOWNWARD_BREAKDOWN') {
         boSignal = 'BEARISH';
         boStatus = `⚠️ ${patternBreakout.activePattern.patternName}`;
@@ -99,7 +103,7 @@ export class ConfluenceEngine {
     const avgCallBuyPct = nearStrikes.reduce((acc, s) => acc + (s.callBuyVolPct || 50), 0) / Math.max(1, nearStrikes.length);
     const avgPutBuyPct = nearStrikes.reduce((acc, s) => acc + (s.putBuyVolPct || 50), 0) / Math.max(1, nearStrikes.length);
     
-    let volScore = 80;
+    let volScore = 75;
     let volSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
     let volStatus = 'Balanced Order Flow';
     let volDetails = 'Buyer/Seller volumes are evenly matched.';
@@ -114,13 +118,13 @@ export class ConfluenceEngine {
       volSignal = 'BEARISH';
       volStatus = `🚨 Aggressive Put Buying (${avgPutBuyPct.toFixed(0)}% Puts)`;
       volDetails = 'Institutional Put buying hitting the bid.';
-    } else if (avgCallBuyPct > avgPutBuyPct) {
-      volScore = 83;
+    } else if (avgCallBuyPct > 55) {
+      volScore = 80;
       volSignal = 'BULLISH';
       volStatus = 'Bullish Order Flow Bias';
       volDetails = 'Call buying interest exceeding sell pressure.';
-    } else {
-      volScore = 83;
+    } else if (avgPutBuyPct > 55) {
+      volScore = 80;
       volSignal = 'BEARISH';
       volStatus = 'Bearish Order Flow Bias';
       volDetails = 'Put buying interest dominating flow.';
@@ -137,7 +141,7 @@ export class ConfluenceEngine {
     };
 
     // 4. 0DTE Gamma Explosion Velocity (Weight: 15%)
-    let gammaScore = daysToExpiry === 0 ? 92 : daysToExpiry <= 2 ? 85 : 75;
+    let gammaScore = daysToExpiry === 0 ? 92 : daysToExpiry <= 2 ? 82 : 70;
     let gammaSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = boSignal !== 'NEUTRAL' ? boSignal : oiSignal;
     let gammaStatus = daysToExpiry === 0 ? '⚡ 0DTE Gamma Active' : `🗓️ ${daysToExpiry} DTE Swing Setup`;
     let gammaDetails = daysToExpiry === 0
@@ -155,28 +159,28 @@ export class ConfluenceEngine {
     };
 
     // 5. PCR Sentiment & Shift Momentum (Weight: 10%)
-    let pcrScore = 78;
+    let pcrScore = 75;
     let pcrSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = 'NEUTRAL';
     let pcrStatus = `PCR ${pcr.atmPlusMinus5Pcr.toFixed(2)}`;
     let pcrDetails = `1-Min PCR Shift: ${pcr.pcr1mChange >= 0 ? '+' : ''}${pcr.pcr1mChange.toFixed(3)}`;
 
-    if (pcr.atmPlusMinus5Pcr >= 1.20) {
+    if (pcr.atmPlusMinus5Pcr >= 1.25) {
       pcrScore = 92;
       pcrSignal = 'BULLISH';
-      pcrStatus = `🚀 Bullish PCR (${pcr.atmPlusMinus5Pcr.toFixed(2)})`;
+      pcrStatus = `🚀 Strong Support Base (PCR ${pcr.atmPlusMinus5Pcr.toFixed(2)})`;
       pcrDetails = 'Heavy Put writing providing strong support base.';
-    } else if (pcr.atmPlusMinus5Pcr <= 0.80) {
+    } else if (pcr.atmPlusMinus5Pcr <= 0.75) {
       pcrScore = 92;
       pcrSignal = 'BEARISH';
-      pcrStatus = `🚨 Bearish PCR (${pcr.atmPlusMinus5Pcr.toFixed(2)})`;
+      pcrStatus = `🚨 Strong Resistance Ceiling (PCR ${pcr.atmPlusMinus5Pcr.toFixed(2)})`;
       pcrDetails = 'Heavy Call writing capping upside potential.';
-    } else if (pcr.pcr1mChange > 0.02) {
-      pcrScore = 84;
+    } else if (pcr.pcr1mChange > 0.03) {
+      pcrScore = 82;
       pcrSignal = 'BULLISH';
       pcrStatus = '📈 Rising PCR Momentum';
       pcrDetails = 'Put writers adding aggressive support.';
-    } else if (pcr.pcr1mChange < -0.02) {
-      pcrScore = 84;
+    } else if (pcr.pcr1mChange < -0.03) {
+      pcrScore = 82;
       pcrSignal = 'BEARISH';
       pcrStatus = '📉 Falling PCR Momentum';
       pcrDetails = 'Call writers adding aggressive resistance.';
@@ -194,10 +198,10 @@ export class ConfluenceEngine {
 
     // 6. Max Pain & Straddle Range Strategy (Weight: 10%)
     const distToMaxPain = maxPain.differenceFromSpot;
-    let mpScore = 82;
-    let mpSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = distToMaxPain > 30 ? 'BULLISH' : distToMaxPain < -30 ? 'BEARISH' : 'NEUTRAL';
+    let mpScore = 78;
+    let mpSignal: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = distToMaxPain > 35 ? 'BULLISH' : distToMaxPain < -35 ? 'BEARISH' : 'NEUTRAL';
     let mpStatus = `Max Pain: ₹${maxPain.strikePrice}`;
-    let mpDetails = `Spot is ${distToMaxPain >= 0 ? '+' : ''}${distToMaxPain.toFixed(0)} pts from Max Pain. Upper Breakeven: ₹${straddleRange.upperBreakeven.toFixed(0)}.`;
+    let mpDetails = `Spot is ${distToMaxPain >= 0 ? '+' : ''}${distToMaxPain.toFixed(0)} pts from Max Pain. Breakeven Range: ₹${straddleRange.lowerBreakeven.toFixed(0)} - ₹${straddleRange.upperBreakeven.toFixed(0)}.`;
 
     const maxPainStrategy: StrategyScoreItem = {
       strategyName: 'Max Pain & Straddle Breakevens',
@@ -212,7 +216,7 @@ export class ConfluenceEngine {
     // 7. IV Status & Theta Safety Filter (Weight: 10%)
     const atmStrikeObj = strikes.find(s => s.isAtm);
     const avgIv = atmStrikeObj?.iv || 13.5;
-    let ivScore = avgIv < 14 ? 90 : avgIv < 17 ? 80 : 65;
+    let ivScore = avgIv < 14 ? 90 : avgIv < 17 ? 80 : 60;
     let ivStatus = avgIv < 14 ? '✓ Low IV Buying Edge' : avgIv > 18 ? '⚠️ High IV Crush Risk' : 'Fair IV';
     let ivDetails = `IV at ${avgIv.toFixed(1)}%. ${avgIv < 14 ? 'Premiums are cheap for option buyers.' : 'Theta decay is elevated.'}`;
 
@@ -236,7 +240,7 @@ export class ConfluenceEngine {
       ivThetaStrategy
     ];
 
-    // Compute Weighted Master Confluence Score
+    // Compute Weighted Score & Confluence
     let bullWeight = 0;
     let bearWeight = 0;
     let totalScore = 0;
@@ -247,42 +251,142 @@ export class ConfluenceEngine {
       if (s.signal === 'BEARISH') bearWeight += s.weightPct;
     });
 
-    const overallScore = Math.min(96, Math.max(65, Math.round(totalScore)));
+    const overallScore = Math.min(96, Math.max(50, Math.round(totalScore)));
 
-    let overallSignal: 'STRONG_BUY_CALL' | 'BUY_CALL' | 'NEUTRAL_WAIT' | 'BUY_PUT' | 'STRONG_BUY_PUT' = 'NEUTRAL_WAIT';
-    let action: 'BUY CALL' | 'BUY PUT' | 'WAIT' = 'WAIT';
-    let signalTitle = '⚖️ NEUTRAL CONSOLIDATION (WAIT FOR BREAKOUT)';
-    let convictionLevel: 'EXTREME' | 'HIGH' | 'MODERATE' | 'NEUTRAL' = 'MODERATE';
+    // ==========================================
+    // MARKET REGIME CLASSIFICATION
+    // ==========================================
+    let marketRegime: 'STRONG_BULLISH_TREND' | 'STRONG_BEARISH_TREND' | 'RANGE_BOUND_CHOP' | 'HIGH_VOLATILITY_EXPANSION' | 'GAMMA_EXPLOSION_0DTE' | 'IV_CRUSH_ZONE' | 'HIGH_EVENT_RISK' = 'RANGE_BOUND_CHOP';
+    let regimeLabel = '⚪ Range-Bound Chop (Neutral)';
 
-    if (bullWeight >= 55) {
-      overallSignal = overallScore >= 88 ? 'STRONG_BUY_CALL' : 'BUY_CALL';
-      action = 'BUY CALL';
-      signalTitle = overallScore >= 88 ? '🚀 STRONG BUY CALL (HIGH-CONVICTION BREAKOUT)' : '🟢 BUY CALL (BULLISH CONFLUENCE)';
-      convictionLevel = overallScore >= 88 ? 'EXTREME' : 'HIGH';
-    } else if (bearWeight >= 55) {
-      overallSignal = overallScore >= 88 ? 'STRONG_BUY_PUT' : 'BUY_PUT';
-      action = 'BUY PUT';
-      signalTitle = overallScore >= 88 ? '🚨 STRONG BUY PUT (HIGH-CONVICTION BREAKDOWN)' : '🔴 BUY PUT (BEARISH CONFLUENCE)';
-      convictionLevel = overallScore >= 88 ? 'EXTREME' : 'HIGH';
-    } else if (bullWeight > bearWeight) {
-      overallSignal = 'BUY_CALL';
-      action = 'BUY CALL';
-      signalTitle = '🟢 BUY CALL (MOMENTUM SQUEEZE)';
-      convictionLevel = 'MODERATE';
+    if (daysToExpiry === 0 && Math.abs(distToMaxPain) < 40) {
+      marketRegime = 'GAMMA_EXPLOSION_0DTE';
+      regimeLabel = '⚡ 0DTE Expiry Gamma Acceleration';
+    } else if (avgIv > 20) {
+      marketRegime = 'IV_CRUSH_ZONE';
+      regimeLabel = '⚠️ High IV Crush Zone (Elevated Decay)';
+    } else if (bullWeight >= 55 && overallScore >= 78) {
+      marketRegime = 'STRONG_BULLISH_TREND';
+      regimeLabel = '🟢 Strong Bullish Trend (Trend Day)';
+    } else if (bearWeight >= 55 && overallScore >= 78) {
+      marketRegime = 'STRONG_BEARISH_TREND';
+      regimeLabel = '🔴 Strong Bearish Trend (Selling Day)';
+    } else if (avgIv > 17) {
+      marketRegime = 'HIGH_VOLATILITY_EXPANSION';
+      regimeLabel = '🌊 High Volatility Expansion';
     } else {
-      overallSignal = 'BUY_PUT';
-      action = 'BUY PUT';
-      signalTitle = '🔴 BUY PUT (RESISTANCE REJECTION)';
+      marketRegime = 'RANGE_BOUND_CHOP';
+      regimeLabel = '⚪ Sideways / Range Consolidation';
+    }
+
+    // ==========================================
+    // STRICT "NO-TRADE", "WAIT", "HEDGE" GATING
+    // ==========================================
+    let masterDecision: 'BUY_CALL' | 'BUY_PUT' | 'WAIT' | 'NO_TRADE' | 'HEDGE' = 'WAIT';
+    let overallSignal: 'STRONG_BUY_CALL' | 'BUY_CALL' | 'NEUTRAL_WAIT' | 'BUY_PUT' | 'STRONG_BUY_PUT' = 'NEUTRAL_WAIT';
+    let action: 'BUY CALL' | 'BUY PUT' | 'WAIT' | 'NO TRADE' | 'HEDGE' = 'WAIT';
+    let signalTitle = '⚖️ WAITING FOR HIGH-PROBABILITY CONFLUENCE';
+    let convictionLevel: 'EXTREME' | 'HIGH' | 'MODERATE' | 'NEUTRAL' = 'NEUTRAL';
+    let setupGrade: 'A+' | 'A' | 'B' | 'C' | 'NO_TRADE' = 'NO_TRADE';
+    let riskCategory: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' = 'MEDIUM';
+
+    const whyNotTradeReasons: WhyNotTradeReason[] = [];
+
+    // Check gating conditions
+    const isChop = marketRegime === 'RANGE_BOUND_CHOP' || (bullWeight < 45 && bearWeight < 45);
+    const isHighIv = avgIv > 19;
+    const isLowScore = overallScore < 68;
+
+    if (isLowScore && isChop) {
+      masterDecision = 'NO_TRADE';
+      action = 'NO TRADE';
+      overallSignal = 'NEUTRAL_WAIT';
+      signalTitle = '⚪ NO TRADE (MARKET CONDITIONS UNSUITABLE)';
+      convictionLevel = 'NEUTRAL';
+      setupGrade = 'NO_TRADE';
+      riskCategory = 'HIGH';
+
+      whyNotTradeReasons.push({
+        category: 'Market In Chop / Range',
+        description: 'Price is oscillating inside the consolidation band without institutional breakout volume.',
+        severity: 'CRITICAL',
+        solution: 'Preserve capital. Wait for a clean break of structure (BOS) or 15-min candle close outside range.'
+      });
+      whyNotTradeReasons.push({
+        category: 'Balanced OI Delta',
+        description: 'Call and Put writers have equal strength; high risk of whipsaw and theta decay.',
+        severity: 'WARNING',
+        solution: 'Avoid naked option buying until OI unwinds on one side.'
+      });
+    } else if (isHighIv && isChop) {
+      masterDecision = 'HEDGE';
+      action = 'HEDGE';
+      overallSignal = 'NEUTRAL_WAIT';
+      signalTitle = '🟣 HEDGE ONLY (HIGH IV RANGE CHOP)';
       convictionLevel = 'MODERATE';
+      setupGrade = 'B';
+      riskCategory = 'EXTREME';
+
+      whyNotTradeReasons.push({
+        category: 'Elevated IV Crush Risk',
+        description: `Implied Volatility is high (${avgIv.toFixed(1)}%). Buying naked calls/puts carries rapid theta drain.`,
+        severity: 'CRITICAL',
+        solution: 'Use defined-risk spreads (Bull Call Spread / Bear Put Spread) instead of naked options.'
+      });
+    } else if (bullWeight >= 55 && overallScore >= 72) {
+      masterDecision = 'BUY_CALL';
+      action = 'BUY CALL';
+      overallSignal = overallScore >= 88 ? 'STRONG_BUY_CALL' : 'BUY_CALL';
+      signalTitle = overallScore >= 88 ? '🚀 A+ STRONG BUY CALL (HIGH-CONVICTION BREAKOUT)' : '🟢 A-GRADE BUY CALL (BULLISH CONFLUENCE)';
+      convictionLevel = overallScore >= 88 ? 'EXTREME' : 'HIGH';
+      setupGrade = overallScore >= 88 ? 'A+' : 'A';
+      riskCategory = avgIv < 15 ? 'LOW' : 'MEDIUM';
+    } else if (bearWeight >= 55 && overallScore >= 72) {
+      masterDecision = 'BUY_PUT';
+      action = 'BUY PUT';
+      overallSignal = overallScore >= 88 ? 'STRONG_BUY_PUT' : 'BUY_PUT';
+      signalTitle = overallScore >= 88 ? '🚨 A+ STRONG BUY PUT (HIGH-CONVICTION BREAKDOWN)' : '🔴 A-GRADE BUY PUT (BEARISH CONFLUENCE)';
+      convictionLevel = overallScore >= 88 ? 'EXTREME' : 'HIGH';
+      setupGrade = overallScore >= 88 ? 'A+' : 'A';
+      riskCategory = avgIv < 15 ? 'LOW' : 'MEDIUM';
+    } else {
+      masterDecision = 'WAIT';
+      action = 'WAIT';
+      overallSignal = 'NEUTRAL_WAIT';
+      signalTitle = '🟡 WAIT FOR TRIGGER CONFIRMATION';
+      convictionLevel = 'MODERATE';
+      setupGrade = 'B';
+      riskCategory = 'MEDIUM';
+
+      whyNotTradeReasons.push({
+        category: 'Partial Confluence',
+        description: 'Directional bias is building, but key confirmation (Volume velocity or Breakout neckline) is pending.',
+        severity: 'INFO',
+        solution: 'Wait for live trigger price before executing.'
+      });
     }
 
     // Recommended Strike Selection
-    const isBull = action === 'BUY CALL';
+    const isBull = masterDecision === 'BUY_CALL' || (bullWeight >= bearWeight);
     const targetStrike = isBull
       ? Math.min(atmStrike + 400, atmStrike + (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 100 : 50))
       : Math.max(atmStrike - 400, atmStrike - (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 100 : 50));
     const optType = isBull ? 'CE' : 'PE';
     const recommendedStrike = `${symbol} ${targetStrike} ${optType}`;
+
+    const itmStrike = isBull
+      ? Math.max(atmStrike - 50, atmStrike - (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 100 : 50))
+      : Math.min(atmStrike + 50, atmStrike + (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 100 : 50));
+
+    const farOtmStrike = isBull
+      ? atmStrike + (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 500 : 250)
+      : atmStrike - (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 500 : 250);
+
+    const suggestedInstrument: InstrumentSelection = {
+      primary: `${symbol} ${targetStrike} ${optType} (ATM/Near - Balanced Delta ~0.50)`,
+      alternative: `${symbol} ${itmStrike} ${optType} (1-Step ITM - Low Theta Decay)`,
+      avoid: `${symbol} ${farOtmStrike} ${optType} (Far OTM - Severe Time Decay Trap)`
+    };
 
     const strikeObj = strikes.find(s => s.strikePrice === targetStrike);
     const ltp = strikeObj ? (isBull ? strikeObj.callLtp : strikeObj.putLtp) : 110;
@@ -330,7 +434,6 @@ export class ConfluenceEngine {
       rrRatio = '1:2.1';
     }
 
-    // High beta index scaling (BankNifty, Sensex)
     if (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX') {
       t1Mult = +(t1Mult * 1.05).toFixed(2);
       t2Mult = +(t2Mult * 1.10).toFixed(2);
@@ -340,22 +443,63 @@ export class ConfluenceEngine {
     const target2 = +(cleanLtp * t2Mult).toFixed(1);
     const stoploss = +(cleanLtp * slMult).toFixed(1);
 
+    // Invalidation calculation
+    const invalidationOffset = symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 80 : 35;
+    const invalidationPrice = isBull ? Math.round(spotPrice - invalidationOffset) : Math.round(spotPrice + invalidationOffset);
+    const invalidationLevel = isBull
+      ? `${symbol} spot closes below ₹${invalidationPrice} on 15-min candle or breaks VWAP support.`
+      : `${symbol} spot closes above ₹${invalidationPrice} on 15-min candle or breaks VWAP resistance.`;
+
+    const scoreBreakdown: ScoreCategoryBreakdown = {
+      trend: Math.round(oiScore * 0.20),
+      marketStructure: Math.round(boScore * 0.20),
+      momentum: Math.round(volScore * 0.15),
+      volume: Math.round(volScore * 0.15),
+      oiDerivatives: Math.round(pcrScore * 0.15),
+      volatilityGreeks: Math.round(ivScore * 0.10),
+      vwapBreadth: Math.round(mpScore * 0.05),
+      total: overallScore
+    };
+
+    // Market Breadth simulation for India market context
+    const advances = isBull ? 34 : 14;
+    const declines = isBull ? 14 : 34;
+    const unchanged = 2;
+    const ratio = +(advances / Math.max(1, declines)).toFixed(2);
+
     const confluenceRationale = `${overallScore}% confluence (${speedLabel}) across 1-Min Delta OI (${oiStatus}), Pattern Breakout (${boStatus}), Order Flow (${volStatus}), and PCR Momentum (${pcrStatus}).`;
 
     return {
       overallScore,
       overallSignal,
+      masterDecision,
       signalTitle,
       convictionLevel,
+      setupGrade,
+      marketRegime,
+      regimeLabel,
+      riskCategory,
       recommendedStrike,
       action,
       entryZone: `₹${cleanLtp.toFixed(1)} - ₹${(cleanLtp * 1.03).toFixed(1)}`,
       target1,
       target2,
       stoploss,
+      invalidationLevel,
+      invalidationPrice,
       riskReward: rrRatio,
       strategies,
-      confluenceRationale
+      confluenceRationale,
+      whyNotTradeReasons,
+      suggestedInstrument,
+      scoreBreakdown,
+      marketBreadth: {
+        advances,
+        declines,
+        unchanged,
+        ratio,
+        sentiment: ratio > 1.5 ? 'BULLISH' : ratio < 0.7 ? 'BEARISH' : 'NEUTRAL'
+      }
     };
   }
 }

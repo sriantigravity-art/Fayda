@@ -423,20 +423,61 @@ export interface StrategyScoreItem {
   details: string;
 }
 
+export interface WhyNotTradeReason {
+  category: string;
+  description: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  solution: string;
+}
+
+export interface InstrumentSelection {
+  primary: string;
+  alternative: string;
+  avoid: string;
+}
+
+export interface ScoreCategoryBreakdown {
+  trend: number;
+  marketStructure: number;
+  momentum: number;
+  volume: number;
+  oiDerivatives: number;
+  volatilityGreeks: number;
+  vwapBreadth: number;
+  total: number;
+}
+
 export interface MasterStrategyConfluence {
   overallScore: number; // 0-100%
   overallSignal: 'STRONG_BUY_CALL' | 'BUY_CALL' | 'NEUTRAL_WAIT' | 'BUY_PUT' | 'STRONG_BUY_PUT';
+  masterDecision: 'BUY_CALL' | 'BUY_PUT' | 'WAIT' | 'NO_TRADE' | 'HEDGE';
   signalTitle: string;
   convictionLevel: 'EXTREME' | 'HIGH' | 'MODERATE' | 'NEUTRAL';
+  setupGrade: 'A+' | 'A' | 'B' | 'C' | 'NO_TRADE';
+  marketRegime: 'STRONG_BULLISH_TREND' | 'STRONG_BEARISH_TREND' | 'RANGE_BOUND_CHOP' | 'HIGH_VOLATILITY_EXPANSION' | 'GAMMA_EXPLOSION_0DTE' | 'IV_CRUSH_ZONE' | 'HIGH_EVENT_RISK';
+  regimeLabel: string;
+  riskCategory: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
   recommendedStrike: string;
-  action: 'BUY CALL' | 'BUY PUT' | 'WAIT';
+  action: 'BUY CALL' | 'BUY PUT' | 'WAIT' | 'NO TRADE' | 'HEDGE';
   entryZone: string;
   target1: number;
   target2: number;
   stoploss: number;
+  invalidationLevel: string;
+  invalidationPrice: number;
   riskReward: string;
   strategies: StrategyScoreItem[];
   confluenceRationale: string;
+  whyNotTradeReasons: WhyNotTradeReason[];
+  suggestedInstrument: InstrumentSelection;
+  scoreBreakdown: ScoreCategoryBreakdown;
+  marketBreadth?: {
+    advances: number;
+    declines: number;
+    unchanged: number;
+    ratio: number;
+    sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  };
 }
 
 export interface MarketIndexState {

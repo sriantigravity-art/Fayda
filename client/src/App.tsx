@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MarketProvider } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { TerminalModeProvider } from './context/TerminalModeContext';
 import { HeaderBar } from './components/HeaderBar';
 import { OptionChainHeatmap } from './components/OptionChainHeatmap';
 import { BreakoutPatternRadar } from './components/BreakoutPatternRadar';
@@ -127,9 +128,11 @@ const DashboardContent: React.FC = () => {
 export function App() {
   return (
     <ThemeProvider>
-      <MarketProvider>
-        <DashboardContent />
-      </MarketProvider>
+      <TerminalModeProvider>
+        <MarketProvider>
+          <DashboardContent />
+        </MarketProvider>
+      </TerminalModeProvider>
     </ThemeProvider>
   );
 }

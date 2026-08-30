@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode, type TerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { 
   Volume2, 
@@ -19,11 +20,14 @@ import {
   MoreHorizontal, 
   Sliders, 
   Maximize2, 
-  Minimize2 
+  Minimize2,
+  Calculator,
+  ShieldAlert
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { FyersModal } from './FyersModal';
 import { StockSelectorDropdown } from './StockSelectorDropdown';
+import { RiskCalculatorModal } from './RiskCalculatorModal';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -44,7 +48,9 @@ export const HeaderBar: React.FC = () => {
   } = useMarket();
 
   const { theme, toggleTheme } = useTheme();
+  const { mode, setMode } = useTerminalMode();
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -328,8 +334,64 @@ export const HeaderBar: React.FC = () => {
             </div>
           </div>
 
-          {/* DESKTOP RIGHT SIDE: Audio, Theme, Fullscreen, Clock, Settings */}
+          {/* DESKTOP RIGHT SIDE: Trader Mode, Risk Calc, Audio, Theme, Fullscreen, Clock, Settings */}
           <div className="flex items-center space-x-1.5 shrink-0">
+            {/* 3-MODE TRADER LEVEL TOGGLE (BEGINNER / INTERMEDIATE / EXPERT) */}
+            <div className="hidden lg:flex items-center bg-terminal-card border border-terminal-border rounded-xl p-0.5 font-mono text-[10px] font-bold shadow-sm">
+              <button
+                type="button"
+                onClick={() => setMode('BEGINNER')}
+                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                  mode === 'BEGINNER'
+                    ? 'bg-bull/20 border border-bull/40 text-bull shadow-sm'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Beginner Mode: Plain-English bias, capital preservation guardrails, simplified risk"
+              >
+                <span>🟢</span>
+                <span>BEGINNER</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('INTERMEDIATE')}
+                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                  mode === 'INTERMEDIATE'
+                    ? 'bg-amber/20 border border-amber/40 text-amber shadow-sm'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Intermediate Mode: Master 7-strategy confluence scoring, strike selection, and R:R ratios"
+              >
+                <span>🟡</span>
+                <span>INTERMEDIATE</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('EXPERT')}
+                className={`px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                  mode === 'EXPERT'
+                    ? 'bg-purple-500/20 border border-purple-500/40 text-purple-400 shadow-sm'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Expert Mode: Live Greeks (Delta, Gamma, Theta, Vega), 1-min OI Delta squeeze, and structural BOS"
+              >
+                <span>🟣</span>
+                <span>EXPERT</span>
+              </button>
+            </div>
+
+            {/* SEBI Position Sizing & Risk Calculator Button */}
+            <button
+              type="button"
+              onClick={() => setIsRiskModalOpen(true)}
+              className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-accent-cyan/15 border border-accent-cyan/40 hover:bg-accent-cyan/25 text-accent-cyan transition shadow-sm font-mono text-[10px] font-bold shrink-0 cursor-pointer"
+              title="SEBI Position Sizing & Account Risk Calculator"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">RISK CALC</span>
+            </button>
+
             {/* Audio Chime Toggle */}
             <div className="flex items-center bg-terminal-card border border-terminal-border rounded-lg p-0.5 text-xs shrink-0">
               <button
@@ -419,6 +481,63 @@ export const HeaderBar: React.FC = () => {
             </span>
             <button onClick={() => setIsMoreMenuOpen(false)} className="text-terminal-muted hover:text-terminal-text">
               <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Trader Level 3-Mode Selector in Popover */}
+          <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border space-y-1.5">
+            <span className="font-bold text-terminal-text block text-[11px]">Trader Experience Mode</span>
+            <div className="grid grid-cols-3 gap-1">
+              <button
+                onClick={() => setMode('BEGINNER')}
+                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
+                  mode === 'BEGINNER'
+                    ? 'bg-bull/20 border-bull text-bull shadow-sm'
+                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
+                }`}
+              >
+                🟢 Beginner
+              </button>
+              <button
+                onClick={() => setMode('INTERMEDIATE')}
+                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
+                  mode === 'INTERMEDIATE'
+                    ? 'bg-amber/20 border-amber text-amber shadow-sm'
+                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
+                }`}
+              >
+                🟡 Interm.
+              </button>
+              <button
+                onClick={() => setMode('EXPERT')}
+                className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
+                  mode === 'EXPERT'
+                    ? 'bg-purple-500/20 border-purple-500 text-purple-400 shadow-sm'
+                    : 'bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
+                }`}
+              >
+                🟣 Expert
+              </button>
+            </div>
+          </div>
+
+          {/* Risk Calculator Trigger in Popover */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-terminal-panel border border-terminal-border">
+            <div className="flex items-center space-x-2">
+              <Calculator className="w-4 h-4 text-accent-cyan" />
+              <div>
+                <span className="font-bold text-terminal-text block text-[11px]">Position Sizing</span>
+                <span className="text-[10px] text-terminal-muted">SEBI Risk & Capital Guard</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
+                setIsRiskModalOpen(true);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-accent-cyan/20 border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/30 text-[10px] font-bold transition cursor-pointer"
+            >
+              Open Calc
             </button>
           </div>
 
@@ -691,6 +810,13 @@ export const HeaderBar: React.FC = () => {
       <FyersModal
         isOpen={isFyersModalOpen}
         onClose={() => setIsFyersModalOpen(false)}
+      />
+
+      {/* SEBI Position Sizing & Risk Calculator Modal */}
+      <RiskCalculatorModal
+        isOpen={isRiskModalOpen}
+        onClose={() => setIsRiskModalOpen(false)}
+        defaultLtp={100}
       />
     </header>
   );
