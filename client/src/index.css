@@ -162,6 +162,25 @@ body {
   }
 }
 
+/* Seamless infinite ticker animation for HighlightSignalTicker (Radar Picks) */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 .animate-marquee-seamless {
   display: flex;
   width: max-content;

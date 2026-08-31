@@ -258,15 +258,16 @@ export const HighlightSignalTicker: React.FC = () => {
         {/* Line 2 on Mobile / Center on Desktop: Full-Width Scrolling Tape Container */}
         <div className="flex-1 overflow-hidden relative mx-0 sm:mx-2 w-full pt-0.5 sm:pt-0 border-t sm:border-t-0 border-terminal-border/40">
           <div
-            className="flex items-center space-x-2.5 sm:space-x-3 w-max"
+            className="flex items-center space-x-2.5 sm:space-x-3 w-max will-change-transform"
             style={{
               animation: `marquee-scroll ${speedSeconds}s linear infinite`,
               animationPlayState: isAnimationPaused ? 'paused' : 'running'
             }}
           >
-            {/* Repeat list twice for seamless loop */}
+            {/* Repeat list for seamless infinite loop with zero blank gaps */}
             {activeSetups.map((item, idx) => renderSetupItem(item, `orig-${idx}`))}
-            {activeSetups.map((item, idx) => renderSetupItem(item, `dup-${idx}`))}
+            {activeSetups.map((item, idx) => renderSetupItem(item, `dup1-${idx}`))}
+            {activeSetups.map((item, idx) => renderSetupItem(item, `dup2-${idx}`))}
           </div>
         </div>
 
