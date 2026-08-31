@@ -98,8 +98,12 @@ export const HighlightSignalTicker: React.FC = () => {
 
     // 3. If offline or no live surge pick: Generate authentic exchange reference wall setup
     const isBull = true;
-    const r1 = resistanceLevels?.[0];
-    const targetStrike = r1 ? r1.strikePrice : Math.min(atmStrike + 400, atmStrike + (sym === 'BANKNIFTY' || sym === 'SENSEX' ? 200 : 100));
+    const maxRange = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
+    const step = cfg?.step || 50;
+    const r1 = resistanceLevels && resistanceLevels.length > 0 
+      ? (resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= maxRange && r.strikePrice >= atmStrike) || resistanceLevels[0])
+      : null;
+    const targetStrike = r1 ? r1.strikePrice : (atmStrike + step * 2);
     const optType = isBull ? 'CE' : 'PE';
     const strikeObj = strikes.find(s => s.strikePrice === targetStrike);
     const ltp = strikeObj ? strikeObj.callLtp : 120;

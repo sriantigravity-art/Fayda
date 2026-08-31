@@ -39,15 +39,22 @@ export const TradeGuidanceCard: React.FC = () => {
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const isIndex = cfg ? cfg.isIndex : true;
 
-  const r1 = resistanceLevels && resistanceLevels.length > 0 ? resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= 400) : null;
-  const s1 = supportLevels && supportLevels.length > 0 ? supportLevels.find(s => Math.abs(s.strikePrice - atmStrike) <= 400) : null;
+  const maxRange = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
+  const step = cfg?.step || 50;
 
-  // Helper to generate reference levels for EOD / Key Walls within ±400 pts
+  const r1 = resistanceLevels && resistanceLevels.length > 0 
+    ? (resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= maxRange && r.strikePrice >= atmStrike) || resistanceLevels[0]) 
+    : null;
+  const s1 = supportLevels && supportLevels.length > 0 
+    ? (supportLevels.find(s => Math.abs(s.strikePrice - atmStrike) <= maxRange && s.strikePrice <= atmStrike) || supportLevels[0]) 
+    : null;
+
+  // Helper to generate reference levels for EOD / Key Walls within dynamic strike range
   const getEODReferenceSetup = (type: 'BULLISH' | 'BEARISH') => {
     const isBull = type === 'BULLISH';
     const targetStrikePrice = isBull 
-      ? (r1 ? r1.strikePrice : Math.min(atmStrike + 400, atmStrike + (selectedIndex === 'BANKNIFTY' || selectedIndex === 'SENSEX' ? 200 : 100)))
-      : (s1 ? s1.strikePrice : Math.max(atmStrike - 400, atmStrike - (selectedIndex === 'BANKNIFTY' || selectedIndex === 'SENSEX' ? 200 : 100)));
+      ? (r1 ? r1.strikePrice : atmStrike + step * 2)
+      : (s1 ? s1.strikePrice : atmStrike - step * 2);
     
     const optType = isBull ? 'CE' : 'PE';
     const strikeObj = strikes && strikes.length > 0 ? strikes.find(s => s.strikePrice === targetStrikePrice) : null;

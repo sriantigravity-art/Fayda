@@ -137,6 +137,20 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
     }
 
     if (res && res.strikes.length > 0) {
+      // Reconcile spot price & net change with official NSE/BSE quotes if missing or zero
+      let spotPrice = res.spotPrice;
+      let spotChange = res.spotChange ?? 0;
+      let spotPctChange = res.spotPctChange ?? 0;
+
+      if (spotPrice <= 0 || (spotChange === 0 && spotPctChange === 0)) {
+        const officialQuote = await globalIndicesService.getSpotForSymbol(symConfig.symbol);
+        if (officialQuote && officialQuote.spot > 0) {
+          if (spotPrice <= 0) spotPrice = officialQuote.spot;
+          if (spotChange === 0) spotChange = officialQuote.change;
+          if (spotPctChange === 0) spotPctChange = officialQuote.pctChange;
+        }
+      }
+
       // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
       let indiaVix: number | undefined = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
       if (!indiaVix) {
@@ -146,9 +160,9 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
 
       const { indexState, newSurges } = engine.processSnapshot(
         symConfig.symbol,
-        res.spotPrice,
-        res.spotChange ?? 0,
-        res.spotPctChange ?? 0,
+        spotPrice,
+        spotChange,
+        spotPctChange,
         res.strikes,
         symConfig.step,
         symConfig.lot,
