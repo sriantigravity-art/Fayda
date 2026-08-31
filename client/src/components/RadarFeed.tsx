@@ -532,23 +532,29 @@ export const RadarFeed: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Execution Matrix: Entry Zone, Exit/SL, Target, R:R */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[10px]">
+                  {/* Execution Matrix: Asset Spot, Option LTP, Entry Zone, Exit/SL, Target, R:R */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-center text-[10px]">
+                    <div className="bg-terminal-bg p-1.5 rounded-md border border-terminal-border">
+                      <span className="text-accent-sky block text-[8px] font-bold uppercase">ASSET SPOT</span>
+                      <span className="font-bold text-terminal-text block">
+                        ₹{currentIdx && currentIdx.spotPrice > 0 ? currentIdx.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                      </span>
+                    </div>
                     <div className="bg-accent-cyan/10 p-1.5 rounded-md border border-accent-cyan/30">
-                      <span className="text-accent-cyan block text-[8px] font-bold uppercase">ENTRY ZONE</span>
+                      <span className="text-accent-cyan block text-[8px] font-bold uppercase">ENTRY PRICE</span>
                       <span className="font-bold text-terminal-text block">{surge.suggestedContract.recommendedEntry}</span>
                     </div>
                     <div className="bg-bear/15 p-1.5 rounded-md border border-bear/30">
-                      <span className="text-bear block text-[8px] font-bold uppercase">EXIT / STOPLOSS</span>
+                      <span className="text-bear block text-[8px] font-bold uppercase">STOP LOSS</span>
                       <span className="font-bold text-bear block">{surge.suggestedContract.stoploss}</span>
                     </div>
                     <div className="bg-bull/15 p-1.5 rounded-md border border-bull/30">
                       <span className="text-bull block text-[8px] font-bold uppercase">TARGET 1</span>
                       <span className="font-bold text-bull block">{surge.suggestedContract.target}</span>
                     </div>
-                    <div className="bg-terminal-bg p-1.5 rounded-md border border-terminal-border">
-                      <span className="text-terminal-muted block text-[8px] font-bold uppercase">R:R RATIO</span>
-                      <span className="font-bold text-amber block">{surge.suggestedContract.riskReward || '1:2.0'}</span>
+                    <div className="bg-terminal-bg p-1.5 rounded-md border border-terminal-border col-span-2 sm:col-span-1">
+                      <span className="text-amber block text-[8px] font-bold uppercase">OPTION LTP</span>
+                      <span className="font-bold text-amber block">₹{surge.ltp.toFixed(2)} ({surge.suggestedContract.riskReward || '1:2.0'})</span>
                     </div>
                   </div>
 

@@ -29,6 +29,18 @@ export const SurgeAlertBanner: React.FC = () => {
   const isBullAction = latestExtremeSurge.tradeAction === 'BUY_CALL';
   const contract = latestExtremeSurge.suggestedContract;
 
+  // Extract current asset spot price & day's delta
+  const assetSpotPrice = idxState?.spotPrice || 0;
+  const assetChange = idxState?.change || 0;
+  const assetPctChange = idxState?.pctChange || 0;
+  const isAssetPositive = assetChange >= 0;
+
+  // Extract current live LTP of the option strike
+  const strikeObj = idxState?.strikes?.find((s) => s.strikePrice === latestExtremeSurge.strikePrice);
+  const currentOptionLtp = isCall
+    ? (strikeObj?.callLtp ?? latestExtremeSurge.ltp)
+    : (strikeObj?.putLtp ?? latestExtremeSurge.ltp);
+
   return (
     <div className="bg-gradient-to-r from-bear/15 via-terminal-panel to-bear/15 border-y-2 border-bear shadow-md px-3 sm:px-4 py-2.5 text-terminal-text relative z-30 font-mono animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="max-w-[1840px] mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
@@ -45,6 +57,16 @@ export const SurgeAlertBanner: React.FC = () => {
               <span className="font-black text-sm sm:text-base text-terminal-text tracking-wide">
                 {latestExtremeSurge.indexSymbol} <span className={isCall ? 'text-bear' : 'text-bull'}>{latestExtremeSurge.strikePrice} {latestExtremeSurge.optionType}</span>
               </span>
+              {/* Asset Spot Price Badge */}
+              {assetSpotPrice > 0 && (
+                <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-text font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
+                  <span className="text-terminal-muted">SPOT:</span>
+                  <span className="tabular-nums font-black">₹{assetSpotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className={`text-[10px] ${isAssetPositive ? 'text-bull' : 'text-bear'}`}>
+                    ({isAssetPositive ? '+' : ''}{assetPctChange.toFixed(2)}%)
+                  </span>
+                </span>
+              )}
               {/* Prominent Timestamp Badge */}
               <span className="px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
                 <Clock className="w-3 h-3 text-accent-cyan" />
@@ -70,20 +92,28 @@ export const SurgeAlertBanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: High-Visibility Trade Setup (Strike, Entry, Exit, Target) */}
+        {/* Right Side: High-Visibility Trade Setup (Spot Price, Option LTP, Entry, Exit SL, Target) */}
         <div className="flex items-center justify-between w-full lg:w-auto space-x-2 sm:space-x-3 shrink-0 min-w-0">
           <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-1.5 sm:gap-2 bg-terminal-card p-1.5 sm:p-2 rounded-xl border border-terminal-border shadow-inner w-full sm:w-auto">
-            {/* Strike Option Contract */}
-            <div className="px-2.5 py-1 bg-terminal-panel/80 rounded-lg border border-terminal-border/80 text-left">
-              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">OPTION STRIKE</span>
+            {/* Underlying Asset Current Price */}
+            <div className="px-2.5 py-1 bg-terminal-panel/90 rounded-lg border border-terminal-border/80 text-left">
+              <span className="text-[8px] sm:text-[9px] text-accent-sky block font-bold uppercase">ASSET CURRENT PRICE</span>
               <span className="font-black text-xs sm:text-sm text-terminal-text tracking-wide whitespace-nowrap">
-                🎯 {contract.symbol}
+                ₹{assetSpotPrice > 0 ? assetSpotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+              </span>
+            </div>
+
+            {/* Option Strike & Current LTP */}
+            <div className="px-2.5 py-1 bg-terminal-panel/80 rounded-lg border border-terminal-border/80 text-left">
+              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">OPTION LTP</span>
+              <span className="font-black text-xs sm:text-sm text-terminal-text tracking-wide whitespace-nowrap">
+                ₹{currentOptionLtp.toFixed(2)}
               </span>
             </div>
 
             {/* Entry Zone */}
             <div className="px-2.5 py-1 bg-accent-cyan/10 rounded-lg border border-accent-cyan/40 text-left">
-              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
+              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">ENTRY PRICE</span>
               <span className="font-bold text-xs sm:text-sm text-terminal-text whitespace-nowrap">
                 {contract.recommendedEntry}
               </span>
@@ -92,7 +122,7 @@ export const SurgeAlertBanner: React.FC = () => {
             {/* Exit / Stoploss */}
             <div className="px-2.5 py-1 bg-bear/15 rounded-lg border border-bear/50 text-left">
               <span className="text-[8px] sm:text-[9px] text-bear block font-bold uppercase flex items-center gap-0.5">
-                <ShieldAlert className="w-2.5 h-2.5" /> EXIT / SL
+                <ShieldAlert className="w-2.5 h-2.5" /> STOP LOSS
               </span>
               <span className="font-bold text-xs sm:text-sm text-bear whitespace-nowrap">
                 {contract.stoploss}
@@ -110,7 +140,7 @@ export const SurgeAlertBanner: React.FC = () => {
             </div>
 
             {/* Risk-Reward */}
-            <div className="px-2 py-1 bg-terminal-panel rounded-lg border border-terminal-border text-center hidden md:block">
+            <div className="px-2 py-1 bg-terminal-panel rounded-lg border border-terminal-border text-center hidden xl:block">
               <span className="text-[8px] text-terminal-muted block uppercase">R:R</span>
               <span className="font-bold text-xs text-amber">{contract.riskReward}</span>
             </div>
