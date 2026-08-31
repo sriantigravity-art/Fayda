@@ -6,7 +6,10 @@ interface SplashScreenProps {
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !sessionStorage.getItem('fayda_splash_seen');
+  });
   const [isFading, setIsFading] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -25,27 +28,33 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
   const handleDismiss = () => {
     if (isFading || !isVisible) return;
+    try {
+      sessionStorage.setItem('fayda_splash_seen', 'true');
+    } catch {}
     setIsFading(true);
     setTimeout(() => {
       setIsVisible(false);
       if (onFinish) onFinish();
-    }, 500);
+    }, 400);
   };
 
   useEffect(() => {
-    // Safety fallback: auto-dismiss after 10s if video finishes or gets stuck
+    if (!isVisible) return;
+
+    // Fast safety fallback: auto-dismiss after 3.5s max
     const safetyTimer = setTimeout(() => {
       handleDismiss();
-    }, 10000);
+    }, 3500);
 
     if (videoRef.current) {
       videoRef.current.play().catch(() => {
-        // Autoplay may need user gesture on some browsers
+        // If autoplay blocked, dismiss immediately so site is visible
+        handleDismiss();
       });
     }
 
     return () => clearTimeout(safetyTimer);
-  }, [isMobile]);
+  }, [isVisible, isMobile]);
 
   if (!isVisible) return null;
 
@@ -53,7 +62,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
   return (
     <div
-      className={`fixed inset-0 z-[99999] bg-black flex items-center justify-center overflow-hidden select-none transition-opacity duration-500 ease-out ${
+      onClick={handleDismiss}
+      className={`fixed inset-0 z-[99999] bg-black flex items-center justify-center overflow-hidden select-none transition-opacity duration-400 ease-out cursor-pointer ${
         isFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
@@ -66,6 +76,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         muted
         playsInline
         onEnded={handleDismiss}
+        onError={handleDismiss}
       >
         <source src={videoSrc} type="video/mp4" />
       </video>
