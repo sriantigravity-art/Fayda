@@ -191,3 +191,15 @@ body {
 .animate-ticker-seamless:hover {
   animation-play-state: paused;
 }
+
+/* Pseudo-fullscreen fallback for iOS Safari and restricted webviews */
+body.terminal-fullscreen-active {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: auto !important;
+  z-index: 99999 !important;
+}

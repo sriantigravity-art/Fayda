@@ -118,7 +118,10 @@ export const HeaderBar: React.FC = () => {
     };
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     const doc = document as any;
     const docEl = document.documentElement as any;
 
@@ -126,28 +129,46 @@ export const HeaderBar: React.FC = () => {
       doc.fullscreenElement ||
       doc.webkitFullscreenElement ||
       doc.mozFullScreenElement ||
-      doc.msFullscreenElement
+      doc.msFullscreenElement ||
+      document.body.classList.contains('terminal-fullscreen-active')
     );
 
     if (!isFs) {
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch((err: any) => console.warn('[Fullscreen] Request failed:', err));
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen();
-      } else if (docEl.mozRequestFullScreen) {
-        docEl.mozRequestFullScreen();
-      } else if (docEl.msRequestFullscreen) {
-        docEl.msRequestFullscreen();
+      try {
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(() => {
+            document.body.classList.add('terminal-fullscreen-active');
+            setIsFullscreen(true);
+          });
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+          docEl.mozRequestFullScreen();
+        } else if (docEl.msRequestFullscreen) {
+          docEl.msRequestFullscreen();
+        } else {
+          document.body.classList.add('terminal-fullscreen-active');
+          setIsFullscreen(true);
+        }
+      } catch (err) {
+        document.body.classList.add('terminal-fullscreen-active');
+        setIsFullscreen(true);
       }
     } else {
-      if (doc.exitFullscreen) {
-        doc.exitFullscreen().catch((err: any) => console.warn('[Fullscreen] Exit failed:', err));
-      } else if (doc.webkitExitFullscreen) {
-        doc.webkitExitFullscreen();
-      } else if (doc.mozCancelFullScreen) {
-        doc.mozCancelFullScreen();
-      } else if (doc.msExitFullscreen) {
-        doc.msExitFullscreen();
+      try {
+        if (doc.exitFullscreen && doc.fullscreenElement) {
+          doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen && doc.webkitFullscreenElement) {
+          doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen && doc.mozFullScreenElement) {
+          doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen && doc.msFullscreenElement) {
+          doc.msExitFullscreen();
+        }
+      } catch (err) {
+      } finally {
+        document.body.classList.remove('terminal-fullscreen-active');
+        setIsFullscreen(false);
       }
     }
   };
@@ -210,10 +231,9 @@ export const HeaderBar: React.FC = () => {
   const expiryDates = currentIndexState?.expiryDates || [];
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
   const daysToExpiry = currentIndexState?.daysToExpiry ?? 4;
-  const spotPrice = currentIndexState?.spotPrice || 24800;
-  const prevClose = currentIndexState?.previousClose || 24700;
-  const netChange = spotPrice - prevClose;
-  const pctChange = prevClose > 0 ? (netChange / prevClose) * 100 : 0;
+  const spotPrice = currentIndexState?.spotPrice || 0;
+  const netChange = currentIndexState?.change || 0;
+  const pctChange = currentIndexState?.pctChange || 0;
   const isPositive = netChange >= 0;
 
   const activePcr = currentIndexState?.pcr?.atmPlusMinus5Pcr ?? 1.0;
@@ -418,17 +438,17 @@ export const HeaderBar: React.FC = () => {
             >
               {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
             </button>
-
-            {/* Fullscreen Toggle */}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
           </div>
+
+          {/* Fullscreen Toggle (Always Visible in Top Right Header) */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
 
           {/* User Auth Profile Badge or Sign In */}
           {isAuthenticated && user ? (
@@ -477,9 +497,9 @@ export const HeaderBar: React.FC = () => {
               <MoreHorizontal className="w-4 h-4" />
             </button>
 
-            {/* Mobile Dropdown Popover Menu */}
+            {/* Mobile Dropdown Popover Menu (Solid Opaque Background) */}
             {isMoreMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-terminal-card/98 backdrop-blur-xl border border-terminal-border rounded-2xl shadow-elevated p-3 z-50 flex flex-col space-y-3 animate-scale-up font-sans select-none">
+              <div className="absolute right-0 top-full mt-2 w-72 bg-terminal-card border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-3 z-50 flex flex-col space-y-3 animate-scale-up font-sans select-none ring-1 ring-black/20">
                 
                 {/* 3-Mode Trader Selection */}
                 <div className="space-y-1">
@@ -586,8 +606,8 @@ export const HeaderBar: React.FC = () => {
 
                 <div className="h-[1px] bg-terminal-border/60" />
 
-                {/* Display & Sound Toggles Grid */}
-                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                {/* Display & Sound Toggles (3-Col Grid) */}
+                <div className="grid grid-cols-3 gap-1.5 pt-0.5">
                   {/* Density */}
                   <button
                     type="button"
@@ -624,17 +644,6 @@ export const HeaderBar: React.FC = () => {
                     {theme === 'dark' ? <Moon className="w-4 h-4 text-accent-sky" /> : <Sun className="w-4 h-4 text-amber" />}
                     <span className="text-[9px] font-medium">{theme === 'dark' ? 'Dark' : 'Light'}</span>
                   </button>
-
-                  {/* Fullscreen */}
-                  <button
-                    type="button"
-                    onClick={() => { toggleFullscreen(); setIsMoreMenuOpen(false); }}
-                    className="p-2 rounded-xl bg-terminal-panel border border-terminal-border flex flex-col items-center justify-center space-y-1 text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-                    title="Toggle Fullscreen"
-                  >
-                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    <span className="text-[9px] font-medium">{isFullscreen ? 'Exit FS' : 'Full'}</span>
-                  </button>
                 </div>
               </div>
             )}
@@ -652,9 +661,9 @@ export const HeaderBar: React.FC = () => {
           {visibleIndices.map((sym: string) => {
             const isSelected = selectedIndex === sym;
             const state = sym === selectedIndex ? currentIndexState : indices[sym];
-            const isPos = state ? state.spotPrice >= state.previousClose : true;
-            const pts = state ? state.spotPrice - state.previousClose : 0;
-            const pct = state && state.previousClose > 0 ? (pts / state.previousClose) * 100 : 0;
+            const pts = state?.change ?? 0;
+            const pct = state?.pctChange ?? 0;
+            const isPos = pts >= 0;
 
             return (
               <div
