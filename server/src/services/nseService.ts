@@ -2,6 +2,7 @@ import { IndexSymbol, ALL_SYMBOLS_CONFIG } from '../types.js';
 import { GreekEngine } from '../engine/greekEngine.js';
 import { NseExpiryService } from './nseExpiryService.js';
 import { mcxCommodityService } from './mcxCommodityService.js';
+import { globalIndicesService } from './globalIndicesService.js';
 
 interface RawStrikeSnapshot {
   strikePrice: number;
@@ -57,6 +58,11 @@ const YAHOO_SPOT_MAP: Record<string, { ticker: string; convert: ConvertType }> =
   NATURALGAS: { ticker: 'NG=F',                   convert: 'USD_INR_GAS'    },
   GOLD:       { ticker: 'GC=F',                   convert: 'USD_INR_GOLD'   },
   SILVER:     { ticker: 'SI=F',                   convert: 'USD_INR_SILVER' },
+  RELIANCE:   { ticker: 'RELIANCE.NS',            convert: 'DIRECT'         },
+  HDFCBANK:   { ticker: 'HDFCBANK.NS',            convert: 'DIRECT'         },
+  ICICIBANK:  { ticker: 'ICICIBANK.NS',           convert: 'DIRECT'         },
+  INFY:       { ticker: 'INFY.NS',                convert: 'DIRECT'         },
+  TCS:        { ticker: 'TCS.NS',                 convert: 'DIRECT'         },
 };
 
 /**
@@ -65,17 +71,22 @@ const YAHOO_SPOT_MAP: Record<string, { ticker: string; convert: ConvertType }> =
  * They exist solely to prevent a crash / blank screen, not to be accurate.
  */
 const EMERGENCY_FALLBACK_SPOT: Record<string, number> = {
-  NIFTY:      24000,
-  BANKNIFTY:  57000,
-  FINNIFTY:   26000,
-  MIDCPNIFTY: 13000,
-  NIFTYNXT50: 32000,
+  NIFTY:      24500,
+  BANKNIFTY:  51500,
+  FINNIFTY:   23500,
+  MIDCPNIFTY: 12500,
+  NIFTYNXT50: 68000,
   SENSEX:     77000,
   BANKEX:     65000,
   CRUDEOIL:   7000,
   NATURALGAS: 240,
   GOLD:       75000,
   SILVER:     95000,
+  RELIANCE:   2950,
+  HDFCBANK:   1650,
+  ICICIBANK:  1200,
+  INFY:       1850,
+  TCS:        4200,
 };
 
 export class NseService {
@@ -134,6 +145,15 @@ export class NseService {
    *   GAS    : USD/MMBtu   × USD_INR                  = INR/MMBtu
    */
   public async fetchYahooSpot(symbol: string): Promise<{ spot: number; change: number; pctChange: number } | null> {
+    // ── Priority 1: Check live NSE allIndices feed from globalIndicesService ──
+    try {
+      const liveNseQuote = await globalIndicesService.getSpotForSymbol(symbol);
+      if (liveNseQuote && liveNseQuote.spot > 0) {
+        this.spotCache.set(symbol, { ...liveNseQuote, ts: Date.now() });
+        return liveNseQuote;
+      }
+    } catch {}
+
     // ── GOLD and SILVER: use MCX-aligned IBJA benchmark (official Indian rates) ──
     if (symbol === 'GOLD' || symbol === 'SILVER') {
       const mcqQuote = await mcxCommodityService.fetchSpot(symbol as 'GOLD' | 'SILVER');
@@ -142,12 +162,10 @@ export class NseService {
         this.spotCache.set(symbol, { ...result, ts: Date.now() });
         return result;
       }
-      // mcxCommodityService already falls back to Yahoo COMEX internally,
-      // so if it returns null, all sources failed — fall through to Yahoo direct
     }
 
     const cached = this.spotCache.get(symbol);
-    if (cached && Date.now() - cached.ts < 60000) {
+    if (cached && Date.now() - cached.ts < 20000) {
       return { spot: cached.spot, change: cached.change, pctChange: cached.pctChange };
     }
 

@@ -446,6 +446,11 @@ export class GlobalIndicesService {
 
       if (updatedList.length > 0) {
         this.indices = updatedList;
+        if (this.onUpdateCallback) {
+          try {
+            this.onUpdateCallback(this.indices);
+          } catch {}
+        }
       }
     } catch (err) {
       console.error('[GlobalIndicesService] Quote fetch error:', err);
@@ -454,8 +459,44 @@ export class GlobalIndicesService {
     }
   }
 
+  private onUpdateCallback: ((indices: GlobalIndexItem[]) => void) | null = null;
+
+  public setCallback(cb: (indices: GlobalIndexItem[]) => void) {
+    this.onUpdateCallback = cb;
+  }
+
   public getIndices(): GlobalIndexItem[] {
     return this.indices;
+  }
+
+  public async getSpotForSymbol(symbol: string): Promise<{ spot: number; change: number; pctChange: number } | null> {
+    const nseData = await this.fetchNseAllIndices();
+    if (nseData) {
+      const MAP: Record<string, string[]> = {
+        NIFTY: ['NIFTY 50', 'NIFTY 50 TRI', 'Nifty 50'],
+        BANKNIFTY: ['NIFTY BANK', 'Nifty Bank'],
+        FINNIFTY: ['NIFTY FINANCIAL SERVICES', 'Nifty Financial Services'],
+        MIDCPNIFTY: ['NIFTY MIDCAP 50', 'NIFTY MIDCAP SELECT', 'NIFTY MID SELECT', 'Nifty Midcap 50'],
+        NIFTYNXT50: ['NIFTY NEXT 50', 'Nifty Next 50'],
+        INDIA_VIX: ['INDIA VIX', 'India VIX']
+      };
+      const keys = MAP[symbol];
+      if (keys) {
+        for (const k of keys) {
+          const entry = nseData[k];
+          if (entry && entry.price > 0) {
+            return { spot: entry.price, change: entry.change, pctChange: entry.pctChange };
+          }
+        }
+      }
+    }
+
+    const item = this.indices.find(i => i.id === symbol || i.id.replace('_', '') === symbol.replace('_', ''));
+    if (item && item.price > 0) {
+      return { spot: item.price, change: item.change, pctChange: item.pctChange };
+    }
+
+    return null;
   }
 }
 

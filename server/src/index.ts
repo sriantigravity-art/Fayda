@@ -98,6 +98,15 @@ newsService.setCallback((newsItem: NewsItem) => {
   });
 });
 
+// Hook GlobalIndicesService Callback to Broadcast Live International & Indian Quotes
+globalIndicesService.setCallback((globalIndices) => {
+  broadcast({
+    type: 'GLOBAL_INDICES_UPDATE',
+    globalIndices,
+    timestamp: new Date().toISOString()
+  });
+});
+
 const getSymbolConfig = (symbol: string): SymbolConfig => {
   const found = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
   if (found) return found;
@@ -125,7 +134,7 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       res = await fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
     }
 
-    // Seamless fallback to Official Exchange EOD data if Fyers is not logged in or offline
+    // Seamless fallback to Official Exchange data if Fyers is not logged in or offline
     if (!res || !res.strikes || res.strikes.length === 0) {
       res = await nseService.fetchOptionChain(symConfig.symbol, chosenExp);
       usedSource = 'NSE_LIVE';
@@ -180,7 +189,7 @@ const pollLiveFyers = async () => {
   for (const sym of Array.from(watchedSymbols)) {
     const config = getSymbolConfig(sym);
     await fetchSymbolSnapshot(config);
-    await new Promise(r => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 100));
   }
 };
 
@@ -188,7 +197,7 @@ const startFyersPolling = () => {
   if (fyersPollTimer) clearInterval(fyersPollTimer);
   if (nsePollTimer) clearInterval(nsePollTimer);
   pollLiveFyers();
-  const interval = isNseMarketOpen() ? 3000 : 30000;
+  const interval = isNseMarketOpen() ? 3000 : 15000;
   fyersPollTimer = setInterval(pollLiveFyers, interval);
 };
 
@@ -199,6 +208,7 @@ const pollLiveNse = async () => {
   for (const sym of Array.from(watchedSymbols)) {
     const config = getSymbolConfig(sym);
     await fetchSymbolSnapshot(config);
+    await new Promise(r => setTimeout(r, 80));
   }
 };
 
@@ -206,7 +216,8 @@ const startNsePolling = () => {
   if (nsePollTimer) clearInterval(nsePollTimer);
   if (fyersPollTimer) clearInterval(fyersPollTimer);
   pollLiveNse();
-  nsePollTimer = setInterval(pollLiveNse, 15000);
+  const interval = isNseMarketOpen() ? 4000 : 8000;
+  nsePollTimer = setInterval(pollLiveNse, interval);
 };
 
 // Start polling — use Fyers if configured, otherwise fall back to NSE
