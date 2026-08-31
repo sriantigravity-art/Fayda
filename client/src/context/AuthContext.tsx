@@ -217,8 +217,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrMobile: string, password: string, forceRole?: UserRole) => {
     // Simulated institutional authentication
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 400));
 
+    const cleanUser = emailOrMobile.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    // 1. Direct Super Admin Master Login (Username: srikantsr, Password: Aryan@007#)
+    if (cleanUser === 'srikantsr') {
+      if (cleanPass === 'Aryan@007#') {
+        const superAdminUser: UserProfile = {
+          id: 'ADM-SRIKANT-007',
+          fullName: 'Srikant SR (SuperAdmin)',
+          email: 'srikantsr@vertexinfo.co.in',
+          mobile: '+91 98765 00700',
+          role: 'SUPERADMIN',
+          avatarUrl: user?.avatarUrl,
+          address: user?.address || {
+            street: 'Dalal Street Master Desk, 14th Floor',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '400001'
+          },
+          traderExperience: 'EXPERT',
+          isVerified: true,
+          createdAt: user?.createdAt || new Date().toISOString(),
+          consentRecord: {
+            userId: 'ADM-SRIKANT-007',
+            userEmail: 'srikantsr@vertexinfo.co.in',
+            riskDisclosureAccepted: true,
+            noGuaranteedProfitAccepted: true,
+            termsAccepted: true,
+            privacyAccepted: true,
+            jurisdictionAgeAccepted: true,
+            marketingAccepted: true,
+            legalVersion: CURRENT_LEGAL_VERSION,
+            timestamp: new Date().toISOString(),
+            ipAddress: '103.212.144.1 (SuperAdmin Master Session)'
+          }
+        };
+
+        setUser(superAdminUser);
+        setHasCompletedFirstLoginConsent(true);
+        return { success: true };
+      } else {
+        return { success: false, error: 'Invalid SuperAdmin password. Please enter correct credentials.' };
+      }
+    }
+
+    // 2. Standard User Authentication (Subject to OTP or valid standard password)
     const isSuperAdminEmail = emailOrMobile.toLowerCase().includes('admin') || forceRole === 'SUPERADMIN';
     const assignedRole: UserRole = isSuperAdminEmail ? 'SUPERADMIN' : (forceRole || 'USER');
 

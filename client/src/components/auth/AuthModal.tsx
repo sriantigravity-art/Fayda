@@ -145,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Handler: Step 1 Mandatory Consent Acceptance (First Login Only)
   const handleAcceptFirstLoginConsent = () => {
-    if (!consentRisk || !consentNoGuarantee || !consentTerms || !consentPrivacy || !consentAge) {
+    if (!consentRisk || !consentNoGuarantee || !consentTerms || !consentAge) {
       setErrorMsg('Please accept all mandatory SEBI regulatory disclaimers and terms to proceed.');
       return;
     }
@@ -154,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       riskDisclosureAccepted: consentRisk,
       noGuaranteedProfitAccepted: consentNoGuarantee,
       termsAccepted: consentTerms,
-      privacyAccepted: consentPrivacy,
+      privacyAccepted: consentTerms,
       jurisdictionAgeAccepted: consentAge,
       marketingAccepted: consentMarketing
     });
