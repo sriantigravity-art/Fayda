@@ -620,17 +620,7 @@ export const RadarFeed: React.FC = () => {
 
       {/* Standalone Separate Modal Dialog */}
       {isJournalModalOpen && (
-        <div 
-          onClick={() => setIsJournalModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl"
-          >
-            <PostMarketTradeJournal isModal={true} onClose={() => setIsJournalModalOpen(false)} />
-          </div>
-        </div>
+        <PostMarketTradeJournal isModal={true} onClose={() => setIsJournalModalOpen(false)} />
       )}
     </div>
   );

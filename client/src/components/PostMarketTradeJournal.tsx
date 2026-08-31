@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket, getApiBase } from '../context/MarketContext';
 import type { 
   JournalTradeCall, 
@@ -29,7 +30,8 @@ import {
   ArrowDownRight,
   HelpCircle,
   Copy,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 
 interface Props {
@@ -48,6 +50,20 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Keyboard escape listener and body scroll lock for modal
+  useEffect(() => {
+    if (!isModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isModal, onClose]);
 
   // Fetch Available Dates on Mount
   useEffect(() => {
@@ -135,12 +151,16 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
     setTimeout(() => setCopied(false), 2500);
   };
 
-  return (
-    <div className={`bg-terminal-card border border-terminal-border rounded-2xl p-3 sm:p-5 text-terminal-text font-sans shadow-lg select-none ${isModal ? 'max-h-[88vh] overflow-y-auto' : ''}`}>
+  const content = (
+    <div className={`bg-terminal-card border border-terminal-border rounded-2xl text-terminal-text font-sans shadow-2xl select-none flex flex-col ${
+      isModal ? 'w-full max-w-6xl max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200' : 'p-3 sm:p-5'
+    }`}>
       {/* ========================================================================= */}
       {/* 1. Header Toolbar: Title, Date Selector Dropdown, Refresh & Copy Buttons */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-4 border-b border-terminal-border/80">
+      <div className={`flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-terminal-border/80 bg-terminal-panel/60 shrink-0 ${
+        isModal ? 'p-3.5 sm:p-4' : 'pb-4'
+      }`}>
         <div className="flex items-center space-x-3">
           <div className="p-2.5 rounded-xl bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/40 shadow-sm shrink-0">
             <BarChart2 className="w-5 h-5" />
@@ -181,7 +201,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           {/* Copy Summary Button */}
           <button
             onClick={handleCopySummary}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border/60 text-terminal-muted hover:text-terminal-text text-xs font-mono font-semibold border border-terminal-border transition shadow-sm"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border/60 text-terminal-muted hover:text-terminal-text text-xs font-mono font-semibold border border-terminal-border transition shadow-sm cursor-pointer"
             title="Copy Report Summary to Clipboard"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-bull" /> : <Copy className="w-3.5 h-3.5" />}
@@ -192,7 +212,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           <button
             onClick={fetchReport}
             disabled={isLoading}
-            className="p-2 rounded-xl bg-terminal-panel hover:bg-terminal-border/60 text-terminal-muted hover:text-terminal-text border border-terminal-border transition shadow-sm"
+            className="p-2 rounded-xl bg-terminal-panel hover:bg-terminal-border/60 text-terminal-muted hover:text-terminal-text border border-terminal-border transition shadow-sm cursor-pointer"
             title="Refresh Ledger"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-accent-cyan' : ''}`} />
@@ -200,20 +220,29 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
           {isModal && onClose && (
             <button
-              onClick={onClose}
-              className="px-2.5 py-1.5 rounded-xl bg-bear/20 hover:bg-bear/30 text-bear border border-bear/40 text-xs font-bold font-mono transition"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="px-3 py-1.5 rounded-xl bg-bear/20 hover:bg-bear/30 text-bear border border-bear/40 font-mono font-bold text-xs transition cursor-pointer flex items-center space-x-1 shrink-0"
+              title="Close modal (Esc)"
             >
-              Close
+              <X className="w-3.5 h-3.5" />
+              <span>Close</span>
             </button>
           )}
         </div>
       </div>
 
+      {/* Main Scrollable Body Container */}
+      <div className={`flex-1 overflow-y-auto ${isModal ? 'p-3.5 sm:p-5 space-y-4' : 'pt-4 space-y-4'}`}>
+
       {/* ========================================================================= */}
       {/* 2. Top Summary KPI Cards (Win Rate, Points Profit/Loss, Near-Target Acc)  */}
       {/* ========================================================================= */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3 my-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3 mb-4">
           {/* Card 1: Win Rate % */}
           <div className="bg-terminal-panel/90 border border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
             <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
@@ -527,18 +556,34 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 5. Footer Notes & Compliance Disclaimer                                   */}
-      {/* ========================================================================= */}
-      <div className="mt-3 pt-3 border-t border-terminal-border text-[10px] font-mono text-terminal-muted flex flex-col sm:flex-row items-center justify-between gap-2">
-        <div className="flex items-center space-x-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-bull animate-pulse" />
-          <span>Automated Price Action & Confluence Journal Engine active</span>
-        </div>
-        <div>
-          <span>Near-Target criteria evaluates peak favorable excursion vs Target 1 horizon.</span>
+        {/* 5. Footer Notes & Compliance Disclaimer */}
+        <div className="mt-3 pt-3 border-t border-terminal-border text-[10px] font-mono text-terminal-muted flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-bull animate-pulse" />
+            <span>Automated Price Action & Confluence Journal Engine active</span>
+          </div>
+          <div>
+            <span>Near-Target criteria evaluates peak favorable excursion vs Target 1 horizon.</span>
+          </div>
         </div>
       </div>
     </div>
   );
+
+  if (isModal) {
+    return createPortal(
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto"
+      >
+        <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center my-auto">
+          {content}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  return content;
 };
+
