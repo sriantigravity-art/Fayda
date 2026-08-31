@@ -7,6 +7,7 @@ import { nseService } from './services/nseService.js';
 import { fyersService } from './services/fyersService.js';
 import { newsService } from './services/newsService.js';
 import { globalIndicesService } from './services/globalIndicesService.js';
+import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
 import { 
@@ -16,7 +17,8 @@ import {
   NewsItem, 
   ALL_SYMBOLS_CONFIG, 
   SymbolConfig,
-  AssetCategory
+  AssetCategory,
+  GlobalMarketContextData
 } from './types.js';
 
 const app = express();
@@ -101,6 +103,15 @@ globalIndicesService.setCallback((globalIndices) => {
   broadcast({
     type: 'GLOBAL_INDICES_UPDATE',
     globalIndices,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Hook GlobalMarketFeedService Callback to Broadcast Global Risk & Macro Updates
+globalMarketFeedService.onUpdate((globalMarketContext: GlobalMarketContextData) => {
+  broadcast({
+    type: 'GLOBAL_MARKET_CONTEXT_UPDATE',
+    globalMarketContext,
     timestamp: new Date().toISOString()
   });
 });
@@ -287,6 +298,7 @@ wss.on('connection', async (ws: WebSocket) => {
     recentSurges: engine.getRecentSurges(30),
     recentNews: newsService.getRecentNews(25),
     globalIndices: globalIndicesService.getIndices(),
+    globalMarketContext: globalMarketFeedService.getGlobalContext(),
     dataSource: currentDataSource,
     fyersConfig: fyersService.getConfig(),
     isMarketOpen: isNseMarketOpen(),
@@ -382,6 +394,10 @@ app.get('/api/surges', (req, res) => {
 
 app.get('/api/global-indices', (req, res) => {
   res.json(globalIndicesService.getIndices());
+});
+
+app.get('/api/global-market-context', (req, res) => {
+  res.json(globalMarketFeedService.getGlobalContext());
 });
 
 // MCX Market Status Endpoint

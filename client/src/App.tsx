@@ -24,6 +24,7 @@ import { RiskCalculatorModal } from './components/RiskCalculatorModal';
 import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
+import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanner';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -52,6 +53,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Top Header & Navigation Bar */}
       <HeaderBar />
+
+      {/* Live Global Market & Geopolitical Setup Context Ribbon */}
+      <GlobalMarketContextBanner />
 
       {/* Live Highlight Trade Signal Ticker (Strike Price, Entry, Exit, Target) */}
       {panelVisibility.highlightSignalTicker && <HighlightSignalTicker />}

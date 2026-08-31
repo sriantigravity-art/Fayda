@@ -111,8 +111,81 @@ export type LiquidityRating = 'HIGH_LIQUIDITY' | 'MODERATE' | 'LOW_SLIPPAGE_RISK
 export type NewsSource = 'MONEYCONTROL' | 'CNBC_TV18' | 'BLOOMBERG' | 'REUTERS' | 'NSE_INDIA' | 'GLOBAL_MACRO';
 export type NewsImpact = 'HIGH_IMPACT' | 'MODERATE' | 'GLOBAL_CUE';
 export type NewsSentiment = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-
 export type NewsImpactStamp = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+
+export type GlobalRiskMode = 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF' | 'EXTREME_RISK_OFF';
+export type GlobalPremarketSetup = 'SUPPORTIVE' | 'MIXED' | 'RISK_OFF';
+export type GlobalEventCategory = 
+  | 'US_POLITICS_TARIFFS' 
+  | 'H1B_IMMIGRATION' 
+  | 'GEOPOLITICS_WAR' 
+  | 'CRUDE_COMMODITY' 
+  | 'FED_RATES_MACRO' 
+  | 'CHINA_STIMULUS' 
+  | 'FII_FLOWS' 
+  | 'EARNINGS_MICRO'
+  | 'INDIAN_INDICES'
+  | 'RBI_POLICY';
+
+export interface CompanyGlobalExposure {
+  symbol: string;
+  name: string;
+  sector: string;
+  usRevenuePct: number;
+  exportPct: number;
+  importPct: number;
+  h1bExposure: number;
+  crudeSensitivity: number;
+  usdSensitivity: number;
+  tariffExposure: number;
+  chinaExposure: number;
+  defenseExposure: number;
+}
+
+export interface NewsLayeredScores {
+  fundamentalScore: number; // -100 to +100
+  globalContextScore: number; // -100 to +100
+  marketReactionScore: number; // -100 to +100
+  finalFaydaScore: number; // -100 to +100
+  confidenceScore: number; // 0 - 100%
+  eventConfidence: number; // 0 - 100%
+  impactConfidence: number; // 0 - 100%
+}
+
+export interface GlobalTransmissionPath {
+  steps: string[];
+  whyIndia: string;
+  transmissionMechanism: string;
+  mostExposedSectors: string[];
+  mostExposedCompanies: string[];
+  signalConflict?: {
+    hasConflict: boolean;
+    conflictType?: 'FUNDAMENTAL_VS_MACRO' | 'COMMODITY_VS_INDEX';
+    description?: string;
+  };
+}
+
+export interface GlobalMarketContextData {
+  timestamp: string;
+  globalRiskMode: GlobalRiskMode;
+  premarketSetup: GlobalPremarketSetup;
+  summary: string;
+  primaryDrivers: string[];
+  indicators: {
+    sp500: { value: number; changePct: number };
+    nasdaq: { value: number; changePct: number };
+    nikkei: { value: number; changePct: number };
+    hangSeng: { value: number; changePct: number };
+    giftNifty: { value: number; changePct: number };
+    brentCrude: { value: number; changePct: number };
+    gold: { value: number; changePct: number };
+    dxy: { value: number; changePct: number };
+    us10y: { value: number; changePct: number };
+    usdInr: { value: number; changePct: number };
+    fiiNetBuyCr: number;
+    diiNetBuyCr: number;
+  };
+}
 
 export interface NewsItem {
   id: string;
@@ -121,7 +194,7 @@ export interface NewsItem {
   source: NewsSource;
   impact: NewsImpact;
   sentiment: NewsSentiment;
-  category: 'INDIAN_INDICES' | 'RBI_POLICY' | 'FII_DII' | 'TRUMP_TARIFFS' | 'CRUDE_MACRO' | 'EARNINGS';
+  category: GlobalEventCategory;
   timestamp: string;
   timeFormatted: string;
   indianMarketImpact: string;
@@ -130,6 +203,10 @@ export interface NewsItem {
   beneficiarySectors?: string[];
   vulnerableSectors?: string[];
   dalalStreetOutlook?: string;
+  layeredScores?: NewsLayeredScores;
+  transmissionPath?: GlobalTransmissionPath;
+  relatedGlobalEvents?: string[];
+  eventStatus?: 'REPORTED' | 'ANNOUNCED' | 'OFFICIAL' | 'IMPLEMENTED' | 'RUMOUR';
   url?: string;
 }
 

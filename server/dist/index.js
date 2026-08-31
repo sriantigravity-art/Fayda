@@ -13,6 +13,7 @@ const nseService_js_1 = require("./services/nseService.js");
 const fyersService_js_1 = require("./services/fyersService.js");
 const newsService_js_1 = require("./services/newsService.js");
 const globalIndicesService_js_1 = require("./services/globalIndicesService.js");
+const globalMarketFeedService_js_1 = require("./services/globalMarketFeedService.js");
 const mcxOfflineService_js_1 = require("./services/mcxOfflineService.js");
 const signalLedgerService_js_1 = require("./services/signalLedgerService.js");
 const types_js_1 = require("./types.js");
@@ -86,6 +87,14 @@ globalIndicesService_js_1.globalIndicesService.setCallback((globalIndices) => {
     broadcast({
         type: 'GLOBAL_INDICES_UPDATE',
         globalIndices,
+        timestamp: new Date().toISOString()
+    });
+});
+// Hook GlobalMarketFeedService Callback to Broadcast Global Risk & Macro Updates
+globalMarketFeedService_js_1.globalMarketFeedService.onUpdate((globalMarketContext) => {
+    broadcast({
+        type: 'GLOBAL_MARKET_CONTEXT_UPDATE',
+        globalMarketContext,
         timestamp: new Date().toISOString()
     });
 });
@@ -247,6 +256,7 @@ wss.on('connection', async (ws) => {
         recentSurges: engine.getRecentSurges(30),
         recentNews: newsService_js_1.newsService.getRecentNews(25),
         globalIndices: globalIndicesService_js_1.globalIndicesService.getIndices(),
+        globalMarketContext: globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext(),
         dataSource: currentDataSource,
         fyersConfig: fyersService_js_1.fyersService.getConfig(),
         isMarketOpen: (0, exports.isNseMarketOpen)(),
@@ -329,6 +339,9 @@ app.get('/api/surges', (req, res) => {
 });
 app.get('/api/global-indices', (req, res) => {
     res.json(globalIndicesService_js_1.globalIndicesService.getIndices());
+});
+app.get('/api/global-market-context', (req, res) => {
+    res.json(globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext());
 });
 // MCX Market Status Endpoint
 app.get('/api/mcx-status', (req, res) => {

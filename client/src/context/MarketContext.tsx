@@ -42,8 +42,9 @@ interface MarketContextType {
   // Emergency Square Off Alert Engine
   latestSquareOffAlert: SquareOffEvent | null;
   dismissSquareOffAlert: () => void;
-  // Global International Indices
+  // Global International Indices & Macro Context
   globalIndices: GlobalIndexItem[];
+  globalMarketContext: import('../types').GlobalMarketContextData | null;
 }
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
@@ -111,6 +112,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Global International Indices State
   const [globalIndices, setGlobalIndices] = useState<GlobalIndexItem[]>([]);
+  const [globalMarketContext, setGlobalMarketContext] = useState<import('../types').GlobalMarketContextData | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
@@ -274,10 +276,13 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
           if (msg.recentNews) setNewsList(msg.recentNews);
           if (msg.globalIndices) setGlobalIndices(msg.globalIndices);
+          if (msg.globalMarketContext) setGlobalMarketContext(msg.globalMarketContext);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
         } else if (msg.type === 'GLOBAL_INDICES_UPDATE') {
           if (msg.globalIndices) setGlobalIndices(msg.globalIndices);
+        } else if (msg.type === 'GLOBAL_MARKET_CONTEXT_UPDATE') {
+          if (msg.globalMarketContext) setGlobalMarketContext(msg.globalMarketContext);
         } else if (msg.type === 'INDEX_UPDATE') {
           const { symbol, indexState, newSurges } = msg;
           setIndices((prev) => ({
@@ -660,7 +665,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         triggerTestHeroZeroFlash,
         latestSquareOffAlert,
         dismissSquareOffAlert,
-        globalIndices
+        globalIndices,
+        globalMarketContext
       }}
     >
       {children}
@@ -702,7 +708,8 @@ export const useMarket = (): MarketContextType => {
       triggerTestHeroZeroFlash: () => {},
       latestSquareOffAlert: null,
       dismissSquareOffAlert: () => {},
-      globalIndices: []
+      globalIndices: [],
+      globalMarketContext: null
     };
   }
   return context;
