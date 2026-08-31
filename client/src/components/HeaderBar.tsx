@@ -80,8 +80,10 @@ export const HeaderBar: React.FC = () => {
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const mobileModeRef = useRef<HTMLDivElement>(null);
 
   // Global Ctrl + K / Cmd + K keyboard shortcut
   useEffect(() => {
@@ -182,14 +184,17 @@ export const HeaderBar: React.FC = () => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
         setIsMoreMenuOpen(false);
       }
+      if (mobileModeRef.current && !mobileModeRef.current.contains(e.target as Node)) {
+        setIsMobileModeDropdownOpen(false);
+      }
     };
-    if (isMoreMenuOpen) {
+    if (isMoreMenuOpen || isMobileModeDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMoreMenuOpen]);
+  }, [isMoreMenuOpen, isMobileModeDropdownOpen]);
 
   // Live real-time clock with seconds
   const [currentTime, setCurrentTime] = useState<string>(() => {
@@ -443,16 +448,17 @@ export const HeaderBar: React.FC = () => {
               {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Light / Dark Theme Toggle */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-              title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-            >
-              {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
-            </button>
           </div>
+
+          {/* Light / Dark Theme Toggle (Visible on Mobile & Desktop) */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0"
+            title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
+          </button>
 
           {/* Fullscreen Toggle (Always Visible in Top Right Header) */}
           <button
@@ -492,6 +498,112 @@ export const HeaderBar: React.FC = () => {
               <User className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign In</span>
             </button>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MOBILE / TABLET TRADER MODE DROPDOWN TRIGGER (< 1024px) */}
+          {/* ========================================================================= */}
+          {panelVisibility.traderModeToggle && (
+            <div className="relative lg:hidden" ref={mobileModeRef}>
+              <button
+                type="button"
+                onClick={() => setIsMobileModeDropdownOpen(!isMobileModeDropdownOpen)}
+                className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${
+                  mode === 'BEGINNER'
+                    ? 'bg-bull/15 text-bull border-bull/40 shadow-[0_0_10px_rgba(0,245,155,0.2)]'
+                    : mode === 'INTERMEDIATE'
+                    ? 'bg-amber/15 text-amber border-amber/40 shadow-[0_0_10px_rgba(255,180,0,0.2)]'
+                    : 'bg-accent-purple/15 text-accent-purple border-accent-purple/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                }`}
+                title="Switch Trader Experience Mode (Beginner / Intermediate / Expert)"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-sans">
+                  {mode === 'BEGINNER' ? 'Beginner' : mode === 'INTERMEDIATE' ? 'Interm.' : 'Expert'}
+                </span>
+                <div className={`transition-transform duration-200 ${isMobileModeDropdownOpen ? 'rotate-180' : ''}`}>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+              </button>
+
+              {/* Smooth Animated Dropdown Menu for Mobile Mode Selection */}
+              {isMobileModeDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-52 bg-terminal-card/95 border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col space-y-1 backdrop-blur-xl ring-1 ring-black/40">
+                  <div className="px-2.5 py-1 border-b border-terminal-border/60 text-[10px] font-mono font-bold text-terminal-muted uppercase tracking-wider">
+                    Experience Mode
+                  </div>
+
+                  {/* 1. Beginner Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('BEGINNER');
+                      setIsMobileModeDropdownOpen(false);
+                    }}
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
+                      mode === 'BEGINNER'
+                        ? 'bg-bull/20 text-bull font-bold border border-bull/40'
+                        : 'text-terminal-text hover:bg-terminal-panel hover:text-bull'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2 h-2 rounded-full bg-bull shrink-0" />
+                      <div>
+                        <span className="block leading-tight font-bold">🟢 Beginner</span>
+                        <span className="text-[9px] text-terminal-muted font-normal">Simplified signals & clarity</span>
+                      </div>
+                    </div>
+                    {mode === 'BEGINNER' && <CheckCircle2 className="w-4 h-4 text-bull shrink-0 ml-1" />}
+                  </button>
+
+                  {/* 2. Intermediate Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('INTERMEDIATE');
+                      setIsMobileModeDropdownOpen(false);
+                    }}
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
+                      mode === 'INTERMEDIATE'
+                        ? 'bg-amber/20 text-amber font-bold border border-amber/40'
+                        : 'text-terminal-text hover:bg-terminal-panel hover:text-amber'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2 h-2 rounded-full bg-amber shrink-0" />
+                      <div>
+                        <span className="block leading-tight font-bold">🟡 Intermediate</span>
+                        <span className="text-[9px] text-terminal-muted font-normal">Multi-strike shifts & momentum</span>
+                      </div>
+                    </div>
+                    {mode === 'INTERMEDIATE' && <CheckCircle2 className="w-4 h-4 text-amber shrink-0 ml-1" />}
+                  </button>
+
+                  {/* 3. Expert Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('EXPERT');
+                      setIsMobileModeDropdownOpen(false);
+                    }}
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
+                      mode === 'EXPERT'
+                        ? 'bg-accent-purple/20 text-accent-purple font-bold border border-accent-purple/40'
+                        : 'text-terminal-text hover:bg-terminal-panel hover:text-accent-purple'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2 h-2 rounded-full bg-accent-purple shrink-0" />
+                      <div>
+                        <span className="block leading-tight font-bold">🟣 Expert</span>
+                        <span className="text-[9px] text-terminal-muted font-normal">Gamma, Greeks & orderflow</span>
+                      </div>
+                    </div>
+                    {mode === 'EXPERT' && <CheckCircle2 className="w-4 h-4 text-accent-purple shrink-0 ml-1" />}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Mobile Quick Journal Trigger */}
