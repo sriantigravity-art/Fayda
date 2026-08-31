@@ -92,21 +92,21 @@ export const SurgeAlertBanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: High-Visibility Trade Setup (Spot Price, Option LTP, Entry, Exit SL, Target) */}
+        {/* Right Side: High-Visibility Trade Setup (Option Strike, Current Premium, Entry, Exit SL, Target) */}
         <div className="flex items-center justify-between w-full lg:w-auto space-x-2 sm:space-x-3 shrink-0 min-w-0">
           <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-1.5 sm:gap-2 bg-terminal-card p-1.5 sm:p-2 rounded-xl border border-terminal-border shadow-inner w-full sm:w-auto">
-            {/* Underlying Asset Current Price */}
-            <div className="px-2.5 py-1 bg-terminal-panel/90 rounded-lg border border-terminal-border/80 text-left">
-              <span className="text-[8px] sm:text-[9px] text-accent-sky block font-bold uppercase">ASSET CURRENT PRICE</span>
+            {/* Strike Option Contract */}
+            <div className="px-2.5 py-1 bg-terminal-panel/80 rounded-lg border border-terminal-border/80 text-left">
+              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">OPTION STRIKE</span>
               <span className="font-black text-xs sm:text-sm text-terminal-text tracking-wide whitespace-nowrap">
-                ₹{assetSpotPrice > 0 ? assetSpotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                🎯 {contract.symbol}
               </span>
             </div>
 
-            {/* Option Strike & Current LTP */}
-            <div className="px-2.5 py-1 bg-terminal-panel/80 rounded-lg border border-terminal-border/80 text-left">
-              <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">OPTION LTP</span>
-              <span className="font-black text-xs sm:text-sm text-terminal-text tracking-wide whitespace-nowrap">
+            {/* Current Premium (LTP) */}
+            <div className="px-2.5 py-1 bg-amber/15 rounded-lg border border-amber/50 text-left shadow-sm">
+              <span className="text-[8px] sm:text-[9px] text-amber block font-bold uppercase">CURRENT PREMIUM</span>
+              <span className="font-black text-xs sm:text-sm text-amber tracking-wide whitespace-nowrap">
                 ₹{currentOptionLtp.toFixed(2)}
               </span>
             </div>

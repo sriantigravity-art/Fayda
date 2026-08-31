@@ -552,9 +552,9 @@ export const RadarFeed: React.FC = () => {
                       <span className="text-bull block text-[8px] font-bold uppercase">TARGET 1</span>
                       <span className="font-bold text-bull block">{surge.suggestedContract.target}</span>
                     </div>
-                    <div className="bg-terminal-bg p-1.5 rounded-md border border-terminal-border col-span-2 sm:col-span-1">
-                      <span className="text-amber block text-[8px] font-bold uppercase">OPTION LTP</span>
-                      <span className="font-bold text-amber block">₹{surge.ltp.toFixed(2)} ({surge.suggestedContract.riskReward || '1:2.0'})</span>
+                    <div className="bg-amber/15 p-1.5 rounded-md border border-amber/40 col-span-2 sm:col-span-1 shadow-sm">
+                      <span className="text-amber block text-[8px] font-bold uppercase">CURRENT PREMIUM</span>
+                      <span className="font-black text-amber block">₹{surge.ltp.toFixed(2)}</span>
                     </div>
                   </div>
 
