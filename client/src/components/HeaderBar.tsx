@@ -47,6 +47,7 @@ import { SuperAdminControlDrawer } from './admin/SuperAdminControlDrawer';
 import { LegalDocumentModal, type LegalDocType } from './auth/LegalDocumentModal';
 import { CommandPaletteModal } from './CommandPaletteModal';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
+import { UserProfileEditModal } from './profile/UserProfileEditModal';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -81,6 +82,7 @@ export const HeaderBar: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const mobileModeRef = useRef<HTMLDivElement>(null);
@@ -472,12 +474,23 @@ export const HeaderBar: React.FC = () => {
           {/* User Auth Profile Badge or Sign In */}
           {isAuthenticated && user ? (
             <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg px-2 py-1 gap-1.5 font-sans text-xs shrink-0">
-              <div className="w-5 h-5 rounded-full bg-accent-sky/20 text-accent-sky font-bold text-[10px] flex items-center justify-center">
-                {user.fullName.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-terminal-text font-semibold max-w-[80px] truncate hidden sm:inline">
-                {user.fullName}
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsProfileEditOpen(true)}
+                className="flex items-center space-x-1.5 hover:text-accent-sky transition cursor-pointer text-left"
+                title="Click to view and edit profile"
+              >
+                <div className="w-5 h-5 rounded-full border border-accent-sky/40 bg-accent-sky/20 text-accent-sky font-bold text-[10px] flex items-center justify-center overflow-hidden shrink-0">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    user.fullName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <span className="text-terminal-text font-semibold max-w-[85px] truncate hidden sm:inline">
+                  {user.fullName}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={logout}
@@ -1030,6 +1043,9 @@ export const HeaderBar: React.FC = () => {
       <LegalDocumentModal isOpen={isLegalModalOpen} onClose={() => setIsLegalModalOpen(false)} initialDoc={activeLegalDoc} />
       <SuperAdminControlDrawer isOpen={isAdminDrawerOpen} onClose={() => setIsAdminDrawerOpen(false)} />
       <CommandPaletteModal isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+
+      {/* User Profile Edit Modal */}
+      <UserProfileEditModal isOpen={isProfileEditOpen} onClose={() => setIsProfileEditOpen(false)} />
 
       {/* Trade Journal & Performance Audit Modal */}
       {isJournalModalOpen && (

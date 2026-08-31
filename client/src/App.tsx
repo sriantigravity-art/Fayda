@@ -24,6 +24,7 @@ import { RiskCalculatorModal } from './components/RiskCalculatorModal';
 import { FyersModal } from './components/FyersModal';
 import { LegalDocumentModal, type LegalDocType } from './components/auth/LegalDocumentModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { UserProfileEditModal } from './components/profile/UserProfileEditModal';
 import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
@@ -36,6 +37,7 @@ const DashboardContent: React.FC = () => {
   const [isMobileLegalOpen, setIsMobileLegalOpen] = useState<boolean>(false);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
   const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
 
   return (
@@ -141,6 +143,7 @@ const DashboardContent: React.FC = () => {
           setIsMobileLegalOpen(true);
         }}
         onOpenAuthModal={() => setIsMobileAuthOpen(true)}
+        onOpenProfileEditModal={() => setIsProfileEditOpen(true)}
       />
 
       {/* Mobile Risk Calculator Launcher */}
@@ -167,6 +170,12 @@ const DashboardContent: React.FC = () => {
       <AuthModal
         isOpen={isMobileAuthOpen}
         onClose={() => setIsMobileAuthOpen(false)}
+      />
+
+      {/* User Profile Edit Modal */}
+      <UserProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
       />
     </div>
   );

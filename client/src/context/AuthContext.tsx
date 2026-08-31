@@ -16,12 +16,22 @@ export interface ConsentRecord {
   ipAddress?: string;
 }
 
+export interface UserAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
 export interface UserProfile {
   id: string;
   fullName: string;
   email: string;
   mobile: string;
+  avatarUrl?: string; // base64 / image uri (strictly under 250kb)
+  address?: UserAddress;
   role: UserRole;
+  traderExperience?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
   isVerified: boolean;
   createdAt: string;
   consentRecord?: ConsentRecord;
@@ -72,11 +82,16 @@ interface AuthContextType {
   resetPanelVisibility: () => void;
   login: (emailOrMobile: string, password: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   register: (data: { fullName: string; email: string; mobile: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (otp: string) => Promise<{ success: boolean; error?: string }>;
   resendOtp: () => Promise<{ success: boolean }>;
+  forgotPassword: (emailOrMobile: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (emailOrMobile: string, otp: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   recordConsent: (consent: Omit<ConsentRecord, 'userId' | 'userEmail' | 'timestamp' | 'legalVersion'>) => void;
   hasValidConsent: boolean;
+  hasCompletedFirstLoginConsent: boolean;
+  setHasCompletedFirstLoginConsent: (val: boolean) => void;
   pendingConsent: boolean;
   setPendingConsent: (val: boolean) => void;
   consentAuditLogs: ConsentRecord[];
@@ -92,6 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return null;
   });
+
+  const [hasCompletedFirstLoginConsent, setHasCompletedFirstLoginConsentState] = useState<boolean>(() => {
+    return localStorage.getItem('fayda_first_login_consent_completed') === 'true';
+  });
+
+  const setHasCompletedFirstLoginConsent = (val: boolean) => {
+    setHasCompletedFirstLoginConsentState(val);
+    localStorage.setItem('fayda_first_login_consent_completed', val ? 'true' : 'false');
+  };
 
   const [panelVisibility, setPanelVisibility] = useState<PanelVisibilityConfig>(() => {
     const saved = localStorage.getItem('fayda_panel_visibility');
@@ -184,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setConsentAuditLogs(prev => [newRecord, ...prev.slice(0, 49)]);
+    setHasCompletedFirstLoginConsent(true);
 
     if (user) {
       setUser(prev => prev ? { ...prev, consentRecord: newRecord } : null);
@@ -192,19 +217,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrMobile: string, password: string, forceRole?: UserRole) => {
     // Simulated institutional authentication
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const isSuperAdminEmail = emailOrMobile.toLowerCase().includes('admin') || forceRole === 'SUPERADMIN';
     const assignedRole: UserRole = isSuperAdminEmail ? 'SUPERADMIN' : (forceRole || 'USER');
 
     const loggedUser: UserProfile = {
       id: isSuperAdminEmail ? 'ADM-001' : `USR-${Math.floor(100000 + Math.random() * 900000)}`,
-      fullName: isSuperAdminEmail ? 'SuperAdmin (Fayda Desk)' : 'Arun Kumar',
+      fullName: isSuperAdminEmail ? 'SuperAdmin (Fayda Desk)' : (user?.fullName || 'Arun Kumar'),
       email: emailOrMobile.includes('@') ? emailOrMobile : `${emailOrMobile}@vertexinfo.co.in`,
-      mobile: emailOrMobile.replace(/[^0-9]/g, '') || '+91 98765 43210',
+      mobile: emailOrMobile.replace(/[^0-9]/g, '') || (user?.mobile || '+91 98765 43210'),
       role: assignedRole,
+      avatarUrl: user?.avatarUrl,
+      address: user?.address || {
+        street: 'Dalal Street Fort, 4th Floor',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400001'
+      },
+      traderExperience: user?.traderExperience || 'INTERMEDIATE',
       isVerified: true,
-      createdAt: new Date().toISOString(),
+      createdAt: user?.createdAt || new Date().toISOString(),
       consentRecord: {
         userId: isSuperAdminEmail ? 'ADM-001' : 'USR-CURRENT',
         userEmail: emailOrMobile,
@@ -221,6 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUser(loggedUser);
+    setHasCompletedFirstLoginConsent(true);
     return { success: true };
   };
 
@@ -235,10 +269,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mobile: data.mobile,
       role: data.email.toLowerCase().includes('admin') ? 'SUPERADMIN' : 'USER',
       isVerified: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        pincode: ''
+      },
+      traderExperience: 'BEGINNER'
     };
 
     setUser(newUser);
+    setHasCompletedFirstLoginConsent(true);
+    return { success: true };
+  };
+
+  const updateProfile = async (data: Partial<UserProfile>) => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    if (!user) {
+      return { success: false, error: 'No active user session found.' };
+    }
+
+    const updated: UserProfile = {
+      ...user,
+      ...data,
+      address: {
+        ...user.address,
+        ...(data.address || {})
+      }
+    };
+
+    setUser(updated);
     return { success: true };
   };
 
@@ -248,6 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         setUser({ ...user, isVerified: true });
       }
+      setHasCompletedFirstLoginConsent(true);
       return { success: true };
     }
     return { success: false, error: 'Invalid 6-digit OTP code. (For demo testing, enter 123456 or any 6 digits)' };
@@ -255,6 +317,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendOtp = async () => {
     await new Promise(resolve => setTimeout(resolve, 400));
+    return { success: true };
+  };
+
+  const forgotPassword = async (emailOrMobile: string) => {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    if (!emailOrMobile) {
+      return { success: false, error: 'Please enter registered Email ID or Mobile Number.' };
+    }
+    return { success: true };
+  };
+
+  const resetPassword = async (emailOrMobile: string, otp: string, newPass: string) => {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    if (otp !== '123456' && otp.length !== 6) {
+      return { success: false, error: 'Invalid verification OTP code. Use 123456 for testing.' };
+    }
+    if (newPass.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters.' };
+    }
     return { success: true };
   };
 
@@ -277,11 +358,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPanelVisibility,
         login,
         register,
+        updateProfile,
         verifyOtp,
         resendOtp,
+        forgotPassword,
+        resetPassword,
         logout,
         recordConsent,
         hasValidConsent,
+        hasCompletedFirstLoginConsent,
+        setHasCompletedFirstLoginConsent,
         pendingConsent,
         setPendingConsent,
         consentAuditLogs
@@ -303,12 +389,17 @@ const defaultAuthContext: AuthContextType = {
   currentLegalVersion: CURRENT_LEGAL_VERSION,
   login: async () => ({ success: true }),
   register: async () => ({ success: true }),
+  updateProfile: async () => ({ success: true }),
   verifyOtp: async () => ({ success: true }),
   resendOtp: async () => ({ success: true }),
+  forgotPassword: async () => ({ success: true }),
+  resetPassword: async () => ({ success: true }),
   logout: () => {},
   recordConsent: () => {},
   hasValidConsent: true,
-  pendingConsent: null,
+  hasCompletedFirstLoginConsent: true,
+  setHasCompletedFirstLoginConsent: () => {},
+  pendingConsent: false,
   setPendingConsent: () => {},
   consentAuditLogs: []
 };

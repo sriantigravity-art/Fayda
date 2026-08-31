@@ -20,7 +20,9 @@ import {
   Zap,
   KeyRound,
   ExternalLink,
-  HelpCircle
+  HelpCircle,
+  ShieldQuestion,
+  Fingerprint
 } from 'lucide-react';
 
 export type AuthScreenMode = 'CONSENT_DISCLOSURE' | 'SIGN_UP' | 'OTP_VERIFY' | 'SIGN_IN' | 'FORGOT_PASSWORD';
@@ -34,17 +36,37 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
-  initialScreen = 'CONSENT_DISCLOSURE'
+  initialScreen
 }) => {
-  const { login, register, verifyOtp, resendOtp, recordConsent } = useAuth();
+  const { 
+    login, 
+    register, 
+    verifyOtp, 
+    resendOtp, 
+    forgotPassword, 
+    resetPassword, 
+    recordConsent, 
+    hasCompletedFirstLoginConsent,
+    setHasCompletedFirstLoginConsent 
+  } = useAuth();
 
-  const [screen, setScreen] = useState<AuthScreenMode>(initialScreen);
+  // Smart initial screen: if user already consented on first login, directly show SIGN_IN
+  const determineInitialScreen = (): AuthScreenMode => {
+    if (initialScreen) return initialScreen;
+    if (hasCompletedFirstLoginConsent) return 'SIGN_IN';
+    return 'CONSENT_DISCLOSURE';
+  };
+
+  const [screen, setScreen] = useState<AuthScreenMode>(determineInitialScreen());
+
+  // Sign In method toggle: 'PASSWORD' | 'EMAIL_OTP'
+  const [signInMethod, setSignInMethod] = useState<'PASSWORD' | 'EMAIL_OTP'>('PASSWORD');
 
   // Legal Doc Modal Viewer state
   const [isLegalDocOpen, setIsLegalDocOpen] = useState<boolean>(false);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
 
-  // Granular Consent Checkboxes
+  // Granular Consent Checkboxes (First Login)
   const [consentRisk, setConsentRisk] = useState<boolean>(false);
   const [consentNoGuarantee, setConsentNoGuarantee] = useState<boolean>(false);
   const [consentTerms, setConsentTerms] = useState<boolean>(false);
@@ -58,17 +80,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [signUpMobile, setSignUpMobile] = useState<string>('');
   const [signUpPassword, setSignUpPassword] = useState<string>('');
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState<string>('');
-  const [signUpReferral, setSignUpReferral] = useState<string>('');
 
   // Sign-In form fields
   const [signInIdentifier, setSignInIdentifier] = useState<string>('');
   const [signInPassword, setSignInPassword] = useState<string>('');
-  const [rememberMe, setRememberMe] = useState<boolean>(true);
+  const [signInOtp, setSignInOtp] = useState<string>('');
+  const [isSignInOtpSent, setIsSignInOtpSent] = useState<boolean>(false);
+
+  // Forgot Password fields
+  const [forgotEmail, setForgotEmail] = useState<string>('');
+  const [forgotOtp, setForgotOtp] = useState<string>('');
+  const [forgotNewPass, setForgotNewPass] = useState<string>('');
+  const [forgotConfirmPass, setForgotConfirmPass] = useState<string>('');
+  const [isForgotOtpSent, setIsForgotOtpSent] = useState<boolean>(false);
 
   // Password visibility
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  // OTP Verification state
+  // Captcha Generator & State
+  const [captchaNum1, setCaptchaNum1] = useState<number>(7);
+  const [captchaNum2, setCaptchaNum2] = useState<number>(5);
+  const [captchaInput, setCaptchaInput] = useState<string>('');
+
+  // OTP Verification state (Registration)
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpTimer, setOtpTimer] = useState<number>(60);
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
@@ -79,10 +113,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  const refreshCaptcha = () => {
+    const n1 = Math.floor(Math.random() * 9) + 2;
+    const n2 = Math.floor(Math.random() * 8) + 1;
+    setCaptchaNum1(n1);
+    setCaptchaNum2(n2);
+    setCaptchaInput('');
+  };
+
   useEffect(() => {
-    setScreen(initialScreen);
+    setScreen(determineInitialScreen());
     setErrorMsg('');
     setSuccessMsg('');
+    refreshCaptcha();
   }, [initialScreen, isOpen]);
 
   // OTP Countdown Timer
@@ -98,809 +141,758 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return () => clearInterval(interval);
   }, [isTimerActive, otpTimer]);
 
-  const isAllMandatoryConsentChecked = 
-    consentRisk && consentNoGuarantee && consentTerms && consentPrivacy && consentAge;
+  if (!isOpen) return null;
 
-  const handleSelectAllConsent = (checked: boolean) => {
-    setConsentRisk(checked);
-    setConsentNoGuarantee(checked);
-    setConsentTerms(checked);
-    setConsentPrivacy(checked);
-    setConsentAge(checked);
-    setConsentMarketing(checked);
-  };
-
-  const openLegalDocument = (doc: LegalDocType) => {
-    setActiveLegalDoc(doc);
-    setIsLegalDocOpen(true);
-  };
-
-  const handleConsentSubmit = () => {
-    if (!isAllMandatoryConsentChecked) {
-      setErrorMsg('Please review and check all mandatory regulatory acknowledgements to proceed.');
+  // Handler: Step 1 Mandatory Consent Acceptance (First Login Only)
+  const handleAcceptFirstLoginConsent = () => {
+    if (!consentRisk || !consentNoGuarantee || !consentTerms || !consentPrivacy || !consentAge) {
+      setErrorMsg('Please accept all mandatory SEBI regulatory disclaimers and terms to proceed.');
       return;
     }
-    setErrorMsg('');
 
-    // Record granular audit trail in auth context
     recordConsent({
-      riskDisclosure: consentRisk,
-      noGuaranteedProfits: consentNoGuarantee,
-      termsOfUse: consentTerms,
-      privacyPolicy: consentPrivacy,
-      age18Plus: consentAge,
-      marketingOptIn: consentMarketing
+      riskDisclosureAccepted: consentRisk,
+      noGuaranteedProfitAccepted: consentNoGuarantee,
+      termsAccepted: consentTerms,
+      privacyAccepted: consentPrivacy,
+      jurisdictionAgeAccepted: consentAge,
+      marketingAccepted: consentMarketing
     });
 
-    setScreen('SIGN_UP');
+    setHasCompletedFirstLoginConsent(true);
+    setScreen('SIGN_IN');
+    setErrorMsg('');
+    setSuccessMsg('SEBI compliance accepted. Please sign in to your terminal.');
   };
 
+  // Handler: Sign In
+  const handleSignInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!signInIdentifier.trim()) {
+      setErrorMsg('Please enter your registered Username, Email ID, or Mobile Number.');
+      return;
+    }
+
+    // Captcha Validation
+    const expected = captchaNum1 + captchaNum2;
+    if (parseInt(captchaInput.trim(), 10) !== expected) {
+      setErrorMsg(`Incorrect Captcha answer. What is ${captchaNum1} + ${captchaNum2}?`);
+      refreshCaptcha();
+      return;
+    }
+
+    if (signInMethod === 'PASSWORD') {
+      if (!signInPassword) {
+        setErrorMsg('Please enter your account password.');
+        return;
+      }
+    } else {
+      if (!signInOtp.trim()) {
+        setErrorMsg('Please enter the 6-digit Email OTP sent to your inbox.');
+        return;
+      }
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await login(signInIdentifier.trim(), signInPassword);
+      if (res.success) {
+        setSuccessMsg('Signed in successfully! Loading terminal workspace...');
+        setTimeout(() => {
+          onClose();
+        }, 600);
+      } else {
+        setErrorMsg(res.error || 'Invalid credentials or OTP. Please check and try again.');
+        refreshCaptcha();
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login failed. Please try again.');
+      refreshCaptcha();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handler: Send OTP for Email OTP login
+  const handleSendSignInOtp = async () => {
+    if (!signInIdentifier.trim()) {
+      setErrorMsg('Please enter your registered Email ID to receive OTP.');
+      return;
+    }
+    setIsLoading(true);
+    await new Promise(r => setTimeout(r, 600));
+    setIsLoading(false);
+    setIsSignInOtpSent(true);
+    setSuccessMsg(`6-digit OTP sent to ${signInIdentifier}. (For testing, enter 123456)`);
+  };
+
+  // Handler: Sign Up
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!signUpName.trim()) {
-      setErrorMsg('Please enter your full legal name.');
+    if (!signUpName.trim() || signUpName.length < 2) {
+      setErrorMsg('Please enter a valid full name.');
       return;
     }
     if (!signUpEmail.trim() || !signUpEmail.includes('@')) {
       setErrorMsg('Please enter a valid email address.');
       return;
     }
-    if (!signUpMobile.trim() || signUpMobile.replace(/\D/g, '').length < 10) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+    if (signUpMobile.replace(/[^0-9]/g, '').length < 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number.');
       return;
     }
-    if (signUpPassword.length < 8) {
-      setErrorMsg('Password must be at least 8 characters long.');
+    if (signUpPassword.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
       return;
     }
     if (signUpPassword !== signUpConfirmPassword) {
-      setErrorMsg('Passwords do not match. Please re-enter.');
+      setErrorMsg('Passwords do not match.');
       return;
     }
 
     setIsLoading(true);
-    const res = await register({
-      fullName: signUpName.trim(),
-      email: signUpEmail.trim(),
-      mobile: signUpMobile.trim(),
-      password: signUpPassword,
-      referralCode: signUpReferral.trim() || undefined,
-      consent: {
-        riskDisclosure: consentRisk,
-        noGuaranteedProfits: consentNoGuarantee,
-        termsOfUse: consentTerms,
-        privacyPolicy: consentPrivacy,
-        age18Plus: consentAge,
-        marketingOptIn: consentMarketing
+    try {
+      const res = await register({
+        fullName: signUpName.trim(),
+        email: signUpEmail.trim(),
+        mobile: signUpMobile.trim(),
+        password: signUpPassword
+      });
+
+      if (res.success) {
+        setScreen('OTP_VERIFY');
+        setIsTimerActive(true);
+        setOtpTimer(60);
+        setSuccessMsg(`Verification code sent to ${signUpEmail}`);
+      } else {
+        setErrorMsg(res.error || 'Registration failed.');
       }
-    });
-    setIsLoading(false);
-
-    if (res.success) {
-      setSuccessMsg(res.message || 'OTP verification code sent to your registered mobile and email.');
-      setScreen('OTP_VERIFY');
-      setOtpTimer(60);
-      setIsTimerActive(true);
-    } else {
-      setErrorMsg(res.error || 'Registration failed. Please check your details.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Registration failed.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleOtpChange = (index: number, val: string) => {
-    const cleanVal = val.replace(/\D/g, '').slice(-1);
-    const newDigits = [...otpDigits];
-    newDigits[index] = cleanVal;
-    setOtpDigits(newDigits);
-
-    if (cleanVal && index < 5) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpVerifySubmit = async () => {
-    const fullOtp = otpDigits.join('');
-    if (fullOtp.length < 6) {
-      setErrorMsg('Please enter all 6 digits of the verification OTP.');
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMsg('');
-    const res = await verifyOtp(fullOtp);
-    setIsLoading(false);
-
-    if (res.success) {
-      onClose();
-    } else {
-      setErrorMsg(res.error || 'Verification failed.');
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (otpTimer > 0) return;
-    setIsLoading(true);
-    await resendOtp();
-    setIsLoading(false);
-    setOtpTimer(60);
-    setIsTimerActive(true);
-    setSuccessMsg('A fresh 6-digit OTP has been dispatched.');
-  };
-
-  const handleSignInSubmit = async (e: React.FormEvent) => {
+  // Handler: Forgot Password OTP Send
+  const handleSendForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
-
-    if (!signInIdentifier.trim()) {
-      setErrorMsg('Please enter your registered email or mobile.');
+    if (!forgotEmail.trim()) {
+      setErrorMsg('Please enter your registered Email or Mobile.');
       return;
     }
-    if (!signInPassword) {
-      setErrorMsg('Please enter your password.');
+    setIsLoading(true);
+    const res = await forgotPassword(forgotEmail.trim());
+    setIsLoading(false);
+    if (res.success) {
+      setIsForgotOtpSent(true);
+      setSuccessMsg(`Reset code sent to ${forgotEmail}. (For testing, use 123456)`);
+      setErrorMsg('');
+    } else {
+      setErrorMsg(res.error || 'Failed to send reset code.');
+    }
+  };
+
+  // Handler: Reset Password Submit
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotOtp.trim()) {
+      setErrorMsg('Please enter the 6-digit OTP code.');
+      return;
+    }
+    if (forgotNewPass.length < 6) {
+      setErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+    if (forgotNewPass !== forgotConfirmPass) {
+      setErrorMsg('Passwords do not match.');
       return;
     }
 
     setIsLoading(true);
-    const res = await login(signInIdentifier, signInPassword);
+    const res = await resetPassword(forgotEmail, forgotOtp.trim(), forgotNewPass);
     setIsLoading(false);
 
     if (res.success) {
-      onClose();
+      setSuccessMsg('Password reset successfully! You can now sign in.');
+      setErrorMsg('');
+      setTimeout(() => {
+        setScreen('SIGN_IN');
+        setSignInIdentifier(forgotEmail);
+        setIsForgotOtpSent(false);
+      }, 1000);
     } else {
-      setErrorMsg(res.error || 'Invalid credentials.');
+      setErrorMsg(res.error || 'Failed to reset password.');
     }
   };
-
-  const handleQuickDemoLogin = async (role: 'SUPERADMIN' | 'USER') => {
-    setIsLoading(true);
-    if (role === 'SUPERADMIN') {
-      await login('admin@vertexinfo.co.in', 'password123', 'SUPERADMIN');
-    } else {
-      await login('arun.trader@vertexinfo.co.in', 'password123', 'USER');
-    }
-    setIsLoading(false);
-    onClose();
-  };
-
-  if (!isOpen) return null;
 
   return createPortal(
-    <>
-      {/* Legal Document Viewer Overlay */}
-      <LegalDocumentModal
-        isOpen={isLegalDocOpen}
-        onClose={() => setIsLegalDocOpen(false)}
-        initialDoc={activeLegalDoc}
-      />
-
-      <div className="fixed inset-0 z-[105000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
-        <div className="relative w-full max-w-xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
-          
-          {/* Pinned Top Bar with Brand & Close */}
-          <div className="shrink-0 px-5 py-3.5 border-b border-terminal-border bg-terminal-panel/80 flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <img src="/favicon-32x32.png" className="w-5 h-5 object-contain" alt="" />
-              <div>
-                <span className="font-sans font-bold text-sm text-terminal-text tracking-tight flex items-center gap-1.5">
-                  <span>Fayda Authentication</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-accent-sky/15 text-accent-sky font-mono font-bold">PRO</span>
-                </span>
-                <span className="text-[10px] text-terminal-muted block font-sans">
-                  SEBI-Aligned Indian Market Decision Terminal
-                </span>
-              </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-terminal-card border border-terminal-border rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto no-scrollbar shadow-[0_25px_60px_rgba(0,0,0,0.9)] flex flex-col font-sans select-none ring-1 ring-white/10">
+        
+        {/* Modal Top Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-terminal-border bg-terminal-panel/80 sticky top-0 z-10 backdrop-blur-lg">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-2xl bg-accent-sky/20 text-accent-sky border border-accent-sky/40">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div>
+              <h3 className="font-mono font-bold text-sm sm:text-base text-terminal-text uppercase tracking-wider flex items-center gap-2">
+                <span>FAYDA PRO TERMINAL AUTH</span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-sky/20 text-accent-sky border border-accent-sky/30">
+                  SEBI v{CURRENT_LEGAL_VERSION}
+                </span>
+              </h3>
+              <span className="text-[11px] text-terminal-muted block">
+                {screen === 'CONSENT_DISCLOSURE' && 'Mandatory SEBI Regulatory Consent (First Login)'}
+                {screen === 'SIGN_IN' && 'Institutional Client & Trader Sign-In'}
+                {screen === 'SIGN_UP' && 'Create New Trader Account'}
+                {screen === 'FORGOT_PASSWORD' && 'Recover Account Access with OTP'}
+                {screen === 'OTP_VERIFY' && 'Verify 6-Digit Security OTP'}
+              </span>
+            </div>
           </div>
 
-          {/* Scrollable Modal Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar">
-            
-            {/* Feedback Messages */}
-            {errorMsg && (
-              <div className="p-3 rounded-xl bg-bear/10 border border-bear/30 text-bear text-xs font-sans flex items-start gap-2 animate-shake">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body Container */}
+        <div className="p-4 sm:p-6 space-y-4">
+          
+          {/* Feedback Banners */}
+          {errorMsg && (
+            <div className="p-3 rounded-2xl bg-bear/10 border border-bear/40 text-bear text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 rounded-2xl bg-bull/10 border border-bull/40 text-bull text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* SCREEN 1: FIRST LOGIN MANDATORY REGULATORY CONSENT */}
+          {/* ========================================================================= */}
+          {screen === 'CONSENT_DISCLOSURE' && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-amber/10 border border-amber/30 text-amber text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold font-mono uppercase text-[11px]">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-amber" />
+                  <span>Mandatory SEBI First-Time Login Notice</span>
+                </div>
+                <p className="text-terminal-text leading-relaxed font-medium">
+                  According to SEBI Circulars & Regulations, 9 out of 10 individual traders in equity F&O incur net losses. Please review and accept these regulatory terms once before signing in.
+                </p>
               </div>
-            )}
 
-            {successMsg && (
-              <div className="p-3 rounded-xl bg-bull/10 border border-bull/30 text-bull text-xs font-sans flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{successMsg}</span>
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 1: MANDATORY RISK DISCLOSURE & GRANULAR CONSENT SCREEN */}
-            {/* ========================================================================= */}
-            {screen === 'CONSENT_DISCLOSURE' && (
-              <div className="space-y-4 font-sans text-xs">
-                <div className="text-center space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-terminal-text">
-                    Welcome to Fayda
-                  </h3>
-                  <p className="text-terminal-muted text-xs">
-                    Please review and acknowledge the following SEBI-aligned risk disclosures.
-                  </p>
-                </div>
-
-                {/* Regulatory Notice Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2.5 rounded-xl bg-bear/10 border border-bear/30 space-y-1">
-                    <div className="font-bold text-bear flex items-center gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>Derivatives Risk</span>
-                    </div>
-                    <p className="text-terminal-muted leading-tight text-[10.5px]">
-                      Trading F&O involves high risk of loss. 9 out of 10 traders incur net losses.
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-amber/10 border border-amber/30 space-y-1">
-                    <div className="font-bold text-amber flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                      <span>No Guaranteed Returns</span>
-                    </div>
-                    <p className="text-terminal-muted leading-tight text-[10.5px]">
-                      Calculations are mathematical. We do NOT guarantee profits or predictions.
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-accent-sky/10 border border-accent-sky/30 space-y-1">
-                    <div className="font-bold text-accent-sky flex items-center gap-1.5">
-                      <HelpCircle className="w-3.5 h-3.5" />
-                      <span>Non-Advisory Tool</span>
-                    </div>
-                    <p className="text-terminal-muted leading-tight text-[10.5px]">
-                      Not investment advice. All trading decisions are at your sole discretion.
-                    </p>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-bull/10 border border-bull/30 space-y-1">
-                    <div className="font-bold text-bull flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Zero Credential Storage</span>
-                    </div>
-                    <p className="text-terminal-muted leading-tight text-[10.5px]">
-                      We never store your broker passwords. Direct OAuth 2.0 broker authorization.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Legal Document Links Pill Bar */}
-                <div className="flex flex-wrap items-center justify-center gap-2 py-0.5 text-[11px] text-accent-sky">
-                  <button
-                    type="button"
-                    onClick={() => openLegalDocument('RISK_DISCLOSURE')}
-                    className="hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Risk Disclosure</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                  <span className="text-terminal-muted">•</span>
-                  <button
-                    type="button"
-                    onClick={() => openLegalDocument('TERMS')}
-                    className="hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Terms</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                  <span className="text-terminal-muted">•</span>
-                  <button
-                    type="button"
-                    onClick={() => openLegalDocument('PRIVACY')}
-                    className="hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Privacy</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                  <span className="text-terminal-muted">•</span>
-                  <button
-                    type="button"
-                    onClick={() => openLegalDocument('DISCLAIMER')}
-                    className="hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Disclaimer</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                </div>
-
-                {/* Mandatory Checkboxes */}
-                <div className="p-3 rounded-xl bg-terminal-panel/80 border border-terminal-border space-y-2 text-[11px]">
-                  <div className="flex items-center justify-between border-b border-terminal-border/60 pb-1.5">
-                    <span className="text-[10px] text-terminal-muted font-bold uppercase tracking-wider">
-                      Mandatory Acknowledgements (v{CURRENT_LEGAL_VERSION})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectAllConsent(!isAllMandatoryConsentChecked)}
-                      className="text-[10px] text-accent-sky font-semibold hover:underline cursor-pointer"
-                    >
-                      {isAllMandatoryConsentChecked ? 'Deselect All' : 'Select All'}
-                    </button>
-                  </div>
-
-                  <label className="flex items-start gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={consentRisk}
-                      onChange={(e) => setConsentRisk(e.target.checked)}
-                      className="mt-0.5 accent-accent-sky w-3.5 h-3.5 rounded cursor-pointer shrink-0"
-                    />
-                    <span className="text-terminal-text leading-snug">
-                      I have read the <strong>Risk Disclosure</strong> and understand the high risk of F&O trading loss.
-                    </span>
-                  </label>
-
-                  <label className="flex items-start gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={consentNoGuarantee}
-                      onChange={(e) => setConsentNoGuarantee(e.target.checked)}
-                      className="mt-0.5 accent-accent-sky w-3.5 h-3.5 rounded cursor-pointer shrink-0"
-                    />
-                    <span className="text-terminal-text leading-snug">
-                      I acknowledge that Fayda analytics do <strong>not guarantee profits</strong> or future returns.
-                    </span>
-                  </label>
-
-                  <label className="flex items-start gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={consentTerms}
-                      onChange={(e) => setConsentTerms(e.target.checked)}
-                      className="mt-0.5 accent-accent-sky w-3.5 h-3.5 rounded cursor-pointer shrink-0"
-                    />
-                    <span className="text-terminal-text leading-snug">
-                      I agree to the Fayda <strong>Terms of Use</strong> and intellectual property conditions.
-                    </span>
-                  </label>
-
-                  <label className="flex items-start gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={consentPrivacy}
-                      onChange={(e) => setConsentPrivacy(e.target.checked)}
-                      className="mt-0.5 accent-accent-sky w-3.5 h-3.5 rounded cursor-pointer shrink-0"
-                    />
-                    <span className="text-terminal-text leading-snug">
-                      I have read and accept the <strong>Privacy Policy</strong> for account security.
-                    </span>
-                  </label>
-
-                  <label className="flex items-start gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={consentAge}
-                      onChange={(e) => setConsentAge(e.target.checked)}
-                      className="mt-0.5 accent-accent-sky w-3.5 h-3.5 rounded cursor-pointer shrink-0"
-                    />
-                    <span className="text-terminal-text leading-snug">
-                      I confirm that I am at least <strong>18 years old</strong> and legally eligible to trade.
-                    </span>
-                  </label>
-                </div>
-
-                {/* Bottom Action Area (Separated & Non-Overlapping) */}
-                <div className="pt-2 space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setErrorMsg('');
-                        setScreen('SIGN_IN');
-                      }}
-                      className="w-full py-2.5 px-4 rounded-xl text-xs font-sans font-bold transition border bg-terminal-panel border-terminal-border text-terminal-text hover:border-accent-sky hover:bg-terminal-hover shadow-subtle cursor-pointer"
-                    >
-                      Already Have Account? Sign In
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleConsentSubmit}
-                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-sans font-bold transition flex items-center justify-center gap-1.5 shadow-subtle cursor-pointer ${
-                        isAllMandatoryConsentChecked
-                          ? 'bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 shadow-subtle'
-                          : 'bg-terminal-panel/50 border border-terminal-border text-terminal-muted cursor-not-allowed opacity-60'
-                      }`}
-                      disabled={!isAllMandatoryConsentChecked}
-                    >
-                      <span>I Understand & Register</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <p className="text-[10px] text-terminal-muted text-center pt-1">
-                    Regulatory consent timestamp and audit signature will be securely recorded.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 2: SIGN-UP FORM */}
-            {/* ========================================================================= */}
-            {screen === 'SIGN_UP' && (
-              <form onSubmit={handleSignUpSubmit} className="space-y-3 font-sans text-xs">
-                <div className="text-center space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-terminal-text">
-                    Create Your Account
-                  </h3>
-                  <p className="text-terminal-muted text-xs">
-                    Access institutional options analytics & AI decision models
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-accent-sky" />
-                    <span>Full Legal Name</span>
-                  </label>
+              {/* Granular Checkboxes */}
+              <div className="space-y-2.5 text-xs text-terminal-text">
+                <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-terminal-panel border border-terminal-border cursor-pointer hover:border-accent-sky transition">
                   <input
-                    type="text"
-                    placeholder="Arun Kumar"
-                    value={signUpName}
-                    onChange={(e) => setSignUpName(e.target.value)}
-                    className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                    required
+                    type="checkbox"
+                    checked={consentRisk}
+                    onChange={(e) => setConsentRisk(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-accent-sky bg-terminal-card border-terminal-border focus:ring-accent-sky"
                   />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-accent-sky" />
-                      <span>Email Address</span>
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="arun@example.com"
-                      value={signUpEmail}
-                      onChange={(e) => setSignUpEmail(e.target.value)}
-                      className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-accent-sky" />
-                      <span>10-Digit Mobile</span>
-                    </label>
-                    <div className="flex">
-                      <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-terminal-border bg-terminal-panel text-terminal-muted font-mono font-bold">
-                        +91
-                      </span>
-                      <input
-                        type="tel"
-                        maxLength={10}
-                        placeholder="9876543210"
-                        value={signUpMobile}
-                        onChange={(e) => setSignUpMobile(e.target.value.replace(/\D/g, ''))}
-                        className="w-full bg-terminal-bg border border-terminal-border rounded-r-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-accent-sky" />
-                      <span>Password (min 8 chars)</span>
-                    </label>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={signUpPassword}
-                      onChange={(e) => setSignUpPassword(e.target.value)}
-                      className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-accent-sky" />
-                      <span>Confirm Password</span>
-                    </label>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={signUpConfirmPassword}
-                      onChange={(e) => setSignUpConfirmPassword(e.target.value)}
-                      className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-2.5 rounded-xl bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold text-xs transition shadow-subtle flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Continue to OTP Verification</span>}
-                  </button>
-
-                  <div className="text-center text-[11px] text-terminal-muted pt-1">
-                    Already registered?{' '}
-                    <button
-                      type="button"
-                      onClick={() => setScreen('SIGN_IN')}
-                      className="text-accent-sky font-bold hover:underline cursor-pointer"
-                    >
-                      Sign In
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 3: OTP VERIFICATION */}
-            {/* ========================================================================= */}
-            {screen === 'OTP_VERIFY' && (
-              <div className="space-y-4 font-sans text-xs">
-                <div className="text-center space-y-1">
-                  <div className="w-10 h-10 mx-auto rounded-full bg-accent-sky/15 text-accent-sky flex items-center justify-center border border-accent-sky/30 shadow-subtle">
-                    <KeyRound className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-terminal-text">
-                    Verify Your Mobile & Email
-                  </h3>
-                  <p className="text-terminal-muted text-xs">
-                    Enter the 6-digit OTP dispatched to your registered contact.
-                  </p>
-                </div>
-
-                {/* 6 Digit OTP Inputs */}
-                <div className="flex items-center justify-center gap-2 sm:gap-3 py-2">
-                  {otpDigits.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      ref={(el) => (otpInputRefs.current[idx] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(idx, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      className="w-10 h-12 sm:w-11 sm:h-13 text-center text-lg font-mono font-bold bg-terminal-bg border border-terminal-border rounded-xl text-terminal-text focus:border-accent-sky focus:outline-none transition"
-                    />
-                  ))}
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border flex items-center justify-between text-[11px]">
-                  <span className="text-terminal-muted">
-                    Code expires in: <strong className="text-terminal-text font-bold font-mono">{otpTimer}s</strong>
+                  <span className="leading-snug">
+                    I understand that options & futures trading involves substantial financial risk and high capital volatility.
                   </span>
+                </label>
 
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={otpTimer > 0}
-                    className={`font-bold transition ${
-                      otpTimer === 0 ? 'text-accent-sky hover:underline cursor-pointer' : 'text-terminal-muted cursor-not-allowed opacity-60'
-                    }`}
-                  >
-                    Resend OTP
-                  </button>
-                </div>
+                <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-terminal-panel border border-terminal-border cursor-pointer hover:border-accent-sky transition">
+                  <input
+                    type="checkbox"
+                    checked={consentNoGuarantee}
+                    onChange={(e) => setConsentNoGuarantee(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-accent-sky bg-terminal-card border-terminal-border focus:ring-accent-sky"
+                  />
+                  <span className="leading-snug">
+                    I acknowledge that Fayda provides algorithmic and analytics tools for educational and informational purposes, with no guaranteed profits or investment advice.
+                  </span>
+                </label>
 
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleOtpVerifySubmit}
-                    disabled={isLoading}
-                    className="w-full py-2.5 rounded-xl bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold text-xs transition shadow-subtle flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify & Launch Terminal</span>}
-                  </button>
+                <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-terminal-panel border border-terminal-border cursor-pointer hover:border-accent-sky transition">
+                  <input
+                    type="checkbox"
+                    checked={consentTerms}
+                    onChange={(e) => setConsentTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-accent-sky bg-terminal-card border-terminal-border focus:ring-accent-sky"
+                  />
+                  <span className="leading-snug">
+                    I agree to the Fayda Terminal <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>.
+                  </span>
+                </label>
 
-                  <p className="text-center text-[10px] text-terminal-muted">
-                    Tip: For demo evaluation, you may enter <strong className="text-accent-sky font-mono">123456</strong> or any 6 digits.
-                  </p>
-                </div>
+                <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-terminal-panel border border-terminal-border cursor-pointer hover:border-accent-sky transition">
+                  <input
+                    type="checkbox"
+                    checked={consentAge}
+                    onChange={(e) => setConsentAge(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-accent-sky bg-terminal-card border-terminal-border focus:ring-accent-sky"
+                  />
+                  <span className="leading-snug">
+                    I confirm that I am at least 18 years of age and authorized to trade in Indian financial markets.
+                  </span>
+                </label>
               </div>
-            )}
 
-            {/* ========================================================================= */}
-            {/* SCREEN 4: SIGN-IN (WELCOME BACK) */}
-            {/* ========================================================================= */}
-            {screen === 'SIGN_IN' && (
-              <form onSubmit={handleSignInSubmit} className="space-y-3.5 font-sans text-xs">
-                <div className="text-center space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-terminal-text">
-                    Welcome Back to Fayda
-                  </h3>
-                  <p className="text-terminal-muted text-xs">
-                    Sign in to access live option chains, Greeks and strategy radar
-                  </p>
-                </div>
+              {/* Accept & Continue Button */}
+              <button
+                type="button"
+                onClick={handleAcceptFirstLoginConsent}
+                className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Accept SEBI Disclaimers & Continue to Sign In</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-                {/* Email / Mobile */}
-                <div className="space-y-1">
-                  <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-accent-sky" />
-                    <span>Email or Mobile Number</span>
-                  </label>
+          {/* ========================================================================= */}
+          {/* SCREEN 2: STREAMLINED SIGN-IN (SUBSEQUENT LOGINS) */}
+          {/* ========================================================================= */}
+          {screen === 'SIGN_IN' && (
+            <form onSubmit={handleSignInSubmit} className="space-y-4">
+              
+              {/* Sign In Method Selector: Password vs Email OTP */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-terminal-panel border border-terminal-border text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => { setSignInMethod('PASSWORD'); setErrorMsg(''); }}
+                  className={`py-1.5 rounded-xl transition text-center cursor-pointer ${
+                    signInMethod === 'PASSWORD'
+                      ? 'bg-accent-sky/20 text-accent-sky font-bold shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                >
+                  <Lock className="w-3.5 h-3.5 inline mr-1" />
+                  Password
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setSignInMethod('EMAIL_OTP'); setErrorMsg(''); }}
+                  className={`py-1.5 rounded-xl transition text-center cursor-pointer ${
+                    signInMethod === 'EMAIL_OTP'
+                      ? 'bg-accent-sky/20 text-accent-sky font-bold shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5 inline mr-1" />
+                  Email OTP
+                </button>
+              </div>
+
+              {/* Username / Email / Mobile Input */}
+              <div>
+                <label className="text-[11px] font-bold text-terminal-text block mb-1">
+                  Username / Email ID / Mobile Number <span className="text-bear">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-3 text-terminal-muted" />
                   <input
                     type="text"
-                    placeholder="admin@vertexinfo.co.in / 9876543210"
+                    required
+                    placeholder="Enter email (e.g. trader@example.com or admin)"
                     value={signInIdentifier}
                     onChange={(e) => setSignInIdentifier(e.target.value)}
-                    className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                    required
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl pl-9 pr-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky font-sans"
                   />
                 </div>
+              </div>
 
-                {/* Password */}
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <label className="text-terminal-muted font-bold flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-accent-sky" />
-                      <span>Password</span>
+              {/* Conditional Auth Method: Password or OTP */}
+              {signInMethod === 'PASSWORD' ? (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-terminal-text">
+                      Password <span className="text-bear">*</span>
                     </label>
                     <button
                       type="button"
-                      onClick={() => setScreen('FORGOT_PASSWORD')}
-                      className="text-[11px] text-accent-sky hover:underline cursor-pointer"
+                      onClick={() => { setScreen('FORGOT_PASSWORD'); setErrorMsg(''); setSuccessMsg(''); }}
+                      className="text-[11px] font-bold text-accent-sky hover:underline cursor-pointer"
                     >
                       Forgot Password?
                     </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={signInPassword}
-                    onChange={(e) => setSignInPassword(e.target.value)}
-                    className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
-                    required
-                  />
-                </div>
-
-                {/* Remember Me & Visibility */}
-                <div className="flex items-center justify-between pt-0.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-terminal-muted select-none">
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3 top-3 text-terminal-muted" />
                     <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="accent-accent-sky w-3.5 h-3.5 rounded"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••••••"
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
+                      className="w-full bg-terminal-panel border border-terminal-border rounded-xl pl-9 pr-9 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky font-sans"
                     />
-                    <span>Remember me</span>
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-[11px] text-terminal-muted hover:text-terminal-text flex items-center gap-1 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    <span>{showPassword ? 'Hide' : 'Show'}</span>
-                  </button>
-                </div>
-
-                {/* Sign In Button */}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-2.5 rounded-xl bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold text-xs transition shadow-subtle flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Sign In to Terminal</span>}
-                </button>
-
-                {/* Instant 1-Click Demo Login Box (SuperAdmin & Pro User) */}
-                <div className="p-3 rounded-xl bg-terminal-panel/80 border border-terminal-border space-y-2">
-                  <span className="text-[10px] text-terminal-muted uppercase font-bold tracking-wider block">
-                    Quick Access Profiles (One-Click)
-                  </span>
-                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => handleQuickDemoLogin('SUPERADMIN')}
-                      className="py-1.5 px-2 rounded-lg bg-accent-purple/20 border border-accent-purple/40 hover:bg-accent-purple/30 text-accent-purple font-bold text-[11px] transition flex items-center justify-center gap-1 shadow-subtle cursor-pointer"
-                      title="Sign in with SuperAdmin rights"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-terminal-muted hover:text-terminal-text"
                     >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>⚡ SuperAdmin</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoLogin('USER')}
-                      className="py-1.5 px-2 rounded-lg bg-accent-sky/20 border border-accent-sky/40 hover:bg-accent-sky/30 text-accent-sky font-bold text-[11px] transition flex items-center justify-center gap-1 shadow-subtle cursor-pointer"
-                      title="Sign in as Pro Trader"
-                    >
-                      <User className="w-3.5 h-3.5" />
-                      <span>👤 Pro Trader</span>
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-
-                {/* Footer Link (Cleanly Spaced) */}
-                <div className="text-center text-[11px] text-terminal-muted pt-1">
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setScreen('CONSENT_DISCLOSURE')}
-                    className="text-accent-sky font-bold hover:underline cursor-pointer"
-                  >
-                    Create Account
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 5: FORGOT PASSWORD */}
-            {/* ========================================================================= */}
-            {screen === 'FORGOT_PASSWORD' && (
-              <div className="space-y-3.5 font-sans text-xs">
-                <div className="text-center space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-terminal-text">
-                    Reset Your Password
-                  </h3>
-                  <p className="text-terminal-muted text-xs">
-                    Enter your registered email or mobile to receive recovery instructions.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-terminal-muted font-bold">Email or Mobile Number</label>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-terminal-text">
+                      6-Digit Email OTP <span className="text-bear">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSendSignInOtp}
+                      className="text-[11px] font-bold text-accent-sky hover:underline cursor-pointer"
+                    >
+                      {isSignInOtpSent ? 'Resend OTP' : 'Send OTP'}
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    placeholder="name@example.com"
-                    className="w-full bg-terminal-bg border border-terminal-border rounded-xl px-3 py-2 text-terminal-text font-bold focus:outline-none focus:border-accent-sky"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP (e.g. 123456)"
+                    value={signInOtp}
+                    onChange={(e) => setSignInOtp(e.target.value)}
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs font-mono text-center tracking-widest text-terminal-text focus:outline-none focus:border-accent-sky"
                   />
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuccessMsg('Password recovery instructions have been dispatched.');
-                    setScreen('SIGN_IN');
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 font-sans font-bold text-xs transition shadow-subtle cursor-pointer"
-                >
-                  Send Recovery Link / OTP
-                </button>
-
-                <div className="text-center pt-1">
+              {/* Interactive Captcha Challenge */}
+              <div className="p-3 rounded-2xl bg-terminal-panel border border-terminal-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-terminal-text flex items-center gap-1.5">
+                    <Fingerprint className="w-3.5 h-3.5 text-accent-cyan" />
+                    <span>Security Captcha: What is {captchaNum1} + {captchaNum2}?</span>
+                  </label>
                   <button
                     type="button"
-                    onClick={() => setScreen('SIGN_IN')}
-                    className="text-accent-sky font-bold hover:underline cursor-pointer"
+                    onClick={refreshCaptcha}
+                    className="p-1 text-terminal-muted hover:text-accent-cyan transition cursor-pointer"
+                    title="Refresh Captcha Challenge"
                   >
-                    Back to Sign In
+                    <RefreshCw className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-2 rounded-xl bg-terminal-card border border-terminal-border font-mono font-black text-sm text-accent-cyan tracking-wider select-none shrink-0">
+                    {captchaNum1} + {captchaNum2} = ?
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    placeholder="Answer"
+                    value={captchaInput}
+                    onChange={(e) => setCaptchaInput(e.target.value)}
+                    className="flex-1 bg-terminal-card border border-terminal-border rounded-xl px-3 py-2 text-xs font-mono font-bold text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Authenticating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Sign In to Terminal</span>
+                  </>
+                )}
+              </button>
+
+              {/* Switch to Register */}
+              <div className="pt-2 text-center text-xs text-terminal-muted">
+                <span>Don't have an institutional account? </span>
+                <button
+                  type="button"
+                  onClick={() => { setScreen('SIGN_UP'); setErrorMsg(''); setSuccessMsg(''); }}
+                  className="font-bold text-accent-sky hover:underline cursor-pointer"
+                >
+                  Create Account
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================================= */}
+          {/* SCREEN 3: FORGOT PASSWORD RECOVERY WITH OTP */}
+          {/* ========================================================================= */}
+          {screen === 'FORGOT_PASSWORD' && (
+            <div className="space-y-4">
+              {!isForgotOtpSent ? (
+                <form onSubmit={handleSendForgotOtp} className="space-y-3">
+                  <p className="text-xs text-terminal-muted leading-relaxed">
+                    Enter your registered Email ID or Mobile Number. We will send a 6-digit security OTP to verify your identity.
+                  </p>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-terminal-text block mb-1">
+                      Email Address or Mobile <span className="text-bear">*</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-3 text-terminal-muted" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="name@example.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full bg-terminal-panel border border-terminal-border rounded-xl pl-9 pr-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky font-sans"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>Send Verification OTP</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-terminal-text block mb-1">
+                      Enter 6-Digit OTP <span className="text-bear">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      placeholder="123456"
+                      value={forgotOtp}
+                      onChange={(e) => setForgotOtp(e.target.value)}
+                      className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs font-mono text-center tracking-widest text-terminal-text focus:outline-none focus:border-accent-sky"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-terminal-text block mb-1">
+                      New Password (min 6 characters) <span className="text-bear">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="New password"
+                      value={forgotNewPass}
+                      onChange={(e) => setForgotNewPass(e.target.value)}
+                      className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-terminal-text block mb-1">
+                      Confirm New Password <span className="text-bear">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Confirm new password"
+                      value={forgotConfirmPass}
+                      onChange={(e) => setForgotConfirmPass(e.target.value)}
+                      className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span>Reset Password & Sign In</span>
+                  </button>
+                </form>
+              )}
+
+              <div className="pt-2 text-center text-xs text-terminal-muted">
+                <button
+                  type="button"
+                  onClick={() => { setScreen('SIGN_IN'); setErrorMsg(''); setSuccessMsg(''); }}
+                  className="font-bold text-accent-sky hover:underline cursor-pointer"
+                >
+                  ← Back to Sign In
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* SCREEN 4: SIGN UP (NEW ACCOUNT) */}
+          {/* ========================================================================= */}
+          {screen === 'SIGN_UP' && (
+            <form onSubmit={handleSignUpSubmit} className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-terminal-text block mb-1">Full Legal Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Arun Kumar"
+                  value={signUpName}
+                  onChange={(e) => setSignUpName(e.target.value)}
+                  className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[11px] font-bold text-terminal-text block mb-1">Email ID</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={signUpEmail}
+                    onChange={(e) => setSignUpEmail(e.target.value)}
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-terminal-text block mb-1">Mobile (+91)</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="9876543210"
+                    value={signUpMobile}
+                    onChange={(e) => setSignUpMobile(e.target.value)}
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[11px] font-bold text-terminal-text block mb-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={signUpPassword}
+                    onChange={(e) => setSignUpPassword(e.target.value)}
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-terminal-text block mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={signUpConfirmPassword}
+                    onChange={(e) => setSignUpConfirmPassword(e.target.value)}
+                    className="w-full bg-terminal-panel border border-terminal-border rounded-xl px-3 py-2 text-xs text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>Create Institutional Account</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="pt-2 text-center text-xs text-terminal-muted">
+                <span>Already registered? </span>
+                <button
+                  type="button"
+                  onClick={() => { setScreen('SIGN_IN'); setErrorMsg(''); setSuccessMsg(''); }}
+                  className="font-bold text-accent-sky hover:underline cursor-pointer"
+                >
+                  Sign In
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ========================================================================= */}
+          {/* SCREEN 5: REGISTRATION OTP VERIFICATION */}
+          {/* ========================================================================= */}
+          {screen === 'OTP_VERIFY' && (
+            <div className="space-y-4 text-center">
+              <p className="text-xs text-terminal-muted">
+                Please enter the 6-digit OTP code sent to your registered email/mobile.
+              </p>
+
+              <div className="flex justify-center gap-2 font-mono">
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={el => otpInputRefs.current[idx] = el}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      const next = [...otpDigits];
+                      next[idx] = val;
+                      setOtpDigits(next);
+                      if (val && idx < 5) {
+                        otpInputRefs.current[idx + 1]?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !otpDigits[idx] && idx > 0) {
+                        otpInputRefs.current[idx - 1]?.focus();
+                      }
+                    }}
+                    className="w-10 h-12 bg-terminal-panel border border-terminal-border rounded-xl text-center text-lg font-bold text-terminal-text focus:outline-none focus:border-accent-sky"
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const otp = otpDigits.join('');
+                  const res = await verifyOtp(otp);
+                  if (res.success) {
+                    setSuccessMsg('Account verified! Welcome to Fayda Terminal.');
+                    setTimeout(() => onClose(), 800);
+                  } else {
+                    setErrorMsg(res.error || 'Invalid OTP code.');
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl bg-accent-sky hover:bg-accent-sky-glow text-white text-xs font-bold transition shadow-lg cursor-pointer"
+              >
+                Verify & Enter Terminal
+              </button>
+            </div>
+          )}
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   );
 };

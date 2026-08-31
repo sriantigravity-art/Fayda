@@ -22,7 +22,11 @@ import {
   X, 
   ChevronUp, 
   Radio, 
-  Music 
+  Music,
+  Edit3,
+  MapPin,
+  Mail,
+  Phone
 } from 'lucide-react';
 import { useTerminalMode, type TerminalMode } from '../context/TerminalModeContext';
 import { useTheme } from '../context/ThemeContext';
@@ -40,6 +44,7 @@ interface MobileNavBarProps {
   onOpenFyersModal?: () => void;
   onOpenLegalModal?: (doc: 'RISK_DISCLOSURE' | 'TERMS_OF_SERVICE' | 'PRIVACY_POLICY') => void;
   onOpenAuthModal?: () => void;
+  onOpenProfileEditModal?: () => void;
 }
 
 export const MobileNavBar: React.FC<MobileNavBarProps> = ({
@@ -48,7 +53,8 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
   onOpenRiskCalc,
   onOpenFyersModal,
   onOpenLegalModal,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onOpenProfileEditModal
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const settingsDrawerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +107,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
       {isSettingsOpen && (
         <div
           ref={settingsDrawerRef}
-          className="md:hidden fixed bottom-16 left-2 right-2 z-[70] max-h-[82vh] overflow-y-auto no-scrollbar bg-terminal-card/95 backdrop-blur-2xl border border-terminal-border rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.85)] p-4 flex flex-col space-y-4 animate-in slide-in-from-bottom-5 fade-in duration-200 select-none ring-1 ring-white/10"
+          className="md:hidden fixed bottom-16 left-2 right-2 z-[70] max-h-[84vh] overflow-y-auto no-scrollbar bg-terminal-card/95 backdrop-blur-2xl border border-terminal-border rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.85)] p-4 flex flex-col space-y-4 animate-in slide-in-from-bottom-5 fade-in duration-200 select-none ring-1 ring-white/10"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between border-b border-terminal-border/60 pb-3">
@@ -114,7 +120,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                   Terminal Settings & Tools
                 </h3>
                 <span className="text-[10px] text-terminal-muted block">
-                  Experience mode, theme, audio, data sources & risk tools
+                  Profile, mode, theme, audio, data sources & risk tools
                 </span>
               </div>
             </div>
@@ -127,6 +133,100 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* ========================================================================= */}
+          {/* TOP SECTION: USER & ADMIN PROFILE CARD (Left Photo, Name, Email, Phone) */}
+          {/* ========================================================================= */}
+          {isAuthenticated && user ? (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-terminal-panel to-terminal-card border border-terminal-border/90 shadow-md flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-3 min-w-0">
+                {/* Left Round Small Profile Avatar */}
+                <div className="w-12 h-12 rounded-full border-2 border-accent-sky/50 bg-terminal-card overflow-hidden flex items-center justify-center shrink-0 shadow-subtle">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-accent-sky/20 text-accent-sky font-black text-lg flex items-center justify-center">
+                      {user.fullName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Name, Email, Phone, Role Badge */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-xs sm:text-sm text-terminal-text truncate block">
+                      {user.fullName}
+                    </span>
+                    <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                      user.role === 'SUPERADMIN' 
+                        ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/40' 
+                        : 'bg-accent-sky/20 text-accent-sky border border-accent-sky/40'
+                    }`}>
+                      {user.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'TRADER'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-terminal-muted font-mono truncate block">
+                    {user.email}
+                  </span>
+                  <span className="text-[10px] text-terminal-muted font-mono block">
+                    {user.mobile || '+91 98765 43210'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Edit Profile Action Buttons */}
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    onOpenProfileEditModal?.();
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-accent-sky/15 hover:bg-accent-sky/25 border border-accent-sky/40 text-accent-sky text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                  title="Edit Name, Email, Phone, Address & Avatar"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setIsSettingsOpen(false);
+                  }}
+                  className="text-[10px] font-bold text-bear hover:underline p-0.5 cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-2xl bg-terminal-panel border border-terminal-border flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-full bg-accent-sky/10 border border-accent-sky/30 text-accent-sky flex items-center justify-center font-bold text-sm shrink-0">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-terminal-text block">Guest Trader</span>
+                  <span className="text-[10px] text-terminal-muted">Sign in for personalized profile & trade logs</span>
+                </div>
+              </div>
+
+              {onOpenAuthModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    onOpenAuthModal();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-accent-sky/20 hover:bg-accent-sky/30 border border-accent-sky/40 text-accent-sky text-xs font-bold transition cursor-pointer shrink-0"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          )}
 
           {/* 1. TRADER EXPERIENCE MODE SWITCHER */}
           {panelVisibility.traderModeToggle && (
@@ -309,7 +409,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
 
           <div className="h-[1px] bg-terminal-border/60" />
 
-          {/* 4. DENSITY & USER ACCOUNT / SEBI LEGAL */}
+          {/* 4. DENSITY & SEBI LEGAL */}
           <div className="space-y-2">
             {/* Terminal Density */}
             <div className="flex items-center justify-between">
@@ -355,46 +455,6 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                 </span>
                 <span className="text-[10px] font-mono text-accent-sky">VIEW</span>
               </button>
-            )}
-
-            {/* User Account / Auth */}
-            {isAuthenticated && user ? (
-              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-terminal-panel border border-terminal-border">
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 rounded-full bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center">
-                    {user.fullName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-terminal-text block">{user.fullName}</span>
-                    <span className="text-[9px] text-terminal-muted font-mono">{user.email}</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    logout();
-                    setIsSettingsOpen(false);
-                  }}
-                  className="p-1.5 rounded-lg text-bear hover:bg-bear/10 border border-bear/20 transition cursor-pointer"
-                  title="Sign Out"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              onOpenAuthModal && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    onOpenAuthModal();
-                  }}
-                  className="flex items-center justify-center space-x-1.5 w-full py-2 px-3 rounded-2xl bg-accent-sky/15 hover:bg-accent-sky/25 border border-accent-sky/40 text-accent-sky font-bold text-xs transition cursor-pointer"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Sign In / Create Account (SEBI Consent)</span>
-                </button>
-              )
             )}
           </div>
         </div>
