@@ -65,11 +65,11 @@ export const RadarFeed: React.FC = () => {
       if (!visibleIndices.includes(s.indexSymbol)) return false;
       const idxState = indices[s.indexSymbol];
       const atm = idxState?.atmStrike;
-      if (atm && Math.abs(s.strikePrice - atm) > 400) return false;
+      if (atm && Math.abs(s.strikePrice - atm) > 600) return false;
 
       // Auto-Expire Signal after given validity window (e.g. 20m for Extreme Scalps, 45m for Strong, 60m for Moderate)
       const diffMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-      const maxValidity = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60);
+      const maxValidity = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 25 : s.surgeLevel === 'STRONG' ? 45 : 60);
       if (diffMin > maxValidity) return false;
 
       // Time Window Filter

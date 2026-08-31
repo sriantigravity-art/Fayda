@@ -1,23 +1,26 @@
 import React from 'react';
 import { useMarket } from '../context/MarketContext';
 import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock } from 'lucide-react';
+import { ALL_SYMBOLS_CONFIG } from '../types';
 
 export const SurgeAlertBanner: React.FC = () => {
-  const { latestExtremeSurge, dismissExtremeBanner, visibleIndices, indices } = useMarket();
+  const { latestExtremeSurge, dismissExtremeBanner, indices } = useMarket();
 
-  if (!latestExtremeSurge || !visibleIndices.includes(latestExtremeSurge.indexSymbol)) {
+  if (!latestExtremeSurge) {
     return null;
   }
 
   const idxState = indices[latestExtremeSurge.indexSymbol];
   const atm = idxState?.atmStrike;
-  if (atm && Math.abs(latestExtremeSurge.strikePrice - atm) > 400) {
+  const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === latestExtremeSurge.indexSymbol);
+  const maxAtmDist = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
+  if (atm && Math.abs(latestExtremeSurge.strikePrice - atm) > maxAtmDist) {
     return null;
   }
 
   // Auto-expire surge banner once signal exceeds its validity window
   const ageMinutes = (Date.now() - new Date(latestExtremeSurge.timestamp).getTime()) / (60 * 1000);
-  const maxWindow = latestExtremeSurge.validUntilMinutes || 20;
+  const maxWindow = latestExtremeSurge.validUntilMinutes || (latestExtremeSurge.surgeLevel === 'EXTREME' ? 25 : 40);
   if (ageMinutes > maxWindow) {
     return null;
   }

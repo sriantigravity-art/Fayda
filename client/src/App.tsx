@@ -21,6 +21,8 @@ import { GlobalIndicesSidebar } from './components/GlobalIndicesSidebar';
 import { SplashScreen } from './components/SplashScreen';
 import { MobileNavBar, type MobileTabType } from './components/MobileNavBar';
 import { RiskCalculatorModal } from './components/RiskCalculatorModal';
+import { RadarFeed } from './components/RadarFeed';
+import { NewsWireTab } from './components/NewsWireTab';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -86,11 +88,13 @@ const DashboardContent: React.FC = () => {
           {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           {mobileTab === 'RADAR' && (
             <div className="flex flex-col space-y-3">
+              {/* Real-Time Flash Surge & Activity Radar Feed on Mobile */}
+              <RadarFeed />
               {panelVisibility.patternRadar && <BreakoutPatternRadar />}
               {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
             </div>
           )}
-          {mobileTab === 'NEWS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
+          {mobileTab === 'NEWS' && <NewsWireTab />}
         </div>
       </main>
 

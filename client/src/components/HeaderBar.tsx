@@ -270,20 +270,20 @@ export const HeaderBar: React.FC = () => {
           {/* Live Spot Price & Day's Delta */}
           <div className="flex items-baseline space-x-1 font-mono shrink-0">
             <span className="text-xs sm:text-base font-black text-terminal-text tabular-nums">
-              ₹{spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{spotPrice > 0 ? spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
             </span>
             <span className={`text-[10px] sm:text-[11px] font-semibold flex items-center tabular-nums ${
               isPositive ? 'text-bull' : 'text-bear'
             }`}>
-              {isPositive ? '+' : ''}{netChange.toFixed(1)}
+              {isPositive ? '+' : ''}{netChange.toFixed(2)}
               <span className="hidden sm:inline ml-0.5">({isPositive ? '+' : ''}{pctChange.toFixed(2)}%)</span>
             </span>
           </div>
 
-          {/* Live / Closed Market Indicator */}
-          <div className="hidden md:flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0">
-            <span className={`w-1.5 h-1.5 rounded-full ${isLiveMarketOpen ? 'bg-bull animate-pulse' : 'bg-bear'}`} />
-            <span className="text-terminal-muted">{isLiveMarketOpen ? 'LIVE' : 'CLOSED'}</span>
+          {/* Live / Closed Market Indicator (Visible on mobile & desktop) */}
+          <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
+            <span className="text-terminal-muted hidden xs:inline">{isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}</span>
           </div>
         </div>
 
@@ -801,7 +801,7 @@ export const HeaderBar: React.FC = () => {
                 </div>
                 <div className="flex items-baseline space-x-1 font-mono text-[10px] sm:text-[11px]">
                   <span className="text-terminal-text font-bold tabular-nums">
-                    ₹{state ? state.spotPrice.toLocaleString('en-IN', { maximumFractionDigits: 1 }) : '—'}
+                    ₹{state && state.spotPrice > 0 ? state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                   </span>
                   <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
                     {isPos ? '+' : ''}{pct.toFixed(2)}%

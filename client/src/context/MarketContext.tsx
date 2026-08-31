@@ -254,7 +254,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const msg = JSON.parse(event.data);
 
         if (msg.type === 'INITIAL_STATE') {
-          if (msg.recentSurges) setRecentSurges(msg.recentSurges);
+          if (msg.recentSurges && msg.recentSurges.length > 0) {
+            setRecentSurges(msg.recentSurges);
+            const latest = msg.recentSurges.find((s: SurgeEvent) => s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG');
+            if (latest) {
+              const ageMin = (Date.now() - new Date(latest.timestamp).getTime()) / (60 * 1000);
+              if (ageMin <= (latest.validUntilMinutes || 25)) {
+                setLatestExtremeSurge(latest);
+              }
+            }
+          }
           if (msg.recentNews) setNewsList(msg.recentNews);
           if (msg.globalIndices) setGlobalIndices(msg.globalIndices);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
@@ -354,14 +363,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           if (newSurges && newSurges.length > 0) {
             const atm = indexState?.atmStrike;
+            const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+            const maxRange = symCfg?.defaultRange ? symCfg.defaultRange * 2.5 : 500;
             const validSurges = atm 
-              ? newSurges.filter((s: SurgeEvent) => Math.abs(s.strikePrice - atm) <= 400)
+              ? newSurges.filter((s: SurgeEvent) => Math.abs(s.strikePrice - atm) <= maxRange)
               : newSurges;
 
             setRecentSurges((prev) => [...validSurges, ...prev].slice(0, 80));
 
             const visibleExtreme = validSurges.find(
-              (s: SurgeEvent) => s.surgeLevel === 'EXTREME' && visibleIndicesRef.current.includes(s.indexSymbol)
+              (s: SurgeEvent) => s.surgeLevel === 'EXTREME'
             );
 
             if (visibleExtreme) {
@@ -369,10 +380,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               setLatestExtremeSurge(visibleExtreme);
             } else {
               const visibleStrong = validSurges.find(
-                (s: SurgeEvent) => s.surgeLevel === 'STRONG' && visibleIndicesRef.current.includes(s.indexSymbol)
+                (s: SurgeEvent) => s.surgeLevel === 'STRONG'
               );
               if (visibleStrong) {
                 soundManager.playStrongAlert();
+                setLatestExtremeSurge(visibleStrong);
               }
             }
           }
@@ -422,6 +434,51 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .catch(() => {});
 
+    // Listen to mobile wake / visibility change / online events
+    const handleResume = () => {
+      if (document.visibilityState === 'visible') {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          connectWs();
+        }
+        fetch(`${getApiBase()}/api/index-states`)
+          .then((r) => r.json())
+          .then((states) => {
+            if (states && Object.keys(states).length > 0) {
+              setIndices((prev) => ({ ...prev, ...states }));
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('online', handleResume);
+
+    // Fallback polling every 6 seconds if WS is disconnected on mobile
+    const pollInterval = setInterval(() => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        fetch(`${getApiBase()}/api/index-states`)
+          .then((r) => r.json())
+          .then((states) => {
+            if (states && Object.keys(states).length > 0) {
+              setIndices((prev) => ({ ...prev, ...states }));
+            }
+          })
+          .catch(() => {});
+      }
+    }, 6000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('online', handleResume);
+      clearInterval(pollInterval);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [connectWs]);
+
+  // When selected symbol changes, fetch its individual state and notify backend
+  useEffect(() => {
     fetch(`${getApiBase()}/api/index-state?symbol=${selectedIndex}`)
       .then((r) => r.json())
       .then((st) => {
@@ -431,11 +488,12 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .catch(() => {});
 
-    return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, [connectWs, selectedIndex]);
+    fetch(`${getApiBase()}/api/symbol/watch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: selectedIndex })
+    }).catch(() => {});
+  }, [selectedIndex]);
 
   const handleSelectSymbol = useCallback((sym: IndexSymbol) => {
     setSelectedIndex(sym);
@@ -447,21 +505,6 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       return prev;
     });
-
-    fetch(`${getApiBase()}/api/index-state?symbol=${sym}`)
-      .then((r) => r.json())
-      .then((st) => {
-        if (st) {
-          setIndices((prev) => ({ ...prev, [sym]: st }));
-        }
-      })
-      .catch(() => {});
-
-    fetch(`${getApiBase()}/api/symbol/watch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: sym })
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {

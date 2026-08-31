@@ -448,8 +448,8 @@ app.post('/api/expiry', (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT}`);
+server.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT} (0.0.0.0)`);
   console.log(`📡 WebSocket stream active at ws://localhost:${PORT}/ws`);
   console.log(`📊 Data source: ${currentDataSource}`);
 });
