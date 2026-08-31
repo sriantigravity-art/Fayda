@@ -39,7 +39,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { login, register, verifyOtp, resendOtp, recordConsent } = useAuth();
 
   const [screen, setScreen] = useState<AuthScreenMode>(initialScreen);
-  const [targetPostConsentScreen, setTargetPostConsentScreen] = useState<'SIGN_UP' | 'SIGN_IN'>('SIGN_UP');
 
   // Legal Doc Modal Viewer state
   const [isLegalDocOpen, setIsLegalDocOpen] = useState<boolean>(false);
@@ -133,11 +132,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       marketingOptIn: consentMarketing
     });
 
-    if (targetPostConsentScreen === 'SIGN_IN') {
-      setScreen('SIGN_IN');
-    } else {
-      setScreen('SIGN_UP');
-    }
+    setScreen('SIGN_UP');
   };
 
   const handleSignUpSubmit = async (e: React.FormEvent) => {
@@ -509,25 +504,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setTargetPostConsentScreen('SIGN_IN');
-                        if (isAllMandatoryConsentChecked) handleConsentSubmit();
+                        setErrorMsg('');
+                        setScreen('SIGN_IN');
                       }}
-                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-sans font-bold transition border cursor-pointer ${
-                        isAllMandatoryConsentChecked
-                          ? 'bg-terminal-panel border-terminal-border text-terminal-text hover:border-accent-sky hover:bg-terminal-hover shadow-subtle'
-                          : 'bg-terminal-panel/50 border-terminal-border/50 text-terminal-muted cursor-not-allowed opacity-60'
-                      }`}
-                      disabled={!isAllMandatoryConsentChecked}
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-sans font-bold transition border bg-terminal-panel border-terminal-border text-terminal-text hover:border-accent-sky hover:bg-terminal-hover shadow-subtle cursor-pointer"
                     >
                       Already Have Account? Sign In
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setTargetPostConsentScreen('SIGN_UP');
-                        if (isAllMandatoryConsentChecked) handleConsentSubmit();
-                      }}
+                      onClick={handleConsentSubmit}
                       className={`w-full py-2.5 px-4 rounded-xl text-xs font-sans font-bold transition flex items-center justify-center gap-1.5 shadow-subtle cursor-pointer ${
                         isAllMandatoryConsentChecked
                           ? 'bg-accent-sky/20 border border-accent-sky/50 text-accent-sky hover:bg-accent-sky/30 shadow-subtle'

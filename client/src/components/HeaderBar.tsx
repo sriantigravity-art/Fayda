@@ -497,55 +497,124 @@ export const HeaderBar: React.FC = () => {
               <MoreHorizontal className="w-4 h-4" />
             </button>
 
-            {/* Mobile Dropdown Popover Menu (Solid Opaque Background) */}
+            {/* Mobile Dropdown Popover Menu (Solid Opaque Background & Full Options) */}
             {isMoreMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-terminal-card border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-3 z-50 flex flex-col space-y-3 animate-scale-up font-sans select-none ring-1 ring-black/20">
+              <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto no-scrollbar bg-terminal-card border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-3.5 z-50 flex flex-col space-y-3 animate-scale-up font-sans select-none ring-1 ring-black/20">
                 
-                {/* 3-Mode Trader Selection */}
-                <div className="space-y-1">
-                  <span className="text-[10px] text-terminal-muted font-bold uppercase tracking-wider block">
-                    Trader Experience Mode
-                  </span>
-                  <div className="grid grid-cols-3 gap-1 bg-terminal-panel border border-terminal-border rounded-xl p-1 text-xs font-semibold">
+                {/* Account / User Profile Section */}
+                {isAuthenticated && user ? (
+                  <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center shrink-0 border border-accent-sky/30">
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-xs text-terminal-text truncate">
+                          {user.fullName}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-accent-sky font-mono font-bold uppercase">
+                            {user.role}
+                          </span>
+                          <span className="text-[10px] text-terminal-muted truncate">
+                            {user.email || user.mobile}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => { setMode('BEGINNER'); setIsMoreMenuOpen(false); }}
-                      className={`py-1 rounded-lg transition text-center ${
-                        mode === 'BEGINNER' ? 'bg-bull/20 text-bull font-bold' : 'text-terminal-muted'
-                      }`}
+                      onClick={() => {
+                        logout();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="p-1.5 rounded-lg text-terminal-muted hover:text-bear hover:bg-bear/10 border border-transparent hover:border-bear/30 transition cursor-pointer shrink-0"
+                      title="Sign Out"
                     >
-                      Beginner
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setMode('INTERMEDIATE'); setIsMoreMenuOpen(false); }}
-                      className={`py-1 rounded-lg transition text-center ${
-                        mode === 'INTERMEDIATE' ? 'bg-amber/20 text-amber font-bold' : 'text-terminal-muted'
-                      }`}
-                    >
-                      Interm.
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setMode('EXPERT'); setIsMoreMenuOpen(false); }}
-                      className={`py-1 rounded-lg transition text-center ${
-                        mode === 'EXPERT' ? 'bg-accent-purple/20 text-accent-purple font-bold' : 'text-terminal-muted'
-                      }`}
-                    >
-                      Expert
+                      <LogOut className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAuthModalOpen(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition flex items-center justify-between cursor-pointer shadow-subtle"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4" />
+                      <span>Sign In / Create Account</span>
+                    </div>
+                    <span className="text-[10px] font-mono uppercase bg-accent-sky/20 px-1.5 py-0.5 rounded">
+                      SEBI Consent
+                    </span>
+                  </button>
+                )}
+
+                {/* 3-Mode Trader Selection */}
+                {panelVisibility.traderModeToggle && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-terminal-muted font-bold uppercase tracking-wider block">
+                      Trader Experience Mode
+                    </span>
+                    <div className="grid grid-cols-3 gap-1 bg-terminal-panel border border-terminal-border rounded-xl p-1 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => { setMode('BEGINNER'); setIsMoreMenuOpen(false); }}
+                        className={`py-1 rounded-lg transition text-center ${
+                          mode === 'BEGINNER' ? 'bg-bull/20 text-bull font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                        }`}
+                      >
+                        Beginner
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setMode('INTERMEDIATE'); setIsMoreMenuOpen(false); }}
+                        className={`py-1 rounded-lg transition text-center ${
+                          mode === 'INTERMEDIATE' ? 'bg-amber/20 text-amber font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                        }`}
+                      >
+                        Interm.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setMode('EXPERT'); setIsMoreMenuOpen(false); }}
+                        className={`py-1 rounded-lg transition text-center ${
+                          mode === 'EXPERT' ? 'bg-accent-purple/20 text-accent-purple font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                        }`}
+                      >
+                        Expert
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="h-[1px] bg-terminal-border/60" />
 
                 {/* Primary Tools List */}
                 <div className="space-y-1 text-xs">
+                  {/* Command Palette */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsCommandPaletteOpen(true); setIsMoreMenuOpen(false); }}
+                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <Search className="w-4 h-4 text-accent-sky" />
+                      <span className="font-semibold text-terminal-text">Command Palette</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-terminal-panel text-terminal-muted border border-terminal-border">
+                      ⌘K
+                    </span>
+                  </button>
+
                   {/* Fyers Broker Connect */}
                   <button
                     type="button"
                     onClick={() => { setIsFyersModalOpen(true); setIsMoreMenuOpen(false); }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left"
+                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left cursor-pointer"
                   >
                     <div className="flex items-center space-x-2.5">
                       <KeyRound className="w-4 h-4 text-accent-sky" />
@@ -559,17 +628,19 @@ export const HeaderBar: React.FC = () => {
                   </button>
 
                   {/* Risk Calculator */}
-                  <button
-                    type="button"
-                    onClick={() => { setIsRiskModalOpen(true); setIsMoreMenuOpen(false); }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left"
-                  >
-                    <div className="flex items-center space-x-2.5">
-                      <Calculator className="w-4 h-4 text-accent-sky" />
-                      <span className="font-semibold text-terminal-text">SEBI Risk & Lot Sizing</span>
-                    </div>
-                    <span className="text-[10px] text-accent-sky font-bold">Open</span>
-                  </button>
+                  {panelVisibility.riskCalc && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsRiskModalOpen(true); setIsMoreMenuOpen(false); }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <Calculator className="w-4 h-4 text-accent-sky" />
+                        <span className="font-semibold text-terminal-text">SEBI Risk & Lot Sizing</span>
+                      </div>
+                      <span className="text-[10px] text-accent-sky font-bold">Open</span>
+                    </button>
+                  )}
 
                   {/* Legal & Compliance Center */}
                   <button
@@ -579,7 +650,7 @@ export const HeaderBar: React.FC = () => {
                       setIsLegalModalOpen(true);
                       setIsMoreMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left"
+                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-terminal-panel transition text-left cursor-pointer"
                   >
                     <div className="flex items-center space-x-2.5">
                       <ShieldAlert className="w-4 h-4 text-amber" />
@@ -593,7 +664,7 @@ export const HeaderBar: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => { setIsAdminDrawerOpen(true); setIsMoreMenuOpen(false); }}
-                      className="w-full flex items-center justify-between p-2 rounded-xl bg-accent-purple/10 border border-accent-purple/30 text-accent-purple font-bold transition text-left"
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-accent-purple/10 border border-accent-purple/30 text-accent-purple font-bold transition text-left cursor-pointer"
                     >
                       <div className="flex items-center space-x-2.5">
                         <Zap className="w-4 h-4" />
@@ -606,8 +677,35 @@ export const HeaderBar: React.FC = () => {
 
                 <div className="h-[1px] bg-terminal-border/60" />
 
-                {/* Display & Sound Toggles (3-Col Grid) */}
-                <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                {/* Market Status & Key Metrics (Available on Mobile) */}
+                {currentIndexState && (
+                  <div className="p-2 rounded-xl bg-terminal-panel/60 border border-terminal-border/80 space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between font-mono">
+                      <span className="text-terminal-muted">Market Status:</span>
+                      <span className={`font-bold flex items-center gap-1 ${isLiveMarketOpen ? 'text-bull' : 'text-bear'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isLiveMarketOpen ? 'bg-bull animate-pulse' : 'bg-bear'}`} />
+                        {isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between font-mono">
+                      <span className="text-terminal-muted">ATM Strike / PCR:</span>
+                      <span className="font-bold text-terminal-text">
+                        {currentIndexState.atmStrike} (PCR {activePcr.toFixed(2)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between font-mono">
+                      <span className="text-terminal-muted">Expiry / IST Time:</span>
+                      <span className="text-terminal-text font-bold">
+                        {daysToExpiry}d • {currentTime}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="h-[1px] bg-terminal-border/60" />
+
+                {/* Display & Sound Toggles Grid */}
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
                   {/* Density */}
                   <button
                     type="button"
@@ -643,6 +741,24 @@ export const HeaderBar: React.FC = () => {
                   >
                     {theme === 'dark' ? <Moon className="w-4 h-4 text-accent-sky" /> : <Sun className="w-4 h-4 text-amber" />}
                     <span className="text-[9px] font-medium">{theme === 'dark' ? 'Dark' : 'Light'}</span>
+                  </button>
+
+                  {/* Fullscreen Toggle */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      toggleFullscreen(e);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className={`p-2 rounded-xl border flex flex-col items-center justify-center space-y-1 transition cursor-pointer ${
+                      isFullscreen
+                        ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky'
+                        : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
+                    }`}
+                    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                  >
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    <span className="text-[9px] font-medium">{isFullscreen ? 'Exit FS' : 'Full scr'}</span>
                   </button>
                 </div>
               </div>
