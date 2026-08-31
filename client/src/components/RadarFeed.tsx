@@ -13,7 +13,9 @@ import {
   ChevronDown,
   RotateCcw,
   BookOpen,
-  BarChart2
+  BarChart2,
+  ExternalLink,
+  Target
 } from 'lucide-react';
 
 type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
@@ -35,8 +37,8 @@ export const RadarFeed: React.FC = () => {
 
   const isLiveMarketOpen = isMarketHours();
 
-  // Local filters & view mode state
-  const [viewMode, setViewMode] = useState<'LIVE' | 'JOURNAL'>(() => isLiveMarketOpen ? 'LIVE' : 'JOURNAL');
+  // Local state
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
   const [timeFilter, setTimeFilter] = useState<TimeWindowFilter>('ALL');
@@ -142,54 +144,36 @@ export const RadarFeed: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)]">
-                  {viewMode === 'LIVE' ? 'LIVE OI ACTIVITY RADAR' : 'TRADE JOURNAL & CALLS AUDIT'}
+                  LIVE OI ACTIVITY RADAR
                 </h2>
-                {viewMode === 'LIVE' && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
-                    {filteredSurges.length} Events
-                  </span>
-                )}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
+                  {filteredSurges.length} Events
+                </span>
               </div>
               <p className="text-[10px] text-terminal-muted font-mono mt-0.5">
-                {viewMode === 'LIVE' 
-                  ? 'Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner' 
-                  : 'Date-wise performance journal: Entry, Targets, Stoploss, Book Profit/Loss & Near-Target verification'}
+                Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner
               </p>
             </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center space-x-1 bg-terminal-card p-1 rounded-xl border border-terminal-border font-mono text-xs w-full sm:w-auto sm:ml-auto">
+          {/* Action Suite: Open Trade Journal Modal Button & Collapse */}
+          <div className="flex items-center space-x-2 font-mono text-xs w-full sm:w-auto sm:ml-auto">
+            {/* Direct Open Modal Action Button */}
             <button
               type="button"
-              onClick={() => setViewMode('LIVE')}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold transition text-[11px] ${
-                viewMode === 'LIVE'
-                  ? 'bg-bear text-white shadow-md'
-                  : 'text-terminal-muted hover:text-terminal-text'
-              }`}
+              onClick={() => setIsJournalModalOpen(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 font-bold transition text-[11px] shadow-sm hover:scale-105"
+              title="Click to Open Trade Journal & Date-Wise Predictions Report in a separate modal"
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Live Scanner</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode('JOURNAL')}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold transition text-[11px] ${
-                viewMode === 'JOURNAL'
-                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/50 shadow-sm'
-                  : 'text-terminal-muted hover:text-terminal-text'
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
+              <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
               <span>Trade Journal</span>
+              <ExternalLink className="w-3 h-3 text-purple-400 ml-0.5" />
             </button>
 
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1 rounded-lg hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text ml-1"
+              className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border/60 text-terminal-muted hover:text-terminal-text border border-terminal-border transition"
               title="Expand / Collapse"
             >
               <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -199,14 +183,38 @@ export const RadarFeed: React.FC = () => {
       </div>
 
       {/* Expandable Feed Suite & Scrollable Events */}
-      {isExpanded && viewMode === 'JOURNAL' && (
-        <div className="p-2 sm:p-3 animate-in fade-in duration-200">
-          <PostMarketTradeJournal />
-        </div>
-      )}
-
-      {isExpanded && viewMode === 'LIVE' && (
+      {isExpanded && (
         <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-200">
+          {/* TOP LINK & TITLE BANNER: Quick launcher for Trade Journal Modal */}
+          <div className="p-3 bg-gradient-to-r from-purple-500/10 via-terminal-panel/60 to-accent-cyan/10 border-b border-terminal-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                <BarChart2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono font-black text-xs text-terminal-text">
+                    Predictions & Target Performance Journal
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase">
+                    AUDIT REPORT
+                  </span>
+                </div>
+                <p className="text-[10px] text-terminal-muted font-mono truncate mt-0.5">
+                  Stored calls by time, entry, book profit/loss & near-target % across Options, Stocks & Commodities.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsJournalModalOpen(true)}
+              className="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-mono font-black text-xs flex items-center justify-center space-x-1.5 shrink-0 transition shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-105"
+            >
+              <span>View Date-Wise Report</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          </div>
           {/* Internal Filter Toggle & Suite */}
           <div className="px-3.5 pt-2 pb-1 bg-terminal-panel/30 border-b border-terminal-border/60">
             <div className="flex items-center justify-between pb-1.5">
@@ -587,19 +595,42 @@ export const RadarFeed: React.FC = () => {
 
         {/* Market is Closed (EOD Settlement) Bottom Notice */}
         {!isLiveMarketOpen && (
-          <div className="p-3 rounded-xl bg-amber/10 border border-amber/30 text-center font-mono mt-2">
+          <div className="p-3 rounded-xl bg-amber/10 border border-amber/30 text-center font-mono mt-2 flex flex-col items-center">
             <div className="flex items-center justify-center gap-1.5 text-amber font-bold text-xs mb-1">
               <Moon className="w-3.5 h-3.5 animate-pulse" />
               <span>Market is Closed (EOD Settlement)</span>
             </div>
-            <p className="text-[10px] text-terminal-muted max-w-sm mx-auto leading-relaxed">
-              Real-time Open Interest numbers do not change outside market hours (09:15 AM – 03:40 PM IST). 
-              Live surge alerts will resume when market opens at 09:15 AM.
+            <p className="text-[10px] text-terminal-muted max-w-sm mx-auto leading-relaxed mb-2.5">
+              Live OI surge alerts are paused outside market hours. All trade calls, target hits, and near-target metrics are stored in the historical ledger.
             </p>
+            <button
+              type="button"
+              onClick={() => setIsJournalModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-mono font-bold text-xs flex items-center space-x-1.5 transition shadow-md hover:scale-105"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Open Predictions & Calls Audit Report</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
           </div>
         )}
       </div>
       </div>
+      )}
+
+      {/* Standalone Separate Modal Dialog */}
+      {isJournalModalOpen && (
+        <div 
+          onClick={() => setIsJournalModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl"
+          >
+            <PostMarketTradeJournal isModal={true} onClose={() => setIsJournalModalOpen(false)} />
+          </div>
+        </div>
       )}
     </div>
   );
