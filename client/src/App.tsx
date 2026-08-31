@@ -21,6 +21,9 @@ import { GlobalIndicesSidebar } from './components/GlobalIndicesSidebar';
 import { SplashScreen } from './components/SplashScreen';
 import { MobileNavBar, type MobileTabType } from './components/MobileNavBar';
 import { RiskCalculatorModal } from './components/RiskCalculatorModal';
+import { FyersModal } from './components/FyersModal';
+import { LegalDocumentModal, type LegalDocType } from './components/auth/LegalDocumentModal';
+import { AuthModal } from './components/auth/AuthModal';
 import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
@@ -29,6 +32,10 @@ import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanne
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
   const [isMobileRiskOpen, setIsMobileRiskOpen] = useState<boolean>(false);
+  const [isMobileFyersOpen, setIsMobileFyersOpen] = useState<boolean>(false);
+  const [isMobileLegalOpen, setIsMobileLegalOpen] = useState<boolean>(false);
+  const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
+  const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
 
   return (
@@ -128,6 +135,12 @@ const DashboardContent: React.FC = () => {
         activeTab={mobileTab}
         onTabChange={(tab) => setMobileTab(tab)}
         onOpenRiskCalc={() => setIsMobileRiskOpen(true)}
+        onOpenFyersModal={() => setIsMobileFyersOpen(true)}
+        onOpenLegalModal={(doc) => {
+          setActiveLegalDoc(doc);
+          setIsMobileLegalOpen(true);
+        }}
+        onOpenAuthModal={() => setIsMobileAuthOpen(true)}
       />
 
       {/* Mobile Risk Calculator Launcher */}
@@ -135,6 +148,25 @@ const DashboardContent: React.FC = () => {
         isOpen={isMobileRiskOpen}
         onClose={() => setIsMobileRiskOpen(false)}
         defaultLtp={100}
+      />
+
+      {/* Mobile Fyers Broker Integration Modal */}
+      <FyersModal
+        isOpen={isMobileFyersOpen}
+        onClose={() => setIsMobileFyersOpen(false)}
+      />
+
+      {/* Mobile Legal & SEBI Compliance Modal */}
+      <LegalDocumentModal
+        isOpen={isMobileLegalOpen}
+        onClose={() => setIsMobileLegalOpen(false)}
+        initialDoc={activeLegalDoc}
+      />
+
+      {/* Mobile Auth Modal */}
+      <AuthModal
+        isOpen={isMobileAuthOpen}
+        onClose={() => setIsMobileAuthOpen(false)}
       />
     </div>
   );
