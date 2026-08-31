@@ -25,16 +25,12 @@ const allowedOrigins = process.env.CORS_ORIGIN
   : ['http://localhost:5173', 'http://localhost:3000'];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(null, true); // Allow all for now; restrict after confirming Vercel URL
-  },
-  credentials: true
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
+app.options('*', cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 const server = http.createServer(app);

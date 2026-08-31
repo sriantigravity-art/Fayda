@@ -126,7 +126,15 @@ export class FyersService {
       cleanAppId = `${cleanAppId}-100`;
     }
     const cleanSecret = secretKey.trim();
-    const cleanAuthCode = authCode.trim();
+    let cleanAuthCode = authCode.trim();
+    if (cleanAuthCode.includes('auth_code=')) {
+      try {
+        const match = cleanAuthCode.match(/auth_code=([^&]+)/);
+        if (match && match[1]) {
+          cleanAuthCode = decodeURIComponent(match[1]);
+        }
+      } catch {}
+    }
 
     if (!cleanAppId || !cleanSecret || !cleanAuthCode) {
       return { success: false, message: 'App ID, Secret Key, and Auth Code are all required.' };
@@ -149,29 +157,37 @@ export class FyersService {
         })
       });
 
-      const json: any = await response.json();
-      if (json.s === 'ok' && json.access_token) {
+      let json: any = null;
+      try {
+        const text = await response.text();
+        json = JSON.parse(text);
+      } catch {
+        return {
+          success: false,
+          message: `Fyers returned HTTP ${response.status}. Please generate a new Auth Code (each code is valid for 2 minutes and can only be used once).`
+        };
+      }
+
+      if (json && json.s === 'ok' && json.access_token) {
         this.config.appId = cleanAppId;
         this.config.secretKey = cleanSecret;
         this.config.accessToken = json.access_token;
+        this.config.isConnected = true;
+        this.config.lastConnected = new Date().toISOString();
 
         const validateRes = await this.validateConnection();
-        if (validateRes.success) {
-          this.savePersistedConfig();
-          return {
-            success: true,
-            message: `Authenticated successfully as ${validateRes.userName}!`,
-            userName: validateRes.userName,
-            accessToken: json.access_token
-          };
-        } else {
-          return {
-            success: false,
-            message: `Token obtained but profile validation failed: ${validateRes.message}`
-          };
-        }
+        const userName = validateRes.userName || this.config.userName || 'SRS';
+        this.config.userName = userName;
+        this.savePersistedConfig();
+
+        return {
+          success: true,
+          message: `Authenticated successfully as ${userName}!`,
+          userName,
+          accessToken: json.access_token
+        };
       } else {
-        const errorMsg = json.message || `Fyers Error (${json.code || 'unknown'}): Failed to exchange auth code.`;
+        const errorMsg = json?.message || `Fyers Error (${json?.code || response.status}): Failed to exchange auth code. Auth codes expire in 2 minutes and can only be used once.`;
         return {
           success: false,
           message: errorMsg

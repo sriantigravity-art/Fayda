@@ -3,6 +3,7 @@ OI RADAR
 Fyers app ID : KMSSMU5OGR-100
 Secret key : MVADUMZWBM
 
+https://api-t1.fyers.in/api/v3/generate-authcode?client_id=KMSSMU5OGR-100&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state
 Client ID : YS04036
 
 https://trade.fyers.in/api-login/redirect-uri/index.html
@@ -11,7 +12,7 @@ https://api-t1.fyers.in/api/v3/generate-authcode?client_id=KMSSMU5OGR-100&redire
 
 auth code
 
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiJLTVNTTVU1T0dSIiwidXVpZCI6Ijg3ZDVmM2I2NmYxZTRlN2Y4NDFjYjdlY2M2NDNhNDE2IiwiaXBBZGRyIjoiIiwibm9uY2UiOiIiLCJzY29wZSI6IiIsImRpc3BsYXlfbmFtZSI6IllTMDQwMzYiLCJvbXMiOiJLMSIsImhzbV9rZXkiOiIyYTUwN2Q1ZDI5ZGU5MzIxNmU2M2Q0MjM4ZWQyZDQ3MTY1NDI2Yzc2NTMyOTlmM2E4NjdkMzQxZCIsImlzRGRwaUVuYWJsZWQiOiJOIiwiaXNNdGZFbmFibGVkIjoiTiIsImF1ZCI6IltcImQ6MVwiLFwiZDoyXCIsXCJ4OjBcIixcIng6MVwiXSIsImV4cCI6MTc4Nzg4NTE1MSwiaWF0IjoxNzg3ODU1MTUxLCJpc3MiOiJhcGkubG9naW4uZnllcnMuaW4iLCJuYmYiOjE3ODc4NTUxNTEsInN1YiI6ImF1dGhfY29kZSJ9.clnt_QjRg4f15mUYDm8ftOG5hfGLjr2eALoeMSK9ib0
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiJLTVNTTVU1T0dSIiwidXVpZCI6ImYxZTkyZjM4M2Y0YzRhM2ZiZjUxZjRhNDA5ZDE1MTQ1IiwiaXBBZGRyIjoiIiwibm9uY2UiOiIiLCJzY29wZSI6IiIsImRpc3BsYXlfbmFtZSI6IllTMDQwMzYiLCJvbXMiOiJLMSIsImhzbV9rZXkiOiJlNDc5ZGZlNDVhMjNhNmRkYmM4MTI3NTUwMGZiNTlkZjU4MjgwNGVkMjk3MjRlMjU1OTViMzk5YSIsImlzRGRwaUVuYWJsZWQiOiJOIiwiaXNNdGZFbmFibGVkIjoiTiIsImF1ZCI6IltcImQ6MVwiLFwiZDoyXCIsXCJ4OjBcIixcIng6MVwiXSIsImV4cCI6MTc4ODE5NDU3OSwiaWF0IjoxNzg4MTY0NTc5LCJpc3MiOiJhcGkubG9naW4uZnllcnMuaW4iLCJuYmYiOjE3ODgxNjQ1NzksInN1YiI6ImF1dGhfY29kZSJ9.vx-bykXPU4iDTlHXpSY9U-rXsVVVO3cN1-3VKOqOBQw
 
 How the App Saves Your Time:
 During the Day (Zero Re-Logins):
@@ -37,3 +38,5 @@ fayda-production-a914.up.railway.app>>india vix
 
 Fayda
 Your logic. Your capital. Your way.
+
+A decision-support and risk-management terminal that helps traders determine whether a CALL, PUT, NO-TRADE, or HEDGE setup has sufficient evidence.

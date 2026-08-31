@@ -527,15 +527,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getApiBase = () => {
-    const host = window.location.hostname || 'localhost';
-    const isHttps = window.location.protocol === 'https:';
-    const defaultApi = `${isHttps ? 'https:' : 'http:'}//${host}:3001`;
-    return import.meta.env.VITE_API_URL || defaultApi;
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    return '';
   };
 
   const setOptionExpiry = async (expiry: string) => {
     try {
-      await fetch(`${getApiBase()}/api/expiry`, {
+      const url = getApiBase() ? `${getApiBase()}/api/expiry` : '/api/expiry';
+      await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: selectedIndex, expiry })
@@ -548,7 +547,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setDataSource = async (mode: DataSourceMode) => {
     setDataSourceState(mode);
     try {
-      await fetch(`${getApiBase()}/api/datasource`, {
+      const url = getApiBase() ? `${getApiBase()}/api/datasource` : '/api/datasource';
+      await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode })
@@ -560,11 +560,24 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const connectFyers = async (appId: string, accessToken: string, secretKey?: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/fyers/connect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId, accessToken, secretKey })
-      });
+      let res: Response;
+      const body = JSON.stringify({ appId, accessToken, secretKey });
+      try {
+        res = await fetch('/api/fyers/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      } catch {
+        const host = window.location.hostname || 'localhost';
+        const isHttps = window.location.protocol === 'https:';
+        res = await fetch(`${isHttps ? 'https:' : 'http:'}//${host}:3001/api/fyers/connect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      }
+
       const json = await res.json();
       if (json.success) {
         setFyersConfig({
@@ -583,12 +596,24 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const exchangeAuthCode = async (appId: string, secretKey: string, authCode: string) => {
     try {
-      const host = window.location.hostname || 'localhost';
-      const res = await fetch(`http://${host}:3001/api/fyers/exchange-authcode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId, secretKey, authCode })
-      });
+      let res: Response;
+      const body = JSON.stringify({ appId, secretKey, authCode });
+      try {
+        res = await fetch('/api/fyers/exchange-authcode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      } catch {
+        const host = window.location.hostname || 'localhost';
+        const isHttps = window.location.protocol === 'https:';
+        res = await fetch(`${isHttps ? 'https:' : 'http:'}//${host}:3001/api/fyers/exchange-authcode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      }
+
       const json = await res.json();
       if (json.success) {
         setFyersConfig({
