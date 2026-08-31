@@ -127,18 +127,41 @@ export const FlashNewsBanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Headline */}
-        <h4 className="font-bold text-xs sm:text-sm text-terminal-text leading-snug mb-1.5 font-sans">
-          {cleanHeadline}
-        </h4>
+        {/* Headline & Impact Stamp */}
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h4 className="font-bold text-xs sm:text-sm text-terminal-text leading-snug font-sans">
+            {cleanHeadline}
+          </h4>
+          {isBull ? (
+            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-bull/20 text-bull border border-bull/60 shrink-0">
+              🟢 POSITIVE
+            </span>
+          ) : isBear ? (
+            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-bear/20 text-bear border border-bear/60 shrink-0">
+              🔴 NEGATIVE
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber/20 text-amber border border-amber/60 shrink-0">
+              🟡 NEUTRAL
+            </span>
+          )}
+        </div>
 
         {/* Bite-sized summary */}
         <p className="text-[11px] text-terminal-muted leading-relaxed mb-2 font-sans">
           {cleanSummary}
         </p>
 
+        {/* Beneficiary Sectors if available */}
+        {latestFlashNews.beneficiarySectors && latestFlashNews.beneficiarySectors.length > 0 && (
+          <div className="mb-2 p-1.5 rounded-lg bg-bull/10 border border-bull/30 text-[10px] font-sans">
+            <strong className="text-bull font-mono block uppercase">🟢 Outperforming Sectors:</strong>
+            <span className="text-terminal-text font-semibold">{latestFlashNews.beneficiarySectors.join(' • ')}</span>
+          </div>
+        )}
+
         {/* Highlighted Direct Indian Market Impact Box */}
-        <div className={`p-2.5 rounded-xl border text-[11px] font-mono flex items-start gap-2 ${
+        <div className={`p-2.5 rounded-xl border text-[11px] font-sans flex items-start gap-2 ${
           isBull
             ? 'bg-bull/10 border-bull/40 text-bull'
             : isBear
@@ -153,10 +176,10 @@ export const FlashNewsBanner: React.FC = () => {
             <Globe className="w-4 h-4 shrink-0 mt-0.5 text-amber" />
           )}
           <div>
-            <span className="font-bold block text-[10px] uppercase">
-              🎯 NIFTY / INDIAN MARKET IMPACT:
+            <span className="font-bold block text-[10px] uppercase font-mono">
+              🎯 LOGICAL DALAL STREET & NIFTY IMPACT:
             </span>
-            <span className="text-terminal-text font-medium text-[11px] leading-tight">
+            <span className="text-terminal-text font-medium text-[11px] leading-tight block">
               {cleanImpact}
             </span>
           </div>

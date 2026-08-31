@@ -5,10 +5,11 @@ import {
   Zap, 
   Newspaper, 
   Calculator,
-  Compass
+  Compass,
+  BarChart2
 } from 'lucide-react';
 
-export type MobileTabType = 'CHAIN' | 'SIGNALS' | 'ANALYTICS' | 'RADAR' | 'NEWS';
+export type MobileTabType = 'CHAIN' | 'SIGNALS' | 'JOURNAL' | 'RADAR' | 'ANALYTICS' | 'NEWS';
 
 interface MobileNavBarProps {
   activeTab: MobileTabType;
@@ -24,8 +25,9 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
   const tabs: { key: MobileTabType; label: string; icon: any }[] = [
     { key: 'CHAIN', label: 'Chain', icon: Layers },
     { key: 'SIGNALS', label: 'Signals', icon: Zap },
-    { key: 'ANALYTICS', label: 'Analytics', icon: Activity },
+    { key: 'JOURNAL', label: 'Journal', icon: BarChart2 },
     { key: 'RADAR', label: 'Radar', icon: Compass },
+    { key: 'ANALYTICS', label: 'Analytics', icon: Activity },
     { key: 'NEWS', label: 'News', icon: Newspaper }
   ];
 

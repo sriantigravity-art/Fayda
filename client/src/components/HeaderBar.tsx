@@ -494,6 +494,17 @@ export const HeaderBar: React.FC = () => {
             </button>
           )}
 
+          {/* Mobile Quick Journal Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsJournalModalOpen(true)}
+            className="lg:hidden flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs cursor-pointer shrink-0 shadow-sm"
+            title="Trade Journal & Performance Audit"
+          >
+            <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-[11px]">Journal</span>
+          </button>
+
           {/* ========================================================================= */}
           {/* MOBILE / TABLET "MORE OPTIONS" DROPDOWN TRIGGER (< 1024px) */}
           {/* ========================================================================= */}
@@ -609,6 +620,24 @@ export const HeaderBar: React.FC = () => {
 
                 {/* Primary Tools List */}
                 <div className="space-y-1 text-xs">
+                  {/* Trade Journal & Performance Audit */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsJournalModalOpen(true); setIsMoreMenuOpen(false); }}
+                    className="w-full flex items-center justify-between p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition text-left cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <BarChart2 className="w-4 h-4 text-purple-400" />
+                      <div>
+                        <span className="font-bold text-terminal-text block">Trade Journal & Audit</span>
+                        <span className="text-[10px] text-terminal-muted block">Date-wise prediction & target hit ledger</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-purple-500/25 text-purple-300 px-2 py-0.5 rounded font-mono font-bold">
+                      Open
+                    </span>
+                  </button>
+
                   {/* Command Palette */}
                   <button
                     type="button"

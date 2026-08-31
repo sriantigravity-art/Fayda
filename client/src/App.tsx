@@ -23,6 +23,7 @@ import { MobileNavBar, type MobileTabType } from './components/MobileNavBar';
 import { RiskCalculatorModal } from './components/RiskCalculatorModal';
 import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
+import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -82,6 +83,7 @@ const DashboardContent: React.FC = () => {
         <div className="md:hidden flex flex-col space-y-3">
           {mobileTab === 'CHAIN' && panelVisibility.optionChain && <OptionChainHeatmap />}
           {mobileTab === 'SIGNALS' && panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+          {mobileTab === 'JOURNAL' && <PostMarketTradeJournal isModal={false} />}
           {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           {mobileTab === 'RADAR' && (
             <div className="flex flex-col space-y-3">

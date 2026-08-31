@@ -112,6 +112,8 @@ export type NewsSource = 'MONEYCONTROL' | 'CNBC_TV18' | 'BLOOMBERG' | 'REUTERS' 
 export type NewsImpact = 'HIGH_IMPACT' | 'MODERATE' | 'GLOBAL_CUE';
 export type NewsSentiment = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 
+export type NewsImpactStamp = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+
 export interface NewsItem {
   id: string;
   headline: string;
@@ -123,6 +125,11 @@ export interface NewsItem {
   timestamp: string;
   timeFormatted: string;
   indianMarketImpact: string;
+  impactStamp?: NewsImpactStamp;
+  impactedSectors?: string[];
+  beneficiarySectors?: string[];
+  vulnerableSectors?: string[];
+  dalalStreetOutlook?: string;
   url?: string;
 }
 
