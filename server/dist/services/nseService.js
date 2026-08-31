@@ -5,6 +5,7 @@ const types_js_1 = require("../types.js");
 const greekEngine_js_1 = require("../engine/greekEngine.js");
 const nseExpiryService_js_1 = require("./nseExpiryService.js");
 const mcxCommodityService_js_1 = require("./mcxCommodityService.js");
+const globalIndicesService_js_1 = require("./globalIndicesService.js");
 // NSE equity-derivatives API index keys
 const NSE_DERIVATIVE_INDEX_MAP = {
     NIFTY: 'nse50_opt',
@@ -24,6 +25,11 @@ const YAHOO_SPOT_MAP = {
     NATURALGAS: { ticker: 'NG=F', convert: 'USD_INR_GAS' },
     GOLD: { ticker: 'GC=F', convert: 'USD_INR_GOLD' },
     SILVER: { ticker: 'SI=F', convert: 'USD_INR_SILVER' },
+    RELIANCE: { ticker: 'RELIANCE.NS', convert: 'DIRECT' },
+    HDFCBANK: { ticker: 'HDFCBANK.NS', convert: 'DIRECT' },
+    ICICIBANK: { ticker: 'ICICIBANK.NS', convert: 'DIRECT' },
+    INFY: { ticker: 'INFY.NS', convert: 'DIRECT' },
+    TCS: { ticker: 'TCS.NS', convert: 'DIRECT' },
 };
 /**
  * Absolute emergency fallback — used ONLY when Fyers + NSE + Yahoo ALL fail simultaneously.
@@ -31,17 +37,22 @@ const YAHOO_SPOT_MAP = {
  * They exist solely to prevent a crash / blank screen, not to be accurate.
  */
 const EMERGENCY_FALLBACK_SPOT = {
-    NIFTY: 24000,
-    BANKNIFTY: 57000,
-    FINNIFTY: 26000,
-    MIDCPNIFTY: 13000,
-    NIFTYNXT50: 32000,
+    NIFTY: 24500,
+    BANKNIFTY: 51500,
+    FINNIFTY: 23500,
+    MIDCPNIFTY: 12500,
+    NIFTYNXT50: 68000,
     SENSEX: 77000,
     BANKEX: 65000,
     CRUDEOIL: 7000,
     NATURALGAS: 240,
     GOLD: 75000,
     SILVER: 95000,
+    RELIANCE: 2950,
+    HDFCBANK: 1650,
+    ICICIBANK: 1200,
+    INFY: 1850,
+    TCS: 4200,
 };
 class NseService {
     cookies = '';
@@ -93,6 +104,15 @@ class NseService {
      *   GAS    : USD/MMBtu   × USD_INR                  = INR/MMBtu
      */
     async fetchYahooSpot(symbol) {
+        // ── Priority 1: Check live NSE allIndices feed from globalIndicesService ──
+        try {
+            const liveNseQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symbol);
+            if (liveNseQuote && liveNseQuote.spot > 0) {
+                this.spotCache.set(symbol, { ...liveNseQuote, ts: Date.now() });
+                return liveNseQuote;
+            }
+        }
+        catch { }
         // ── GOLD and SILVER: use MCX-aligned IBJA benchmark (official Indian rates) ──
         if (symbol === 'GOLD' || symbol === 'SILVER') {
             const mcqQuote = await mcxCommodityService_js_1.mcxCommodityService.fetchSpot(symbol);
@@ -101,11 +121,9 @@ class NseService {
                 this.spotCache.set(symbol, { ...result, ts: Date.now() });
                 return result;
             }
-            // mcxCommodityService already falls back to Yahoo COMEX internally,
-            // so if it returns null, all sources failed — fall through to Yahoo direct
         }
         const cached = this.spotCache.get(symbol);
-        if (cached && Date.now() - cached.ts < 60000) {
+        if (cached && Date.now() - cached.ts < 20000) {
             return { spot: cached.spot, change: cached.change, pctChange: cached.pctChange };
         }
         const cfg = YAHOO_SPOT_MAP[symbol];

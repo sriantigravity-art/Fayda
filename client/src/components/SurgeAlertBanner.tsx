@@ -10,6 +10,26 @@ export const SurgeAlertBanner: React.FC = () => {
     return null;
   }
 
+  // Guard: Do not display live flash surge banner when market is closed
+  const isMarketOpen = (symbol: string): boolean => {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
+    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+    const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
+    if (isCommodity) {
+      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+    }
+    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  };
+
+  if (!isMarketOpen(latestExtremeSurge.indexSymbol)) {
+    return null;
+  }
+
   const idxState = indices[latestExtremeSurge.indexSymbol];
   const atm = idxState?.atmStrike;
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === latestExtremeSurge.indexSymbol);

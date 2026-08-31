@@ -49,6 +49,15 @@ export const TargetHitFlashModal: React.FC = () => {
 
   if (!latestTargetHit) return null;
 
+  // Market hours check
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + (3600000 * 5.5));
+  const day = ist.getDay();
+  const currentMin = ist.getHours() * 60 + ist.getMinutes();
+  const isMarketOpen = day !== 0 && day !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (23 * 60 + 30);
+  if (!isMarketOpen) return null;
+
   const isBull = latestTargetHit.isBull;
 
   return (

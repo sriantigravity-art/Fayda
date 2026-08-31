@@ -45,6 +45,7 @@ import { AuthModal } from './auth/AuthModal';
 import { SuperAdminControlDrawer } from './admin/SuperAdminControlDrawer';
 import { LegalDocumentModal, type LegalDocType } from './auth/LegalDocumentModal';
 import { CommandPaletteModal } from './CommandPaletteModal';
+import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -71,6 +72,7 @@ export const HeaderBar: React.FC = () => {
   
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
@@ -401,6 +403,17 @@ export const HeaderBar: React.FC = () => {
                 <span className="hidden xl:inline">Risk Calc</span>
               </button>
             )}
+
+            {/* Trade Journal & Performance Audit Report Button */}
+            <button
+              type="button"
+              onClick={() => setIsJournalModalOpen(true)}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/40 hover:bg-purple-500/25 text-purple-300 transition font-sans text-xs font-bold shrink-0 cursor-pointer shadow-sm"
+              title="Trade Journal: Date-Wise Prediction Performance, Target Hits & Nearness Audit"
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden xl:inline">Trade Journal</span>
+            </button>
 
             {/* Legal / SEBI Compliance Center Button */}
             <button
@@ -876,6 +889,15 @@ export const HeaderBar: React.FC = () => {
       <LegalDocumentModal isOpen={isLegalModalOpen} onClose={() => setIsLegalModalOpen(false)} initialDoc={activeLegalDoc} />
       <SuperAdminControlDrawer isOpen={isAdminDrawerOpen} onClose={() => setIsAdminDrawerOpen(false)} />
       <CommandPaletteModal isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+
+      {/* Trade Journal & Performance Audit Modal */}
+      {isJournalModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl">
+            <PostMarketTradeJournal isModal={true} onClose={() => setIsJournalModalOpen(false)} />
+          </div>
+        </div>
+      )}
     </header>
   );
 };

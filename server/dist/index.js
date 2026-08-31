@@ -14,6 +14,7 @@ const fyersService_js_1 = require("./services/fyersService.js");
 const newsService_js_1 = require("./services/newsService.js");
 const globalIndicesService_js_1 = require("./services/globalIndicesService.js");
 const mcxOfflineService_js_1 = require("./services/mcxOfflineService.js");
+const signalLedgerService_js_1 = require("./services/signalLedgerService.js");
 const types_js_1 = require("./types.js");
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
@@ -21,17 +22,12 @@ const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://localhost:3000'];
 app.use((0, cors_1.default)({
-    origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin)
-            return callback(null, true);
-        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        return callback(null, true); // Allow all for now; restrict after confirming Vercel URL
-    },
-    credentials: true
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
+app.options('*', (0, cors_1.default)({ origin: true, credentials: true }));
 app.use(express_1.default.json());
 const server = http_1.default.createServer(app);
 const wss = new ws_1.WebSocketServer({ server, path: '/ws' });
@@ -85,6 +81,14 @@ newsService_js_1.newsService.setCallback((newsItem) => {
         timestamp: new Date().toISOString()
     });
 });
+// Hook GlobalIndicesService Callback to Broadcast Live International & Indian Quotes
+globalIndicesService_js_1.globalIndicesService.setCallback((globalIndices) => {
+    broadcast({
+        type: 'GLOBAL_INDICES_UPDATE',
+        globalIndices,
+        timestamp: new Date().toISOString()
+    });
+});
 const getSymbolConfig = (symbol) => {
     const found = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
     if (found)
@@ -109,12 +113,27 @@ const fetchSymbolSnapshot = async (symConfig) => {
         if (currentDataSource === 'FYERS_LIVE') {
             res = await fyersService_js_1.fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
         }
-        // Seamless fallback to Official Exchange EOD data if Fyers is not logged in or offline
+        // Seamless fallback to Official Exchange data if Fyers is not logged in or offline
         if (!res || !res.strikes || res.strikes.length === 0) {
             res = await nseService_js_1.nseService.fetchOptionChain(symConfig.symbol, chosenExp);
             usedSource = 'NSE_LIVE';
         }
         if (res && res.strikes.length > 0) {
+            // Reconcile spot price & net change with official NSE/BSE quotes if missing or zero
+            let spotPrice = res.spotPrice;
+            let spotChange = res.spotChange ?? 0;
+            let spotPctChange = res.spotPctChange ?? 0;
+            if (spotPrice <= 0 || (spotChange === 0 && spotPctChange === 0)) {
+                const officialQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symConfig.symbol);
+                if (officialQuote && officialQuote.spot > 0) {
+                    if (spotPrice <= 0)
+                        spotPrice = officialQuote.spot;
+                    if (spotChange === 0)
+                        spotChange = officialQuote.change;
+                    if (spotPctChange === 0)
+                        spotPctChange = officialQuote.pctChange;
+                }
+            }
             // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
             let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
             if (!indiaVix) {
@@ -122,13 +141,42 @@ const fetchSymbolSnapshot = async (symConfig) => {
                 if (vixEntry && vixEntry.price > 0)
                     indiaVix = vixEntry.price;
             }
-            const { indexState, newSurges } = engine.processSnapshot(symConfig.symbol, res.spotPrice, res.spotChange ?? 0, res.spotPctChange ?? 0, res.strikes, symConfig.step, symConfig.lot, symConfig.defaultRange, usedSource, res.expiryDates, res.selectedExpiry, res.totalCallOI, res.totalPutOI, indiaVix);
+            const { indexState, newSurges } = engine.processSnapshot(symConfig.symbol, spotPrice, spotChange, spotPctChange, res.strikes, symConfig.step, symConfig.lot, symConfig.defaultRange, usedSource, res.expiryDates, res.selectedExpiry, res.totalCallOI, res.totalPutOI, indiaVix);
             cachedIndexStates.set(symConfig.symbol, indexState);
+            // Track & update live LTP and target nearness in Signal Ledger
+            signalLedgerService_js_1.signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
+            // Auto-record high-confluence trade recommendations during market hours
+            const isOpen = (0, exports.isMarketOpenForSymbol)(symConfig.symbol);
+            if (isOpen && newSurges && newSurges.length > 0) {
+                for (const s of newSurges) {
+                    if (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') {
+                        const entryVal = typeof s.suggestedContract?.ltp === 'number' ? s.suggestedContract.ltp : s.ltp;
+                        const targetVal = parseFloat(String(s.suggestedContract?.target || '').replace(/[^0-9.]/g, '')) || (entryVal * 1.35);
+                        const slVal = parseFloat(String(s.suggestedContract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryVal * 0.82);
+                        if (entryVal > 0 && targetVal > entryVal) {
+                            signalLedgerService_js_1.signalLedgerService.recordSignal({
+                                symbol: symConfig.symbol,
+                                strikePrice: s.strikePrice,
+                                optionType: s.optionType,
+                                action: s.tradeAction === 'BUY_CALL' ? 'BUY_CALL' : 'BUY_PUT',
+                                signalSource: 'OI_SURGE',
+                                entryPrice: entryVal,
+                                target1Price: targetVal,
+                                stoplossPrice: slVal,
+                                riskReward: s.suggestedContract?.riskReward || '1:2.4',
+                                notes: s.actionDescription
+                            });
+                        }
+                    }
+                }
+            }
+            // If market is closed for this symbol, suppress active flash surge popups
+            const broadcastSurges = isOpen ? newSurges : [];
             broadcast({
                 type: 'INDEX_UPDATE',
                 symbol: symConfig.symbol,
                 indexState,
-                newSurges: newSurges,
+                newSurges: broadcastSurges,
                 dataSource: usedSource,
                 isMarketOpen: (0, exports.isNseMarketOpen)(),
                 timestamp: new Date().toISOString()
@@ -143,10 +191,13 @@ const fetchSymbolSnapshot = async (symConfig) => {
 const pollLiveFyers = async () => {
     if (currentDataSource !== 'FYERS_LIVE')
         return;
-    for (const sym of Array.from(watchedSymbols)) {
+    const symbols = Array.from(watchedSymbols);
+    for (const sym of symbols) {
+        if (currentDataSource !== 'FYERS_LIVE')
+            break;
         const config = getSymbolConfig(sym);
         await fetchSymbolSnapshot(config);
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(r => setTimeout(r, 600));
     }
 };
 const startFyersPolling = () => {
@@ -155,7 +206,7 @@ const startFyersPolling = () => {
     if (nsePollTimer)
         clearInterval(nsePollTimer);
     pollLiveFyers();
-    const interval = (0, exports.isNseMarketOpen)() ? 3000 : 30000;
+    const interval = (0, exports.isNseMarketOpen)() ? 5000 : 15000;
     fyersPollTimer = setInterval(pollLiveFyers, interval);
 };
 // Live NSE Polling Worker
@@ -165,6 +216,7 @@ const pollLiveNse = async () => {
     for (const sym of Array.from(watchedSymbols)) {
         const config = getSymbolConfig(sym);
         await fetchSymbolSnapshot(config);
+        await new Promise(r => setTimeout(r, 80));
     }
 };
 const startNsePolling = () => {
@@ -173,7 +225,8 @@ const startNsePolling = () => {
     if (fyersPollTimer)
         clearInterval(fyersPollTimer);
     pollLiveNse();
-    nsePollTimer = setInterval(pollLiveNse, 15000);
+    const interval = (0, exports.isNseMarketOpen)() ? 4000 : 8000;
+    nsePollTimer = setInterval(pollLiveNse, interval);
 };
 // Start polling — use Fyers if configured, otherwise fall back to NSE
 const hasFyersConfig = !!fyersService_js_1.fyersService.getConfig().appId && !!fyersService_js_1.fyersService.getConfig().accessToken;
@@ -298,6 +351,59 @@ app.get('/api/mcx-offline', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch MCX offline data' });
     }
 });
+// =========================================================================
+// TRADE JOURNAL & DATE-WISE PREDICTION REPORT API ENDPOINTS
+// =========================================================================
+// List of all recorded trading dates
+app.get('/api/journal/dates', (req, res) => {
+    try {
+        const dates = signalLedgerService_js_1.signalLedgerService.getAvailableDates();
+        res.json({ dates });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// Full performance report with filters (date, asset category, symbol, status)
+app.get('/api/journal/report', (req, res) => {
+    try {
+        const date = req.query.date;
+        const category = req.query.category || 'ALL';
+        const symbol = req.query.symbol;
+        const status = req.query.status;
+        const report = signalLedgerService_js_1.signalLedgerService.getReport(date, category, symbol, status);
+        res.json(report);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// Record a trade call / prediction
+app.post('/api/journal/record', (req, res) => {
+    try {
+        const { symbol, strikePrice, optionType, action, signalSource, entryPrice, target1Price, target2Price, stoplossPrice, riskReward, notes } = req.body;
+        if (!symbol || !entryPrice || !target1Price || !stoplossPrice) {
+            return res.status(400).json({ error: 'Missing required parameters for trade record' });
+        }
+        const recorded = signalLedgerService_js_1.signalLedgerService.recordSignal({
+            symbol,
+            strikePrice: strikePrice || 0,
+            optionType: optionType || 'CE',
+            action: action || 'BUY_CALL',
+            signalSource: signalSource || 'CONFLUENCE',
+            entryPrice: parseFloat(entryPrice),
+            target1Price: parseFloat(target1Price),
+            target2Price: target2Price ? parseFloat(target2Price) : undefined,
+            stoplossPrice: parseFloat(stoplossPrice),
+            riskReward,
+            notes
+        });
+        res.json({ success: true, call: recorded });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // Periodic broadcast of Global International Indices updates
 setInterval(() => {
     if (activeClients.size > 0) {
@@ -385,8 +491,8 @@ app.post('/api/expiry', (req, res) => {
         res.status(400).json({ error: 'Missing symbol or expiry' });
     }
 });
-server.listen(PORT, () => {
-    console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT}`);
+server.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT} (0.0.0.0)`);
     console.log(`📡 WebSocket stream active at ws://localhost:${PORT}/ws`);
     console.log(`📊 Data source: ${currentDataSource}`);
 });

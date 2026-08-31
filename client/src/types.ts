@@ -525,3 +525,77 @@ export interface GlobalIndexItem {
   impactOnIndia: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
   notes?: string;
 }
+
+export type AssetCategory = 'ALL' | 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
+export type TradeCallStatus = 'TARGET_HIT' | 'STOPLOSS_HIT' | 'NEAR_TARGET' | 'ACTIVE' | 'EXPIRED';
+
+export interface JournalTradeCall {
+  id: string;
+  date: string; // 'YYYY-MM-DD'
+  timestamp: string; // ISO string
+  timeFormatted: string; // '09:45:10 IST'
+  symbol: string; // 'NIFTY', 'RELIANCE', 'CRUDEOIL'
+  category: 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
+  contractName: string; // 'NIFTY 24800 CE', 'RELIANCE 1420 CE', 'CRUDEOIL 6400 PE'
+  strikePrice: number;
+  optionType: 'CE' | 'PE' | 'FUT' | 'EQ';
+  action: 'BUY_CALL' | 'BUY_PUT' | 'BUY' | 'SELL';
+  signalSource: 'OI_SURGE' | 'HERO_ZERO' | 'BREAKOUT' | 'CONFLUENCE';
+  entryPrice: number;
+  recommendedEntryRange: string; // '₹120.00 - ₹122.40'
+  target1Price: number;
+  target2Price?: number;
+  stoplossPrice: number;
+  riskReward: string; // '1:2.5'
+  
+  // Tracking metrics
+  currentLtp: number;
+  peakLtp: number; // Highest favorable price reached after entry
+  troughLtp?: number;
+  exitLtp?: number;
+  
+  // Outcome & Performance
+  status: TradeCallStatus;
+  pointsPnl: number; // Positive for profit, negative for loss
+  pnlPct: number; // Percentage gain/loss from entry
+  nearTargetPct: number; // 0% to 100%+ (% of target distance achieved)
+  nearTargetDescription: string; // '100% Hit' or 'Reached 94% of Target (Peak ₹148 vs ₹150)'
+  targetHitTime?: string;
+  stoplossHitTime?: string;
+  notes?: string;
+}
+
+export interface JournalSummaryMetrics {
+  totalCalls: number;
+  profitableCalls: number;
+  lossCalls: number;
+  nearTargetCalls: number;
+  activeCalls: number;
+  winRatePct: number;
+  nearTargetAccuracyPct: number;
+  totalPointsProfit: number;
+  totalPointsLoss: number;
+  netPoints: number;
+  avgRiskReward: string;
+  bestTrade: {
+    contractName: string;
+    points: number;
+    pnlPct: number;
+  } | null;
+  categoryBreakdown: {
+    options: { total: number; winRate: number; netPoints: number };
+    stocks: { total: number; winRate: number; netPoints: number };
+    commodities: { total: number; winRate: number; netPoints: number };
+  };
+}
+
+export interface JournalReportResponse {
+  date: string;
+  availableDates: string[];
+  category: AssetCategory;
+  symbolFilter: string;
+  statusFilter: string;
+  summary: JournalSummaryMetrics;
+  signals: JournalTradeCall[];
+}
+

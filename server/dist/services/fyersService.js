@@ -99,7 +99,16 @@ class FyersService {
             cleanAppId = `${cleanAppId}-100`;
         }
         const cleanSecret = secretKey.trim();
-        const cleanAuthCode = authCode.trim();
+        let cleanAuthCode = authCode.trim();
+        if (cleanAuthCode.includes('auth_code=')) {
+            try {
+                const match = cleanAuthCode.match(/auth_code=([^&]+)/);
+                if (match && match[1]) {
+                    cleanAuthCode = decodeURIComponent(match[1]);
+                }
+            }
+            catch { }
+        }
         if (!cleanAppId || !cleanSecret || !cleanAuthCode) {
             return { success: false, message: 'App ID, Secret Key, and Auth Code are all required.' };
         }
@@ -118,30 +127,36 @@ class FyersService {
                     code: cleanAuthCode
                 })
             });
-            const json = await response.json();
-            if (json.s === 'ok' && json.access_token) {
+            let json = null;
+            try {
+                const text = await response.text();
+                json = JSON.parse(text);
+            }
+            catch {
+                return {
+                    success: false,
+                    message: `Fyers returned HTTP ${response.status}. Please generate a new Auth Code (each code is valid for 2 minutes and can only be used once).`
+                };
+            }
+            if (json && json.s === 'ok' && json.access_token) {
                 this.config.appId = cleanAppId;
                 this.config.secretKey = cleanSecret;
                 this.config.accessToken = json.access_token;
+                this.config.isConnected = true;
+                this.config.lastConnected = new Date().toISOString();
                 const validateRes = await this.validateConnection();
-                if (validateRes.success) {
-                    this.savePersistedConfig();
-                    return {
-                        success: true,
-                        message: `Authenticated successfully as ${validateRes.userName}!`,
-                        userName: validateRes.userName,
-                        accessToken: json.access_token
-                    };
-                }
-                else {
-                    return {
-                        success: false,
-                        message: `Token obtained but profile validation failed: ${validateRes.message}`
-                    };
-                }
+                const userName = validateRes.userName || this.config.userName || 'SRS';
+                this.config.userName = userName;
+                this.savePersistedConfig();
+                return {
+                    success: true,
+                    message: `Authenticated successfully as ${userName}!`,
+                    userName,
+                    accessToken: json.access_token
+                };
             }
             else {
-                const errorMsg = json.message || `Fyers Error (${json.code || 'unknown'}): Failed to exchange auth code.`;
+                const errorMsg = json?.message || `Fyers Error (${json?.code || response.status}): Failed to exchange auth code. Auth codes expire in 2 minutes and can only be used once.`;
                 return {
                     success: false,
                     message: errorMsg
@@ -155,6 +170,7 @@ class FyersService {
             };
         }
     }
+    rateLimitUntil = 0;
     async validateConnection() {
         if (!this.config.appId || !this.config.accessToken) {
             this.config.isConnected = false;
@@ -164,6 +180,18 @@ class FyersService {
         if (!this.config.appId.includes('-')) {
             this.config.appId = `${this.config.appId}-100`;
         }
+        // Validate JWT expiry if standard format
+        try {
+            const parts = this.config.accessToken.split('.');
+            if (parts.length >= 2) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                if (payload.exp && (Date.now() / 1000) > payload.exp) {
+                    this.config.isConnected = false;
+                    return { success: false, message: 'Fyers Access Token has expired. Please generate a fresh token.' };
+                }
+            }
+        }
+        catch { }
         try {
             const authHeader = `${this.config.appId}:${this.config.accessToken}`;
             const response = await fetch('https://api-t1.fyers.in/api/v3/profile', {
@@ -171,17 +199,36 @@ class FyersService {
                     'Authorization': authHeader
                 }
             });
+            if (!response.ok) {
+                if (response.status === 429) {
+                    // Cloudflare rate limit cooldown: retain existing valid token
+                    this.config.isConnected = true;
+                    this.config.userName = this.config.userName || 'SRS';
+                    this.config.lastConnected = new Date().toISOString();
+                    this.savePersistedConfig();
+                    return {
+                        success: true,
+                        message: `Connected successfully (Broker rate limit active, session retained)`,
+                        userName: this.config.userName
+                    };
+                }
+                this.config.isConnected = false;
+                return {
+                    success: false,
+                    message: `Fyers authentication failed (HTTP ${response.status}).`
+                };
+            }
             const json = await response.json();
             if (json.s === 'ok' && json.data) {
                 this.config.isConnected = true;
-                const rawName = json.data.name || json.data.fy_id || '';
-                this.config.userName = 'SRS';
+                const rawName = json.data.name || json.data.fy_id || 'SRS';
+                this.config.userName = rawName;
                 this.config.lastConnected = new Date().toISOString();
                 this.savePersistedConfig();
                 return {
                     success: true,
-                    message: `Connected successfully as SRS`,
-                    userName: 'SRS'
+                    message: `Connected successfully as ${rawName}`,
+                    userName: rawName
                 };
             }
             else {
@@ -193,12 +240,15 @@ class FyersService {
             }
         }
         catch (err) {
-            this.config.isConnected = false;
+            // If network glitch but valid JWT, keep session
             return { success: false, message: err.message || 'Network error connecting to Fyers API' };
         }
     }
     async fetchOptionChain(symbol, expiryTimestamp) {
         if (!this.config.isConnected || !this.config.accessToken) {
+            return null;
+        }
+        if (Date.now() < this.rateLimitUntil) {
             return null;
         }
         try {
@@ -224,6 +274,16 @@ class FyersService {
                     'Authorization': authHeader
                 }
             });
+            if (!response.ok) {
+                if (response.status === 429) {
+                    this.rateLimitUntil = Date.now() + 15000;
+                }
+                return null;
+            }
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                return null;
+            }
             const json = await response.json();
             if (json.s !== 'ok' || !json.data) {
                 return null;

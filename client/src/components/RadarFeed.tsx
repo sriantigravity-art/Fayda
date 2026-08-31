@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useMarket } from '../context/MarketContext';
 import type { SurgeEvent, SurgeLevel, IndexSymbol, TradeAction } from '../types';
 import { calculateTargetHorizon } from '../utils/tradeHorizon';
+import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { 
   Flame, 
   Filter, 
@@ -10,21 +11,15 @@ import {
   Sparkles, 
   Zap,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  BookOpen,
+  BarChart2
 } from 'lucide-react';
 
 type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
 
 export const RadarFeed: React.FC = () => {
   const { recentSurges, visibleIndices, indices } = useMarket();
-
-  // Local filters & collapse state
-  const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
-  const [timeFilter, setTimeFilter] = useState<TimeWindowFilter>('ALL');
-  const [levelFilter, setLevelFilter] = useState<'ALL' | SurgeLevel>('ALL');
-  const [indexFilter, setIndexFilter] = useState<'ALL' | IndexSymbol>('ALL');
-  const [actionFilter, setActionFilter] = useState<'ALL' | TradeAction>('ALL');
 
   // Official NSE Equity Derivatives Market Hours: 09:15 to 15:40 IST (Mon-Fri)
   const isMarketHours = () => {
@@ -39,6 +34,15 @@ export const RadarFeed: React.FC = () => {
   };
 
   const isLiveMarketOpen = isMarketHours();
+
+  // Local filters & view mode state
+  const [viewMode, setViewMode] = useState<'LIVE' | 'JOURNAL'>(() => isLiveMarketOpen ? 'LIVE' : 'JOURNAL');
+  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
+  const [timeFilter, setTimeFilter] = useState<TimeWindowFilter>('ALL');
+  const [levelFilter, setLevelFilter] = useState<'ALL' | SurgeLevel>('ALL');
+  const [indexFilter, setIndexFilter] = useState<'ALL' | IndexSymbol>('ALL');
+  const [actionFilter, setActionFilter] = useState<'ALL' | TradeAction>('ALL');
 
   // Calculate live count of surges per time window
   const countsByTime = useMemo(() => {
@@ -127,71 +131,81 @@ export const RadarFeed: React.FC = () => {
 
   return (
     <div className="bg-terminal-card border border-terminal-border rounded-xl flex flex-col overflow-hidden shadow-xl transition-all duration-300">
-      {/* Feed Header (Accordion Trigger) */}
-      <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={`p-3.5 bg-terminal-panel/60 cursor-pointer select-none group/hdr transition-all ${isExpanded ? 'border-b border-terminal-border' : ''}`}
-      >
+      {/* Feed Header */}
+      <div className="p-3 sm:p-3.5 bg-terminal-panel/80 border-b border-terminal-border">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center space-x-2.5">
             <span className="w-1.5 h-6 rounded-full bg-bear shadow-[0_0_10px_#FF3B69] shrink-0" />
-            <div className="p-2 rounded-xl bg-bear/15 text-bear border border-bear/30 shadow-[0_0_12px_rgba(255,59,105,0.25)] group-hover/hdr:scale-105 transition-transform shrink-0">
+            <div className="p-2 rounded-xl bg-bear/15 text-bear border border-bear/30 shadow-[0_0_12px_rgba(255,59,105,0.25)] shrink-0">
               <Flame className="w-4 h-4 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)] group-hover/hdr:text-bear transition-colors">
-                  LIVE OI ACTIVITY RADAR
+                <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)]">
+                  {viewMode === 'LIVE' ? 'LIVE OI ACTIVITY RADAR' : 'TRADE JOURNAL & CALLS AUDIT'}
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
-                  {filteredSurges.length} Events
-                </span>
+                {viewMode === 'LIVE' && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
+                    {filteredSurges.length} Events
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-terminal-muted font-mono mt-0.5">
-                Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner
+                {viewMode === 'LIVE' 
+                  ? 'Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner' 
+                  : 'Date-wise performance journal: Entry, Targets, Stoploss, Book Profit/Loss & Near-Target verification'}
               </p>
             </div>
           </div>
 
-          {/* Right Action Suite & Filter Controls */}
-          <div className="flex items-center justify-center sm:justify-end space-x-2 font-mono text-xs w-full sm:w-auto sm:ml-auto">
-            {/* Live Filter Indicator Pills (visible when collapsed or expanded) */}
-            <div className="hidden sm:flex items-center space-x-1">
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted border border-terminal-border">
-                {indexFilter === 'ALL' ? 'ALL STRIKES' : indexFilter}
-              </span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-bull/10 text-bull border border-bull/30">
-                1-Sec Live
-              </span>
-            </div>
-
-            {/* Standardized Dropdown Toggle Button */}
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center space-x-1 bg-terminal-card p-1 rounded-xl border border-terminal-border font-mono text-xs w-full sm:w-auto sm:ml-auto">
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded(!isExpanded);
-              }}
-              className={`px-3 py-1.5 rounded-xl border-2 font-mono font-black text-[11px] sm:text-xs transition-all hover:scale-105 flex items-center justify-center gap-2 shrink-0 shadow-sm ${
-                isExpanded
-                  ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.3)]'
-                  : 'bg-terminal-card border-accent-cyan/70 text-terminal-text hover:border-accent-cyan hover:text-accent-cyan'
+              onClick={() => setViewMode('LIVE')}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold transition text-[11px] ${
+                viewMode === 'LIVE'
+                  ? 'bg-bear text-white shadow-md'
+                  : 'text-terminal-muted hover:text-terminal-text'
               }`}
-              title={isExpanded ? "Click to Collapse Live OI Activity Radar" : "Click to Expand Live OI Activity Radar"}
             >
-              <span className="tracking-wider uppercase">
-                {isExpanded ? 'COLLAPSE' : 'VIEW RADAR'}
-              </span>
-              <div className={`p-0.5 rounded bg-accent-cyan/15 text-accent-cyan transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-accent-cyan/30' : ''}`}>
-                <ChevronDown className="w-4 h-4" />
-              </div>
+              <Zap className="w-3.5 h-3.5" />
+              <span>Live Scanner</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('JOURNAL')}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold transition text-[11px] ${
+                viewMode === 'JOURNAL'
+                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                  : 'text-terminal-muted hover:text-terminal-text'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Trade Journal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1 rounded-lg hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text ml-1"
+              title="Expand / Collapse"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
       </div>
 
       {/* Expandable Feed Suite & Scrollable Events */}
-      {isExpanded && (
+      {isExpanded && viewMode === 'JOURNAL' && (
+        <div className="p-2 sm:p-3 animate-in fade-in duration-200">
+          <PostMarketTradeJournal />
+        </div>
+      )}
+
+      {isExpanded && viewMode === 'LIVE' && (
         <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-200">
           {/* Internal Filter Toggle & Suite */}
           <div className="px-3.5 pt-2 pb-1 bg-terminal-panel/30 border-b border-terminal-border/60">

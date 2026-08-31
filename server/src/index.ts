@@ -8,13 +8,15 @@ import { fyersService } from './services/fyersService.js';
 import { newsService } from './services/newsService.js';
 import { globalIndicesService } from './services/globalIndicesService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
+import { signalLedgerService } from './services/signalLedgerService.js';
 import { 
   IndexSymbol, 
   DataSourceMode, 
   MarketIndexState, 
   NewsItem, 
   ALL_SYMBOLS_CONFIG, 
-  SymbolConfig 
+  SymbolConfig,
+  AssetCategory
 } from './types.js';
 
 const app = express();
@@ -177,11 +179,44 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
 
       cachedIndexStates.set(symConfig.symbol, indexState);
 
+      // Track & update live LTP and target nearness in Signal Ledger
+      signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
+
+      // Auto-record high-confluence trade recommendations during market hours
+      const isOpen = isMarketOpenForSymbol(symConfig.symbol);
+      if (isOpen && newSurges && newSurges.length > 0) {
+        for (const s of newSurges) {
+          if (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') {
+            const entryVal = typeof s.suggestedContract?.ltp === 'number' ? s.suggestedContract.ltp : s.ltp;
+            const targetVal = parseFloat(String(s.suggestedContract?.target || '').replace(/[^0-9.]/g, '')) || (entryVal * 1.35);
+            const slVal = parseFloat(String(s.suggestedContract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryVal * 0.82);
+
+            if (entryVal > 0 && targetVal > entryVal) {
+              signalLedgerService.recordSignal({
+                symbol: symConfig.symbol,
+                strikePrice: s.strikePrice,
+                optionType: s.optionType,
+                action: s.tradeAction === 'BUY_CALL' ? 'BUY_CALL' : 'BUY_PUT',
+                signalSource: 'OI_SURGE',
+                entryPrice: entryVal,
+                target1Price: targetVal,
+                stoplossPrice: slVal,
+                riskReward: s.suggestedContract?.riskReward || '1:2.4',
+                notes: s.actionDescription
+              });
+            }
+          }
+        }
+      }
+
+      // If market is closed for this symbol, suppress active flash surge popups
+      const broadcastSurges = isOpen ? newSurges : [];
+
       broadcast({
         type: 'INDEX_UPDATE',
         symbol: symConfig.symbol,
         indexState,
-        newSurges: newSurges,
+        newSurges: broadcastSurges,
         dataSource: usedSource,
         isMarketOpen: isNseMarketOpen(),
         timestamp: new Date().toISOString()
@@ -368,6 +403,63 @@ app.get('/api/mcx-offline', async (req, res) => {
   } catch (err: any) {
     console.error('[MCX-Offline] API error:', err.message);
     res.status(500).json({ error: 'Failed to fetch MCX offline data' });
+  }
+});
+
+// =========================================================================
+// TRADE JOURNAL & DATE-WISE PREDICTION REPORT API ENDPOINTS
+// =========================================================================
+
+// List of all recorded trading dates
+app.get('/api/journal/dates', (req, res) => {
+  try {
+    const dates = signalLedgerService.getAvailableDates();
+    res.json({ dates });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Full performance report with filters (date, asset category, symbol, status)
+app.get('/api/journal/report', (req, res) => {
+  try {
+    const date = req.query.date as string | undefined;
+    const category = (req.query.category as AssetCategory) || 'ALL';
+    const symbol = req.query.symbol as string | undefined;
+    const status = req.query.status as string | undefined;
+
+    const report = signalLedgerService.getReport(date, category, symbol, status);
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Record a trade call / prediction
+app.post('/api/journal/record', (req, res) => {
+  try {
+    const { symbol, strikePrice, optionType, action, signalSource, entryPrice, target1Price, target2Price, stoplossPrice, riskReward, notes } = req.body;
+    if (!symbol || !entryPrice || !target1Price || !stoplossPrice) {
+      return res.status(400).json({ error: 'Missing required parameters for trade record' });
+    }
+
+    const recorded = signalLedgerService.recordSignal({
+      symbol,
+      strikePrice: strikePrice || 0,
+      optionType: optionType || 'CE',
+      action: action || 'BUY_CALL',
+      signalSource: signalSource || 'CONFLUENCE',
+      entryPrice: parseFloat(entryPrice),
+      target1Price: parseFloat(target1Price),
+      target2Price: target2Price ? parseFloat(target2Price) : undefined,
+      stoplossPrice: parseFloat(stoplossPrice),
+      riskReward,
+      notes
+    });
+
+    res.json({ success: true, call: recorded });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 
