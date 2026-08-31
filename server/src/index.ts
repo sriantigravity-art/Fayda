@@ -186,10 +186,12 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
 const pollLiveFyers = async () => {
   if (currentDataSource !== 'FYERS_LIVE') return;
 
-  for (const sym of Array.from(watchedSymbols)) {
+  const symbols = Array.from(watchedSymbols);
+  for (const sym of symbols) {
+    if (currentDataSource !== 'FYERS_LIVE') break;
     const config = getSymbolConfig(sym);
     await fetchSymbolSnapshot(config);
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 600));
   }
 };
 
@@ -197,7 +199,7 @@ const startFyersPolling = () => {
   if (fyersPollTimer) clearInterval(fyersPollTimer);
   if (nsePollTimer) clearInterval(nsePollTimer);
   pollLiveFyers();
-  const interval = isNseMarketOpen() ? 3000 : 15000;
+  const interval = isNseMarketOpen() ? 5000 : 15000;
   fyersPollTimer = setInterval(pollLiveFyers, interval);
 };
 
