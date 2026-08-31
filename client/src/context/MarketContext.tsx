@@ -526,19 +526,43 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     soundManager.playExtremeAlert();
   };
 
-  const getApiBase = () => {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return '';
+  const fetchBackendJson = async (endpointPath: string, method = 'POST', data?: any): Promise<any> => {
+    const host = window.location.hostname || 'localhost';
+    const isHttps = window.location.protocol === 'https:';
+    const body = data ? JSON.stringify(data) : undefined;
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+
+    const candidates = [
+      `${isHttps ? 'https:' : 'http:'}//${host}:3001${endpointPath}`,
+      `http://localhost:3001${endpointPath}`,
+      `http://127.0.0.1:3001${endpointPath}`,
+      endpointPath
+    ];
+
+    let lastError = '';
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { method, headers, body });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const json = await res.json();
+          return json;
+        }
+      } catch (err: any) {
+        lastError = err.message;
+      }
+    }
+
+    return {
+      success: false,
+      message: lastError || 'Unable to connect to backend server at port 3001. Please ensure backend is running.'
+    };
   };
 
   const setOptionExpiry = async (expiry: string) => {
     try {
-      const url = getApiBase() ? `${getApiBase()}/api/expiry` : '/api/expiry';
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: selectedIndex, expiry })
-      });
+      await fetchBackendJson('/api/expiry', 'POST', { symbol: selectedIndex, expiry });
     } catch (e) {
       console.error('Failed to set option expiry:', e);
     }
@@ -547,12 +571,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setDataSource = async (mode: DataSourceMode) => {
     setDataSourceState(mode);
     try {
-      const url = getApiBase() ? `${getApiBase()}/api/datasource` : '/api/datasource';
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode })
-      });
+      await fetchBackendJson('/api/datasource', 'POST', { mode });
     } catch (e) {
       console.error('Failed to set data source:', e);
     }
@@ -560,25 +579,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const connectFyers = async (appId: string, accessToken: string, secretKey?: string) => {
     try {
-      let res: Response;
-      const body = JSON.stringify({ appId, accessToken, secretKey });
-      try {
-        res = await fetch('/api/fyers/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
-        });
-      } catch {
-        const host = window.location.hostname || 'localhost';
-        const isHttps = window.location.protocol === 'https:';
-        res = await fetch(`${isHttps ? 'https:' : 'http:'}//${host}:3001/api/fyers/connect`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
-        });
-      }
-
-      const json = await res.json();
+      const json = await fetchBackendJson('/api/fyers/connect', 'POST', { appId, accessToken, secretKey });
       if (json.success) {
         setFyersConfig({
           appId: appId.includes('-') ? appId : `${appId}-100`,
@@ -596,25 +597,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const exchangeAuthCode = async (appId: string, secretKey: string, authCode: string) => {
     try {
-      let res: Response;
-      const body = JSON.stringify({ appId, secretKey, authCode });
-      try {
-        res = await fetch('/api/fyers/exchange-authcode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
-        });
-      } catch {
-        const host = window.location.hostname || 'localhost';
-        const isHttps = window.location.protocol === 'https:';
-        res = await fetch(`${isHttps ? 'https:' : 'http:'}//${host}:3001/api/fyers/exchange-authcode`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
-        });
-      }
-
-      const json = await res.json();
+      const json = await fetchBackendJson('/api/fyers/exchange-authcode', 'POST', { appId, secretKey, authCode });
       if (json.success) {
         setFyersConfig({
           appId: appId.includes('-') ? appId : `${appId}-100`,
