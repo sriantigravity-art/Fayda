@@ -260,7 +260,10 @@ export const HighlightSignalTicker: React.FC = () => {
           <div
             className="flex items-center space-x-2.5 sm:space-x-3 w-max will-change-transform"
             style={{
-              animation: `marquee-scroll ${speedSeconds}s linear infinite`,
+              animationName: 'marquee-scroll',
+              animationDuration: `${speedSeconds}s`,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
               animationPlayState: isAnimationPaused ? 'paused' : 'running'
             }}
           >

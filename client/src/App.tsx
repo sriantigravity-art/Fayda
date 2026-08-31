@@ -31,9 +31,6 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
-      {/* App Launch Video Splash Screen */}
-      <SplashScreen />
-
       {/* Right Side Docked International Indices Drawer with Vertical Toggle */}
       {panelVisibility.globalSidebar && <GlobalIndicesSidebar />}
 
