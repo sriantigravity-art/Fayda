@@ -48,6 +48,14 @@ interface MarketContextType {
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
+export const getApiBase = (): string => {
+  if (typeof window === 'undefined') return 'http://localhost:3001';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const host = window.location.hostname || 'localhost';
+  const isHttps = window.location.protocol === 'https:';
+  return `${isHttps ? 'https:' : 'http:'}//${host}:3001`;
+};
+
 export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [indices, setIndices] = useState<Record<IndexSymbol, MarketIndexState | null>>({
     NIFTY: null,
