@@ -508,10 +508,12 @@ export const SurgeAlertBanner: React.FC = () => {
               const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.04) && !isTargetHit && !isStoplossHit;
               const isPullback = currentOptionLtp < (entryBase * 0.96) && !isStoplossHit;
 
-              // Timeline
-              const ageSeconds = Math.floor((currentTime - new Date(surge.timestamp).getTime()) / 1000);
+              // Timeline & Fixed Call Trigger Time
+              const callGivenTime = surge.givenTimestamp || surge.timestamp;
+              const ageSeconds = Math.floor((currentTime - new Date(callGivenTime).getTime()) / 1000);
               const diffMin = Math.floor(ageSeconds / 60);
               const relTimeStr = diffMin === 0 ? 'Just now' : `${diffMin}m ago`;
+              const formattedGivenTime = formatISTTime(callGivenTime, { showSeconds: false });
 
               return (
                 <div
@@ -590,10 +592,11 @@ export const SurgeAlertBanner: React.FC = () => {
                       ) : null}
                     </div>
 
+                    {/* Fixed Signal Given Time */}
                     <div className="flex items-center space-x-1.5 text-[10px]">
-                      <span className="px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold flex items-center gap-1">
-                        <Clock className="w-2.5 h-2.5" />
-                        <span>{formatISTTime(surge.timestamp, { showSeconds: false })}</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-terminal-panel border border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Original Signal Triggered at ${formattedGivenTime} IST`}>
+                        <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
+                        <span>GIVEN AT: <strong className="text-terminal-text">{formattedGivenTime}</strong></span>
                         <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
                       </span>
                     </div>
@@ -675,7 +678,18 @@ export const SurgeAlertBanner: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 4. Footer Flow Metrics & Analytical Greek Timeframe */}
+                  {/* 4. Dynamic Analytical Momentum Horizon Bar */}
+                  <div className="px-2.5 py-1.5 rounded-xl bg-terminal-panel/90 border border-terminal-border/80 flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                    <span className="flex items-center gap-1.5 text-accent-cyan font-bold">
+                      <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
+                      <span>{surge.horizonDescription || '⏱️ Momentum Horizon: 15-20 min'}</span>
+                    </span>
+                    <span className="text-terminal-muted">
+                      Flow Velocity: <strong className="text-emerald-700 dark:text-bull">{surge.oiChangePct > 0 ? `+${surge.oiChangePct}%` : `${surge.oiChangePct}%`} OI/min</strong>
+                    </span>
+                  </div>
+
+                  {/* 5. Footer Flow Metrics */}
                   <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-terminal-border/50">
                     <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
                     <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>

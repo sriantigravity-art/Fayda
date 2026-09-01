@@ -367,9 +367,28 @@ export class OIEngine {
           ? `High Liquidity (${(raw.callVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
           : `Moderate Liquidity (${(raw.callVolume / 1000).toFixed(0)}k Vol)`;
 
+        // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
+        let callHorizonMins = calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 18 : 28;
+        let callHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
+        if (calibratedCallScore >= 80) {
+          callHorizonDesc = '⚡ High Velocity Institutional Burst (8-12m)';
+        } else if (calibratedCallScore >= 60) {
+          callHorizonDesc = '🚀 Active Momentum Wave (15-20m)';
+        } else {
+          callHorizonDesc = '📊 Steady Trend Accumulation (25-35m)';
+        }
+        if (greeks.callIv >= 18) {
+          callHorizonMins = Math.max(8, callHorizonMins - 4);
+          callHorizonDesc += ' • High IV Scalp';
+        } else if (greeks.callIv < 11) {
+          callHorizonMins = Math.min(35, callHorizonMins + 5);
+          callHorizonDesc += ' • Low IV Cushion';
+        }
+
         detectedSurgesThisTick.push({
           id: `${symbol}-CE-${strike}-${now}`,
           timestamp: new Date(now).toISOString(),
+          givenTimestamp: new Date(now).toISOString(),
           timeFormatted: timeStr,
           indexSymbol: symbol,
           strikePrice: strike,
@@ -402,8 +421,9 @@ export class OIEngine {
             liquidityNote: liqNote
           },
           confidence: actionInfo.confidence,
-          validUntilMinutes: calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 15 : 20,
-          expiresAt: new Date(now + (calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 15 : 20) * 60000).toISOString()
+          validUntilMinutes: callHorizonMins,
+          horizonDescription: callHorizonDesc,
+          expiresAt: new Date(now + callHorizonMins * 60000).toISOString()
         });
       }
 
@@ -434,9 +454,28 @@ export class OIEngine {
           ? `High Liquidity (${(raw.putVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
           : `Moderate Liquidity (${(raw.putVolume / 1000).toFixed(0)}k Vol)`;
 
+        // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
+        let putHorizonMins = calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 18 : 28;
+        let putHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
+        if (calibratedPutScore >= 80) {
+          putHorizonDesc = '⚡ High Velocity Breakdown Wave (8-12m)';
+        } else if (calibratedPutScore >= 60) {
+          putHorizonDesc = '🚀 Active Downside Momentum (15-20m)';
+        } else {
+          putHorizonDesc = '📊 Steady Resistance Accumulation (25-35m)';
+        }
+        if (greeks.putIv >= 18) {
+          putHorizonMins = Math.max(8, putHorizonMins - 4);
+          putHorizonDesc += ' • High IV Scalp';
+        } else if (greeks.putIv < 11) {
+          putHorizonMins = Math.min(35, putHorizonMins + 5);
+          putHorizonDesc += ' • Low IV Cushion';
+        }
+
         detectedSurgesThisTick.push({
           id: `${symbol}-PE-${strike}-${now}`,
           timestamp: new Date(now).toISOString(),
+          givenTimestamp: new Date(now).toISOString(),
           timeFormatted: timeStr,
           indexSymbol: symbol,
           strikePrice: strike,
@@ -469,8 +508,9 @@ export class OIEngine {
             liquidityNote: liqNote
           },
           confidence: actionInfo.confidence,
-          validUntilMinutes: calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 15 : 20,
-          expiresAt: new Date(now + (calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 15 : 20) * 60000).toISOString()
+          validUntilMinutes: putHorizonMins,
+          horizonDescription: putHorizonDesc,
+          expiresAt: new Date(now + putHorizonMins * 60000).toISOString()
         });
       }
     }
