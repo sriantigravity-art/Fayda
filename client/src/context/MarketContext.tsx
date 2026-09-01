@@ -283,7 +283,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (msg.type === 'INITIAL_STATE') {
           if (msg.recentSurges && msg.recentSurges.length > 0) {
             setRecentSurges(msg.recentSurges);
-            const latest = msg.recentSurges.find((s: SurgeEvent) => s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG');
+            const latest = msg.recentSurges.find((s: SurgeEvent) => (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') && (s.surgeScore ?? 0) >= 60);
             if (latest) {
               const ageMin = (Date.now() - new Date(latest.timestamp).getTime()) / (60 * 1000);
               if (ageMin <= (latest.validUntilMinutes || 15)) {
@@ -401,8 +401,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             setRecentSurges((prev) => [...validSurges, ...prev].slice(0, 80));
 
+            // Only trigger flash surge for High-Quality Institutional Momentum (Score >= 60)
             const visibleExtreme = validSurges.find(
-              (s: SurgeEvent) => s.surgeLevel === 'EXTREME'
+              (s: SurgeEvent) => s.surgeLevel === 'EXTREME' && (s.surgeScore ?? 0) >= 60
             );
 
             if (visibleExtreme) {
@@ -410,7 +411,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               setLatestExtremeSurge(visibleExtreme);
             } else {
               const visibleStrong = validSurges.find(
-                (s: SurgeEvent) => s.surgeLevel === 'STRONG'
+                (s: SurgeEvent) => s.surgeLevel === 'STRONG' && (s.surgeScore ?? 0) >= 60
               );
               if (visibleStrong) {
                 soundManager.playStrongAlert();
