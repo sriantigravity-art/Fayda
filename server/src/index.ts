@@ -542,6 +542,76 @@ app.post('/api/fyers/connect', async (req, res) => {
   res.json(result);
 });
 
+// Fyers 1-Click OAuth Callback Endpoint (Auto-Capture & Exchange)
+app.get('/api/fyers/callback', async (req, res) => {
+  const authCode = (req.query.auth_code || req.query.code || req.query['auth-code']) as string;
+  const cfg = fyersService.getConfig();
+  const appId = (req.query.app_id as string) || cfg.appId || 'KMSSMU5OGR-100';
+  const secretKey = (req.query.secret_key as string) || cfg.secretKey || '';
+
+  if (!authCode) {
+    return res.status(400).send(`
+      <html>
+        <body style="background:#0b0e14;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <div style="text-align:center;padding:2rem;background:#151a24;border-radius:12px;border:1px solid #2d3748;max-width:450px;">
+            <h2 style="margin-top:0;">⚠️ No Auth Code Found</h2>
+            <p style="color:#94a3b8;font-size:14px;">Fyers did not pass an authorization code in the redirect URL.</p>
+            <a href="/" style="color:#00e5ff;text-decoration:none;font-weight:bold;display:inline-block;margin-top:1rem;padding:8px 16px;background:rgba(0,229,255,0.1);border-radius:8px;border:1px solid rgba(0,229,255,0.3);">Back to Terminal</a>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+
+  if (!secretKey) {
+    // If secret key is not in server memory, redirect to frontend with auth_code query param so modal can auto-fill
+    return res.redirect(`/?fyers_auth_code=${encodeURIComponent(authCode)}`);
+  }
+
+  const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
+
+  if (result.success) {
+    currentDataSource = 'FYERS_LIVE';
+    startFyersPolling();
+
+    broadcast({
+      type: 'FYERS_STATUS',
+      fyersConfig: fyersService.getConfig(),
+      dataSource: currentDataSource,
+      isMarketOpen: isNseMarketOpen(),
+      timestamp: new Date().toISOString()
+    });
+
+    return res.send(`
+      <html>
+        <head><title>Fyers Connected</title></head>
+        <body style="background:#0b0e14;color:#00e5ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <div style="text-align:center;padding:2.5rem;background:#151a24;border-radius:16px;border:1px solid rgba(0,229,255,0.3);box-shadow:0 0 30px rgba(0,229,255,0.15);max-width:480px;">
+            <div style="font-size:40px;margin-bottom:12px;">⚡</div>
+            <h2 style="margin:0 0 8px;color:#fff;">Fyers Connected Successfully!</h2>
+            <p style="color:#10b981;font-weight:bold;font-size:14px;margin:0 0 16px;">Welcome ${result.userName || 'Trader'} — Live Stream Active</p>
+            <p style="color:#94a3b8;font-size:12px;margin:0 0 20px;">Your token has been exchanged and live exchange data is streaming.</p>
+            <a href="/" style="display:inline-block;padding:10px 24px;background:#00e5ff;color:#0b0e14;font-weight:bold;font-size:13px;border-radius:10px;text-decoration:none;letter-spacing:0.5px;">Return to Dashboard &rarr;</a>
+            <script>setTimeout(function(){ window.location.href = '/?fyers_connected=true'; }, 1500);</script>
+          </div>
+        </body>
+      </html>
+    `);
+  } else {
+    return res.status(400).send(`
+      <html>
+        <body style="background:#0b0e14;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <div style="text-align:center;padding:2rem;background:#151a24;border-radius:12px;border:1px solid #ef4444;max-width:480px;">
+            <h2 style="margin-top:0;">❌ Fyers Auth Failed</h2>
+            <p style="color:#cbd5e1;font-size:13px;">${result.message}</p>
+            <a href="/" style="color:#00e5ff;text-decoration:none;font-weight:bold;display:inline-block;margin-top:1rem;padding:8px 16px;background:rgba(0,229,255,0.1);border-radius:8px;border:1px solid rgba(0,229,255,0.3);">Try Again</a>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+});
+
 // Fyers Auth Code Exchanger Endpoint
 app.post('/api/fyers/exchange-authcode', async (req, res) => {
   const { appId, secretKey, authCode } = req.body;

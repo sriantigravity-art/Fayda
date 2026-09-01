@@ -41,6 +41,21 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
 
+  // Auto-detect URL auth code or success message on load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('fyers_auth_code') || params.get('auth_code');
+    if (code) {
+      setAuthCode(code);
+      const savedAppId = fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
+      const savedSecret = fyersConfig.secretKey || localStorage.getItem('fyers_secret_key') || '';
+      if (savedAppId && savedSecret) {
+        // Auto trigger exchange
+        doExchange(savedAppId, savedSecret, code);
+      }
+    }
+  }, []);
+
   // Sync state when config changes
   useEffect(() => {
     if (fyersConfig.appId) setAppId(fyersConfig.appId);
@@ -53,24 +68,70 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
   const normalizedAppId = appId.trim().includes('-') ? appId.trim() : (appId.trim() ? `${appId.trim()}-100` : 'KMSSMU5OGR-100');
   const loginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${normalizedAppId}&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state`;
 
-  // Auto-parse Auth Code if user pastes full redirect URL
-  const handleAuthCodeChange = (val: string) => {
+  // Helper function to extract clean auth code
+  const extractAuthCode = (val: string): string => {
     let clean = val.trim();
     if (clean.includes('auth_code=')) {
       try {
         const url = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
         const codeParam = url.searchParams.get('auth_code');
-        if (codeParam) {
-          clean = codeParam;
-        }
+        if (codeParam) clean = codeParam;
       } catch (e) {
         const match = clean.match(/auth_code=([^&]+)/);
-        if (match && match[1]) {
-          clean = match[1];
-        }
+        if (match && match[1]) clean = match[1];
       }
     }
-    setAuthCode(clean);
+    return clean;
+  };
+
+  // Auto-parse Auth Code if user pastes full redirect URL
+  const handleAuthCodeChange = (val: string) => {
+    setAuthCode(extractAuthCode(val));
+  };
+
+  const doExchange = async (appIdToUse: string, secretToUse: string, codeToUse: string) => {
+    setLoading(true);
+    setStatusMsg(null);
+
+    const cleanAppId = appIdToUse.trim().includes('-') ? appIdToUse.trim() : `${appIdToUse.trim()}-100`;
+    const cleanCode = extractAuthCode(codeToUse);
+    const res = await exchangeAuthCode(cleanAppId, secretToUse.trim(), cleanCode);
+    setLoading(false);
+
+    if (res.success) {
+      localStorage.setItem('fyers_app_id', cleanAppId);
+      localStorage.setItem('fyers_secret_key', secretToUse.trim());
+      if (res.accessToken) {
+        localStorage.setItem('fyers_access_token', res.accessToken);
+        setAccessToken(res.accessToken);
+      }
+      setStatusMsg({ success: true, text: res.message || 'Connected to Fyers successfully!' });
+      await setDataSource('FYERS_LIVE');
+      setTimeout(() => {
+        onClose();
+      }, 1400);
+    } else {
+      setStatusMsg({ success: false, text: res.message || 'Failed to exchange Auth Code. Please verify your Secret Key.' });
+    }
+  };
+
+  const handlePasteAndConnect = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        setStatusMsg({ success: false, text: 'Clipboard is empty. Please copy the Fyers redirect URL first.' });
+        return;
+      }
+      const extracted = extractAuthCode(text);
+      setAuthCode(extracted);
+      if (!secretKey.trim()) {
+        setStatusMsg({ success: false, text: 'Please enter your Secret Key before connecting.' });
+        return;
+      }
+      await doExchange(appId, secretKey, extracted);
+    } catch (e: any) {
+      setStatusMsg({ success: false, text: 'Could not read clipboard. Please paste manually into the box below.' });
+    }
   };
 
   // Auto-detect if user pastes an auth_code into Direct Access Token field
@@ -99,29 +160,7 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
       setStatusMsg({ success: false, text: 'Please provide App ID, Secret Key, and today\'s Auth Code.' });
       return;
     }
-
-    setLoading(true);
-    setStatusMsg(null);
-
-    const cleanAppId = appId.trim().includes('-') ? appId.trim() : `${appId.trim()}-100`;
-    const res = await exchangeAuthCode(cleanAppId, secretKey.trim(), authCode.trim());
-    setLoading(false);
-
-    if (res.success) {
-      localStorage.setItem('fyers_app_id', cleanAppId);
-      localStorage.setItem('fyers_secret_key', secretKey.trim());
-      if (res.accessToken) {
-        localStorage.setItem('fyers_access_token', res.accessToken);
-        setAccessToken(res.accessToken);
-      }
-      setStatusMsg({ success: true, text: res.message || 'Connected to Fyers successfully!' });
-      await setDataSource('FYERS_LIVE');
-      setTimeout(() => {
-        onClose();
-      }, 1400);
-    } else {
-      setStatusMsg({ success: false, text: res.message || 'Failed to exchange Auth Code. Please verify your Secret Key.' });
-    }
+    await doExchange(appId, secretKey, authCode);
   };
 
   const handleDirectConnect = async (e: React.FormEvent) => {
@@ -264,26 +303,37 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
         {activeTab === 'AUTH_CODE' && (
           <form onSubmit={handleExchangeAuthCode} className="space-y-3.5 font-mono">
             {/* Quick 2-Step Guide */}
-            <div className="bg-terminal-bg/80 border border-terminal-border/80 rounded-xl p-3 space-y-2 text-[11px] text-terminal-muted">
+            <div className="bg-terminal-bg/80 border border-terminal-border/80 rounded-xl p-3 space-y-2.5 text-[11px] text-terminal-muted">
               <div className="font-bold text-terminal-text flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-accent-cyan">
                   <Zap className="w-3.5 h-3.5" />
-                  <span>Daily 5-Second Connection:</span>
+                  <span>Daily 5-Second Super Fast Connect:</span>
                 </span>
                 <a
                   href={loginUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-2.5 py-1 rounded bg-amber/15 text-amber border border-amber/40 hover:bg-amber/25 transition flex items-center gap-1 font-bold text-[10px]"
+                  className="px-3 py-1 rounded bg-amber/20 text-amber border border-amber/40 hover:bg-amber/30 transition flex items-center gap-1 font-bold text-[11px] shadow-sm"
                 >
-                  <span>1. Open Fyers Login</span>
+                  <span>1. Login at Fyers</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
               <p className="text-[10px] text-terminal-muted leading-relaxed">
-                1. Click the button above to login at Fyers.<br />
-                2. Copy the redirect URL (or just the auth code) and paste it in the box below!
+                Step 1: Click <strong>"1. Login at Fyers"</strong> & complete OTP in browser.<br />
+                Step 2: Copy the redirected page address & click <strong>"Paste & Connect"</strong> below!
               </p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={handlePasteAndConnect}
+                  disabled={loading}
+                  className="w-full py-2 px-3 rounded-lg bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan font-bold transition flex items-center justify-center gap-2 text-xs cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4 text-accent-cyan animate-pulse" />
+                  <span>⚡ 2. Paste from Clipboard & Auto-Connect</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
