@@ -438,18 +438,28 @@ export const SurgeAlertBanner: React.FC = () => {
                 ? (strikeObj?.callLtp ?? surge.ltp)
                 : (strikeObj?.putLtp ?? surge.ltp);
 
-              // Extract parsed numerical levels
-              const entryBase = typeof contract?.ltp === 'number' ? contract.ltp : surge.ltp;
-              const targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, '')) || (entryBase * 1.25);
-              const stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryBase * 0.90);
+              // Extract parsed numerical levels with strict sanity checks
+              const entryBase = typeof contract?.ltp === 'number' && contract.ltp > 0
+                ? contract.ltp
+                : (surge.ltp > 0 ? surge.ltp : currentOptionLtp);
+
+              let targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, ''));
+              let stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, ''));
+
+              if (!targetPrice || targetPrice <= entryBase) {
+                targetPrice = +(entryBase * 1.25).toFixed(2);
+              }
+              if (!stoplossPrice || stoplossPrice >= entryBase) {
+                stoplossPrice = +(entryBase * 0.90).toFixed(2);
+              }
 
               // Live P&L and Trade Lifecycle State
               const pnlPoints = +(currentOptionLtp - entryBase).toFixed(2);
               const pnlPct = entryBase > 0 ? +((pnlPoints / entryBase) * 100).toFixed(1) : 0;
               const isTargetHit = targetPrice > 0 && currentOptionLtp >= targetPrice;
               const isStoplossHit = stoplossPrice > 0 && currentOptionLtp > 0 && currentOptionLtp <= stoplossPrice;
-              const isRunningInProfit = pnlPct >= 3.0 && !isTargetHit && !isStoplossHit;
-              const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.03) && !isTargetHit && !isStoplossHit;
+              const isRunningInProfit = pnlPct >= 2.0 && !isTargetHit && !isStoplossHit;
+              const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.04) && !isTargetHit && !isStoplossHit;
               const isPullback = currentOptionLtp < (entryBase * 0.96) && !isStoplossHit;
 
               // Timeline
@@ -460,14 +470,14 @@ export const SurgeAlertBanner: React.FC = () => {
               return (
                 <div
                   key={surge.id}
-                  className={`rounded-xl border p-3 transition-all duration-150 relative overflow-hidden shadow-sm flex flex-col space-y-2 ${
+                  className={`rounded-2xl border-2 p-3.5 transition-all duration-200 relative overflow-hidden shadow-md flex flex-col space-y-2.5 ${
                     isTargetHit
-                      ? 'border-emerald-500/80 bg-emerald-950/10 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                      ? 'border-emerald-500 bg-terminal-card shadow-[0_0_25px_rgba(16,185,129,0.25)]'
                       : isStoplossHit
-                      ? 'border-rose-500/80 bg-rose-950/10 opacity-75'
+                      ? 'border-rose-500/60 bg-terminal-card'
                       : isRunningInProfit
-                      ? 'border-emerald-500/50 bg-terminal-card/90 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                      : 'border-terminal-border hover:border-bear/60 bg-terminal-card/90'
+                      ? 'border-emerald-500/70 bg-terminal-card shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                      : 'border-terminal-border hover:border-bear/80 bg-terminal-card'
                   }`}
                 >
                   {/* Top Progress / P&L Indicator */}
@@ -549,13 +559,13 @@ export const SurgeAlertBanner: React.FC = () => {
                   {/* 3. Structured 4-Box High-Visibility Trade Matrix */}
                   <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
                     {/* Live LTP & P&L */}
-                    <div className={`p-1.5 rounded-lg border shadow-sm ${
-                      pnlPoints >= 0 ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-rose-500/10 border-rose-500/40'
+                    <div className={`p-2 rounded-xl border shadow-sm ${
+                      pnlPoints >= 0 
+                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-bull' 
+                        : 'bg-rose-500/10 border-rose-500/40 text-rose-700 dark:text-bear'
                     }`}>
-                      <span className="text-[8px] text-terminal-muted block font-bold uppercase">LIVE LTP</span>
-                      <span className={`font-black text-xs sm:text-sm block tabular-nums mt-0.5 ${
-                        pnlPoints >= 0 ? 'text-emerald-700 dark:text-bull' : 'text-rose-700 dark:text-bear'
-                      }`}>
+                      <span className="text-[8px] text-terminal-muted block font-bold uppercase tracking-wider">LIVE LTP</span>
+                      <span className="font-black text-xs sm:text-sm block tabular-nums mt-0.5">
                         ₹{currentOptionLtp.toFixed(2)}
                       </span>
                       <span className="text-[8px] font-bold block opacity-90">
@@ -564,30 +574,30 @@ export const SurgeAlertBanner: React.FC = () => {
                     </div>
 
                     {/* Entry Zone */}
-                    <div className="p-1.5 rounded-lg bg-accent-cyan/10 border border-accent-cyan/40">
-                      <span className="text-[8px] text-cyan-800 dark:text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
-                      <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={contract?.recommendedEntry}>
-                        {contract?.recommendedEntry || '—'}
+                    <div className="p-2 rounded-xl bg-terminal-panel border border-cyan-500/30">
+                      <span className="text-[8px] text-cyan-800 dark:text-accent-cyan block font-bold uppercase tracking-wider">ENTRY ZONE</span>
+                      <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}>
+                        {`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}
                       </span>
                     </div>
 
                     {/* Stop Loss */}
-                    <div className="p-1.5 rounded-lg bg-bear/15 border border-bear/50">
-                      <span className="text-[8px] text-rose-700 dark:text-bear block font-bold uppercase flex items-center justify-center gap-0.5">
+                    <div className="p-2 rounded-xl bg-terminal-panel border border-rose-500/30">
+                      <span className="text-[8px] text-rose-700 dark:text-bear block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                         <ShieldAlert className="w-2.5 h-2.5" /> SL
                       </span>
                       <span className="font-bold text-[10px] sm:text-xs text-rose-700 dark:text-bear block mt-0.5">
-                        {contract?.stoploss || '—'}
+                        ₹{stoplossPrice.toFixed(2)} (-10%)
                       </span>
                     </div>
 
                     {/* Target */}
-                    <div className="p-1.5 rounded-lg bg-bull/15 border border-bull/50">
-                      <span className="text-[8px] text-emerald-800 dark:text-bull block font-bold uppercase flex items-center justify-center gap-0.5">
+                    <div className="p-2 rounded-xl bg-terminal-panel border border-emerald-500/30">
+                      <span className="text-[8px] text-emerald-800 dark:text-bull block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                         <Target className="w-2.5 h-2.5" /> TARGET
                       </span>
                       <span className="font-bold text-[10px] sm:text-xs text-emerald-700 dark:text-bull block mt-0.5">
-                        {contract?.target || '—'}
+                        ₹{targetPrice.toFixed(2)} (+25%)
                       </span>
                     </div>
                   </div>
@@ -597,7 +607,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
                     <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
                     <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
-                    <span className="text-accent-cyan font-bold">Risk:Reward {contract?.riskReward || '1:2.3'}</span>
+                    <span className="text-accent-cyan font-bold">Risk:Reward 1:2.5</span>
                   </div>
                 </div>
               );
