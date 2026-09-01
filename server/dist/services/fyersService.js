@@ -293,8 +293,13 @@ class FyersService {
             // Find spot record (strike_price: -1)
             const spotRecord = optionsData.find((item) => item.strike_price === -1);
             const spotPrice = spotRecord ? spotRecord.ltp : (data.underlyingValue || 0);
-            const spotChange = spotRecord ? spotRecord.ltpch : 0;
-            const spotPctChange = spotRecord ? spotRecord.ltpchp : 0;
+            const prevClose = spotRecord?.prev_close_price || (spotPrice - (spotRecord?.ltpch ?? 0));
+            const spotChange = spotRecord && typeof spotRecord.ltpch === 'number'
+                ? spotRecord.ltpch
+                : (prevClose > 0 && spotPrice > 0 ? +(spotPrice - prevClose).toFixed(2) : 0);
+            const spotPctChange = spotRecord && typeof spotRecord.ltpchp === 'number'
+                ? spotRecord.ltpchp
+                : (prevClose > 0 ? +((spotChange / prevClose) * 100).toFixed(2) : 0);
             // Extract expiry dates in format DD-MMM-YYYY directly from Fyers exchange data
             const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const rawExpiryList = data.expiryData || [];
