@@ -15,7 +15,9 @@ import {
   Flame,
   Activity,
   Layers,
-  ArrowDownUp
+  ArrowDownUp,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
@@ -37,7 +39,7 @@ export const SurgeAlertBanner: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('PROBABILITY');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
-  // 1-second live countdown ticker
+  // 1-second live ticker
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -63,14 +65,13 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Helper to get strictly unexpired surges matching score, asset, and side filters
+  // Helper to get active trades matching score, asset, and side filters
   const getFilteredSurges = (
     category: ScoreCategory, 
     symbol: string = 'ALL', 
     side: OptionSideFilter = 'ALL',
     order: SortOrder = 'PROBABILITY'
   ) => {
-    const now = currentTime;
     const map = new Map<string, SurgeEvent>();
 
     recentSurges.forEach((s: SurgeEvent) => {
@@ -85,12 +86,7 @@ export const SurgeAlertBanner: React.FC = () => {
       // 2. Option Side filter (CE vs PE)
       if (side !== 'ALL' && s.optionType !== side) return;
 
-      // 3. Timeline unexpired check (20m for Extreme, 45m for Strong, 60m for Moderate)
-      const ageMs = now - new Date(s.timestamp).getTime();
-      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60)) * 60 * 1000;
-      if (ageMs > maxAgeMs) return;
-
-      // 4. Asset filter
+      // 3. Asset filter
       if (symbol !== 'ALL') {
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === s.indexSymbol);
         if (symbol === 'COMMODITIES') {
@@ -112,7 +108,6 @@ export const SurgeAlertBanner: React.FC = () => {
 
     // SORTING LOGIC:
     return list.sort((a, b) => {
-      // If user selected CE first or PE first grouping:
       if (order === 'CE_FIRST') {
         if (a.optionType !== b.optionType) {
           return a.optionType === 'CE' ? -1 : 1;
@@ -221,7 +216,7 @@ export const SurgeAlertBanner: React.FC = () => {
           3. SLIDE-OUT MODAL DRAWER (High-Density Table List View)
          ───────────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 right-0 sm:top-12 sm:bottom-8 w-full sm:w-[580px] md:w-[680px] lg:w-[760px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l-2 sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 sm:top-12 sm:bottom-8 w-full sm:w-[580px] md:w-[680px] lg:w-[780px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l-2 sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
           isOpen ? 'translate-x-0 opacity-100 visible pointer-events-auto' : 'translate-x-full opacity-0 invisible pointer-events-none'
         }`}
       >
@@ -241,11 +236,11 @@ export const SurgeAlertBanner: React.FC = () => {
                 <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)] flex items-center gap-2">
                   <span>FLASH SURGE RADAR</span>
                   <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-bear/20 text-bear border border-bear/40">
-                    SORTED: HIGH PROBABILITY FIRST
+                    LIVE TRADE LIFECYCLE & RISK MANAGER
                   </span>
                 </h2>
                 <span className="text-[9px] sm:text-[10px] text-terminal-muted block">
-                  Calibrated Institutional Momentum & Dip Entry Setups
+                  Analytical Greeks Horizon • Target & SL Trade Tracking
                 </span>
               </div>
             </div>
@@ -415,7 +410,7 @@ export const SurgeAlertBanner: React.FC = () => {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
-            TABLE LIST VIEW: Sorted with Call/Put and Probabilities
+            TABLE LIST VIEW: Real-time Trade Lifecycle & P&L Analysis
            ───────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 scrollbar-thin">
           {displayedSurges.length === 0 ? (
@@ -443,34 +438,41 @@ export const SurgeAlertBanner: React.FC = () => {
                 ? (strikeObj?.callLtp ?? surge.ltp)
                 : (strikeObj?.putLtp ?? surge.ltp);
 
-              // Timeline calculations
-              const maxWindowMinutes = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 20 : surge.surgeLevel === 'STRONG' ? 45 : 60);
+              // Extract parsed numerical levels
+              const entryBase = typeof contract?.ltp === 'number' ? contract.ltp : surge.ltp;
+              const targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, '')) || (entryBase * 1.25);
+              const stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryBase * 0.90);
+
+              // Live P&L and Trade Lifecycle State
+              const pnlPoints = +(currentOptionLtp - entryBase).toFixed(2);
+              const pnlPct = entryBase > 0 ? +((pnlPoints / entryBase) * 100).toFixed(1) : 0;
+              const isTargetHit = targetPrice > 0 && currentOptionLtp >= targetPrice;
+              const isStoplossHit = stoplossPrice > 0 && currentOptionLtp > 0 && currentOptionLtp <= stoplossPrice;
+              const isRunningInProfit = pnlPct >= 3.0 && !isTargetHit && !isStoplossHit;
+              const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.03) && !isTargetHit && !isStoplossHit;
+              const isPullback = currentOptionLtp < (entryBase * 0.96) && !isStoplossHit;
+
+              // Timeline
               const ageSeconds = Math.floor((currentTime - new Date(surge.timestamp).getTime()) / 1000);
-              const totalWindowSeconds = maxWindowMinutes * 60;
-              const remainingSeconds = Math.max(0, totalWindowSeconds - ageSeconds);
-              const mins = Math.floor(remainingSeconds / 60);
-              const secs = remainingSeconds % 60;
-              const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-              const progressPct = totalWindowSeconds > 0 ? Math.min(100, Math.max(0, (remainingSeconds / totalWindowSeconds) * 100)) : 0;
               const diffMin = Math.floor(ageSeconds / 60);
               const relTimeStr = diffMin === 0 ? 'Just now' : `${diffMin}m ago`;
 
               return (
                 <div
                   key={surge.id}
-                  className="rounded-xl border border-terminal-border hover:border-bear/60 bg-terminal-card/90 p-3 transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-[0_0_20px_rgba(255,59,105,0.2)] flex flex-col space-y-2"
+                  className={`rounded-xl border p-3 transition-all duration-150 relative overflow-hidden shadow-sm flex flex-col space-y-2 ${
+                    isTargetHit
+                      ? 'border-emerald-500/80 bg-emerald-950/10 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                      : isStoplossHit
+                      ? 'border-rose-500/80 bg-rose-950/10 opacity-75'
+                      : isRunningInProfit
+                      ? 'border-emerald-500/50 bg-terminal-card/90 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                      : 'border-terminal-border hover:border-bear/60 bg-terminal-card/90'
+                  }`}
                 >
-                  {/* Fading Timeline Progress Bar */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-terminal-bg">
-                    <div
-                      className="h-full bg-gradient-to-r from-bear via-amber to-bull transition-all duration-1000 ease-linear"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-
-                  {/* 1. Header Line: Rank Tag, Score Badge, Option Type Tag, Timestamp */}
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
-                    <div className="flex items-center space-x-1.5">
+                  {/* Top Progress / P&L Indicator */}
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                       <span className="px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-terminal-border">
                         #{idx + 1}
                       </span>
@@ -485,13 +487,28 @@ export const SurgeAlertBanner: React.FC = () => {
                         {isCall ? '🟢 CALL (CE)' : '🔴 PUT (PE)'}
                       </span>
 
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                        isBullAction 
-                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-bull border border-emerald-500/30' 
-                          : 'bg-rose-500/10 text-rose-600 dark:text-bear border border-rose-500/30'
-                      }`}>
-                        {surge.actionTitle}
-                      </span>
+                      {/* Trade Lifecycle Status Pill */}
+                      {isTargetHit ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-600 text-white flex items-center gap-1 shadow-sm animate-pulse">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> TARGET 1 HIT (+{pnlPct}%)
+                        </span>
+                      ) : isStoplossHit ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-600 text-white flex items-center gap-1">
+                          <AlertTriangle className="w-2.5 h-2.5" /> SL HIT ({pnlPct}%)
+                        </span>
+                      ) : isRunningInProfit ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40 flex items-center gap-1">
+                          <TrendingUp className="w-2.5 h-2.5" /> RUNNING (+{pnlPct}%)
+                        </span>
+                      ) : isInEntryZone ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-500/20 text-cyan-800 dark:text-accent-cyan border border-cyan-500/40 flex items-center gap-1">
+                          <Target className="w-2.5 h-2.5" /> IN DIP ENTRY ZONE
+                        </span>
+                      ) : isPullback ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-800 dark:text-amber border border-amber-500/40 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" /> PULLBACK ABOVE SL ({pnlPct}%)
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center space-x-1.5 text-[10px]">
@@ -499,9 +516,6 @@ export const SurgeAlertBanner: React.FC = () => {
                         <Clock className="w-2.5 h-2.5" />
                         <span>{formatISTTime(surge.timestamp, { showSeconds: false })}</span>
                         <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-bear/15 border border-bear/40 text-rose-700 dark:text-bear font-bold text-[9px]">
-                        ⏳ {formattedCountdown}
                       </span>
                     </div>
                   </div>
@@ -534,11 +548,18 @@ export const SurgeAlertBanner: React.FC = () => {
 
                   {/* 3. Structured 4-Box High-Visibility Trade Matrix */}
                   <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
-                    {/* Live LTP */}
-                    <div className="p-1.5 rounded-lg bg-amber/15 border border-amber/50 shadow-sm">
-                      <span className="text-[8px] text-amber-800 dark:text-amber block font-bold uppercase">LIVE LTP</span>
-                      <span className="font-black text-xs sm:text-sm text-amber-700 dark:text-amber block tabular-nums mt-0.5">
+                    {/* Live LTP & P&L */}
+                    <div className={`p-1.5 rounded-lg border shadow-sm ${
+                      pnlPoints >= 0 ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-rose-500/10 border-rose-500/40'
+                    }`}>
+                      <span className="text-[8px] text-terminal-muted block font-bold uppercase">LIVE LTP</span>
+                      <span className={`font-black text-xs sm:text-sm block tabular-nums mt-0.5 ${
+                        pnlPoints >= 0 ? 'text-emerald-700 dark:text-bull' : 'text-rose-700 dark:text-bear'
+                      }`}>
                         ₹{currentOptionLtp.toFixed(2)}
+                      </span>
+                      <span className="text-[8px] font-bold block opacity-90">
+                        {pnlPoints >= 0 ? `+₹${pnlPoints} (+${pnlPct}%)` : `-₹${Math.abs(pnlPoints)} (${pnlPct}%)`}
                       </span>
                     </div>
 
@@ -571,11 +592,12 @@ export const SurgeAlertBanner: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 4. Footer Flow Metrics */}
+                  {/* 4. Footer Flow Metrics & Analytical Greek Timeframe */}
                   <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-terminal-border/50">
                     <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
                     <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
                     <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
+                    <span className="text-accent-cyan font-bold">Risk:Reward {contract?.riskReward || '1:2.3'}</span>
                   </div>
                 </div>
               );
@@ -585,7 +607,7 @@ export const SurgeAlertBanner: React.FC = () => {
 
         {/* Drawer Footer Notice */}
         <div className="p-3 border-t border-terminal-border bg-terminal-panel/80 sm:rounded-bl-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
-          <span>⚡ Sorted: <strong className="text-terminal-text">{sortOrder === 'PROBABILITY' ? 'Highest Probability First' : sortOrder === 'CE_FIRST' ? 'Calls (CE) First' : 'Puts (PE) First'}</strong></span>
+          <span>⚡ Active trade tracking until Target or SL is achieved</span>
           <span>Side: <strong className="text-bear">{sideFilter === 'ALL' ? 'All Sides' : sideFilter === 'CE' ? 'Calls (CE) Only' : 'Puts (PE) Only'}</strong></span>
         </div>
       </aside>
