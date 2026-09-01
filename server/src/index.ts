@@ -10,6 +10,7 @@ import { globalIndicesService } from './services/globalIndicesService.js';
 import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
+import { bseService } from './services/bseService.js';
 import { 
   IndexSymbol, 
   DataSourceMode, 
@@ -115,6 +116,46 @@ globalMarketFeedService.onUpdate((globalMarketContext: GlobalMarketContextData) 
     timestamp: new Date().toISOString()
   });
 });
+
+// Hook FyersService auto-renewal callback — broadcast new token state to all clients
+fyersService.onTokenRenewed = (newConfig) => {
+  console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
+  broadcast({
+    type: 'FYERS_STATUS',
+    fyersConfig: newConfig,
+    dataSource:  currentDataSource,
+    isMarketOpen: isNseMarketOpen(),
+    timestamp:   new Date().toISOString()
+  });
+};
+
+// ── Market Open at 9:15 AM IST: clear all stale caches and notify clients ──
+globalIndicesService.onMarketOpen = () => {
+  console.log('[Market] 🔔 9:15 AM IST — market opened. Clearing all stale caches...');
+
+  // 1. Clear BSE OI option-chain cache
+  bseService.clearCache();
+
+  // 2. Force NSE service to drop any stale state
+  nseService.onMarketOpen?.();
+
+  // 3. Broadcast MARKET_OPEN to all WebSocket clients
+  broadcast({
+    type:         'MARKET_OPEN',
+    message:      'NSE market opened at 9:15 AM IST — live data active, stale cache cleared.',
+    isMarketOpen: true,
+    timestamp:    new Date().toISOString()
+  });
+
+  // 4. Also push a fresh FYERS_STATUS so header bar updates immediately
+  broadcast({
+    type:         'FYERS_STATUS',
+    fyersConfig:  fyersService.getConfig(),
+    dataSource:   currentDataSource,
+    isMarketOpen: true,
+    timestamp:    new Date().toISOString()
+  });
+};
 
 const getSymbolConfig = (symbol: string): SymbolConfig => {
   const found = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
@@ -631,6 +672,27 @@ app.get('/api/fyers/callback', async (req, res) => {
       </html>
     `);
   }
+});
+
+// Manual Fyers Token Refresh Endpoint (uses stored refresh_token — no browser login needed)
+app.post('/api/fyers/refresh-token', async (req, res) => {
+  const result = await fyersService.refreshAccessToken();
+
+  if (result.success) {
+    currentDataSource = 'FYERS_LIVE';
+    startFyersPolling();
+    fyersService.scheduleNextDailyRenewal();
+
+    broadcast({
+      type: 'FYERS_STATUS',
+      fyersConfig:  fyersService.getConfig(),
+      dataSource:   currentDataSource,
+      isMarketOpen: isNseMarketOpen(),
+      timestamp:    new Date().toISOString()
+    });
+  }
+
+  res.json(result);
 });
 
 // Fyers Auth Code Exchanger Endpoint
