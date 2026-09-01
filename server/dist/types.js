@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ALL_SYMBOLS_CONFIG = void 0;
-exports.ALL_SYMBOLS_CONFIG = [
+export const ALL_SYMBOLS_CONFIG = [
     // Major Indices (NSE & BSE)
     { symbol: 'NIFTY', name: 'Nifty 50 Index', category: 'INDICES', step: 50, lot: 65, defaultRange: 200, fyersSymbol: 'NSE:NIFTY50-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
     { symbol: 'BANKNIFTY', name: 'Nifty Bank Index', category: 'INDICES', step: 100, lot: 30, defaultRange: 500, fyersSymbol: 'NSE:NIFTYBANK-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },

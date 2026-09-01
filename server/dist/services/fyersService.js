@@ -1,25 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.fyersService = exports.FyersService = void 0;
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const crypto_1 = __importDefault(require("crypto"));
-const types_js_1 = require("../types.js");
-const nseExpiryService_js_1 = require("./nseExpiryService.js");
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { ALL_SYMBOLS_CONFIG } from '../types.js';
+import { NseExpiryService } from './nseExpiryService.js';
 const findConfigPath = () => {
-    const p1 = path_1.default.resolve(process.cwd(), 'fyersConfig.json');
-    if (fs_1.default.existsSync(p1))
+    const p1 = path.resolve(process.cwd(), 'fyersConfig.json');
+    if (fs.existsSync(p1))
         return p1;
-    const p2 = path_1.default.resolve(process.cwd(), 'server', 'fyersConfig.json');
-    if (fs_1.default.existsSync(p2))
+    const p2 = path.resolve(process.cwd(), 'server', 'fyersConfig.json');
+    if (fs.existsSync(p2))
         return p2;
     return p1;
 };
 const CONFIG_PATH = findConfigPath();
-class FyersService {
+export class FyersService {
     config = {
         appId: '',
         secretKey: '',
@@ -46,8 +40,8 @@ class FyersService {
     }
     loadPersistedConfig() {
         try {
-            if (fs_1.default.existsSync(CONFIG_PATH)) {
-                const raw = fs_1.default.readFileSync(CONFIG_PATH, 'utf-8');
+            if (fs.existsSync(CONFIG_PATH)) {
+                const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
                 const parsed = JSON.parse(raw);
                 if (parsed.appId && parsed.accessToken) {
                     this.config = {
@@ -56,14 +50,43 @@ class FyersService {
                         accessToken: parsed.accessToken,
                         isConnected: false,
                         userName: parsed.userName,
-                        lastConnected: parsed.lastConnected
+                        lastConnected: parsed.lastConnected,
+                        refreshToken: parsed.refreshToken,
+                        tokenRefreshedAt: parsed.tokenRefreshedAt,
+                        refreshTokenExpiresAt: parsed.refreshTokenExpiresAt,
                     };
-                    // Auto-validate persisted token
-                    this.validateConnection().then((res) => {
-                        if (res.success) {
-                            console.log(`[Fyers] Auto-connected to Fyers as ${res.userName}`);
-                        }
-                    });
+                    // Check if access token is already expired — try auto-refresh first
+                    const isExpired = this.isAccessTokenExpired();
+                    if (isExpired && this.config.refreshToken) {
+                        console.log('[Fyers] Access token expired. Attempting auto-refresh via refresh_token...');
+                        this.refreshAccessToken().then(res => {
+                            if (res.success) {
+                                console.log(`[Fyers] ✅ Auto-refresh succeeded — connected as ${res.userName}`);
+                                this.scheduleNextDailyRenewal();
+                            }
+                            else {
+                                console.warn(`[Fyers] ⚠️ Auto-refresh failed: ${res.message}. Will retry on next token use.`);
+                            }
+                        });
+                    }
+                    else {
+                        // Access token looks valid — validate it
+                        this.validateConnection().then(res => {
+                            if (res.success) {
+                                console.log(`[Fyers] Auto-connected as ${res.userName}`);
+                                this.scheduleNextDailyRenewal();
+                            }
+                            else if (this.config.refreshToken) {
+                                // Validation failed (maybe just expired) — try refresh
+                                this.refreshAccessToken().then(r => {
+                                    if (r.success) {
+                                        console.log(`[Fyers] ✅ Auto-refresh after failed validation — connected as ${r.userName}`);
+                                        this.scheduleNextDailyRenewal();
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -73,10 +96,158 @@ class FyersService {
     }
     savePersistedConfig() {
         try {
-            fs_1.default.writeFileSync(CONFIG_PATH, JSON.stringify(this.config, null, 2));
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify({
+                appId: this.config.appId,
+                secretKey: this.config.secretKey,
+                accessToken: this.config.accessToken,
+                isConnected: this.config.isConnected,
+                userName: this.config.userName,
+                lastConnected: this.config.lastConnected,
+                refreshToken: this.config.refreshToken,
+                tokenRefreshedAt: this.config.tokenRefreshedAt,
+                refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
+            }, null, 2));
         }
         catch (err) {
             console.warn('[Fyers] Config save error:', err);
+        }
+    }
+    // ── Token expiry helpers ──────────────────────────────────────────────────────
+    /** Returns true if the current access token's JWT `exp` claim has passed. */
+    isAccessTokenExpired() {
+        try {
+            const parts = this.config.accessToken?.split('.');
+            if (parts && parts.length >= 2) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                if (payload.exp)
+                    return (Date.now() / 1000) > payload.exp;
+            }
+        }
+        catch { }
+        return false;
+    }
+    /** Returns true if the stored refresh_token is still within its 15-day window. */
+    isRefreshTokenValid() {
+        if (!this.config.refreshToken)
+            return false;
+        if (!this.config.refreshTokenExpiresAt)
+            return true; // assume valid if no expiry recorded
+        return Date.now() < new Date(this.config.refreshTokenExpiresAt).getTime();
+    }
+    // ── Daily auto-renewal scheduler ─────────────────────────────────────────────
+    dailyRenewalTimer = null;
+    /**
+     * Schedules the next 6:30 AM IST access token renewal.
+     * Called after every successful connection (initial or refresh).
+     * Fyers invalidates all access tokens between 6:00–6:30 AM IST daily.
+     */
+    scheduleNextDailyRenewal() {
+        if (this.dailyRenewalTimer)
+            clearTimeout(this.dailyRenewalTimer);
+        if (!this.isRefreshTokenValid())
+            return; // nothing to schedule with
+        const msUntilRenewal = this.msUntilNextFyersReset();
+        const minutesUntil = Math.round(msUntilRenewal / 60000);
+        console.log(`[Fyers] Daily token renewal scheduled in ${minutesUntil} minutes (at 6:30 AM IST)`);
+        this.dailyRenewalTimer = setTimeout(async () => {
+            console.log('[Fyers] ⏰ 6:30 AM IST — running scheduled daily token renewal...');
+            const res = await this.refreshAccessToken();
+            if (res.success) {
+                console.log(`[Fyers] ✅ Scheduled renewal succeeded — active as ${res.userName}`);
+                this.scheduleNextDailyRenewal(); // schedule tomorrow's renewal
+                // Notify any active broadcast listeners via callback
+                this.onTokenRenewed?.(this.config);
+            }
+            else {
+                console.warn(`[Fyers] ❌ Scheduled renewal failed: ${res.message}`);
+                this.scheduleNextDailyRenewal(); // retry same slot tomorrow anyway
+            }
+        }, msUntilRenewal);
+    }
+    /** Callback invoked after a successful auto-renewal (server index.ts wires this up) */
+    onTokenRenewed = null;
+    /** Returns milliseconds until the next 6:30 AM IST. */
+    msUntilNextFyersReset() {
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        const ist = new Date(utc + 3600000 * 5.5);
+        // Next 6:30 AM IST (could be today if not yet passed, otherwise tomorrow)
+        const next630 = new Date(ist);
+        next630.setHours(6, 32, 0, 0); // 6:32 AM for safety margin (not 6:30)
+        if (ist >= next630)
+            next630.setDate(next630.getDate() + 1); // already past — use tomorrow
+        // Convert back to UTC ms
+        const next630Utc = next630.getTime() - 3600000 * 5.5;
+        return Math.max(next630Utc - Date.now(), 60000); // minimum 1 min
+    }
+    // ── Refresh Token Exchange ────────────────────────────────────────────────────
+    /**
+     * Uses the stored Fyers refresh_token to obtain a fresh access_token.
+     * No browser interaction required. Refresh tokens are valid for 15 days.
+     *
+     * Fyers endpoint: POST https://api-t1.fyers.in/api/v3/validate-refresh-token
+     * Body: { grant_type, appIdHash, refresh_token }
+     */
+    async refreshAccessToken() {
+        if (!this.config.refreshToken) {
+            return { success: false, message: 'No refresh token stored. Please login via auth code first.' };
+        }
+        if (!this.config.appId || !this.config.secretKey) {
+            return { success: false, message: 'App ID and Secret Key are required for token refresh.' };
+        }
+        if (!this.isRefreshTokenValid()) {
+            return { success: false, message: 'Refresh token has expired (15-day limit). Please login via auth code to get a new refresh token.' };
+        }
+        try {
+            const hashInput = `${this.config.appId}:${this.config.secretKey}`;
+            const appIdHash = crypto.createHash('sha256').update(hashInput).digest('hex');
+            console.log(`[Fyers] Refreshing access token for appId: ${this.config.appId}...`);
+            const response = await fetch('https://api-t1.fyers.in/api/v3/validate-refresh-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    grant_type: 'refresh_token',
+                    appIdHash,
+                    refresh_token: this.config.refreshToken
+                })
+            });
+            let json = null;
+            try {
+                const text = await response.text();
+                json = JSON.parse(text);
+            }
+            catch {
+                return { success: false, message: `Fyers refresh endpoint returned HTTP ${response.status}.` };
+            }
+            if (json?.s === 'ok' && json.access_token) {
+                this.config.accessToken = json.access_token;
+                // Fyers may rotate the refresh token on renewal — capture if returned
+                if (json.refresh_token) {
+                    this.config.refreshToken = json.refresh_token;
+                }
+                this.config.isConnected = true;
+                this.config.tokenRefreshedAt = new Date().toISOString();
+                this.config.lastConnected = new Date().toISOString();
+                const validateRes = await this.validateConnection();
+                const userName = validateRes.userName || this.config.userName || 'SRS';
+                this.config.userName = userName;
+                this.savePersistedConfig();
+                console.log(`[Fyers] ✅ Token refreshed successfully. Access token valid until tomorrow 6:30 AM IST.`);
+                return { success: true, message: `Token refreshed. Connected as ${userName}.`, userName };
+            }
+            else {
+                const msg = json?.message || `Fyers refresh failed (code: ${json?.code || response.status})`;
+                // Refresh token itself might have expired
+                if (json?.code === 16 || json?.message?.toLowerCase().includes('expired')) {
+                    this.config.refreshToken = undefined; // clear invalid refresh token
+                    this.savePersistedConfig();
+                    return { success: false, message: 'Refresh token expired (15-day limit reached). Please login via auth code to renew.' };
+                }
+                return { success: false, message: msg };
+            }
+        }
+        catch (err) {
+            return { success: false, message: err.message || 'Network error during token refresh.' };
         }
     }
     setConfig(appId, accessToken, secretKey) {
@@ -103,9 +274,8 @@ class FyersService {
         if (cleanAuthCode.includes('auth_code=')) {
             try {
                 const match = cleanAuthCode.match(/auth_code=([^&]+)/);
-                if (match && match[1]) {
+                if (match && match[1])
                     cleanAuthCode = decodeURIComponent(match[1]);
-                }
             }
             catch { }
         }
@@ -114,18 +284,12 @@ class FyersService {
         }
         try {
             const hashInput = `${cleanAppId}:${cleanSecret}`;
-            const appIdHash = crypto_1.default.createHash('sha256').update(hashInput).digest('hex');
+            const appIdHash = crypto.createHash('sha256').update(hashInput).digest('hex');
             console.log(`[Fyers] Exchanging auth code for appId: ${cleanAppId}...`);
             const response = await fetch('https://api-t1.fyers.in/api/v3/validate-authcode', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    grant_type: 'authorization_code',
-                    appIdHash,
-                    code: cleanAuthCode
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grant_type: 'authorization_code', appIdHash, code: cleanAuthCode })
             });
             let json = null;
             try {
@@ -144,30 +308,38 @@ class FyersService {
                 this.config.accessToken = json.access_token;
                 this.config.isConnected = true;
                 this.config.lastConnected = new Date().toISOString();
+                // ── Capture refresh_token (valid 15 days, enables daily auto-renewal) ──
+                if (json.refresh_token) {
+                    this.config.refreshToken = json.refresh_token;
+                    // Refresh token expires 15 days from now at 6:30 AM IST
+                    const expiry = new Date();
+                    expiry.setDate(expiry.getDate() + 14); // conservative: 14 days
+                    this.config.refreshTokenExpiresAt = expiry.toISOString();
+                    console.log(`[Fyers] Refresh token captured — valid until ${expiry.toLocaleDateString('en-IN')}`);
+                }
                 const validateRes = await this.validateConnection();
                 const userName = validateRes.userName || this.config.userName || 'SRS';
                 this.config.userName = userName;
                 this.savePersistedConfig();
+                // Start the daily auto-renewal scheduler
+                this.scheduleNextDailyRenewal();
                 return {
                     success: true,
-                    message: `Authenticated successfully as ${userName}!`,
+                    message: json.refresh_token
+                        ? `Authenticated successfully as ${userName}! Daily auto-renewal active (15-day refresh token captured).`
+                        : `Authenticated successfully as ${userName}!`,
                     userName,
-                    accessToken: json.access_token
+                    accessToken: json.access_token,
+                    refreshToken: json.refresh_token
                 };
             }
             else {
                 const errorMsg = json?.message || `Fyers Error (${json?.code || response.status}): Failed to exchange auth code. Auth codes expire in 2 minutes and can only be used once.`;
-                return {
-                    success: false,
-                    message: errorMsg
-                };
+                return { success: false, message: errorMsg };
             }
         }
         catch (err) {
-            return {
-                success: false,
-                message: err.message || 'Network error exchanging auth code with Fyers API.'
-            };
+            return { success: false, message: err.message || 'Network error exchanging auth code with Fyers API.' };
         }
     }
     rateLimitUntil = 0;
@@ -180,14 +352,22 @@ class FyersService {
         if (!this.config.appId.includes('-')) {
             this.config.appId = `${this.config.appId}-100`;
         }
-        // Validate JWT expiry if standard format
+        // ── JWT expiry check: if expired + have refresh_token → auto-refresh ─────
         try {
             const parts = this.config.accessToken.split('.');
             if (parts.length >= 2) {
                 const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
                 if (payload.exp && (Date.now() / 1000) > payload.exp) {
+                    // Access token expired — try refresh_token auto-renewal first
+                    if (this.config.refreshToken && this.isRefreshTokenValid()) {
+                        console.log('[Fyers] Access token expired — attempting silent auto-refresh...');
+                        const refreshRes = await this.refreshAccessToken();
+                        if (refreshRes.success) {
+                            return { success: true, message: refreshRes.message, userName: refreshRes.userName };
+                        }
+                    }
                     this.config.isConnected = false;
-                    return { success: false, message: 'Fyers Access Token has expired. Please generate a fresh token.' };
+                    return { success: false, message: 'Fyers Access Token has expired. Please generate a fresh token or use refresh token.' };
                 }
             }
         }
@@ -252,7 +432,7 @@ class FyersService {
             return null;
         }
         try {
-            const cfg = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+            const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
             const fyersSymbol = cfg ? cfg.fyersSymbol : (this.symbolMap[symbol] || `NSE:${symbol}-EQ`);
             const authHeader = `${this.config.appId}:${this.config.accessToken}`;
             let url = `https://api-t1.fyers.in/data/options-chain-v3?symbol=${encodeURIComponent(fyersSymbol)}&strikecount=30`;
@@ -262,7 +442,7 @@ class FyersService {
                     epochSec = parseInt(expiryTimestamp, 10);
                 }
                 else {
-                    const d = nseExpiryService_js_1.NseExpiryService.parseDate(expiryTimestamp);
+                    const d = NseExpiryService.parseDate(expiryTimestamp);
                     epochSec = Math.floor(d.getTime() / 1000);
                 }
                 if (epochSec > 0) {
@@ -412,5 +592,4 @@ class FyersService {
         return null;
     }
 }
-exports.FyersService = FyersService;
-exports.fyersService = new FyersService();
+export const fyersService = new FyersService();

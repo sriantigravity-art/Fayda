@@ -6,6 +6,8 @@ import { globalIndicesService } from './globalIndicesService.js';
 import { bseService } from './bseService.js';
 import { mcxOptionChainService } from './mcxOptionChainService.js';
 
+import { usdInrService } from './usdInrService.js';
+
 interface RawStrikeSnapshot {
   strikePrice: number;
   callOI: number;
@@ -106,37 +108,12 @@ export class NseService {
   // Unified spot data cache (60 s TTL): holds live Yahoo spot + change per symbol
   private spotCache: Map<string, { spot: number; change: number; pctChange: number; ts: number }> = new Map();
 
-  // USD/INR rate cache (5 min TTL) — used to convert commodity prices from USD to INR
-  private usdInrRate: number = 84.5;
-  private usdInrCacheTs: number = 0;
-
   private readonly userAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
   // ─── USD/INR live rate ─────────────────────────────────────────────────────
-
-  /** Fetches live USD/INR exchange rate from Yahoo Finance (5-minute cache). */
   private async fetchUsdInrRate(): Promise<number> {
-    if (Date.now() - this.usdInrCacheTs < 5 * 60 * 1000) return this.usdInrRate;
-    try {
-      const url = 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d';
-      const res = await fetch(url, {
-        headers: { 'User-Agent': this.userAgent },
-        signal: AbortSignal.timeout(4000)
-      });
-      if (res.ok) {
-        const data = (await res.json()) as any;
-        const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof price === 'number' && price > 50 && price < 200) {
-          this.usdInrRate = price;
-          this.usdInrCacheTs = Date.now();
-          console.log(`[NSE] USD/INR rate updated: ₹${price.toFixed(2)}`);
-        }
-      }
-    } catch {
-      // Keep existing cached rate
-    }
-    return this.usdInrRate;
+    return usdInrService.get();
   }
 
   // ─── Yahoo Finance spot price fetcher ─────────────────────────────────────
@@ -635,8 +612,8 @@ export class NseService {
     this.cachedChain.clear();
     // Clear spot price cache so first tick fetches live price
     this.spotCache.clear();
-    // Reset USD/INR cache so it re-fetches the morning rate
-    this.usdInrCacheTs = 0;
+    // Refresh USD/INR rate so morning rate is loaded
+    usdInrService.refresh().catch(() => {});
     console.log('[NSE] \u2705 Market-open cache reset complete \u2014 cookies, OI chain, and spot cache cleared.');
   }
 }

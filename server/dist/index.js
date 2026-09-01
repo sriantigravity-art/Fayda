@@ -1,38 +1,33 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isNseMarketOpen = exports.isMarketOpenForSymbol = void 0;
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const ws_1 = require("ws");
-const http_1 = __importDefault(require("http"));
-const oiEngine_js_1 = require("./engine/oiEngine.js");
-const nseService_js_1 = require("./services/nseService.js");
-const fyersService_js_1 = require("./services/fyersService.js");
-const newsService_js_1 = require("./services/newsService.js");
-const globalIndicesService_js_1 = require("./services/globalIndicesService.js");
-const globalMarketFeedService_js_1 = require("./services/globalMarketFeedService.js");
-const mcxOfflineService_js_1 = require("./services/mcxOfflineService.js");
-const signalLedgerService_js_1 = require("./services/signalLedgerService.js");
-const types_js_1 = require("./types.js");
-const app = (0, express_1.default)();
+import express from 'express';
+import cors from 'cors';
+import { WebSocketServer, WebSocket } from 'ws';
+import http from 'http';
+import { OIEngine } from './engine/oiEngine.js';
+import { nseService } from './services/nseService.js';
+import { fyersService } from './services/fyersService.js';
+import { newsService } from './services/newsService.js';
+import { globalIndicesService } from './services/globalIndicesService.js';
+import { globalMarketFeedService } from './services/globalMarketFeedService.js';
+import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
+import { signalLedgerService } from './services/signalLedgerService.js';
+import { bseService } from './services/bseService.js';
+import { ALL_SYMBOLS_CONFIG } from './types.js';
+const app = express();
 const PORT = process.env.PORT || 3001;
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://localhost:3000'];
-app.use((0, cors_1.default)({
+app.use(cors({
     origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
-app.options('*', (0, cors_1.default)({ origin: true, credentials: true }));
-app.use(express_1.default.json());
-const server = http_1.default.createServer(app);
-const wss = new ws_1.WebSocketServer({ server, path: '/ws' });
-const engine = new oiEngine_js_1.OIEngine();
+app.options('*', cors({ origin: true, credentials: true }));
+app.use(express.json());
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+const engine = new OIEngine();
 const activeClients = new Set();
 let currentDataSource = 'NSE_LIVE'; // Default to NSE on Railway (no Fyers credentials)
 let nsePollTimer = null;
@@ -47,7 +42,7 @@ const watchedSymbols = new Set([
 // Cache of the latest / last-closing index state for each symbol
 const cachedIndexStates = new Map();
 // Check market hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
-const isMarketOpenForSymbol = (symbol) => {
+export const isMarketOpenForSymbol = (symbol) => {
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const ist = new Date(utc + (3600000 * 5.5));
@@ -55,27 +50,25 @@ const isMarketOpenForSymbol = (symbol) => {
     if (day === 0 || day === 6)
         return false;
     const currentMin = ist.getHours() * 60 + ist.getMinutes();
-    const cfg = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
     const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
     if (isCommodity) {
         return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
     }
     return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
 };
-exports.isMarketOpenForSymbol = isMarketOpenForSymbol;
-const isNseMarketOpen = () => (0, exports.isMarketOpenForSymbol)('NIFTY');
-exports.isNseMarketOpen = isNseMarketOpen;
+export const isNseMarketOpen = () => isMarketOpenForSymbol('NIFTY');
 // Broadcast function to all active WS clients
 const broadcast = (data) => {
     const payload = JSON.stringify(data);
     for (const client of activeClients) {
-        if (client.readyState === ws_1.WebSocket.OPEN) {
+        if (client.readyState === WebSocket.OPEN) {
             client.send(payload);
         }
     }
 };
 // Hook NewsService Callback to Broadcast Breaking Flash News to all clients
-newsService_js_1.newsService.setCallback((newsItem) => {
+newsService.setCallback((newsItem) => {
     broadcast({
         type: 'FLASH_NEWS',
         newsItem,
@@ -83,7 +76,7 @@ newsService_js_1.newsService.setCallback((newsItem) => {
     });
 });
 // Hook GlobalIndicesService Callback to Broadcast Live International & Indian Quotes
-globalIndicesService_js_1.globalIndicesService.setCallback((globalIndices) => {
+globalIndicesService.setCallback((globalIndices) => {
     broadcast({
         type: 'GLOBAL_INDICES_UPDATE',
         globalIndices,
@@ -91,15 +84,49 @@ globalIndicesService_js_1.globalIndicesService.setCallback((globalIndices) => {
     });
 });
 // Hook GlobalMarketFeedService Callback to Broadcast Global Risk & Macro Updates
-globalMarketFeedService_js_1.globalMarketFeedService.onUpdate((globalMarketContext) => {
+globalMarketFeedService.onUpdate((globalMarketContext) => {
     broadcast({
         type: 'GLOBAL_MARKET_CONTEXT_UPDATE',
         globalMarketContext,
         timestamp: new Date().toISOString()
     });
 });
+// Hook FyersService auto-renewal callback — broadcast new token state to all clients
+fyersService.onTokenRenewed = (newConfig) => {
+    console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
+    broadcast({
+        type: 'FYERS_STATUS',
+        fyersConfig: newConfig,
+        dataSource: currentDataSource,
+        isMarketOpen: isNseMarketOpen(),
+        timestamp: new Date().toISOString()
+    });
+};
+// ── Market Open at 9:15 AM IST: clear all stale caches and notify clients ──
+globalIndicesService.onMarketOpen = () => {
+    console.log('[Market] 🔔 9:15 AM IST — market opened. Clearing all stale caches...');
+    // 1. Clear BSE OI option-chain cache
+    bseService.clearCache();
+    // 2. Force NSE service to drop any stale state
+    nseService.onMarketOpen?.();
+    // 3. Broadcast MARKET_OPEN to all WebSocket clients
+    broadcast({
+        type: 'MARKET_OPEN',
+        message: 'NSE market opened at 9:15 AM IST — live data active, stale cache cleared.',
+        isMarketOpen: true,
+        timestamp: new Date().toISOString()
+    });
+    // 4. Also push a fresh FYERS_STATUS so header bar updates immediately
+    broadcast({
+        type: 'FYERS_STATUS',
+        fyersConfig: fyersService.getConfig(),
+        dataSource: currentDataSource,
+        isMarketOpen: true,
+        timestamp: new Date().toISOString()
+    });
+};
 const getSymbolConfig = (symbol) => {
-    const found = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+    const found = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
     if (found)
         return found;
     return {
@@ -120,11 +147,11 @@ const fetchSymbolSnapshot = async (symConfig) => {
         let res = null;
         let usedSource = currentDataSource;
         if (currentDataSource === 'FYERS_LIVE') {
-            res = await fyersService_js_1.fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
+            res = await fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
         }
         // Seamless fallback to Official Exchange data if Fyers is not logged in or offline
         if (!res || !res.strikes || res.strikes.length === 0) {
-            res = await nseService_js_1.nseService.fetchOptionChain(symConfig.symbol, chosenExp);
+            res = await nseService.fetchOptionChain(symConfig.symbol, chosenExp);
             usedSource = 'NSE_LIVE';
         }
         if (res && res.strikes.length > 0) {
@@ -132,7 +159,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
             let spotPrice = res.spotPrice;
             let spotChange = res.spotChange ?? 0;
             let spotPctChange = res.spotPctChange ?? 0;
-            const liveQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symConfig.symbol);
+            const liveQuote = await globalIndicesService.getSpotForSymbol(symConfig.symbol);
             if (liveQuote && liveQuote.spot > 0) {
                 spotPrice = liveQuote.spot;
                 spotChange = liveQuote.change;
@@ -141,7 +168,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
             // ✅ PERMANENT FIX: When market is closed, Yahoo Finance / NSE feeds return the
             // PREVIOUS SESSION's change as "current" (e.g. +84.80 from a prior day).
             // Zero out change values so clients never display yesterday's delta.
-            const isOpen = (0, exports.isMarketOpenForSymbol)(symConfig.symbol);
+            const isOpen = isMarketOpenForSymbol(symConfig.symbol);
             if (!isOpen) {
                 spotChange = 0;
                 spotPctChange = 0;
@@ -149,14 +176,14 @@ const fetchSymbolSnapshot = async (symConfig) => {
             // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
             let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
             if (!indiaVix) {
-                const vixEntry = globalIndicesService_js_1.globalIndicesService.getIndices().find(i => i.id === 'INDIA_VIX');
+                const vixEntry = globalIndicesService.getIndices().find(i => i.id === 'INDIA_VIX');
                 if (vixEntry && vixEntry.price > 0)
                     indiaVix = vixEntry.price;
             }
             const { indexState, newSurges } = engine.processSnapshot(symConfig.symbol, spotPrice, spotChange, spotPctChange, res.strikes, symConfig.step, symConfig.lot, symConfig.defaultRange, usedSource, res.expiryDates, res.selectedExpiry, res.totalCallOI, res.totalPutOI, indiaVix);
             cachedIndexStates.set(symConfig.symbol, indexState);
             // Track & update live LTP and target nearness in Signal Ledger
-            signalLedgerService_js_1.signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
+            signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
             // Auto-record high-confluence trade recommendations during market hours
             if (isOpen && newSurges && newSurges.length > 0) {
                 for (const s of newSurges) {
@@ -165,7 +192,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
                         const targetVal = parseFloat(String(s.suggestedContract?.target || '').replace(/[^0-9.]/g, '')) || (entryVal * 1.35);
                         const slVal = parseFloat(String(s.suggestedContract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryVal * 0.82);
                         if (entryVal > 0 && targetVal > entryVal) {
-                            signalLedgerService_js_1.signalLedgerService.recordSignal({
+                            signalLedgerService.recordSignal({
                                 symbol: symConfig.symbol,
                                 strikePrice: s.strikePrice,
                                 optionType: s.optionType,
@@ -189,7 +216,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
                 indexState,
                 newSurges: broadcastSurges,
                 dataSource: usedSource,
-                isMarketOpen: (0, exports.isNseMarketOpen)(),
+                isMarketOpen: isNseMarketOpen(),
                 timestamp: new Date().toISOString()
             });
         }
@@ -217,7 +244,7 @@ const startFyersPolling = () => {
     if (nsePollTimer)
         clearInterval(nsePollTimer);
     pollLiveFyers();
-    const interval = (0, exports.isNseMarketOpen)() ? 5000 : 15000;
+    const interval = isNseMarketOpen() ? 5000 : 15000;
     fyersPollTimer = setInterval(pollLiveFyers, interval);
 };
 // Live NSE Polling Worker
@@ -236,11 +263,11 @@ const startNsePolling = () => {
     if (fyersPollTimer)
         clearInterval(fyersPollTimer);
     pollLiveNse();
-    const interval = (0, exports.isNseMarketOpen)() ? 4000 : 8000;
+    const interval = isNseMarketOpen() ? 4000 : 8000;
     nsePollTimer = setInterval(pollLiveNse, interval);
 };
 // Start polling — use Fyers if configured, otherwise fall back to NSE
-const hasFyersConfig = !!fyersService_js_1.fyersService.getConfig().appId && !!fyersService_js_1.fyersService.getConfig().accessToken;
+const hasFyersConfig = !!fyersService.getConfig().appId && !!fyersService.getConfig().accessToken;
 if (hasFyersConfig) {
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
@@ -256,13 +283,13 @@ wss.on('connection', async (ws) => {
     ws.send(JSON.stringify({
         type: 'INITIAL_STATE',
         recentSurges: engine.getRecentSurges(30),
-        recentNews: newsService_js_1.newsService.getRecentNews(25),
-        globalIndices: globalIndicesService_js_1.globalIndicesService.getIndices(),
-        globalMarketContext: globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext(),
+        recentNews: newsService.getRecentNews(25),
+        globalIndices: globalIndicesService.getIndices(),
+        globalMarketContext: globalMarketFeedService.getGlobalContext(),
         dataSource: currentDataSource,
-        fyersConfig: fyersService_js_1.fyersService.getConfig(),
-        isMarketOpen: (0, exports.isNseMarketOpen)(),
-        allSymbolsConfig: types_js_1.ALL_SYMBOLS_CONFIG,
+        fyersConfig: fyersService.getConfig(),
+        isMarketOpen: isNseMarketOpen(),
+        allSymbolsConfig: ALL_SYMBOLS_CONFIG,
         timestamp: new Date().toISOString()
     }));
     // Only push cached states that are genuinely fresh (< 20s old).
@@ -270,7 +297,7 @@ wss.on('connection', async (ws) => {
     // because they'll display as "fresh" due to the client-side receive-timestamp check.
     const now = Date.now();
     for (const [symbol, indexState] of cachedIndexStates.entries()) {
-        if (ws.readyState !== ws_1.WebSocket.OPEN)
+        if (ws.readyState !== WebSocket.OPEN)
             break;
         const ageMs = indexState?.updatedAtIso
             ? now - new Date(indexState.updatedAtIso).getTime()
@@ -282,7 +309,7 @@ wss.on('connection', async (ws) => {
                 indexState,
                 newSurges: [],
                 dataSource: currentDataSource,
-                isMarketOpen: (0, exports.isNseMarketOpen)(),
+                isMarketOpen: isNseMarketOpen(),
                 timestamp: new Date().toISOString()
             }));
         }
@@ -315,12 +342,12 @@ app.get('/api/status', (req, res) => {
         status: 'ok',
         activeConnections: activeClients.size,
         dataSource: currentDataSource,
-        isMarketOpen: (0, exports.isNseMarketOpen)(),
-        fyers: fyersService_js_1.fyersService.getConfig()
+        isMarketOpen: isNseMarketOpen(),
+        fyers: fyersService.getConfig()
     });
 });
 app.get('/api/symbols', (req, res) => {
-    res.json(types_js_1.ALL_SYMBOLS_CONFIG);
+    res.json(ALL_SYMBOLS_CONFIG);
 });
 app.get('/api/index-state', async (req, res) => {
     const symbol = req.query.symbol || 'NIFTY';
@@ -350,21 +377,21 @@ app.post('/api/symbol/watch', async (req, res) => {
 });
 app.get('/api/news', (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 30;
-    res.json(newsService_js_1.newsService.getRecentNews(limit));
+    res.json(newsService.getRecentNews(limit));
 });
 app.get('/api/surges', (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit) : 50;
     res.json(engine.getRecentSurges(limit));
 });
 app.get('/api/global-indices', (req, res) => {
-    res.json(globalIndicesService_js_1.globalIndicesService.getIndices());
+    res.json(globalIndicesService.getIndices());
 });
 app.get('/api/global-market-context', (req, res) => {
-    res.json(globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext());
+    res.json(globalMarketFeedService.getGlobalContext());
 });
 // MCX Market Status Endpoint
 app.get('/api/mcx-status', (req, res) => {
-    const { isOpen, status } = mcxOfflineService_js_1.McxOfflineService.getMcxStatus();
+    const { isOpen, status } = McxOfflineService.getMcxStatus();
     res.json({
         isOpen,
         status, // 'OPEN' | 'CLOSED' | 'HOLIDAY' | 'PRE_OPEN'
@@ -375,7 +402,7 @@ app.get('/api/mcx-status', (req, res) => {
 // Returns Gold, Silver, CrudeOil etc. from mcxindia.com / IBJA when market is closed
 app.get('/api/mcx-offline', async (req, res) => {
     try {
-        const data = await mcxOfflineService_js_1.mcxOfflineService.getOfflineData();
+        const data = await mcxOfflineService.getOfflineData();
         res.json(data);
     }
     catch (err) {
@@ -389,7 +416,7 @@ app.get('/api/mcx-offline', async (req, res) => {
 // List of all recorded trading dates
 app.get('/api/journal/dates', (req, res) => {
     try {
-        const dates = signalLedgerService_js_1.signalLedgerService.getAvailableDates();
+        const dates = signalLedgerService.getAvailableDates();
         res.json({ dates });
     }
     catch (err) {
@@ -403,7 +430,7 @@ app.get('/api/journal/report', (req, res) => {
         const category = req.query.category || 'ALL';
         const symbol = req.query.symbol;
         const status = req.query.status;
-        const report = signalLedgerService_js_1.signalLedgerService.getReport(date, category, symbol, status);
+        const report = signalLedgerService.getReport(date, category, symbol, status);
         res.json(report);
     }
     catch (err) {
@@ -417,7 +444,7 @@ app.post('/api/journal/record', (req, res) => {
         if (!symbol || !entryPrice || !target1Price || !stoplossPrice) {
             return res.status(400).json({ error: 'Missing required parameters for trade record' });
         }
-        const recorded = signalLedgerService_js_1.signalLedgerService.recordSignal({
+        const recorded = signalLedgerService.recordSignal({
             symbol,
             strikePrice: strikePrice || 0,
             optionType: optionType || 'CE',
@@ -441,8 +468,8 @@ setInterval(() => {
     if (activeClients.size > 0) {
         broadcast({
             type: 'GLOBAL_INDICES_UPDATE',
-            globalIndices: globalIndicesService_js_1.globalIndicesService.getIndices(),
-            isMarketOpen: (0, exports.isNseMarketOpen)(),
+            globalIndices: globalIndicesService.getIndices(),
+            isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }
@@ -461,7 +488,7 @@ app.post('/api/datasource', (req, res) => {
         broadcast({
             type: 'DATA_SOURCE_UPDATE',
             dataSource: currentDataSource,
-            isMarketOpen: (0, exports.isNseMarketOpen)(),
+            isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
         res.json({ success: true, dataSource: currentDataSource });
@@ -476,16 +503,16 @@ app.post('/api/fyers/connect', async (req, res) => {
     if (!appId || !accessToken) {
         return res.status(400).json({ error: 'Missing appId or accessToken' });
     }
-    fyersService_js_1.fyersService.setConfig(appId, accessToken, secretKey);
-    const result = await fyersService_js_1.fyersService.validateConnection();
+    fyersService.setConfig(appId, accessToken, secretKey);
+    const result = await fyersService.validateConnection();
     if (result.success) {
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService_js_1.fyersService.getConfig(),
+            fyersConfig: fyersService.getConfig(),
             dataSource: currentDataSource,
-            isMarketOpen: (0, exports.isNseMarketOpen)(),
+            isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }
@@ -494,7 +521,7 @@ app.post('/api/fyers/connect', async (req, res) => {
 // Fyers 1-Click OAuth Callback Endpoint (Auto-Capture & Exchange)
 app.get('/api/fyers/callback', async (req, res) => {
     const authCode = (req.query.auth_code || req.query.code || req.query['auth-code']);
-    const cfg = fyersService_js_1.fyersService.getConfig();
+    const cfg = fyersService.getConfig();
     const appId = req.query.app_id || cfg.appId || 'KMSSMU5OGR-100';
     const secretKey = req.query.secret_key || cfg.secretKey || '';
     if (!authCode) {
@@ -514,15 +541,15 @@ app.get('/api/fyers/callback', async (req, res) => {
         // If secret key is not in server memory, redirect to frontend with auth_code query param so modal can auto-fill
         return res.redirect(`/?fyers_auth_code=${encodeURIComponent(authCode)}`);
     }
-    const result = await fyersService_js_1.fyersService.exchangeAuthCode(appId, secretKey, authCode);
+    const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
     if (result.success) {
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService_js_1.fyersService.getConfig(),
+            fyersConfig: fyersService.getConfig(),
             dataSource: currentDataSource,
-            isMarketOpen: (0, exports.isNseMarketOpen)(),
+            isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
         return res.send(`
@@ -555,21 +582,38 @@ app.get('/api/fyers/callback', async (req, res) => {
     `);
     }
 });
+// Manual Fyers Token Refresh Endpoint (uses stored refresh_token — no browser login needed)
+app.post('/api/fyers/refresh-token', async (req, res) => {
+    const result = await fyersService.refreshAccessToken();
+    if (result.success) {
+        currentDataSource = 'FYERS_LIVE';
+        startFyersPolling();
+        fyersService.scheduleNextDailyRenewal();
+        broadcast({
+            type: 'FYERS_STATUS',
+            fyersConfig: fyersService.getConfig(),
+            dataSource: currentDataSource,
+            isMarketOpen: isNseMarketOpen(),
+            timestamp: new Date().toISOString()
+        });
+    }
+    res.json(result);
+});
 // Fyers Auth Code Exchanger Endpoint
 app.post('/api/fyers/exchange-authcode', async (req, res) => {
     const { appId, secretKey, authCode } = req.body;
     if (!appId || !secretKey || !authCode) {
         return res.status(400).json({ success: false, message: 'Missing appId, secretKey, or authCode' });
     }
-    const result = await fyersService_js_1.fyersService.exchangeAuthCode(appId, secretKey, authCode);
+    const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
     if (result.success) {
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService_js_1.fyersService.getConfig(),
+            fyersConfig: fyersService.getConfig(),
             dataSource: currentDataSource,
-            isMarketOpen: (0, exports.isNseMarketOpen)(),
+            isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }

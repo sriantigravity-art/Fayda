@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConfluenceEngine = void 0;
-class ConfluenceEngine {
+export class ConfluenceEngine {
     /**
      * Evaluates all platform trading strategies and fuses them into an Institutional Decision & Risk Engine
      * Enforces NO-TRADE, WAIT, and HEDGE states to protect trader capital per SEBI recommendations.
@@ -459,4 +456,3 @@ class ConfluenceEngine {
         };
     }
 }
-exports.ConfluenceEngine = ConfluenceEngine;

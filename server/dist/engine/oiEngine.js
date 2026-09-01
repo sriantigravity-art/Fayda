@@ -1,14 +1,11 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.OIEngine = void 0;
-const buildupClassifier_js_1 = require("./buildupClassifier.js");
-const surgeDetector_js_1 = require("./surgeDetector.js");
-const nseExpiryService_js_1 = require("../services/nseExpiryService.js");
-const greekEngine_js_1 = require("./greekEngine.js");
-const gammaEngine_js_1 = require("./gammaEngine.js");
-const patternEngine_js_1 = require("./patternEngine.js");
-const confluenceEngine_js_1 = require("./confluenceEngine.js");
-class OIEngine {
+import { classifyBuildup, determineTradeAction, generateOptionSuggestion } from './buildupClassifier.js';
+import { calculateSurgeScore, formatIndianNumber } from './surgeDetector.js';
+import { NseExpiryService } from '../services/nseExpiryService.js';
+import { GreekEngine } from './greekEngine.js';
+import { gammaEngine } from './gammaEngine.js';
+import { PatternEngine } from './patternEngine.js';
+import { ConfluenceEngine } from './confluenceEngine.js';
+export class OIEngine {
     history = new Map();
     recentSurges = [];
     maxSurgeHistory = 60;
@@ -33,9 +30,9 @@ class OIEngine {
         // Use official expiry dates provided by live feed, or fallback to NSE service
         let expiries = expiryDates && expiryDates.length > 0
             ? expiryDates
-            : nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries(symbol);
+            : NseExpiryService.getUpcomingExpiries(symbol);
         const activeExpiry = selectedExpiry || expiries[0] || 'Current Weekly';
-        const daysToExpiry = nseExpiryService_js_1.NseExpiryService.calculateDTE(activeExpiry);
+        const daysToExpiry = NseExpiryService.calculateDTE(activeExpiry);
         // ATM calculation
         const atmStrike = Math.round(spotPrice / strikeStep) * strikeStep;
         // Previous snapshots
@@ -114,7 +111,7 @@ class OIEngine {
                 : (raw.callOIChangeTotal ? Math.round(raw.callOIChangeTotal / 60) : 0);
             const callLtpChange = +(raw.callLtp - prevCallLtp).toFixed(2);
             const callLtpPctChange = prevCallLtp > 0 ? +((callLtpChange / prevCallLtp) * 100).toFixed(2) : 0;
-            const callBuildup = (0, buildupClassifier_js_1.classifyBuildup)(callOIChange1m, callLtpChange);
+            const callBuildup = classifyBuildup(callOIChange1m, callLtpChange);
             // Dynamic Call Buyer vs Seller Volume Ratio
             const callMoneynessFactor = ((strike - atmStrike) / strikeStep) * 0.02;
             let callBuyRatio = 0.50;
@@ -146,7 +143,7 @@ class OIEngine {
                 : (raw.putOIChangeTotal ? Math.round(raw.putOIChangeTotal / 60) : 0);
             const putLtpChange = +(raw.putLtp - prevPutLtp).toFixed(2);
             const putLtpPctChange = prevPutLtp > 0 ? +((putLtpChange / prevPutLtp) * 100).toFixed(2) : 0;
-            const putBuildup = (0, buildupClassifier_js_1.classifyBuildup)(putOIChange1m, putLtpChange);
+            const putBuildup = classifyBuildup(putOIChange1m, putLtpChange);
             // Dynamic Put Buyer vs Seller Volume Ratio
             const putMoneynessFactor = ((atmStrike - strike) / strikeStep) * 0.02;
             let putBuyRatio = 0.50;
@@ -170,11 +167,11 @@ class OIEngine {
             const putSellVolume = Math.max(0, raw.putVolume - putBuyVolume);
             const putBuyVolPct = Math.round(putBuyRatio * 100);
             // Black-Scholes Greeks, IV Pricing & Liquidity Rating
-            const greeks = greekEngine_js_1.GreekEngine.calculateGreeks(spotPrice, strike, daysToExpiry, raw.callLtp, raw.putLtp);
-            const callLiq = greekEngine_js_1.GreekEngine.evaluateLiquidity(raw.callVolume, raw.callOI, raw.callLtp);
-            const putLiq = greekEngine_js_1.GreekEngine.evaluateLiquidity(raw.putVolume, raw.putOI, raw.putLtp);
-            const callSurge = (0, surgeDetector_js_1.calculateSurgeScore)(symbol, callOIChange1m, avgCallOiChange1m, raw.callVolume, avgVolume, callLtpPctChange, 0, strike, atmStrike);
-            const putSurge = (0, surgeDetector_js_1.calculateSurgeScore)(symbol, putOIChange1m, avgPutOiChange1m, raw.putVolume, avgVolume, putLtpPctChange, 0, strike, atmStrike);
+            const greeks = GreekEngine.calculateGreeks(spotPrice, strike, daysToExpiry, raw.callLtp, raw.putLtp);
+            const callLiq = GreekEngine.evaluateLiquidity(raw.callVolume, raw.callOI, raw.callLtp);
+            const putLiq = GreekEngine.evaluateLiquidity(raw.putVolume, raw.putOI, raw.putLtp);
+            const callSurge = calculateSurgeScore(symbol, callOIChange1m, avgCallOiChange1m, raw.callVolume, avgVolume, callLtpPctChange, 0, strike, atmStrike);
+            const putSurge = calculateSurgeScore(symbol, putOIChange1m, avgPutOiChange1m, raw.putVolume, avgVolume, putLtpPctChange, 0, strike, atmStrike);
             // Aggregates
             totalCallOI += raw.callOI;
             totalPutOI += raw.putOI;
@@ -268,8 +265,8 @@ class OIEngine {
                 if (greeks.callIvStatus === 'EXPENSIVE_CRUSH_RISK')
                     calibratedCallScore -= 10; // Volatility crush penalty
                 calibratedCallScore = Math.min(100, Math.max(0, calibratedCallScore));
-                const actionInfo = (0, buildupClassifier_js_1.determineTradeAction)(symbol, 'CE', callBuildup, strike, atmStrike, raw.callLtp);
-                const suggestion = (0, buildupClassifier_js_1.generateOptionSuggestion)(symbol, strike, 'CE', raw.callLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
+                const actionInfo = determineTradeAction(symbol, 'CE', callBuildup, strike, atmStrike, raw.callLtp);
+                const suggestion = generateOptionSuggestion(symbol, strike, 'CE', raw.callLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
                 const ivNote = greeks.callIvStatus === 'CHEAP'
                     ? `IV ${greeks.callIv}% (Cheap • Low Crush Risk)`
                     : greeks.callIvStatus === 'EXPENSIVE_CRUSH_RISK'
@@ -310,10 +307,10 @@ class OIEngine {
                     surgeLevel: calibratedCallScore >= 80 ? 'EXTREME' : calibratedCallScore >= 60 ? 'STRONG' : 'MODERATE',
                     surgeScore: calibratedCallScore,
                     oiChange1m: callOIChange1m,
-                    oiChange1mFormatted: (0, surgeDetector_js_1.formatIndianNumber)(callOIChange1m),
+                    oiChange1mFormatted: formatIndianNumber(callOIChange1m),
                     oiChangePct: prevCallOI > 0 ? +((callOIChange1m / prevCallOI) * 100).toFixed(1) : 0,
                     currentOI: raw.callOI,
-                    currentOIFormatted: (0, surgeDetector_js_1.formatIndianNumber)(raw.callOI).replace('+', ''),
+                    currentOIFormatted: formatIndianNumber(raw.callOI).replace('+', ''),
                     ltp: raw.callLtp,
                     ltpChange: callLtpChange,
                     ltpPctChange: callLtpPctChange,
@@ -358,8 +355,8 @@ class OIEngine {
                 if (greeks.putIvStatus === 'EXPENSIVE_CRUSH_RISK')
                     calibratedPutScore -= 10; // Volatility crush penalty
                 calibratedPutScore = Math.min(100, Math.max(0, calibratedPutScore));
-                const actionInfo = (0, buildupClassifier_js_1.determineTradeAction)(symbol, 'PE', putBuildup, strike, atmStrike, raw.putLtp);
-                const suggestion = (0, buildupClassifier_js_1.generateOptionSuggestion)(symbol, strike, 'PE', raw.putLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
+                const actionInfo = determineTradeAction(symbol, 'PE', putBuildup, strike, atmStrike, raw.putLtp);
+                const suggestion = generateOptionSuggestion(symbol, strike, 'PE', raw.putLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
                 const ivNote = greeks.putIvStatus === 'CHEAP'
                     ? `IV ${greeks.putIv}% (Cheap • Low Crush Risk)`
                     : greeks.putIvStatus === 'EXPENSIVE_CRUSH_RISK'
@@ -400,10 +397,10 @@ class OIEngine {
                     surgeLevel: calibratedPutScore >= 80 ? 'EXTREME' : calibratedPutScore >= 60 ? 'STRONG' : 'MODERATE',
                     surgeScore: calibratedPutScore,
                     oiChange1m: putOIChange1m,
-                    oiChange1mFormatted: (0, surgeDetector_js_1.formatIndianNumber)(putOIChange1m),
+                    oiChange1mFormatted: formatIndianNumber(putOIChange1m),
                     oiChangePct: prevPutOI > 0 ? +((putOIChange1m / prevPutOI) * 100).toFixed(1) : 0,
                     currentOI: raw.putOI,
-                    currentOIFormatted: (0, surgeDetector_js_1.formatIndianNumber)(raw.putOI).replace('+', ''),
+                    currentOIFormatted: formatIndianNumber(raw.putOI).replace('+', ''),
                     ltp: raw.putLtp,
                     ltpChange: putLtpChange,
                     ltpPctChange: putLtpPctChange,
@@ -580,7 +577,7 @@ class OIEngine {
             ? [...indexSurges].sort((a, b) => b.surgeScore - a.surgeScore)[0]
             : null;
         // Evaluate 0DTE Gamma Spike & Hero-or-Zero Setups
-        const heroZeroSignals = gammaEngine_js_1.gammaEngine.evaluateHeroZeroSignals(symbol, spotPrice, atmStrike, strikesData, daysToExpiry, strikeStep);
+        const heroZeroSignals = gammaEngine.evaluateHeroZeroSignals(symbol, spotPrice, atmStrike, strikesData, daysToExpiry, strikeStep);
         const indexState = {
             symbol,
             spotPrice,
@@ -607,8 +604,8 @@ class OIEngine {
                 highestScoreEvent
             },
             heroZeroSignals,
-            patternBreakout: patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
-            masterConfluence: confluenceEngine_js_1.ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')),
+            patternBreakout: PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
+            masterConfluence: ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')),
             indiaVix,
             updatedAtIso: new Date(now).toISOString()
         };
@@ -621,4 +618,3 @@ class OIEngine {
         return this.recentSurges.slice(0, limit);
     }
 }
-exports.OIEngine = OIEngine;

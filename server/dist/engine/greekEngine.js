@@ -1,12 +1,9 @@
-"use strict";
 /**
  * Precision Black-Scholes Options Greeks & Implied Volatility (IV) Inversion Engine
  * Solves exact Implied Volatility (IV %) from actual Option Closing Premiums (LTP)
  * and calculates exact Black-Scholes Theta Decay (₹/day & ₹/hour).
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.GreekEngine = void 0;
-class GreekEngine {
+export class GreekEngine {
     static cumulativeDistribution(x) {
         const a1 = 0.254829592;
         const a2 = -0.284496736;
@@ -151,4 +148,3 @@ class GreekEngine {
         };
     }
 }
-exports.GreekEngine = GreekEngine;

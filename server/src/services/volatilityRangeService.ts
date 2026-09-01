@@ -68,30 +68,15 @@ const FALLBACK_RANGES: Record<string, VolatilityRange> = {
   SILVER:     { dRange: 1500, wRange: 4000, mRange: 8000, h6Range: 20000 },
 };
 
+import { usdInrService } from './usdInrService.js';
+
 class VolatilityRangeService {
   private cache: Map<string, { ranges: VolatilityRange; fetchedAt: number }> = new Map();
   private readonly CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
   private readonly UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-  private usdInrRate = 84.5;
-  private usdInrTs   = 0;
 
   private async getUsdInr(): Promise<number> {
-    if (Date.now() - this.usdInrTs < 5 * 60 * 1000) return this.usdInrRate;
-    try {
-      const res = await fetch(
-        'https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d',
-        { headers: { 'User-Agent': this.UA }, signal: AbortSignal.timeout(4000) }
-      );
-      if (res.ok) {
-        const d = await res.json() as any;
-        const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof p === 'number' && p > 50 && p < 200) {
-          this.usdInrRate = p;
-          this.usdInrTs = Date.now();
-        }
-      }
-    } catch { /* keep existing */ }
-    return this.usdInrRate;
+    return usdInrService.get();
   }
 
   constructor() {

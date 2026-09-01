@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 async function inspectFyersData() {
     const appId = 'KMSSMU5OGR-100';
     const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiZDoxIiwiZDoyIiwieDowIiwieDoxIl0sImF0X2hhc2giOiJnQUFBQUFCcWtJTDFZWWhDOUNWanE0Sy1MZS1yZDJETGFmRmxGaHBWclNKWEhSRGZwaE0yd3k1aDBlbUJFeWZicnRpUXBQb0hzdW5UTDZDOWdERF9Hc3NIM053ZGlscENPU0VfanIwaEVGWHRmOEJ5SF8yNERBOD0iLCJkaXNwbGF5X25hbWUiOiIiLCJvbXMiOiJLMSIsImhzbV9rZXkiOiIyYTUwN2Q1ZDI5ZGU5MzIxNmU2M2Q0MjM4ZWQyZDQ3MTY1NDI2Yzc2NTMyOTlmM2E4NjdkMzQxZCIsImlzRGRwaUVuYWJsZWQiOiJOIiwiaXNNdGZFbmFibGVkIjoiTiIsImZ5X2lkIjoiWVMwNDAzNiIsImFwcFR5cGUiOjEwMCwiZXhwIjoxNzg3ODc3MDAwLCJpYXQiOjE3ODc4NTU2MDUsImlzcyI6ImFwaS5meWVycy5pbiIsIm5iZiI6MTc4Nzg1NTYwNSwic3ViIjoiYWNjZXNzX3Rva2VuIn0.HY7xaCwvy08Ecg3QuPyqhInOTXtDuRZ2LT8f4IDem04';
@@ -24,3 +22,4 @@ async function inspectFyersData() {
     console.log('Quotes Response:', JSON.stringify(quoteJson.d?.slice(0, 2), null, 2));
 }
 inspectFyersData();
+export {};

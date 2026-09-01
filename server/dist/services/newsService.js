@@ -1,9 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.newsService = exports.NewsService = void 0;
-const globalGeopoliticalEngine_js_1 = require("./globalGeopoliticalEngine.js");
-const globalMarketFeedService_js_1 = require("./globalMarketFeedService.js");
-class NewsService {
+import { globalGeopoliticalEngine } from './globalGeopoliticalEngine.js';
+import { globalMarketFeedService } from './globalMarketFeedService.js';
+export class NewsService {
     recentNews = [];
     seenHeadlines = new Set();
     onNewFlashCallback;
@@ -55,7 +52,7 @@ class NewsService {
      */
     initializeCuratedNews() {
         const now = Date.now();
-        const riskMode = globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext().globalRiskMode;
+        const riskMode = globalMarketFeedService.getGlobalContext().globalRiskMode;
         const rawBaselines = [
             {
                 headline: "US Trade & Tariff Policy: Trump Outlines Reciprocal Tariff Framework with Pharma Exemption",
@@ -108,7 +105,7 @@ class NewsService {
         ];
         rawBaselines.forEach((b, idx) => {
             const time = new Date(now - (idx * 14 * 60 * 1000));
-            const analysis = globalGeopoliticalEngine_js_1.globalGeopoliticalEngine.analyzeNews(b.headline, b.summary, riskMode);
+            const analysis = globalGeopoliticalEngine.analyzeNews(b.headline, b.summary, riskMode);
             const item = {
                 id: `news-init-${idx}-${now}`,
                 headline: b.headline,
@@ -177,7 +174,7 @@ class NewsService {
      */
     parseRssFeed(xmlData, source) {
         const itemMatches = xmlData.match(/<item>([\s\S]*?)<\/item>/gi) || [];
-        const riskMode = globalMarketFeedService_js_1.globalMarketFeedService.getGlobalContext().globalRiskMode;
+        const riskMode = globalMarketFeedService.getGlobalContext().globalRiskMode;
         for (const itemXml of itemMatches.slice(0, 10)) {
             const titleMatch = itemXml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/i) || itemXml.match(/<title>(.*?)<\/title>/i);
             const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
@@ -193,7 +190,7 @@ class NewsService {
                     if (!this.seenHeadlines.has(headlineKey)) {
                         this.seenHeadlines.add(headlineKey);
                         // Pass through FAYDA Global & Geopolitical Transmission Engine
-                        const analysis = globalGeopoliticalEngine_js_1.globalGeopoliticalEngine.analyzeNews(rawTitle, rawDesc, riskMode);
+                        const analysis = globalGeopoliticalEngine.analyzeNews(rawTitle, rawDesc, riskMode);
                         const cleanSummary = rawDesc.length > 170 ? `${rawDesc.substring(0, 170)}...` : rawDesc;
                         const now = Date.now();
                         const newItem = {
@@ -254,5 +251,4 @@ class NewsService {
             clearInterval(this.pollInterval);
     }
 }
-exports.NewsService = NewsService;
-exports.newsService = new NewsService();
+export const newsService = new NewsService();

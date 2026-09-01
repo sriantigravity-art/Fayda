@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.globalGeopoliticalEngine = exports.GlobalGeopoliticalEngine = exports.COMPANY_EXPOSURE_DATABASE = void 0;
 // Pre-calibrated Global & Geopolitical Exposure Matrix for Key Indian Universe
-exports.COMPANY_EXPOSURE_DATABASE = {
+export const COMPANY_EXPOSURE_DATABASE = {
     'TCS': {
         symbol: 'TCS',
         name: 'Tata Consultancy Services',
@@ -200,7 +197,7 @@ exports.COMPANY_EXPOSURE_DATABASE = {
         defenseExposure: 95
     }
 };
-class GlobalGeopoliticalEngine {
+export class GlobalGeopoliticalEngine {
     /**
      * Main Dispatcher for Global & Macro News
      */
@@ -700,5 +697,4 @@ class GlobalGeopoliticalEngine {
         };
     }
 }
-exports.GlobalGeopoliticalEngine = GlobalGeopoliticalEngine;
-exports.globalGeopoliticalEngine = new GlobalGeopoliticalEngine();
+export const globalGeopoliticalEngine = new GlobalGeopoliticalEngine();

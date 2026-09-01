@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.globalMarketFeedService = exports.GlobalMarketFeedService = void 0;
-class GlobalMarketFeedService {
+export class GlobalMarketFeedService {
     currentContext;
     listeners = [];
     refreshInterval;
@@ -114,5 +111,4 @@ class GlobalMarketFeedService {
             clearInterval(this.refreshInterval);
     }
 }
-exports.GlobalMarketFeedService = GlobalMarketFeedService;
-exports.globalMarketFeedService = new GlobalMarketFeedService();
+export const globalMarketFeedService = new GlobalMarketFeedService();
