@@ -311,6 +311,8 @@ export interface SurgeEvent {
   confidence: 'HIGH' | 'MEDIUM' | 'EXTREME';
   validUntilMinutes?: number;
   expiresAt?: string;
+  givenTimestamp?: string;
+  horizonDescription?: string;
 }
 
 export interface PcrData {
