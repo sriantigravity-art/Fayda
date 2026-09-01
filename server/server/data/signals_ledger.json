@@ -12264,13 +12264,13 @@
     "target1Price": 13.81,
     "stoplossPrice": 11.06,
     "riskReward": "1:1.9",
-    "currentLtp": 11.73,
+    "currentLtp": 11.68,
     "peakLtp": 13.22,
     "status": "ACTIVE",
-    "pointsPnl": -0.28,
-    "pnlPct": -2.3,
+    "pointsPnl": -0.33,
+    "pnlPct": -2.7,
     "nearTargetPct": 67,
-    "nearTargetDescription": "67% of Target (LTP ₹11.73)",
+    "nearTargetDescription": "67% of Target (LTP ₹11.68)",
     "notes": "Massive institutional Put writing at 275 PE (+OI, -price). Strong support cushion created."
   },
   {
@@ -12318,13 +12318,13 @@
     "target1Price": 17.03,
     "stoplossPrice": 13.64,
     "riskReward": "1:1.9",
-    "currentLtp": 14.48,
+    "currentLtp": 14.43,
     "peakLtp": 16.18,
     "status": "ACTIVE",
-    "pointsPnl": -0.33,
-    "pnlPct": -2.2,
+    "pointsPnl": -0.38,
+    "pnlPct": -2.6,
     "nearTargetPct": 62,
-    "nearTargetDescription": "62% of Target (LTP ₹14.48)",
+    "nearTargetDescription": "62% of Target (LTP ₹14.43)",
     "notes": "Massive institutional Put writing at 280 PE (+OI, -price). Strong support cushion created."
   },
   {
@@ -12344,13 +12344,13 @@
     "target1Price": 20.62,
     "stoplossPrice": 16.51,
     "riskReward": "1:1.9",
-    "currentLtp": 17.56,
+    "currentLtp": 17.5,
     "peakLtp": 19.44,
     "status": "ACTIVE",
-    "pointsPnl": -0.37,
-    "pnlPct": -2.1,
+    "pointsPnl": -0.43,
+    "pnlPct": -2.4,
     "nearTargetPct": 56,
-    "nearTargetDescription": "56% of Target (LTP ₹17.56)",
+    "nearTargetDescription": "56% of Target (LTP ₹17.50)",
     "notes": "Massive institutional Put writing at 285 PE (+OI, -price). Strong support cushion created."
   }
 ]
