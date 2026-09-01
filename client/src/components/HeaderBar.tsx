@@ -912,10 +912,29 @@ export const HeaderBar: React.FC = () => {
       {/* ========================================================================= */}
       {/* TIER 2: MULTI-INDEX STRIP + EXPIRY PICKER & LIVE CONTEXT METRICS */}
       {/* ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-terminal-border/60 max-w-[1840px] w-full mx-auto text-xs">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-terminal-border/60 max-w-[1840px] w-full mx-auto text-xs">
 
-        {/* Left: Multi-Index Mini Ticker Strip */}
-        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+        {/* Mobile View: Expiry Date Dropdown positioned on the Left */}
+        {currentIndexState && expiryDates.length > 0 && (
+          <div className="flex md:hidden items-center space-x-1 font-mono shrink-0">
+            <Calendar className="w-3 h-3 text-accent-cyan" />
+            <select
+              value={selectedExpiry}
+              onChange={(e) => setOptionExpiry(e.target.value)}
+              className="bg-terminal-panel border border-terminal-border rounded-lg px-1.5 py-0.5 text-[10px] font-mono font-bold text-accent-cyan focus:outline-none focus:border-accent-sky cursor-pointer transition shadow-sm max-w-[115px]"
+              title="Select Contract Expiry"
+            >
+              {expiryDates.map((exp: string, idx: number) => (
+                <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
+                  {exp} {idx === 0 ? '(Near)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Multi-Index Mini Ticker Strip */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
           {visibleIndices.map((sym: string) => {
             const isSelected = selectedIndex === sym;
             const state = sym === selectedIndex ? currentIndexState : indices[sym];
@@ -966,9 +985,9 @@ export const HeaderBar: React.FC = () => {
           })}
         </div>
 
-        {/* Right: Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry, Clock) */}
+        {/* Desktop View: Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry, Clock) */}
         {currentIndexState && (
-          <div className="flex items-center space-x-2 sm:space-x-3 text-xs font-sans ml-auto">
+          <div className="hidden md:flex items-center space-x-2 sm:space-x-3 text-xs font-sans ml-auto shrink-0">
             {/* Expiry Selector Dropdown */}
             {expiryDates.length > 0 && (
               <div className="flex items-center space-x-1 font-mono">
@@ -1020,6 +1039,12 @@ export const HeaderBar: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Mobile View: Compact Clock on Right */}
+        <div className="flex md:hidden items-center space-x-1 font-mono text-terminal-muted text-[10px] shrink-0 pl-1">
+          <Clock className="w-2.5 h-2.5 text-accent-sky" />
+          <span>{currentTime}</span>
+        </div>
       </div>
 
       {/* Modals & Drawers */}
