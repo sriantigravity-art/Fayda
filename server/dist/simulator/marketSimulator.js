@@ -142,21 +142,52 @@ class MarketSimulator {
             this.tickIndex(cfg);
         }
     }
+    marketRegimes = new Map();
+    getOrUpdateRegime(symbol) {
+        if (!this.marketRegimes.has(symbol) || Math.random() < 0.03) {
+            const spotInfo = this.spots.get(symbol);
+            const pct = spotInfo?.pctChange || 0;
+            if (pct > 0.15) {
+                this.marketRegimes.set(symbol, 'BULLISH');
+            }
+            else if (pct < -0.15) {
+                this.marketRegimes.set(symbol, 'BEARISH');
+            }
+            else {
+                const roll = Math.random();
+                this.marketRegimes.set(symbol, roll > 0.6 ? 'BULLISH' : roll > 0.3 ? 'BEARISH' : 'CHOPPY');
+            }
+        }
+        return this.marketRegimes.get(symbol);
+    }
     tickIndex(cfg) {
         const spotInfo = this.spots.get(cfg.symbol);
         const strikeMap = this.strikesMemory.get(cfg.symbol);
-        // Small drift in spot
-        const drift = (Math.random() - 0.49) * (cfg.symbol === 'BANKNIFTY' ? 6 : 2.5);
+        const regime = this.getOrUpdateRegime(cfg.symbol);
+        // Directional drift guided by regime
+        const baseDrift = (regime === 'BULLISH' ? 0.6 : regime === 'BEARISH' ? -0.6 : 0);
+        const noise = (Math.random() - 0.49) * (cfg.symbol === 'BANKNIFTY' ? 5 : 2);
+        const drift = baseDrift + noise;
         spotInfo.spot = +(spotInfo.spot + drift).toFixed(2);
         spotInfo.change = +(spotInfo.change + drift).toFixed(2);
         spotInfo.pctChange = +((spotInfo.change / cfg.baseSpot) * 100).toFixed(2);
         const atm = Math.round(spotInfo.spot / cfg.strikeStep) * cfg.strikeStep;
         const strikesRaw = [];
-        // Decide if a dynamic organic surge event should occur on this tick (e.g. 1 in 4 ticks)
+        // Organic institutional surge event frequency & directional bias based on market regime
         const isSurgeTick = Math.random() < 0.28;
         const surgeTargetOffset = Math.floor((Math.random() - 0.5) * 6); // within ATM +-3 strikes
         const surgeStrike = atm + surgeTargetOffset * cfg.strikeStep;
-        const surgeType = Math.random() > 0.5 ? 'CE' : 'PE';
+        // Directional distribution: Bullish regime = 80% Calls, Bearish regime = 80% Puts
+        let surgeType = 'CE';
+        if (regime === 'BULLISH') {
+            surgeType = Math.random() < 0.80 ? 'CE' : 'PE';
+        }
+        else if (regime === 'BEARISH') {
+            surgeType = Math.random() < 0.80 ? 'PE' : 'CE';
+        }
+        else {
+            surgeType = Math.random() < 0.50 ? 'CE' : 'PE';
+        }
         const surgeSeverity = Math.random();
         for (const [strike, mem] of strikeMap.entries()) {
             let callDelta = Math.round((Math.random() - 0.48) * 15000);
