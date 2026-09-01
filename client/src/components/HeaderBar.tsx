@@ -51,21 +51,26 @@ import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { UserProfileEditModal } from './profile/UserProfileEditModal';
 
 export const HeaderBar: React.FC = () => {
-  const {
-    indices,
-    selectedIndex,
-    setSelectedIndex,
-    visibleIndices,
+  const { 
+    currentIndexState, 
+    indices, 
+    indicesReceivedAt, 
+    selectedIndex, 
+    setSelectedIndex, 
+    visibleIndices, 
+    recentSurges, 
+    setStrikeRange, 
+    strikeRange, 
+    setOptionExpiry, 
+    fyersConfig, 
+    dataSource, 
+    setDataSource,
+    globalMarketContext,
     toggleIndexVisibility,
-    currentIndexState,
     isConnected,
     isMuted,
     toggleMute,
-    testSound,
-    setOptionExpiry,
-    dataSource,
-    setDataSource,
-    fyersConfig
+    testSound
   } = useMarket();
 
   const { theme, toggleTheme } = useTheme();
@@ -236,12 +241,11 @@ export const HeaderBar: React.FC = () => {
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
   const daysToExpiry = currentIndexState?.daysToExpiry ?? 4;
   const spotPrice = currentIndexState?.spotPrice || 0;
-  // Freshness guard: skip stale delta values that were cached from a previous poll cycle.
-  // updatedAtIso is written by the server's OI engine on every fresh snapshot.
-  const stateAgeMs = currentIndexState?.updatedAtIso
-    ? Date.now() - new Date(currentIndexState.updatedAtIso).getTime()
-    : Infinity;
-  const isStateFresh = stateAgeMs <= 60000;
+  // Client-side freshness guard — indicesReceivedAt is stamped the moment data arrives in the browser.
+  // This prevents stale server-cached deltas (e.g. +84.80) from showing on page refresh,
+  // even if the server hasn't yet sent updatedAtIso in the old cached state.
+  const selectedReceivedAt = indicesReceivedAt[selectedIndex] ?? 0;
+  const isStateFresh = selectedReceivedAt > 0 && (Date.now() - selectedReceivedAt) <= 60000;
   const netChange = isStateFresh ? (currentIndexState?.change || 0) : 0;
   const pctChange = isStateFresh ? (currentIndexState?.pctChange || 0) : 0;
   const isPositive = netChange >= 0;
@@ -932,12 +936,13 @@ export const HeaderBar: React.FC = () => {
             const isSelected = selectedIndex === sym;
             const state = sym === selectedIndex ? currentIndexState : indices[sym];
 
-            // Freshness check: only show change/pct if data is ≤60s old.
-            // Prevents stale cached deltas (e.g. +84.80) from flashing on page refresh.
-            const ageMs = state?.updatedAtIso
-              ? Date.now() - new Date(state.updatedAtIso).getTime()
-              : Infinity;
-            const isFresh = ageMs <= 60000;
+            // Client-side freshness check using indicesReceivedAt:
+            // shows '…' until the browser receives a fresh update for this symbol.
+            // Prevents +84.80 stale flash regardless of server timestamp presence.
+            const receivedAt = sym === selectedIndex
+              ? (indicesReceivedAt[selectedIndex] ?? 0)
+              : (indicesReceivedAt[sym] ?? 0);
+            const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;
 
             const pts = isFresh ? (state?.change ?? 0) : null;
             const pct = isFresh ? (state?.pctChange ?? 0) : null;

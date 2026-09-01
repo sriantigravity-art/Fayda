@@ -6,6 +6,7 @@ import { soundManager } from '../utils/audioAlert';
 
 interface MarketContextType {
   indices: Record<IndexSymbol, MarketIndexState | null>;
+  indicesReceivedAt: Record<string, number>; // client-side ms timestamp when each symbol's data last arrived
   selectedIndex: IndexSymbol;
   setSelectedIndex: (sym: IndexSymbol) => void;
   visibleIndices: IndexSymbol[];
@@ -88,6 +89,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     MIDCPNIFTY: null,
     NIFTYNXT50: null
   });
+
+  // Client-side receive timestamps — records Date.now() when each symbol's data last arrived.
+  // Used for freshness checks in UI components. More reliable than server-side updatedAtIso
+  // because it works even when older server cache entries don't have that field.
+  const [indicesReceivedAt, setIndicesReceivedAt] = useState<Record<string, number>>({});
   const [selectedIndex, setSelectedIndex] = useState<IndexSymbol>('NIFTY');
 
   const [visibleIndices, setVisibleIndices] = useState<IndexSymbol[]>(() => {
@@ -303,10 +309,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.globalMarketContext) setGlobalMarketContext(msg.globalMarketContext);
         } else if (msg.type === 'INDEX_UPDATE') {
           const { symbol, indexState, newSurges } = msg;
-          setIndices((prev) => ({
-            ...prev,
-            [symbol]: indexState
-          }));
+          setIndices((prev) => ({ ...prev, [symbol]: indexState }));
+          // Stamp client-side receive time — used by UI to determine if data is fresh
+          setIndicesReceivedAt((prev) => ({ ...prev, [symbol]: Date.now() }));
 
           // Check Trade Recommendations Target Hits
           if (indexState && indexState.recommendedTrades) {
@@ -479,6 +484,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .then((states) => {
         if (states && Object.keys(states).length > 0) {
           setIndices((prev) => ({ ...prev, ...states }));
+          const now = Date.now();
+          const stamps: Record<string, number> = {};
+          Object.keys(states).forEach(k => { stamps[k] = now; });
+          setIndicesReceivedAt((prev) => ({ ...prev, ...stamps }));
         }
       })
       .catch(() => {});
@@ -494,6 +503,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .then((states) => {
             if (states && Object.keys(states).length > 0) {
               setIndices((prev) => ({ ...prev, ...states }));
+              const now = Date.now();
+              const stamps: Record<string, number> = {};
+              Object.keys(states).forEach(k => { stamps[k] = now; });
+              setIndicesReceivedAt((prev) => ({ ...prev, ...stamps }));
             }
           })
           .catch(() => {});
@@ -512,6 +525,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .then((states) => {
           if (states && Object.keys(states).length > 0) {
             setIndices((prev) => ({ ...prev, ...states }));
+            const now = Date.now();
+            const stamps: Record<string, number> = {};
+            Object.keys(states).forEach(k => { stamps[k] = now; });
+            setIndicesReceivedAt((prev) => ({ ...prev, ...stamps }));
           }
         })
         .catch(() => {});
@@ -533,6 +550,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .then((st) => {
         if (st) {
           setIndices((prev) => ({ ...prev, [selectedIndex]: st }));
+          setIndicesReceivedAt((prev) => ({ ...prev, [selectedIndex]: Date.now() }));
         }
       })
       .catch(() => {});
@@ -670,6 +688,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const states = await res.json();
         if (states && Object.keys(states).length > 0) {
           setIndices((prev) => ({ ...prev, ...states }));
+          const now = Date.now();
+          const stamps: Record<string, number> = {};
+          Object.keys(states).forEach(k => { stamps[k] = now; });
+          setIndicesReceivedAt((prev) => ({ ...prev, ...stamps }));
         }
       }
     } catch {}
@@ -679,6 +701,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <MarketContext.Provider
       value={{
         indices,
+        indicesReceivedAt,
         selectedIndex,
         setSelectedIndex: handleSelectSymbol,
         visibleIndices,
@@ -728,6 +751,7 @@ export const useMarket = (): MarketContextType => {
     console.warn('[MarketContext] Hook invoked outside provider, returning fallback');
     return {
       indices: {},
+      indicesReceivedAt: {},
       selectedIndex: 'NIFTY',
       setSelectedIndex: () => {},
       visibleIndices: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'SENSEX'],

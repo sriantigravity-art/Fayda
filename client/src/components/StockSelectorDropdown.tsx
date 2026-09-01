@@ -52,6 +52,7 @@ export const StockSelectorDropdown: React.FC = () => {
     selectedIndex, 
     setSelectedIndex, 
     indices,
+    indicesReceivedAt,
     visibleIndices, 
     toggleIndexVisibility
   } = useMarket();
@@ -129,18 +130,16 @@ export const StockSelectorDropdown: React.FC = () => {
   };
 
   // Get spot data for a symbol: prefer the fresh allStates REST snapshot (polled every 3s),
-  // fall back to context WS data only if it's fresh (<60s old).
+  // fall back to context WS data only if it's fresh (<60s old via client-side receivedAt stamp).
   const getSpotData = (symbol: string): SpotData | null => {
     if (allStates[symbol] && allStates[symbol].spotPrice > 0) {
       return allStates[symbol];
     }
     const ctx = indices[symbol];
     if (ctx && ctx.spotPrice > 0) {
-      // Only use context's change/pct if the state has a fresh updatedAtIso timestamp
-      const ageMs = ctx.updatedAtIso
-        ? Date.now() - new Date(ctx.updatedAtIso).getTime()
-        : Infinity;
-      const isFresh = ageMs <= 60000;
+      // Use indicesReceivedAt (client-side stamp) — more reliable than server updatedAtIso
+      const receivedAt = indicesReceivedAt[symbol] ?? 0;
+      const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;
       return {
         spotPrice: ctx.spotPrice,
         change: isFresh ? ctx.change : 0,
