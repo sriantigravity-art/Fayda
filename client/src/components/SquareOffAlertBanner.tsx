@@ -4,8 +4,11 @@ import {
   AlertTriangle, 
   X, 
   ShieldAlert, 
-  Clock
+  ArrowDownRight, 
+  ArrowUpRight, 
+  Clock 
 } from 'lucide-react';
+import { formatISTTime } from '../utils/formatTime';
 
 export const SquareOffAlertBanner: React.FC = () => {
   const { latestSquareOffAlert, dismissSquareOffAlert } = useMarket();
@@ -65,7 +68,7 @@ export const SquareOffAlertBanner: React.FC = () => {
               <AlertTriangle className="w-4 h-4 mr-1 text-white animate-bounce" /> 🚨 EMERGENCY SQUARE OFF
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-bear/20 text-bear border border-bear/40 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {latestSquareOffAlert.timeFormatted} IST
+              <Clock className="w-3 h-3" /> {formatISTTime(latestSquareOffAlert.timestamp, { showSeconds: true, includeSuffix: true })}
             </span>
           </div>
 

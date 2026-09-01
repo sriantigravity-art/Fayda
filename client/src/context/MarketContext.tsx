@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
+import { formatISTTime } from '../utils/formatTime';
 import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem } from '../types';
 import { soundManager } from '../utils/audioAlert';
 
@@ -251,7 +252,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       pointsGained: +(ltp - entry).toFixed(2),
       roiPct: +(((ltp - entry) / entry) * 100).toFixed(1),
       timestamp: new Date().toISOString(),
-      timeFormatted: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      timeFormatted: formatISTTime(null, { showSeconds: true }),
       targetNumber: 1
     };
 
@@ -285,7 +286,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const latest = msg.recentSurges.find((s: SurgeEvent) => s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG');
             if (latest) {
               const ageMin = (Date.now() - new Date(latest.timestamp).getTime()) / (60 * 1000);
-              if (ageMin <= (latest.validUntilMinutes || 25)) {
+              if (ageMin <= (latest.validUntilMinutes || 15)) {
                 setLatestExtremeSurge(latest);
               }
             }
@@ -339,7 +340,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     pointsGained: points,
                     roiPct: roi,
                     timestamp: new Date().toISOString(),
-                    timeFormatted: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    timeFormatted: formatISTTime(null, { showSeconds: true }),
                     targetNumber: 1
                   };
 
@@ -371,7 +372,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     lossPct: lossPct,
                     reason: `Stoploss breached at ₹${liveLtp.toFixed(2)} (below ₹${stoplossNum.toFixed(2)} threshold). Sudden counter-trend institutional pressure detected.`,
                     timestamp: new Date().toISOString(),
-                    timeFormatted: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    timeFormatted: formatISTTime(null, { showSeconds: true })
                   };
 
                   setLatestSquareOffAlert(slEvent);

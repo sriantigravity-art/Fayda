@@ -10,6 +10,7 @@ import {
   Globe,
   Clock
 } from 'lucide-react';
+import { formatISTTime } from '../utils/formatTime';
 import type { NewsSource } from '../types';
 
 // Secondary frontend cleaner to guarantee 100% clean English sentences
@@ -115,7 +116,7 @@ export const FlashNewsBanner: React.FC = () => {
             </span>
             <span className="px-1.5 py-0.2 rounded bg-terminal-panel border border-terminal-border text-terminal-text font-bold text-[9px] flex items-center gap-1">
               <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-              <span>{latestFlashNews.timeFormatted}</span>
+              <span>{formatISTTime(latestFlashNews.timestamp, { showSeconds: false })}</span>
             </span>
             <button
               onClick={dismissFlashNews}
