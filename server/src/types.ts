@@ -15,10 +15,10 @@ export interface SymbolConfig {
 
 export const ALL_SYMBOLS_CONFIG: SymbolConfig[] = [
   // Major Indices (NSE & BSE)
-  { symbol: 'NIFTY', name: 'Nifty 50 Index', category: 'INDICES', step: 50, lot: 65, defaultRange: 200, fyersSymbol: 'NSE:NIFTY50-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
-  { symbol: 'BANKNIFTY', name: 'Nifty Bank Index', category: 'INDICES', step: 100, lot: 30, defaultRange: 500, fyersSymbol: 'NSE:NIFTYBANK-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
-  { symbol: 'SENSEX', name: 'BSE Sensex Index', category: 'INDICES', step: 100, lot: 20, defaultRange: 500, fyersSymbol: 'BSE:SENSEX-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'BSE' },
-  { symbol: 'BANKEX', name: 'BSE Bankex Index', category: 'INDICES', step: 100, lot: 30, defaultRange: 500, fyersSymbol: 'BSE:BANKEX-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'BSE' },
+  { symbol: 'NIFTY', name: 'Nifty 50', category: 'INDICES', step: 50, lot: 65, defaultRange: 200, fyersSymbol: 'NSE:NIFTY50-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
+  { symbol: 'BANKNIFTY', name: 'Nifty Bank', category: 'INDICES', step: 100, lot: 30, defaultRange: 500, fyersSymbol: 'NSE:NIFTYBANK-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
+  { symbol: 'SENSEX', name: 'BSE Sensex', category: 'INDICES', step: 100, lot: 20, defaultRange: 500, fyersSymbol: 'BSE:SENSEX-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'BSE' },
+  { symbol: 'BANKEX', name: 'BSE Bankex', category: 'INDICES', step: 100, lot: 30, defaultRange: 500, fyersSymbol: 'BSE:BANKEX-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'BSE' },
   { symbol: 'FINNIFTY', name: 'Financial Services', category: 'INDICES', step: 50, lot: 65, defaultRange: 250, fyersSymbol: 'NSE:FINNIFTY-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
   { symbol: 'MIDCPNIFTY', name: 'Nifty Midcap Select', category: 'INDICES', step: 25, lot: 120, defaultRange: 150, fyersSymbol: 'NSE:MIDCPNIFTY-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
   { symbol: 'NIFTYNXT50', name: 'Nifty Next 50', category: 'INDICES', step: 100, lot: 25, defaultRange: 400, fyersSymbol: 'NSE:NIFTYNXT50-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },

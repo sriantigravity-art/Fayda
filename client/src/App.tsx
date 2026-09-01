@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MarketProvider, useMarket } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { TerminalModeProvider, useTerminalMode } from './context/TerminalModeContext';
@@ -32,6 +32,7 @@ import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
 import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanner';
+import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -44,6 +45,12 @@ const DashboardContent: React.FC = () => {
   const { panelVisibility } = useAuth();
   const { currentIndexState, selectedIndex } = useMarket();
   const { isBeginner, isExpert } = useTerminalMode();
+
+  // Automatically request fullscreen on mobile view on page load and initial user touch
+  useEffect(() => {
+    const cleanup = initMobileAutoFullscreen();
+    return cleanup;
+  }, []);
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
@@ -141,7 +148,12 @@ const DashboardContent: React.FC = () => {
         {/* ========================================================================= */}
         <div className="md:hidden flex flex-col space-y-3">
           {mobileTab === 'CHAIN' && panelVisibility.optionChain && <OptionChainHeatmap />}
-          {mobileTab === 'SIGNALS' && panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+          {mobileTab === 'SIGNALS' && (
+            <div className="flex flex-col space-y-3">
+              {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+              <MultiLegStrategyCard />
+            </div>
+          )}
           {mobileTab === 'JOURNAL' && <PostMarketTradeJournal isModal={false} />}
           {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           {mobileTab === 'RADAR' && (

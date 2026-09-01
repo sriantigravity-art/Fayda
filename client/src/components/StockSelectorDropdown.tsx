@@ -30,15 +30,15 @@ async function checkMcxOpen(): Promise<boolean> {
 }
 
 export const getPrettyIndexName = (item: SymbolConfig): string => {
-  if (item.symbol === 'NIFTY') return 'NIFTY50 Index';
-  if (item.symbol === 'BANKNIFTY') return 'NIFTYBANK Index';
-  if (item.symbol === 'SENSEX') return 'SENSEX Index';
-  if (item.symbol === 'BANKEX') return 'BANKEX Index';
-  if (item.symbol === 'FINNIFTY') return 'FINNIFTY Index';
-  if (item.symbol === 'NIFTYNXT50') return 'NIFTYNXT50 Index';
-  if (item.symbol === 'MIDCPNIFTY') return 'MIDCPNIFTY Index';
-  if (item.symbol === 'INDIA_VIX') return 'INDIAVIX Index';
-  return item.name || item.symbol;
+  if (item.symbol === 'NIFTY') return 'NIFTY 50';
+  if (item.symbol === 'BANKNIFTY') return 'BANK NIFTY';
+  if (item.symbol === 'SENSEX') return 'SENSEX';
+  if (item.symbol === 'BANKEX') return 'BANKEX';
+  if (item.symbol === 'FINNIFTY') return 'FIN NIFTY';
+  if (item.symbol === 'NIFTYNXT50') return 'NIFTY NEXT 50';
+  if (item.symbol === 'MIDCPNIFTY') return 'MIDCAP NIFTY';
+  if (item.symbol === 'INDIA_VIX') return 'INDIA VIX';
+  return (item.name || item.symbol).replace(/\s+Index$/i, '');
 };
 
 interface SpotData {
@@ -215,7 +215,7 @@ export const StockSelectorDropdown: React.FC = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="inline-flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-terminal-panel/80 transition text-left cursor-pointer shrink-0 border border-transparent hover:border-slate-200 dark:hover:border-terminal-border"
-        title="Click to select Asset / Index"
+        title="Click to select Asset"
       >
         <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-terminal-text tracking-tight whitespace-nowrap">
           {getPrettyIndexName(currentConfig)}
