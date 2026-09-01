@@ -9,12 +9,15 @@ import {
   Layers, 
   Check, 
   Sparkles, 
+  BarChart2, 
   BarChart3, 
   X,
   Flame,
   Coins,
   Droplets,
-  WifiOff
+  WifiOff,
+  Link2,
+  MoreVertical
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -26,7 +29,6 @@ async function checkMcxOpen(): Promise<boolean> {
     const d = await res.json();
     return !!d.isOpen;
   } catch {
-    // Fallback: compute client-side from IST time
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const ist = new Date(utc + 3600000 * 5.5);
@@ -36,6 +38,18 @@ async function checkMcxOpen(): Promise<boolean> {
     return min >= 9 * 60 && min < 23 * 60 + 30;
   }
 }
+
+export const getPrettyIndexName = (item: SymbolConfig): string => {
+  if (item.symbol === 'NIFTY') return 'NIFTY50 Index';
+  if (item.symbol === 'BANKNIFTY') return 'NIFTYBANK Index';
+  if (item.symbol === 'SENSEX') return 'SENSEX Index';
+  if (item.symbol === 'BANKEX') return 'BANKEX Index';
+  if (item.symbol === 'FINNIFTY') return 'FINNIFTY Index';
+  if (item.symbol === 'NIFTYNXT50') return 'NIFTYNXT50 Index';
+  if (item.symbol === 'MIDCPNIFTY') return 'MIDCPNIFTY Index';
+  if (item.symbol === 'INDIA_VIX') return 'INDIAVIX Index';
+  return item.name || item.symbol;
+};
 
 export const StockSelectorDropdown: React.FC = () => {
   const { selectedIndex, setSelectedIndex, indices, visibleIndices, toggleIndexVisibility } = useMarket();
@@ -73,12 +87,15 @@ export const StockSelectorDropdown: React.FC = () => {
     name: selectedIndex,
     category: 'INDICES',
     step: 50,
-    lot: 75,
+    lot: 65,
     defaultRange: 200,
     fyersSymbol: '',
     isIndex: true,
     exchange: 'NSE'
   };
+
+  const currentState = indices[selectedIndex];
+  const isPositive = (currentState?.change || 0) >= 0;
 
   const indicesCount = ALL_SYMBOLS_CONFIG.filter(s => s.category === 'INDICES').length;
   const commodityCount = ALL_SYMBOLS_CONFIG.filter(s => s.category === 'COMMODITIES').length;
@@ -90,7 +107,8 @@ export const StockSelectorDropdown: React.FC = () => {
       const q = searchQuery.toLowerCase().trim();
       return (
         item.symbol.toLowerCase().includes(q) ||
-        item.name.toLowerCase().includes(q)
+        item.name.toLowerCase().includes(q) ||
+        getPrettyIndexName(item).toLowerCase().includes(q)
       );
     }
     return true;
@@ -107,7 +125,6 @@ export const StockSelectorDropdown: React.FC = () => {
       setCheckingMcx(false);
 
       if (!isOpen) {
-        // Market is closed — show offline data modal instead of loading option chain
         setOfflineSymbol(symbol);
         setIsOpen(false);
         setSearchQuery('');
@@ -121,75 +138,59 @@ export const StockSelectorDropdown: React.FC = () => {
   }, [setSelectedIndex]);
 
   const handleOfflineProceed = useCallback(() => {
-    // User clicked "View Option Chain (Offline Data)" — load it anyway
     if (offlineSymbol) {
       setSelectedIndex(offlineSymbol);
     }
     setOfflineSymbol(null);
   }, [offlineSymbol, setSelectedIndex]);
 
-  const getSymbolIcon = (item: SymbolConfig) => {
-    if (item.category === 'COMMODITIES') {
-      if (item.symbol === 'CRUDEOIL') return <Droplets className="w-3.5 h-3.5 text-amber" />;
-      if (item.symbol === 'NATURALGAS') return <Flame className="w-3.5 h-3.5 text-accent-cyan" />;
-      if (item.symbol === 'GOLD' || item.symbol === 'SILVER') return <Coins className="w-3.5 h-3.5 text-amber" />;
-      return <Flame className="w-3.5 h-3.5 text-amber" />;
-    }
-    if (item.isIndex) return <Layers className="w-3.5 h-3.5 text-accent-cyan" />;
-    return <BarChart3 className="w-3.5 h-3.5 text-bull" />;
-  };
-
   return (
-    <div className="relative font-mono" ref={dropdownRef}>
-      {/* One-Liner Dropdown Trigger Button */}
+    <div className="relative font-sans" ref={dropdownRef}>
+      {/* Header Bar Watchlist-Style Asset Selection Trigger */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center space-x-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-terminal-card via-terminal-panel to-terminal-card border border-accent-cyan/50 hover:border-accent-cyan transition shadow-sm text-left group shrink-0"
-        title="Click to select Asset (Nifty, BankNifty, Sensex, MCX Commodities, Nifty 50 Stocks)"
+        className="inline-flex items-center space-x-2 px-2 sm:px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-terminal-panel/80 transition text-left cursor-pointer shrink-0 border border-transparent hover:border-slate-200 dark:hover:border-terminal-border"
+        title="Click to select Asset / Index"
       >
-        <span className="text-[10px] sm:text-xs font-bold text-accent-cyan flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-          <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent-cyan shrink-0" />
-          <span className="hidden xs:inline sm:hidden">ASSET:</span>
-          <span className="hidden sm:inline">Select ASSET:</span>
-          <strong className="text-terminal-text font-black px-1 sm:px-1.5 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 text-[10px] sm:text-xs">
-            {currentConfig.symbol}
-          </strong>
+        <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-terminal-text tracking-tight whitespace-nowrap">
+          {getPrettyIndexName(currentConfig)}
         </span>
-        <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-terminal-muted transition-transform duration-200 ${isOpen ? 'rotate-180 text-accent-cyan' : ''}`} />
+
+        {currentState && (
+          <div className="flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-sm whitespace-nowrap font-mono font-bold">
+            <span className="text-slate-900 dark:text-terminal-text font-bold">
+              {currentState.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span className={isPositive ? 'text-emerald-600 dark:text-bull' : 'text-red-500 dark:text-bear'}>
+              {isPositive ? '+' : ''}{currentState.change.toFixed(2)} ({isPositive ? '+' : ''}{currentState.pctChange.toFixed(2)}%)
+            </span>
+          </div>
+        )}
+
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-500 dark:text-terminal-muted transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-sky-500 dark:text-accent-cyan' : ''}`} />
       </button>
 
-      {/* Popover Dropdown Panel */}
+      {/* Popover Watchlist Dropdown Panel */}
       {isOpen && (
-        <div className="fixed sm:absolute left-3 sm:left-0 top-14 sm:top-full mt-1 w-[calc(100vw-24px)] sm:w-[440px] max-h-[480px] bg-terminal-card border-2 border-accent-cyan/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
-          {/* Header & Search Bar */}
-          <div className="p-3 border-b border-terminal-border bg-terminal-panel space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-terminal-text uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />
-                <span>SELECT ASSET (INDEX / COMMODITY / STOCK)</span>
-              </span>
-              <span className="text-[10px] text-terminal-muted">
-                {filteredSymbols.length} Available
-              </span>
-            </div>
-
-            {/* Search Input */}
+        <div className="fixed sm:absolute left-2 sm:left-0 top-12 sm:top-full mt-1 w-[calc(100vw-16px)] sm:w-[480px] max-h-[520px] bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
+          {/* Header & Search Input */}
+          <div className="p-3 border-b border-slate-200 dark:border-terminal-border bg-slate-50 dark:bg-terminal-panel space-y-2">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-terminal-muted" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-terminal-muted" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search symbol (e.g. CRUDEOIL, GOLD, NIFTY, TCS...)"
-                className="w-full bg-terminal-bg border border-terminal-border rounded-xl pl-9 pr-8 py-2 text-terminal-text text-xs focus:outline-none focus:border-accent-cyan transition shadow-inner font-mono"
+                placeholder="Search symbol (e.g. NIFTY, SENSEX, CRUDEOIL, RELIANCE...)"
+                className="w-full bg-white dark:bg-terminal-bg border border-slate-200 dark:border-terminal-border rounded-xl pl-9 pr-8 py-1.5 text-slate-800 dark:text-terminal-text text-xs focus:outline-none focus:border-sky-500 dark:focus:border-accent-cyan transition shadow-inner font-mono"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-terminal-muted hover:text-terminal-text"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-terminal-muted hover:text-slate-700 dark:hover:text-terminal-text"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -197,14 +198,14 @@ export const StockSelectorDropdown: React.FC = () => {
             </div>
 
             {/* Category Filter Tabs */}
-            <div className="grid grid-cols-4 gap-1 rounded-lg bg-terminal-bg p-0.5 border border-terminal-border text-[10px]">
+            <div className="grid grid-cols-4 gap-1 rounded-lg bg-slate-200/70 dark:bg-terminal-bg p-0.5 text-[10px] font-mono font-bold">
               <button
                 type="button"
                 onClick={() => setCategoryFilter('ALL')}
-                className={`py-1 rounded font-bold transition text-center ${
+                className={`py-1 rounded transition text-center ${
                   categoryFilter === 'ALL'
-                    ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
+                    ? 'bg-white dark:bg-accent-cyan/20 text-slate-900 dark:text-accent-cyan shadow-sm'
+                    : 'text-slate-500 dark:text-terminal-muted hover:text-slate-900 dark:hover:text-terminal-text'
                 }`}
               >
                 All ({ALL_SYMBOLS_CONFIG.length})
@@ -212,10 +213,10 @@ export const StockSelectorDropdown: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCategoryFilter('INDICES')}
-                className={`py-1 rounded font-bold transition text-center ${
+                className={`py-1 rounded transition text-center ${
                   categoryFilter === 'INDICES'
-                    ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
+                    ? 'bg-white dark:bg-accent-cyan/20 text-slate-900 dark:text-accent-cyan shadow-sm'
+                    : 'text-slate-500 dark:text-terminal-muted hover:text-slate-900 dark:hover:text-terminal-text'
                 }`}
               >
                 ⚡ Indices ({indicesCount})
@@ -223,10 +224,10 @@ export const StockSelectorDropdown: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCategoryFilter('COMMODITIES')}
-                className={`py-1 rounded font-bold transition text-center ${
+                className={`py-1 rounded transition text-center ${
                   categoryFilter === 'COMMODITIES'
-                    ? 'bg-amber/25 text-amber border border-amber/50 shadow-sm font-black'
-                    : 'text-terminal-muted hover:text-terminal-text'
+                    ? 'bg-white dark:bg-amber/25 text-amber-700 dark:text-amber shadow-sm font-black'
+                    : 'text-slate-500 dark:text-terminal-muted hover:text-slate-900 dark:hover:text-terminal-text'
                 }`}
               >
                 🛢️ MCX ({commodityCount})
@@ -234,10 +235,10 @@ export const StockSelectorDropdown: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCategoryFilter('NIFTY50_STOCKS')}
-                className={`py-1 rounded font-bold transition text-center ${
+                className={`py-1 rounded transition text-center ${
                   categoryFilter === 'NIFTY50_STOCKS'
-                    ? 'bg-bull/20 text-bull border border-bull/40 shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
+                    ? 'bg-white dark:bg-bull/20 text-emerald-700 dark:text-bull shadow-sm'
+                    : 'text-slate-500 dark:text-terminal-muted hover:text-slate-900 dark:hover:text-terminal-text'
                 }`}
               >
                 📈 Stocks ({stocksCount})
@@ -245,93 +246,90 @@ export const StockSelectorDropdown: React.FC = () => {
             </div>
           </div>
 
-          {/* Scrollable Symbol List */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 divide-y-0 max-h-[320px]">
+          {/* Watchlist Rows (Formatted exactly as requested) */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-terminal-border/40 max-h-[360px]">
             {filteredSymbols.length === 0 ? (
-              <div className="py-8 text-center text-terminal-muted">
+              <div className="py-8 text-center text-slate-400 dark:text-terminal-muted">
                 <p>No symbols match "{searchQuery}"</p>
               </div>
             ) : (
               filteredSymbols.map((item: SymbolConfig) => {
                 const isSelected = selectedIndex === item.symbol;
                 const state = indices[item.symbol];
+                const isItemPositive = (state?.change || 0) >= 0;
 
                 return (
-                  <div key={item.symbol}
+                  <div
+                    key={item.symbol}
                     onClick={() => handleSelect(item.symbol)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer ${
+                    className={`group flex items-center justify-between px-3.5 py-2.5 transition cursor-pointer ${
                       isSelected
-                        ? 'bg-accent-cyan/15 border-accent-cyan text-terminal-text shadow-[0_0_15px_rgba(0,229,255,0.2)]'
-                        : item.category === 'COMMODITIES'
-                        ? 'bg-terminal-bg/60 border-transparent hover:border-amber/40 hover:bg-amber/5'
-                        : 'bg-terminal-bg/60 border-transparent hover:border-terminal-border hover:bg-terminal-panel'
+                        ? 'bg-sky-50/80 dark:bg-accent-cyan/15'
+                        : 'hover:bg-slate-50 dark:hover:bg-terminal-panel'
                     } ${checkingMcx && item.symbol === selectedIndex ? 'opacity-70' : ''}`}
                   >
-                    <div className="flex items-center space-x-2.5">
-                      <div className={`p-1.5 rounded-lg border ${
-                        item.category === 'COMMODITIES'
-                          ? 'bg-amber/10 text-amber border-amber/30'
-                          : item.isIndex 
-                          ? 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/30' 
-                          : 'bg-bull/10 text-bull border-bull/30'
+                    {/* Left: Asset Name */}
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <span className={`font-semibold text-xs sm:text-[13px] truncate ${
+                        isSelected 
+                          ? 'text-sky-600 dark:text-accent-cyan font-bold' 
+                          : 'text-slate-800 dark:text-terminal-text'
                       }`}>
-                        {getSymbolIcon(item)}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center space-x-1.5">
-                          <span className={`font-black text-xs sm:text-sm ${isSelected ? 'text-accent-cyan' : 'text-terminal-text'}`}>
-                            {item.symbol}
-                          </span>
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-terminal-panel border border-terminal-border text-terminal-muted font-semibold">
-                            Lot {item.lot} • Step ₹{item.step}
-                          </span>
-                          {/* MCX offline badge — shown only for commodities */}
-                          {item.category === 'COMMODITIES' && (
-                            <span className="text-[8px] px-1 py-0.5 rounded bg-amber/10 border border-amber/30 text-amber font-bold flex items-center gap-0.5">
-                              <WifiOff className="w-2 h-2" />
-                              MCX
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-terminal-muted truncate max-w-[160px] sm:max-w-[200px]">
-                          {item.name}
-                        </p>
-                      </div>
+                        {getPrettyIndexName(item)}
+                      </span>
+                      {item.category === 'COMMODITIES' && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-50 dark:bg-amber/10 border border-amber-200 dark:border-amber/30 text-amber-700 dark:text-amber font-bold shrink-0">
+                          MCX
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    {/* Right: Live Price & Delta + Quick Actions */}
+                    <div className="flex items-center space-x-2 shrink-0">
                       {state ? (
-                        <div className="text-right">
-                          <span className="font-bold text-xs text-terminal-text block">
-                            ₹{state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        <div className="flex items-center space-x-2 font-mono text-xs whitespace-nowrap text-right">
+                          <span className="font-semibold text-slate-900 dark:text-terminal-text">
+                            {state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <span className={`text-[10px] font-bold ${state.change >= 0 ? 'text-bull' : 'text-bear'}`}>
-                            {state.change >= 0 ? '+' : ''}{state.pctChange.toFixed(2)}%
+                          <span className={`font-bold ${isItemPositive ? 'text-emerald-600 dark:text-bull' : 'text-red-500 dark:text-bear'}`}>
+                            {isItemPositive ? '+' : ''}{state.change.toFixed(2)} ({isItemPositive ? '+' : ''}{state.pctChange.toFixed(2)}%)
                           </span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-terminal-muted italic">
-                          Click to stream
+                        <span className="text-[10px] text-slate-400 dark:text-terminal-muted italic font-mono">
+                          Click to load
                         </span>
                       )}
 
-                      {/* Visible/Pinned Indicator toggle */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleIndexVisibility(item.symbol);
-                        }}
-                        className={`p-1.5 rounded-lg border transition ${
-                          visibleIndices.includes(item.symbol)
-                            ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan'
-                            : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
-                        }`}
-                        title={visibleIndices.includes(item.symbol) ? 'Pinned to top dashboard bar' : 'Pin to top dashboard bar'}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Quick Action Icons */}
+                      <div className="flex items-center space-x-0.5 pl-1.5 text-slate-400 dark:text-terminal-muted">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelect(item.symbol);
+                          }}
+                          className="p-1 rounded border border-slate-200 dark:border-terminal-border/60 hover:bg-slate-100 dark:hover:bg-terminal-border text-slate-500 dark:text-terminal-muted hover:text-slate-800 dark:hover:text-terminal-text"
+                          title="Open Chart"
+                        >
+                          <BarChart2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleIndexVisibility(item.symbol);
+                          }}
+                          className="p-1 rounded border border-slate-200 dark:border-terminal-border/60 hover:bg-slate-100 dark:hover:bg-terminal-border text-slate-500 dark:text-terminal-muted hover:text-slate-800 dark:hover:text-terminal-text"
+                          title={visibleIndices.includes(item.symbol) ? 'Pinned to top dashboard bar' : 'Pin to top dashboard bar'}
+                        >
+                          {visibleIndices.includes(item.symbol) ? (
+                            <Check className="w-3 h-3 text-sky-500 dark:text-accent-cyan" />
+                          ) : (
+                            <Layers className="w-3 h-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -340,14 +338,14 @@ export const StockSelectorDropdown: React.FC = () => {
           </div>
 
           {/* Footer Bar */}
-          <div className="p-2 border-t border-terminal-border bg-terminal-panel/40 flex items-center justify-between text-[10px] text-terminal-muted">
-            <span>Tip: Click checkmark to Pin/Unpin symbol to top bar</span>
-            <span className="font-bold text-accent-cyan">Active: {selectedIndex}</span>
+          <div className="p-2.5 border-t border-slate-200 dark:border-terminal-border bg-slate-50 dark:bg-terminal-panel/60 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-terminal-muted">
+            <span>Fyers API Live Streaming Feed</span>
+            <span className="font-bold text-sky-600 dark:text-accent-cyan">Active: {selectedIndex}</span>
           </div>
         </div>
       )}
 
-      {/* MCX Market Offline Modal — shown when commodity is clicked while MCX is closed */}
+      {/* MCX Market Offline Modal */}
       {offlineSymbol && (
         <McxOfflineModal
           symbol={offlineSymbol}
@@ -358,3 +356,5 @@ export const StockSelectorDropdown: React.FC = () => {
     </div>
   );
 };
+
+export default StockSelectorDropdown;
