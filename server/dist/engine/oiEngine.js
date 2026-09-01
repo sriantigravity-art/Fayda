@@ -609,7 +609,8 @@ class OIEngine {
             heroZeroSignals,
             patternBreakout: patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
             masterConfluence: confluenceEngine_js_1.ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternEngine_js_1.PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')),
-            indiaVix
+            indiaVix,
+            updatedAtIso: new Date(now).toISOString()
         };
         return {
             indexState,

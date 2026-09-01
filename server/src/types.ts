@@ -563,6 +563,7 @@ export interface MarketIndexState {
   patternBreakout?: PatternBreakoutAnalysis;
   masterConfluence?: MasterStrategyConfluence;
   indiaVix?: number;  // India VIX live value — NSE volatility index
+  updatedAtIso?: string; // ISO timestamp written on every fresh snapshot — used by client for staleness detection
 }
 
 export interface GlobalIndexItem {

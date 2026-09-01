@@ -27,6 +27,19 @@ import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import type { SurgeEvent } from '../types';
 
+/**
+ * Parse the first standalone price number from formatted strings like:
+ *   '₹52.75 (+28%)'  → 52.75
+ *   '₹38.20 (-10%)'  → 38.20
+ *   '52.75'           → 52.75
+ * Uses a first-match regex so trailing '%' content doesn't corrupt the value.
+ */
+function parsePriceString(str: string | undefined | null): number {
+  if (!str) return 0;
+  const match = String(str).match(/[\d]+(?:\.[\d]+)?/);
+  return match ? parseFloat(match[0]) : 0;
+}
+
 type ScoreCategory = 'ALL' | 'TARGET_WINS' | '60_PLUS' | '50_60' | '40_50';
 type OptionSideFilter = 'ALL' | 'CE' | 'PE';
 type SortOrder = 'PROBABILITY' | 'CE_FIRST' | 'PE_FIRST';
@@ -74,7 +87,7 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Helper to check if a surge has achieved target
+  // Helper to check if a surge has achieved its target price
   const checkIsTargetHit = (surge: SurgeEvent): boolean => {
     const isCall = surge.optionType === 'CE';
     const contract = surge.suggestedContract;
@@ -88,8 +101,11 @@ export const SurgeAlertBanner: React.FC = () => {
       ? contract.ltp
       : (surge.ltp > 0 ? surge.ltp : currentOptionLtp);
 
-    let targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, ''));
-    if (!targetPrice || targetPrice <= entryBase) {
+    // ✅ FIX: parsePriceString correctly extracts '52.75' from '₹52.75 (+28%)'
+    // The old regex /[^0-9.]/ merged the trailing percentage digits, making it never trigger.
+    let targetPrice = parsePriceString(contract?.target);
+    if (!targetPrice || targetPrice <= entryBase || targetPrice > entryBase * 5) {
+      // Fallback: dynamic target = entry + 25% (conservative intraday target)
       targetPrice = +(entryBase * 1.25).toFixed(2);
     }
     return targetPrice > 0 && currentOptionLtp >= targetPrice;
@@ -523,21 +539,27 @@ export const SurgeAlertBanner: React.FC = () => {
                     ? contract.ltp
                     : (surge.ltp > 0 ? surge.ltp : currentOptionLtp);
 
-                  let targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, ''));
-                  let stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, ''));
+                  // ✅ FIX: Use parsePriceString to correctly extract '52.75' from '₹52.75 (+28%)'
+                  // Old regex merged trailing % digits → wrong target value → target never triggered
+                  let targetPrice = parsePriceString(contract?.target);
+                  let stoplossPrice = parsePriceString(contract?.stoploss);
 
-                  if (!targetPrice || targetPrice <= entryBase) {
-                    targetPrice = +(entryBase * 1.25).toFixed(2);
+                  if (!targetPrice || targetPrice <= entryBase || targetPrice > entryBase * 5) {
+                    targetPrice = +(entryBase * 1.25).toFixed(2);  // fallback: +25%
                   }
                   if (!stoplossPrice || stoplossPrice >= entryBase) {
-                    stoplossPrice = +(entryBase * 0.90).toFixed(2);
+                    stoplossPrice = +(entryBase * 0.88).toFixed(2); // fallback: -12% (stricter than old -10%)
                   }
 
                   // Live P&L and Trade Lifecycle State
                   const pnlPoints = +(currentOptionLtp - entryBase).toFixed(2);
                   const pnlPct = entryBase > 0 ? +((pnlPoints / entryBase) * 100).toFixed(1) : 0;
                   const isTargetHit = targetPrice > 0 && currentOptionLtp >= targetPrice;
-                  const isStoplossHit = stoplossPrice > 0 && currentOptionLtp > 0 && currentOptionLtp <= stoplossPrice;
+                  // ✅ SL: require confirmed -5% drawdown from entry (not just touching SL level)
+                  // This prevents normal option premium oscillations from triggering false SL alerts
+                  const isStoplossHit = stoplossPrice > 0 && currentOptionLtp > 0
+                    && currentOptionLtp <= stoplossPrice
+                    && pnlPct <= -5.0;  // must be genuinely down at least 5% from entry
                   const isRunningInProfit = pnlPct >= 2.0 && !isTargetHit && !isStoplossHit;
                   const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.04) && !isTargetHit && !isStoplossHit;
                   const isPullback = currentOptionLtp < (entryBase * 0.96) && !isStoplossHit;

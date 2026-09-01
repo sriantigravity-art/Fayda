@@ -575,6 +575,7 @@ export interface MarketIndexState {
   strikeStep: number;
   lotSize: number;
   lastUpdated: string;
+  updatedAtIso?: string;  // ISO timestamp — used for freshness checks to hide stale delta values
   expiryDates: string[];
   selectedExpiry: string;
   daysToExpiry: number;
