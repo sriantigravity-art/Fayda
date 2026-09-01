@@ -6200,7 +6200,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹6.15)",
     "notes": "Put holders exiting positions at 23950 PE (-OI, -price). Downside panic subsiding."
   },
   {
@@ -6226,7 +6226,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹54.05)",
     "notes": "Aggressive call buying at 24000 CE (+price, +OI). Strong upside momentum breakout likely."
   },
   {
@@ -6252,7 +6252,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹15.20)",
     "notes": "Put holders exiting positions at 24000 PE (-OI, -price). Downside panic subsiding."
   },
   {
@@ -6278,7 +6278,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹23.40)",
     "notes": "Aggressive call buying at 24050 CE (+price, +OI). Strong upside momentum breakout likely."
   },
   {
@@ -6304,7 +6304,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹34.70)",
     "notes": "Put holders exiting positions at 24050 PE (-OI, -price). Downside panic subsiding."
   },
   {
@@ -6330,7 +6330,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹9.60)",
     "notes": "Aggressive call buying at 24100 CE (+price, +OI). Strong upside momentum breakout likely."
   },
   {
@@ -6356,7 +6356,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹71.00)",
     "notes": "Put holders exiting positions at 24100 PE (-OI, -price). Downside panic subsiding."
   },
   {
@@ -6382,7 +6382,7 @@
     "pointsPnl": 0,
     "pnlPct": 0,
     "nearTargetPct": 0,
-    "nearTargetDescription": "Active In Progress",
+    "nearTargetDescription": "0% of Target (LTP ₹4.40)",
     "notes": "Trapped Call writers panicking at 24150 CE (-OI, +price). Explosive upward squeeze underway."
   }
 ]
