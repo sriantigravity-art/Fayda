@@ -12,16 +12,18 @@ import {
   TrendingDown, 
   Timer,
   ArrowRight,
-  Sparkles,
   Flame,
   Activity,
-  Layers
+  Layers,
+  ArrowDownUp
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import type { SurgeEvent } from '../types';
 
 type ScoreCategory = 'ALL' | '60_PLUS' | '50_60' | '40_50';
+type OptionSideFilter = 'ALL' | 'CE' | 'PE';
+type SortOrder = 'PROBABILITY' | 'CE_FIRST' | 'PE_FIRST';
 
 export const SurgeAlertBanner: React.FC = () => {
   const { recentSurges, setSelectedIndex, indices } = useMarket();
@@ -31,6 +33,8 @@ export const SurgeAlertBanner: React.FC = () => {
   });
   const [scoreCategory, setScoreCategory] = useState<ScoreCategory>('60_PLUS');
   const [assetFilter, setAssetFilter] = useState<string>('ALL');
+  const [sideFilter, setSideFilter] = useState<OptionSideFilter>('ALL');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('PROBABILITY');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
   // 1-second live countdown ticker
@@ -59,26 +63,34 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Helper to get strictly unexpired surges matching score and asset filter
-  const getFilteredSurges = (category: ScoreCategory, symbol: string = 'ALL') => {
+  // Helper to get strictly unexpired surges matching score, asset, and side filters
+  const getFilteredSurges = (
+    category: ScoreCategory, 
+    symbol: string = 'ALL', 
+    side: OptionSideFilter = 'ALL',
+    order: SortOrder = 'PROBABILITY'
+  ) => {
     const now = currentTime;
     const map = new Map<string, SurgeEvent>();
 
     recentSurges.forEach((s: SurgeEvent) => {
       const score = s.surgeScore ?? 0;
 
-      // Score filter
+      // 1. Score bracket filter
       if (category === '60_PLUS' && score < 60) return;
       if (category === '50_60' && (score < 50 || score >= 60)) return;
       if (category === '40_50' && (score < 40 || score >= 50)) return;
       if (category === 'ALL' && score < 40) return;
 
-      // Timeline unexpired check (20m for Extreme, 45m for Strong, 60m for Moderate)
+      // 2. Option Side filter (CE vs PE)
+      if (side !== 'ALL' && s.optionType !== side) return;
+
+      // 3. Timeline unexpired check (20m for Extreme, 45m for Strong, 60m for Moderate)
       const ageMs = now - new Date(s.timestamp).getTime();
       const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60)) * 60 * 1000;
       if (ageMs > maxAgeMs) return;
 
-      // Asset filter
+      // 4. Asset filter
       if (symbol !== 'ALL') {
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === s.indexSymbol);
         if (symbol === 'COMMODITIES') {
@@ -96,8 +108,22 @@ export const SurgeAlertBanner: React.FC = () => {
       }
     });
 
-    // SORTING: Most probable / highest conviction trades FIRST (highest score first, then newest)
-    return Array.from(map.values()).sort((a, b) => {
+    const list = Array.from(map.values());
+
+    // SORTING LOGIC:
+    return list.sort((a, b) => {
+      // If user selected CE first or PE first grouping:
+      if (order === 'CE_FIRST') {
+        if (a.optionType !== b.optionType) {
+          return a.optionType === 'CE' ? -1 : 1;
+        }
+      } else if (order === 'PE_FIRST') {
+        if (a.optionType !== b.optionType) {
+          return a.optionType === 'PE' ? -1 : 1;
+        }
+      }
+
+      // High Probability / Score first within group:
       const scoreDiff = (b.surgeScore ?? 0) - (a.surgeScore ?? 0);
       if (scoreDiff !== 0) return scoreDiff;
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -105,14 +131,18 @@ export const SurgeAlertBanner: React.FC = () => {
   };
 
   const displayedSurges = useMemo(() => {
-    return getFilteredSurges(scoreCategory, assetFilter);
-  }, [recentSurges, scoreCategory, assetFilter, currentTime]);
+    return getFilteredSurges(scoreCategory, assetFilter, sideFilter, sortOrder);
+  }, [recentSurges, scoreCategory, assetFilter, sideFilter, sortOrder, currentTime]);
 
   // Counts for each score category tab
-  const count60Plus = useMemo(() => getFilteredSurges('60_PLUS', assetFilter).length, [recentSurges, assetFilter, currentTime]);
-  const count50To60 = useMemo(() => getFilteredSurges('50_60', assetFilter).length, [recentSurges, assetFilter, currentTime]);
-  const count40To50 = useMemo(() => getFilteredSurges('40_50', assetFilter).length, [recentSurges, assetFilter, currentTime]);
-  const countAll = useMemo(() => getFilteredSurges('ALL', assetFilter).length, [recentSurges, assetFilter, currentTime]);
+  const count60Plus = useMemo(() => getFilteredSurges('60_PLUS', assetFilter, sideFilter).length, [recentSurges, assetFilter, sideFilter, currentTime]);
+  const count50To60 = useMemo(() => getFilteredSurges('50_60', assetFilter, sideFilter).length, [recentSurges, assetFilter, sideFilter, currentTime]);
+  const count40To50 = useMemo(() => getFilteredSurges('40_50', assetFilter, sideFilter).length, [recentSurges, assetFilter, sideFilter, currentTime]);
+  const countAll = useMemo(() => getFilteredSurges('ALL', assetFilter, sideFilter).length, [recentSurges, assetFilter, sideFilter, currentTime]);
+
+  // Counts for Calls vs Puts
+  const countCalls = useMemo(() => getFilteredSurges(scoreCategory, assetFilter, 'CE').length, [recentSurges, scoreCategory, assetFilter, currentTime]);
+  const countPuts = useMemo(() => getFilteredSurges(scoreCategory, assetFilter, 'PE').length, [recentSurges, scoreCategory, assetFilter, currentTime]);
 
   const getScoreBadge = (score: number) => {
     if (score >= 70) {
@@ -191,7 +221,7 @@ export const SurgeAlertBanner: React.FC = () => {
           3. SLIDE-OUT MODAL DRAWER (High-Density Table List View)
          ───────────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 right-0 sm:top-12 sm:bottom-8 w-full sm:w-[580px] md:w-[680px] lg:w-[740px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l-2 sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 sm:top-12 sm:bottom-8 w-full sm:w-[580px] md:w-[680px] lg:w-[760px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l-2 sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
           isOpen ? 'translate-x-0 opacity-100 visible pointer-events-auto' : 'translate-x-full opacity-0 invisible pointer-events-none'
         }`}
       >
@@ -281,7 +311,86 @@ export const SurgeAlertBanner: React.FC = () => {
             </button>
           </div>
 
-          {/* 2. Asset Category Filter Pills */}
+          {/* 2. CALL (CE) / PUT (PE) SORT & FILTER ROW */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+            {/* Side Filter: ALL vs CALLS (CE) vs PUTS (PE) */}
+            <div className="flex items-center space-x-1 p-0.5 rounded-lg bg-terminal-bg border border-terminal-border/80 text-[10px]">
+              <button
+                onClick={() => setSideFilter('ALL')}
+                className={`px-2 py-1 rounded font-bold uppercase transition ${
+                  sideFilter === 'ALL'
+                    ? 'bg-terminal-panel text-terminal-text shadow-sm'
+                    : 'text-terminal-muted hover:text-terminal-text'
+                }`}
+              >
+                All Sides
+              </button>
+              <button
+                onClick={() => setSideFilter('CE')}
+                className={`px-2 py-1 rounded font-bold uppercase transition flex items-center gap-1 ${
+                  sideFilter === 'CE'
+                    ? 'bg-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                    : 'text-emerald-700 dark:text-bull hover:bg-terminal-panel'
+                }`}
+              >
+                <span>🟢 Calls (CE)</span>
+                <span className="text-[9px] opacity-80">({countCalls})</span>
+              </button>
+              <button
+                onClick={() => setSideFilter('PE')}
+                className={`px-2 py-1 rounded font-bold uppercase transition flex items-center gap-1 ${
+                  sideFilter === 'PE'
+                    ? 'bg-rose-600 text-white shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+                    : 'text-rose-600 dark:text-bear hover:bg-terminal-panel'
+                }`}
+              >
+                <span>🔴 Puts (PE)</span>
+                <span className="text-[9px] opacity-80">({countPuts})</span>
+              </button>
+            </div>
+
+            {/* Sorting Order Toggle (Score vs CE First vs PE First) */}
+            <div className="flex items-center space-x-1 text-[10px]">
+              <span className="text-[9px] text-terminal-muted flex items-center gap-0.5">
+                <ArrowDownUp className="w-2.5 h-2.5" /> Sort:
+              </span>
+              <button
+                onClick={() => setSortOrder('PROBABILITY')}
+                className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
+                  sortOrder === 'PROBABILITY'
+                    ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40'
+                    : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Sort by highest probability setup first"
+              >
+                Score / Prob
+              </button>
+              <button
+                onClick={() => setSortOrder('CE_FIRST')}
+                className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
+                  sortOrder === 'CE_FIRST'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40'
+                    : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Sort Calls (CE) first, then Puts (PE)"
+              >
+                CE First
+              </button>
+              <button
+                onClick={() => setSortOrder('PE_FIRST')}
+                className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
+                  sortOrder === 'PE_FIRST'
+                    ? 'bg-rose-500/20 text-rose-600 dark:text-bear border border-rose-500/40'
+                    : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                }`}
+                title="Sort Puts (PE) first, then Calls (CE)"
+              >
+                PE First
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Asset Category Filter Pills */}
           <div className="flex items-center space-x-1.5 overflow-x-auto scrollbar-thin pb-0.5">
             <span className="text-[9px] text-terminal-muted font-bold uppercase tracking-wider shrink-0 mr-1">
               Asset:
@@ -306,7 +415,7 @@ export const SurgeAlertBanner: React.FC = () => {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
-            TABLE LIST VIEW: Sorted by Most Probable Trade First
+            TABLE LIST VIEW: Sorted with Call/Put and Probabilities
            ───────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 scrollbar-thin">
           {displayedSurges.length === 0 ? (
@@ -318,7 +427,7 @@ export const SurgeAlertBanner: React.FC = () => {
                 No Active Setups in this Category
               </div>
               <p className="text-[11px] text-terminal-muted/70 max-w-xs leading-relaxed">
-                The institutional momentum engine is actively scanning. High-probability surge trades will list here automatically in real time.
+                The institutional momentum engine is actively scanning. High-probability surge trades matching your criteria will appear here automatically.
               </p>
             </div>
           ) : (
@@ -359,17 +468,27 @@ export const SurgeAlertBanner: React.FC = () => {
                     />
                   </div>
 
-                  {/* 1. Header Line: Rank Tag, Score Badge, Trade Action, Timestamp */}
+                  {/* 1. Header Line: Rank Tag, Score Badge, Option Type Tag, Timestamp */}
                   <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
                     <div className="flex items-center space-x-1.5">
                       <span className="px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-terminal-border">
                         #{idx + 1}
                       </span>
                       {getScoreBadge(surge.surgeScore)}
+                      
+                      {/* CE / PE Explicit Badge */}
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                        isCall
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40'
+                          : 'bg-rose-500/20 text-rose-600 dark:text-bear border border-rose-500/40'
+                      }`}>
+                        {isCall ? '🟢 CALL (CE)' : '🔴 PUT (PE)'}
+                      </span>
+
                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                         isBullAction 
-                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-bull border border-emerald-500/30' 
-                          : 'bg-rose-500/15 text-rose-600 dark:text-bear border border-rose-500/30'
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-bull border border-emerald-500/30' 
+                          : 'bg-rose-500/10 text-rose-600 dark:text-bear border border-rose-500/30'
                       }`}>
                         {surge.actionTitle}
                       </span>
@@ -466,8 +585,8 @@ export const SurgeAlertBanner: React.FC = () => {
 
         {/* Drawer Footer Notice */}
         <div className="p-3 border-t border-terminal-border bg-terminal-panel/80 sm:rounded-bl-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
-          <span>⚡ Ordered by highest probability setup first</span>
-          <span>Active filter: <strong className="text-bear">{scoreCategory === '60_PLUS' ? '60-70+ Score' : scoreCategory === '50_60' ? '50-60 Score' : scoreCategory === '40_50' ? '40-50 Score' : 'All Scores'}</strong></span>
+          <span>⚡ Sorted: <strong className="text-terminal-text">{sortOrder === 'PROBABILITY' ? 'Highest Probability First' : sortOrder === 'CE_FIRST' ? 'Calls (CE) First' : 'Puts (PE) First'}</strong></span>
+          <span>Side: <strong className="text-bear">{sideFilter === 'ALL' ? 'All Sides' : sideFilter === 'CE' ? 'Calls (CE) Only' : 'Puts (PE) Only'}</strong></span>
         </div>
       </aside>
     </>

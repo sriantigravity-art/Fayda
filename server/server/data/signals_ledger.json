@@ -2468,13 +2468,13 @@
     "target1Price": 32.3,
     "stoplossPrice": 23.9,
     "riskReward": "1:1.8",
-    "currentLtp": 26.85,
+    "currentLtp": 24.5,
     "peakLtp": 26.85,
     "status": "ACTIVE",
-    "pointsPnl": 0,
-    "pnlPct": 0,
+    "pointsPnl": -2.35,
+    "pnlPct": -8.8,
     "nearTargetPct": 0,
-    "nearTargetDescription": "0% of Target (LTP ₹26.85)",
+    "nearTargetDescription": "0% of Target (LTP ₹24.50)",
     "notes": "Heavy Put buying at 24100 PE (+price, +OI). Market participants positioning for breakdown."
   }
 ]
