@@ -72,6 +72,9 @@ export class GammaEngine {
           ? `Aggressive Call writers unwinding at ${strike} CE (${oiChgFmt} OI). High short-covering squeeze multiplier.`
           : `Extreme 0DTE Gamma acceleration. Requires only +${requiredSpotMovePts} pts upside in ${symbol} for 3.5x payoff.`;
 
+        const entryLow = Math.max(1, +(callLtp * 0.90).toFixed(1));
+        const entryHigh = +(callLtp * 1.04).toFixed(1);
+
         signals.push({
           id: `${symbol}-${strike}-CE-${Date.now()}`,
           symbol,
@@ -79,7 +82,7 @@ export class GammaEngine {
           strike,
           optionType: 'CE',
           ltp: callLtp,
-          entryZone: `₹${callLtp.toFixed(1)} - ₹${(callLtp * 1.05).toFixed(1)}`,
+          entryZone: `₹${entryLow} - ₹${entryHigh}`,
           stoploss,
           stoplossPct: 50,
           target1x,
@@ -143,6 +146,9 @@ export class GammaEngine {
           ? `Aggressive Put writers capitulating at ${strike} PE (${oiChgFmt} OI). High downside breakout momentum.`
           : `Extreme 0DTE Gamma acceleration. Requires only -${requiredSpotMovePts} pts downside in ${symbol} for 3.5x payoff.`;
 
+        const putEntryLow = Math.max(1, +(putLtp * 0.90).toFixed(1));
+        const putEntryHigh = +(putLtp * 1.04).toFixed(1);
+
         signals.push({
           id: `${symbol}-${strike}-PE-${Date.now()}`,
           symbol,
@@ -150,7 +156,7 @@ export class GammaEngine {
           strike,
           optionType: 'PE',
           ltp: putLtp,
-          entryZone: `₹${putLtp.toFixed(1)} - ₹${(putLtp * 1.05).toFixed(1)}`,
+          entryZone: `₹${putEntryLow} - ₹${putEntryHigh}`,
           stoploss,
           stoplossPct: 50,
           target1x,
