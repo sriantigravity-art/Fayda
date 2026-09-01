@@ -128,20 +128,15 @@ const fetchSymbolSnapshot = async (symConfig) => {
             usedSource = 'NSE_LIVE';
         }
         if (res && res.strikes.length > 0) {
-            // Reconcile spot price & net change with official NSE/BSE quotes if missing or zero
+            // Always synchronize spot price, change, and pctChange with live Quotes feed (Fyers -> NSE -> Yahoo)
             let spotPrice = res.spotPrice;
             let spotChange = res.spotChange ?? 0;
             let spotPctChange = res.spotPctChange ?? 0;
-            if (spotPrice <= 0 || (spotChange === 0 && spotPctChange === 0)) {
-                const officialQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symConfig.symbol);
-                if (officialQuote && officialQuote.spot > 0) {
-                    if (spotPrice <= 0)
-                        spotPrice = officialQuote.spot;
-                    if (spotChange === 0)
-                        spotChange = officialQuote.change;
-                    if (spotPctChange === 0)
-                        spotPctChange = officialQuote.pctChange;
-                }
+            const liveQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symConfig.symbol);
+            if (liveQuote && liveQuote.spot > 0) {
+                spotPrice = liveQuote.spot;
+                spotChange = liveQuote.change;
+                spotPctChange = liveQuote.pctChange;
             }
             // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
             let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
@@ -263,11 +258,7 @@ wss.on('connection', async (ws) => {
         allSymbolsConfig: types_js_1.ALL_SYMBOLS_CONFIG,
         timestamp: new Date().toISOString()
     }));
-    // If cached states are not yet populated, populate NIFTY immediately
-    if (cachedIndexStates.size === 0) {
-        await fetchSymbolSnapshot(getSymbolConfig('NIFTY'));
-    }
-    // Immediately push all cached snapshots to the newly connected client
+    // Immediately push fresh active cached states
     for (const [symbol, indexState] of cachedIndexStates.entries()) {
         if (ws.readyState === ws_1.WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -281,6 +272,8 @@ wss.on('connection', async (ws) => {
             }));
         }
     }
+    // Trigger an immediate live snapshot fetch for watched symbols on new connection
+    fetchSymbolSnapshot(getSymbolConfig('NIFTY')).catch(() => { });
     ws.on('close', () => {
         activeClients.delete(ws);
         console.log(`[WS] Client disconnected. Total active: ${activeClients.size}`);
