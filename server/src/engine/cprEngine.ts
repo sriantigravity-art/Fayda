@@ -81,7 +81,7 @@ export class CPREngine {
     const r3 = pdh + 2 * (pivot - pdl);
     const s3 = pdl - 2 * (pdh - pivot);
 
-    // 5. CPR Width Classification (Vikram Prabhu Chapter 4)
+    // 5. CPR Width Classification (Fayda CPR Framework)
     // Narrow CPR (< 0.18%) -> Preceded by consolidation -> High probability of explosive Trending Day
     // Wide CPR (> 0.32%) -> Preceded by big move -> High probability of Sideways / Choppy Day (Fade breakouts)
     let cprWidthCategory: 'NARROW_CPR' | 'WIDE_CPR' | 'AVERAGE_CPR' = 'AVERAGE_CPR';

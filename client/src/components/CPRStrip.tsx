@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CPRLevelData, VirginCPRItem, IndexSymbol } from '../types';
-import { Target, ShieldAlert, Sparkles, Compass, Layers } from 'lucide-react';
+import { useTerminalMode } from '../context/TerminalModeContext';
+import { Target, ShieldAlert, Sparkles, Compass, Layers, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
 
 interface CPRStripProps {
   symbol: IndexSymbol;
@@ -15,15 +16,99 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
   cprData,
   virginCPRs = []
 }) => {
+  const { isBeginner, isExpert } = useTerminalMode();
   if (!cprData) return null;
 
   const distToPivot = spotPrice - cprData.pivot;
   const isAbovePivot = distToPivot >= 0;
-
   const activeVirgin = virginCPRs.find(v => v.isUntouched);
 
+  // =========================================================================
+  // VIEW 1: BEGINNER MODE (Intuitive Market Compass & Safe/Caution Zones)
+  // =========================================================================
+  if (isBeginner) {
+    const rangeSpan = Math.max(1, cprData.pdh - cprData.pdl);
+    const pricePosPct = Math.min(100, Math.max(0, ((spotPrice - cprData.pdl) / rangeSpan) * 100));
+
+    return (
+      <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3.5 sm:p-4 shadow-subtle mb-3 select-none">
+        {/* Beginner Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center space-x-2">
+            <div className={`p-1.5 rounded-lg ${isAbovePivot ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'}`}>
+              <Compass className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-xs sm:text-sm text-terminal-text">
+                Market Compass & Pivot Level ({symbol})
+              </span>
+              <p className="text-[11px] text-terminal-muted">
+                Simple daily roadmap: Central Pivot is the market's fair value baseline
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 ${
+              isAbovePivot ? 'bg-bull/15 border-bull/40 text-bull' : 'bg-bear/15 border-bear/40 text-bear'
+            }`}>
+              {isAbovePivot ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              <span>{isAbovePivot ? '🟢 Above Pivot (Bullish Territory)' : '🔴 Below Pivot (Caution Territory)'}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Beginner Compass Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono text-xs mt-2">
+          {/* Day Floor */}
+          <div className="p-2.5 rounded-lg bg-terminal-panel border border-terminal-border flex flex-col">
+            <span className="text-[10px] text-terminal-muted font-sans font-bold uppercase">1. Yesterday's Low (Support Floor)</span>
+            <span className="text-sm font-bold text-terminal-text mt-0.5">₹{cprData.pdl}</span>
+            <span className="text-[10px] text-bull mt-0.5">Major buying defense level</span>
+          </div>
+
+          {/* Central Pivot */}
+          <div className={`p-2.5 rounded-lg border flex flex-col ${
+            isAbovePivot ? 'bg-bull/10 border-bull/30' : 'bg-bear/10 border-bear/30'
+          }`}>
+            <span className="text-[10px] text-accent-sky font-sans font-bold uppercase">2. Central Pivot (Fair Value)</span>
+            <span className="text-sm font-bold text-terminal-text mt-0.5">₹{cprData.pivot}</span>
+            <span className={`text-[10px] font-bold mt-0.5 ${isAbovePivot ? 'text-bull' : 'text-bear'}`}>
+              {isAbovePivot ? `+${distToPivot.toFixed(1)} pts above Pivot` : `${distToPivot.toFixed(1)} pts below Pivot`}
+            </span>
+          </div>
+
+          {/* Day Ceiling */}
+          <div className="p-2.5 rounded-lg bg-terminal-panel border border-terminal-border flex flex-col">
+            <span className="text-[10px] text-terminal-muted font-sans font-bold uppercase">3. Yesterday's High (Resistance Ceiling)</span>
+            <span className="text-sm font-bold text-terminal-text mt-0.5">₹{cprData.pdh}</span>
+            <span className="text-[10px] text-bear mt-0.5">Upside profit-booking zone</span>
+          </div>
+        </div>
+
+        {/* Beginner Visual Range Progress Bar */}
+        <div className="mt-3 pt-2.5 border-t border-terminal-border/60">
+          <div className="flex items-center justify-between text-[10px] font-mono text-terminal-muted mb-1">
+            <span>Day Floor: ₹{cprData.pdl}</span>
+            <span className="text-terminal-text font-bold">Current Spot: ₹{spotPrice} ({pricePosPct.toFixed(0)}% in range)</span>
+            <span>Day Ceiling: ₹{cprData.pdh}</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-terminal-panel border border-terminal-border overflow-hidden relative">
+            <div
+              className={`h-full transition-all duration-500 ${isAbovePivot ? 'bg-bull' : 'bg-bear'}`}
+              style={{ width: `${pricePosPct}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 2: INTERMEDIATE & EXPERT MODE (Full 7-Level Pivot Ladder & VCPR)
+  // =========================================================================
   return (
-    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 sm:p-4 shadow-subtle mb-3">
+    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 sm:p-4 shadow-subtle mb-3 select-none">
       {/* Header & CPR Width Badge */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center space-x-2">
@@ -38,6 +123,11 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted border border-terminal-border">
                 {symbol}
               </span>
+              {isExpert && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent-purple/15 text-accent-purple border border-accent-purple/30 font-bold">
+                  Quant GEX & S/R
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-terminal-muted">
               {cprData.cprWidthDescription}
@@ -59,9 +149,9 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
             <Sparkles className="w-3 h-3" />
             <span>
               {cprData.cprWidthCategory === 'NARROW_CPR'
-                ? '⚡ NARROW CPR (High Trend Prob)'
+                ? '⚡ NARROW CPR (Trend Day Prob > 70%)'
                 : cprData.cprWidthCategory === 'WIDE_CPR'
-                ? '🛡️ WIDE CPR (Chop / Reversal Prob)'
+                ? '🛡️ WIDE CPR (Chop / Fade Breakouts)'
                 : '📊 AVERAGE CPR'}
             </span>
             <span className="text-[10px] opacity-80">({cprData.cprWidthPts} pts • {cprData.cprWidthPct}%)</span>
@@ -69,7 +159,7 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
         </div>
       </div>
 
-      {/* CPR Level Cards Strip */}
+      {/* CPR Level Cards Strip (7 Levels) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center text-xs font-mono">
         {/* S2 */}
         <div className="p-2 rounded-lg bg-terminal-panel/60 border border-terminal-border flex flex-col items-center justify-center">

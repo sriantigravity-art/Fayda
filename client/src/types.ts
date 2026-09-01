@@ -618,7 +618,7 @@ export interface IntradayMarketRegimeData {
   keyActionAdvice: string;
 }
 
-export type PrabhuStrategyId =
+export type FaydaStrategyId =
   | 'OD_PATTERN'
   | 'MORNING_STAR'
   | 'EVENING_STAR'
@@ -645,8 +645,8 @@ export type PrabhuStrategyId =
   | 'GAP_BORDER_REJECTION'
   | 'FAKE_BREAKOUT';
 
-export interface PrabhuStrategySetup {
-  strategyId: PrabhuStrategyId;
+export interface FaydaStrategySetup {
+  strategyId: FaydaStrategyId;
   strategyNumber: number;
   strategyName: string;
   category: 'TRENDING' | 'SIDEWAYS' | 'REVERSAL';
@@ -710,8 +710,8 @@ export interface MarketIndexState {
   cprData?: CPRLevelData;
   virginCPRs?: VirginCPRItem[];
   marketRegime?: IntradayMarketRegimeData;
-  prabhuStrategy?: PrabhuStrategySetup;
-  allPrabhuStrategies?: PrabhuStrategySetup[];
+  faydaStrategy?: FaydaStrategySetup;
+  allFaydaStrategies?: FaydaStrategySetup[];
   preMarketChecklist?: PreMarketChecklist;
   indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
 }

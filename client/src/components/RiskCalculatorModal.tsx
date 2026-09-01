@@ -234,14 +234,14 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
           </div>
         </div>
 
-        {/* Vikram Prabhu 5 Golden Risk Management Rules (Chapter 10) */}
+        {/* Fayda 5 Golden Capital Preservation Rules */}
         <div className="bg-terminal-panel/60 border border-terminal-border rounded-xl p-3.5 space-y-2 text-xs font-mono">
           <div className="flex items-center justify-between text-terminal-text font-bold border-b border-terminal-border/60 pb-1.5">
             <span className="flex items-center gap-1.5 text-bull">
               <ShieldCheck className="w-4 h-4" />
-              <span>Vikram Prabhu 5 Rules of Capital Preservation</span>
+              <span>Fayda 5 Golden Rules of Capital Preservation</span>
             </span>
-            <span className="text-[10px] text-terminal-muted font-sans">Chapter 10</span>
+            <span className="text-[10px] text-terminal-muted font-sans">Risk Protocol</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-terminal-muted font-sans">
             <div><strong>1. The 1% Rule:</strong> Max risk &le; 1% of total capital per trade (₹{maxRiskAmount.toLocaleString('en-IN')}).</div>

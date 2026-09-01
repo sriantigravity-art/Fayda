@@ -18,7 +18,7 @@ import { PatternEngine } from './patternEngine.js';
 import { ConfluenceEngine } from './confluenceEngine.js';
 import { CPREngine } from './cprEngine.js';
 import { MarketRegimeEngine } from './marketRegimeEngine.js';
-import { PrabhuStrategyEngine } from './prabhuStrategyEngine.js';
+import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
 
 interface RawStrikeSnapshot {
   strikePrice: number;
@@ -701,12 +701,12 @@ export class OIEngine {
     );
 
     // ─────────────────────────────────────────────────────────────
-    // CPR & Vikram Prabhu 25 Strategies & Market Regime Engine
+    // CPR & Fayda 25 Strategies & Market Regime Engine
     // ─────────────────────────────────────────────────────────────
     const cprData = CPREngine.calculateCPR(symbol, spotPrice);
     const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
     const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
-    const prabhuScan = PrabhuStrategyEngine.scanStrategies(
+    const faydaScan = FaydaStrategyEngine.scanStrategies(
       symbol,
       spotPrice,
       cprData,
@@ -756,9 +756,9 @@ export class OIEngine {
       cprData,
       virginCPRs,
       marketRegime,
-      prabhuStrategy: prabhuScan.activeSetup,
-      allPrabhuStrategies: prabhuScan.allDetectedSetups,
-      preMarketChecklist: prabhuScan.preMarketChecklist,
+      faydaStrategy: faydaScan.activeSetup,
+      allFaydaStrategies: faydaScan.allDetectedSetups,
+      preMarketChecklist: faydaScan.preMarketChecklist,
       indiaVix,
       updatedAtIso: new Date(now).toISOString()
     };
