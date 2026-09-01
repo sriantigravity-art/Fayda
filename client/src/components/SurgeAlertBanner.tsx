@@ -1,129 +1,130 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
-import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock, Timer, Minimize2, Maximize2, ChevronLeft } from 'lucide-react';
+import { 
+  Zap, 
+  ChevronLeft, 
+  X, 
+  Clock, 
+  Target, 
+  ShieldAlert, 
+  AlertOctagon, 
+  TrendingUp, 
+  TrendingDown, 
+  Timer,
+  Layers,
+  ArrowRight,
+  Filter
+} from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
+import type { IndexSymbol, SurgeEvent } from '../types';
 
 export const SurgeAlertBanner: React.FC = () => {
-  const { latestExtremeSurge, dismissExtremeBanner, indices } = useMarket();
+  const { recentSurges, setSelectedIndex, selectedIndex, indices } = useMarket();
+  const [isOpen, setIsOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('oi_radar_surge_sidebar_open');
+    return saved === 'true';
+  });
+  const [assetFilter, setAssetFilter] = useState<string>('ALL');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
-  // 1-second live countdown ticker for strict timebound expiry
+  // 1-second live countdown ticker
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Reset minimized state when a new surge alert arrives
-  useEffect(() => {
-    if (latestExtremeSurge?.id) {
-      setIsMinimized(false);
-    }
-  }, [latestExtremeSurge?.id]);
-
-  if (!latestExtremeSurge || (latestExtremeSurge.surgeScore ?? 0) < 60) {
-    return null;
-  }
-
-  // Guard 1: Do not display live flash surge banner when market is closed
-  const isMarketOpen = (symbol: string): boolean => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
-    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
-    const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
-    if (isCommodity) {
-      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
-    }
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  const toggleSidebar = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('oi_radar_surge_sidebar_open', String(next));
+      return next;
+    });
   };
 
-  if (!isMarketOpen(latestExtremeSurge.indexSymbol)) {
-    return null;
-  }
+  // Keyboard shortcut: Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        localStorage.setItem('oi_radar_surge_sidebar_open', 'false');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
-  const idxState = indices[latestExtremeSurge.indexSymbol];
-  const atm = idxState?.atmStrike;
-  const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === latestExtremeSurge.indexSymbol);
-  const maxAtmDist = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
-  if (atm && Math.abs(latestExtremeSurge.strikePrice - atm) > maxAtmDist) {
-    return null;
-  }
+  // Filter surges: Strict Score >= 60, unexpired, and within active market hours
+  const activeScore60Surges = useMemo(() => {
+    const now = currentTime;
+    return recentSurges.filter((s: SurgeEvent) => {
+      // 1. Strict Score 60+ requirement
+      if ((s.surgeScore ?? 0) < 60) return false;
 
-  // Guard 2: Strict Timebound Window (Extreme: 10 mins, Strong: 15 mins)
-  const maxWindowMinutes = latestExtremeSurge.validUntilMinutes || (latestExtremeSurge.surgeLevel === 'EXTREME' ? 10 : 15);
-  const ageSeconds = (currentTime - new Date(latestExtremeSurge.timestamp).getTime()) / 1000;
-  const totalWindowSeconds = maxWindowMinutes * 60;
-  const remainingSeconds = Math.max(0, Math.floor(totalWindowSeconds - ageSeconds));
+      // 2. Unexpired timeline check (10m for Extreme, 15m for Strong, 20m for Moderate)
+      const ageMs = now - new Date(s.timestamp).getTime();
+      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : 15)) * 60 * 1000;
+      if (ageMs > maxAgeMs) return false;
 
-  // If time window expired, immediately remove from flash screen
-  if (remainingSeconds <= 0) {
-    return null;
-  }
+      // 3. Asset filter
+      if (assetFilter !== 'ALL') {
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === s.indexSymbol);
+        if (assetFilter === 'COMMODITIES') {
+          const isComm = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
+          if (!isComm) return false;
+        } else if (s.indexSymbol !== assetFilter) {
+          return false;
+        }
+      }
 
-  const mins = Math.floor(remainingSeconds / 60);
-  const secs = remainingSeconds % 60;
-  const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      return true;
+    }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [recentSurges, assetFilter, currentTime]);
 
-  const isCall = latestExtremeSurge.optionType === 'CE';
-  const isBullAction = latestExtremeSurge.tradeAction === 'BUY_CALL';
-  const contract = latestExtremeSurge.suggestedContract;
+  // Overall count of all active score 60+ surges
+  const totalActiveCount = useMemo(() => {
+    const now = currentTime;
+    return recentSurges.filter((s: SurgeEvent) => {
+      if ((s.surgeScore ?? 0) < 60) return false;
+      const ageMs = now - new Date(s.timestamp).getTime();
+      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : 15)) * 60 * 1000;
+      return ageMs <= maxAgeMs;
+    }).length;
+  }, [recentSurges, currentTime]);
 
-  // Extract current live LTP of the option strike
-  const strikeObj = idxState?.strikes?.find((s) => s.strikePrice === latestExtremeSurge.strikePrice);
-  const currentOptionLtp = isCall
-    ? (strikeObj?.callLtp ?? latestExtremeSurge.ltp)
-    : (strikeObj?.putLtp ?? latestExtremeSurge.ltp);
+  // Unique asset list for filtering
+  const availableAssetFilters = useMemo(() => {
+    const set = new Set<string>();
+    recentSurges.forEach((s) => {
+      if ((s.surgeScore ?? 0) >= 60) {
+        set.add(s.indexSymbol);
+      }
+    });
+    return Array.from(set);
+  }, [recentSurges]);
 
-  // Guard 3: Target Hit Check (Tip Completed -> Remove from flash screen)
-  const targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, ''));
-  if (targetPrice > 0 && currentOptionLtp >= targetPrice) {
-    return null;
-  }
-
-  // Guard 4: Stoploss Breached Check (Risk Level Hit -> Invalidate and remove)
-  const stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, ''));
-  if (stoplossPrice > 0 && currentOptionLtp > 0 && currentOptionLtp <= stoplossPrice) {
-    return null;
-  }
-
-  // Guard 5: Surge Slowdown / Reversal Check
-  if (strikeObj) {
-    const currentBuildup = isCall ? strikeObj.callBuildup : strikeObj.putBuildup;
-    if (isBullAction && currentBuildup === 'LONG_UNWINDING') {
-      return null; // Buyers exited
-    }
-  }
-
-  // Extract current asset spot price & day's delta
-  const assetSpotPrice = idxState?.spotPrice || 0;
-  const assetChange = idxState?.change || 0;
-  const assetPctChange = idxState?.pctChange || 0;
-  const isAssetPositive = assetChange >= 0;
-
-  const progressPct = totalWindowSeconds > 0 ? Math.min(100, Math.max(0, (remainingSeconds / totalWindowSeconds) * 100)) : 0;
-
-  // ─────────────────────────────────────────────────────────────
-  // MINIMIZED STATE: Settles on the right side edge showing only "FLASH SURGE"
-  // ─────────────────────────────────────────────────────────────
-  if (isMinimized) {
-    return (
-      <div className="fixed right-0 top-[32%] sm:top-[34%] -translate-y-1/2 z-40 select-none font-mono animate-in fade-in slide-in-from-right-4 duration-300">
+  return (
+    <>
+      {/* ─────────────────────────────────────────────────────────────
+          1. RIGHT SIDE BUTTON: Clean Tab matching Global Indices
+         ───────────────────────────────────────────────────────────── */}
+      {!isOpen && (
         <button
           type="button"
-          onClick={() => setIsMinimized(false)}
-          className="flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
-          title="Click to expand Flash Extreme Surge Setup"
+          onClick={toggleSidebar}
+          className="fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
+          title="Open Flash Surge Radar (Score 60+ Institutional Flow)"
         >
-          {/* Mobile View (< sm): Compact Glowing Right-Edge Tab with Sober Flashing Beacon */}
+          {/* Mobile View (< sm): Compact Glowing Right-Edge Icon */}
           <div className="flex sm:hidden items-center justify-center relative p-0.5">
             <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear shadow-[0_0_6px_#FF3B69]" />
+            {totalActiveCount > 0 && (
+              <span className="absolute -bottom-1.5 -left-1 bg-bear text-white text-[8px] font-black px-1 rounded-full shadow-sm">
+                {totalActiveCount}
+              </span>
+            )}
           </div>
 
           {/* Tablet & Desktop View (>= sm): Clean Vertical Tab matching Global Indices */}
@@ -137,145 +138,255 @@ export const SurgeAlertBanner: React.FC = () => {
               <Zap className="w-3.5 h-3.5 rotate-90 text-bear" />
               <span>FLASH SURGE</span>
             </div>
+
+            {totalActiveCount > 0 && (
+              <span className="mt-1 px-1.5 py-0.2 rounded-full bg-bear text-white font-black text-[9px] shadow-[0_0_8px_rgba(255,59,105,0.8)]">
+                {totalActiveCount}
+              </span>
+            )}
           </div>
         </button>
-      </div>
-    );
-  }
+      )}
 
-  // ─────────────────────────────────────────────────────────────
-  // EXPANDED MODAL: Centered on Mobile, Pinned to Right on Tablet & Desktop
-  // ─────────────────────────────────────────────────────────────
-  return (
-    <div className="fixed top-16 left-3 right-3 sm:left-auto sm:right-4 md:right-6 sm:top-20 z-[60] max-w-md sm:max-w-lg w-auto sm:w-full mx-auto sm:mx-0 select-none animate-in fade-in slide-in-from-top-4 sm:slide-in-from-right-6 duration-300 font-mono">
-      <div className="bg-terminal-card/95 backdrop-blur-2xl border-2 border-bear/80 rounded-2xl p-3.5 sm:p-5 shadow-[0_0_50px_rgba(255,59,105,0.4)] relative overflow-hidden text-terminal-text">
-        {/* Top Smooth Countdown Fading Progress Slider Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-terminal-bg/80">
-          <div
-            className="h-full bg-gradient-to-r from-bear via-amber to-bull transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(255,59,105,0.8)]"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
+      {/* ─────────────────────────────────────────────────────────────
+          2. BACKDROP CLICK-TO-DISMISS OVERLAY
+         ───────────────────────────────────────────────────────────── */}
+      {isOpen && (
+        <div
+          onClick={toggleSidebar}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-in fade-in duration-200"
+        />
+      )}
 
-        {/* Ambient Subtle Glow */}
-        <div className="absolute -top-12 -right-12 w-36 h-36 bg-bear/20 rounded-full blur-2xl pointer-events-none" />
+      {/* ─────────────────────────────────────────────────────────────
+          3. SLIDE-OUT DRAWER PANEL (Right Side Window with List View)
+         ───────────────────────────────────────────────────────────── */}
+      <aside
+        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[420px] md:w-[460px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
+          isOpen ? 'translate-x-0 opacity-100 visible pointer-events-auto' : 'translate-x-full opacity-0 invisible pointer-events-none'
+        }`}
+      >
+        {/* Header Bar */}
+        <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/90 sm:rounded-tl-3xl flex flex-col gap-2 relative shrink-0">
+          {/* Ambient Glow */}
+          <div className="absolute top-0 right-0 w-32 h-20 bg-bear/15 rounded-full blur-2xl pointer-events-none" />
 
-        {/* Header Ribbon */}
-        <div className="flex items-center justify-between mt-1 mb-2.5">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase bg-bear text-white shadow-[0_0_12px_rgba(255,59,105,0.8)] animate-pulse">
-              <Zap className="w-3 h-3 mr-1" /> FLASH EXTREME SURGE
-            </span>
-            <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-bear/20 border border-bear/50 text-bear font-bold text-[10px] flex items-center gap-1">
-              <Timer className="w-3 h-3 text-bear animate-spin" style={{ animationDuration: '4s' }} />
-              <span>⏳ {formattedCountdown} Left</span>
-            </span>
-          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-1.5 h-5 rounded-full bg-bear shadow-[0_0_8px_#FF3B69] shrink-0" />
+              <div className="p-1.5 rounded-lg bg-bear/15 text-bear border border-bear/30 shadow-[0_0_10px_rgba(255,59,105,0.3)] shrink-0">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.4)] flex items-center gap-1.5">
+                  <span>FLASH SURGE RADAR</span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-bear/20 text-bear border border-bear/40">
+                    60+ SCORE
+                  </span>
+                </h2>
+                <span className="text-[9px] sm:text-[10px] text-terminal-muted block">
+                  Institutional Momentum & Scalping Signals
+                </span>
+              </div>
+            </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-1.5">
-            <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold text-[10px] flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-              <span>{formatISTTime(latestExtremeSurge.timestamp, { showSeconds: true, includeSuffix: true })}</span>
-            </span>
-            {/* Minimize to right-side flashing icon */}
             <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg text-terminal-muted hover:text-white border border-terminal-border transition"
-              title="Minimize to Right Side Pill"
+              type="button"
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-xl bg-terminal-panel border border-terminal-border hover:bg-terminal-card hover:border-terminal-muted text-terminal-muted hover:text-terminal-text transition"
+              title="Close Drawer (Esc)"
             >
-              <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            {/* Close completely */}
-            <button
-              onClick={dismissExtremeBanner}
-              className="p-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg text-terminal-muted hover:text-white border border-terminal-border transition"
-              title="Close Flash Alert"
-            >
-              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Asset Category Filters Bar */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto scrollbar-thin pt-1 pb-0.5">
+            <button
+              onClick={() => setAssetFilter('ALL')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition shrink-0 ${
+                assetFilter === 'ALL'
+                  ? 'bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.6)]'
+                  : 'bg-terminal-card text-terminal-muted border border-terminal-border hover:text-terminal-text'
+              }`}
+            >
+              ALL ({totalActiveCount})
+            </button>
+            {['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX'].map((sym) => {
+              const count = recentSurges.filter(s => s.indexSymbol === sym && (s.surgeScore ?? 0) >= 60).length;
+              return (
+                <button
+                  key={sym}
+                  onClick={() => setAssetFilter(sym)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition shrink-0 ${
+                    assetFilter === sym
+                      ? 'bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.6)]'
+                      : 'bg-terminal-card text-terminal-muted border border-terminal-border hover:text-terminal-text'
+                  }`}
+                >
+                  {sym} {count > 0 && <span className="opacity-80">({count})</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Contract Title & Spot Price */}
-        <div className="flex items-center justify-between mb-2 pb-2 border-b border-terminal-border/70">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 rounded-lg bg-bear/20 text-bear border border-bear/40 shrink-0">
-              <AlertOctagon className="w-4 h-4" />
+        {/* List View of Active Surges (Ordered by Latest First) */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-thin">
+          {activeScore60Surges.length === 0 ? (
+            <div className="py-16 text-center flex flex-col items-center justify-center space-y-3 font-mono">
+              <div className="p-3 rounded-2xl bg-terminal-panel border border-terminal-border text-terminal-muted">
+                <AlertOctagon className="w-8 h-8 opacity-40 animate-pulse" />
+              </div>
+              <div className="text-xs font-bold text-terminal-muted uppercase tracking-wider">
+                No Active 60+ Score Surges
+              </div>
+              <p className="text-[11px] text-terminal-muted/70 max-w-xs leading-relaxed">
+                The institutional momentum engine is actively scanning. High-conviction flow with score ≥ 60 will list here instantly in real time.
+              </p>
             </div>
-            <div>
-              <h3 className="font-black text-xs sm:text-base text-terminal-text tracking-wide">
-                {latestExtremeSurge.indexSymbol} <span className={isCall ? 'text-bull font-black' : 'text-bear font-black'}>{latestExtremeSurge.strikePrice} {latestExtremeSurge.optionType}</span>
-              </h3>
-              <span className={`font-bold text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded ${isBullAction ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bear/20 text-bear border border-bear/40'}`}>
-                {latestExtremeSurge.actionTitle}
-              </span>
-            </div>
-          </div>
+          ) : (
+            activeScore60Surges.map((surge) => {
+              const isCall = surge.optionType === 'CE';
+              const isBullAction = surge.tradeAction === 'BUY_CALL';
+              const contract = surge.suggestedContract;
+              const idxState = indices[surge.indexSymbol];
 
-          {/* Spot price tag */}
-          {assetSpotPrice > 0 && (
-            <div className="text-right shrink-0">
-              <span className="text-[8px] sm:text-[9px] text-terminal-muted block">SPOT PRICE</span>
-              <span className="font-black text-xs sm:text-sm text-terminal-text tabular-nums">
-                ₹{assetSpotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <span className={`text-[8px] sm:text-[9px] font-bold block ${isAssetPositive ? 'text-bull' : 'text-bear'}`}>
-                {isAssetPositive ? '+' : ''}{assetPctChange.toFixed(2)}%
-              </span>
-            </div>
+              // Live LTP lookup
+              const strikeObj = idxState?.strikes?.find((s) => s.strikePrice === surge.strikePrice);
+              const currentOptionLtp = isCall
+                ? (strikeObj?.callLtp ?? surge.ltp)
+                : (strikeObj?.putLtp ?? surge.ltp);
+
+              // Timeline calculations
+              const maxWindowMinutes = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 10 : 15);
+              const ageSeconds = Math.floor((currentTime - new Date(surge.timestamp).getTime()) / 1000);
+              const totalWindowSeconds = maxWindowMinutes * 60;
+              const remainingSeconds = Math.max(0, totalWindowSeconds - ageSeconds);
+              const mins = Math.floor(remainingSeconds / 60);
+              const secs = remainingSeconds % 60;
+              const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+              const progressPct = totalWindowSeconds > 0 ? Math.min(100, Math.max(0, (remainingSeconds / totalWindowSeconds) * 100)) : 0;
+              const diffMin = Math.floor(ageSeconds / 60);
+              const relTimeStr = diffMin === 0 ? 'Just now' : `${diffMin}m ago`;
+
+              return (
+                <div
+                  key={surge.id}
+                  className="rounded-2xl border-2 border-terminal-border hover:border-bear/70 bg-terminal-card/90 p-3.5 sm:p-4 transition-all duration-200 relative overflow-hidden shadow-sm hover:shadow-[0_0_25px_rgba(255,59,105,0.25)] flex flex-col space-y-2.5"
+                >
+                  {/* Fading Timeline Progress Bar */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-terminal-bg">
+                    <div
+                      className="h-full bg-gradient-to-r from-bear via-amber to-bull transition-all duration-1000 ease-linear"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+
+                  {/* Header Row: Score Badge + Timestamp + Countdown */}
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.7)] flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5" /> Score {surge.surgeScore}/100
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isBullAction ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bear/20 text-bear border border-bear/40'}`}>
+                        {surge.actionTitle}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center space-x-1 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{formatISTTime(surge.timestamp, { showSeconds: false })}</span>
+                        <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-bear/15 border border-bear/40 text-bear font-bold">
+                        ⏳ {formattedCountdown}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Strike & Asset Title */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-black text-sm sm:text-base text-white tracking-wide">
+                        {surge.indexSymbol} <span className={isCall ? 'text-bull' : 'text-bear'}>{surge.strikePrice} {surge.optionType}</span>
+                      </h3>
+                      <span className="text-[10px] text-terminal-muted block">
+                        {surge.actionDescription}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedIndex(surge.indexSymbol);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg border border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0"
+                      title="Focus on this asset chart and option chain"
+                    >
+                      <span>Focus</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* 4-Box High-Visibility Trade Matrix */}
+                  <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
+                    {/* Live LTP */}
+                    <div className="p-1.5 rounded-xl bg-amber/15 border border-amber/50 shadow-sm">
+                      <span className="text-[8px] text-amber block font-bold uppercase">LIVE LTP</span>
+                      <span className="font-black text-xs sm:text-sm text-amber block tabular-nums mt-0.5">
+                        ₹{currentOptionLtp.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Entry Zone */}
+                    <div className="p-1.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/40">
+                      <span className="text-[8px] text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
+                      <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={contract?.recommendedEntry}>
+                        {contract?.recommendedEntry || '—'}
+                      </span>
+                    </div>
+
+                    {/* Stop Loss */}
+                    <div className="p-1.5 rounded-xl bg-bear/15 border border-bear/50">
+                      <span className="text-[8px] text-bear block font-bold uppercase flex items-center justify-center gap-0.5">
+                        <ShieldAlert className="w-2.5 h-2.5" /> SL
+                      </span>
+                      <span className="font-bold text-[11px] sm:text-sm text-bear block mt-0.5">
+                        {contract?.stoploss || '—'}
+                      </span>
+                    </div>
+
+                    {/* Target */}
+                    <div className="p-1.5 rounded-xl bg-bull/15 border border-bull/50">
+                      <span className="text-[8px] text-bull block font-bold uppercase flex items-center justify-center gap-0.5">
+                        <Target className="w-2.5 h-2.5" /> TARGET
+                      </span>
+                      <span className="font-bold text-[11px] sm:text-sm text-bull block mt-0.5">
+                        {contract?.target || '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Footer Metrics */}
+                  <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-terminal-border/50">
+                    <span>⚡ OI Surge: <strong className="text-terminal-text">{surge.oiChange1mFormatted}</strong></span>
+                    <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
+                    <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
 
-        {/* 4-Box High-Visibility Trade Matrix */}
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2.5 text-center text-xs">
-          {/* Current Premium */}
-          <div className="p-1.5 sm:p-2 rounded-xl bg-amber/15 border border-amber/50 shadow-sm">
-            <span className="text-[8px] sm:text-[9px] text-amber block font-bold uppercase">LIVE LTP</span>
-            <span className="font-black text-xs sm:text-sm text-amber block tabular-nums mt-0.5">
-              ₹{currentOptionLtp.toFixed(2)}
-            </span>
-          </div>
-
-          {/* Entry Zone */}
-          <div className="p-1.5 sm:p-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/40">
-            <span className="text-[8px] sm:text-[9px] text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
-            <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={contract.recommendedEntry}>
-              {contract.recommendedEntry}
-            </span>
-          </div>
-
-          {/* Stoploss */}
-          <div className="p-1.5 sm:p-2 rounded-xl bg-bear/15 border border-bear/50">
-            <span className="text-[8px] sm:text-[9px] text-bear block font-bold uppercase flex items-center justify-center gap-0.5">
-              <ShieldAlert className="w-2.5 h-2.5" /> STOP LOSS
-            </span>
-            <span className="font-bold text-[11px] sm:text-sm text-bear block mt-0.5">
-              {contract.stoploss}
-            </span>
-          </div>
-
-          {/* Target */}
-          <div className="p-1.5 sm:p-2 rounded-xl bg-bull/15 border border-bull/50">
-            <span className="text-[8px] sm:text-[9px] text-bull block font-bold uppercase flex items-center justify-center gap-0.5">
-              <Target className="w-2.5 h-2.5" /> TARGET
-            </span>
-            <span className="font-bold text-[11px] sm:text-sm text-bull block mt-0.5">
-              {contract.target}
-            </span>
-          </div>
+        {/* Drawer Footer Notice */}
+        <div className="p-3 border-t border-terminal-border bg-terminal-panel/80 sm:rounded-bl-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
+          <span>⚡ Auto-refreshing institutional flow</span>
+          <span>Score threshold: <strong className="text-bear">60+</strong></span>
         </div>
-
-        {/* Action description footer */}
-        <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-          <span className="truncate max-w-[70%]" title={latestExtremeSurge.actionDescription}>
-            💡 {latestExtremeSurge.actionDescription}
-          </span>
-          <span className="px-1.5 py-0.5 rounded bg-amber/15 text-amber border border-amber/30 font-bold shrink-0">
-            Score {latestExtremeSurge.surgeScore}/100
-          </span>
-        </div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };
 
