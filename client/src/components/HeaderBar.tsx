@@ -4,6 +4,7 @@ import { useTerminalMode, type TerminalMode } from '../context/TerminalModeConte
 import { useDensity, type TerminalDensity } from '../context/DensityContext';
 import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
+import { formatISTTime } from '../utils/formatTime';
 import { 
   Volume2, 
   VolumeX, 
@@ -198,9 +199,9 @@ export const HeaderBar: React.FC = () => {
     };
   }, [isMoreMenuOpen, isMobileModeDropdownOpen]);
 
-  // Live real-time clock with seconds
+  // Live real-time clock with seconds strictly formatted in IST
   const [currentTime, setCurrentTime] = useState<string>(() => {
-    return new Date().toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return formatISTTime(null, { showSeconds: true });
   });
 
   // Market Hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
@@ -226,14 +227,7 @@ export const HeaderBar: React.FC = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(
-        new Date().toLocaleTimeString('en-IN', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        })
-      );
+      setCurrentTime(formatISTTime(null, { showSeconds: true }));
     }, 1000);
     return () => clearInterval(timer);
   }, []);

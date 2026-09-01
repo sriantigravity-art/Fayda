@@ -19,8 +19,10 @@ import {
   ArrowRight,
   HelpCircle,
   X,
-  Zap
+  Zap,
+  TrendingDown as TrendingNeutral
 } from 'lucide-react';
+import { formatISTTime } from '../utils/formatTime';
 import type { NewsSource, NewsImpactStamp, GlobalEventCategory } from '../types';
 
 // Secondary frontend cleaner to guarantee 100% clean English sentences
@@ -264,7 +266,7 @@ export const NewsWireTab: React.FC = () => {
                     </span>
                     <span className="text-[10px] text-terminal-muted flex items-center gap-1 font-mono">
                       <Clock className="w-3 h-3 text-terminal-muted" />
-                      <span>{item.timeFormatted}</span>
+                      <span>{formatISTTime(item.timestamp, { showSeconds: false })}</span>
                     </span>
                   </div>
 

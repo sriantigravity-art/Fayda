@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock, Timer } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
+import { formatISTTime } from '../utils/formatTime';
 
 export const SurgeAlertBanner: React.FC = () => {
   const { latestExtremeSurge, dismissExtremeBanner, indices } = useMarket();
@@ -125,7 +126,7 @@ export const SurgeAlertBanner: React.FC = () => {
               {/* Prominent Timestamp Badge */}
               <span className="px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
                 <Clock className="w-3 h-3 text-accent-cyan" />
-                <span>{latestExtremeSurge.timeFormatted} IST</span>
+                <span>{formatISTTime(latestExtremeSurge.timestamp, { showSeconds: true, includeSuffix: true })}</span>
               </span>
               <span className="px-2 py-0.5 rounded bg-bear/25 border border-bear/60 text-bear font-black text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
                 <Timer className="w-3 h-3 text-bear animate-spin" style={{ animationDuration: '3s' }} />

@@ -4,6 +4,7 @@ import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHo
 import { Zap, Target, Clock, Pause, Play } from 'lucide-react';
 import type { IndexSymbol } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
+import { formatISTTime } from '../utils/formatTime';
 
 export const HighlightSignalTicker: React.FC = () => {
   const { indices, visibleIndices, setSelectedIndex, selectedIndex } = useMarket();
@@ -39,7 +40,7 @@ export const HighlightSignalTicker: React.FC = () => {
     const isIndex = cfg ? cfg.isIndex : true;
 
     const fallbackTime = lastUpdated 
-      ? new Date(lastUpdated).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      ? formatISTTime(lastUpdated, { showSeconds: false })
       : 'EOD Settle';
 
     // Check if signal has expired past its validity window

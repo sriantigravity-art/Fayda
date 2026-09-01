@@ -8,6 +8,7 @@ import {
   Sparkles,
   CheckCircle2
 } from 'lucide-react';
+import { formatISTTime } from '../utils/formatTime';
 
 export const TargetHitFlashModal: React.FC = () => {
   const { latestTargetHit, dismissTargetHit } = useMarket();
@@ -109,7 +110,7 @@ export const TargetHitFlashModal: React.FC = () => {
               {latestTargetHit.action}
             </span>
             <span className="text-[11px] text-terminal-muted">
-              {latestTargetHit.timeFormatted} IST
+              {formatISTTime(latestTargetHit.timestamp, { showSeconds: true, includeSuffix: true })}
             </span>
           </div>
 

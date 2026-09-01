@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X, AlertTriangle, Clock, TrendingUp, TrendingDown, Minus, ExternalLink, RefreshCw, Coins, Droplets, Flame, Zap } from 'lucide-react';
+import { formatISTTime } from '../utils/formatTime';
 
 interface McxOfflineQuote {
   symbol: string;
@@ -280,7 +281,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
                     iCOMDEX <ExternalLink className="w-2.5 h-2.5" />
                   </a>
                 </div>
-                <span>Last updated: {new Date(data.lastUpdated).toLocaleTimeString('en-IN')}</span>
+                <span>Last updated: {formatISTTime(data.lastUpdated, { showSeconds: true, includeSuffix: true })}</span>
               </div>
             </div>
           )}
