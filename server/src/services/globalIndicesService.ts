@@ -1,4 +1,5 @@
-import { GlobalIndexItem } from '../types';
+import { GlobalIndexItem } from '../types.js';
+import { fyersService } from './fyersService.js';
 
 interface InstrumentConfig {
   id: string;
@@ -370,10 +371,25 @@ export class GlobalIndicesService {
           let change: number | null = null;
           let pctChange: number | null = null;
           let isMarketOpen = true;
-          let sourceUsed: 'NSE' | 'YAHOO' = 'YAHOO';
+          let sourceUsed: 'FYERS' | 'NSE' | 'YAHOO' = 'YAHOO';
 
-          // ── Indian market entries: try NSE first, Yahoo Finance as fallback ──
-          if (cfg.isIndianMarket && cfg.nseIndexName && nseData) {
+          // ── Step 1: Try Fyers Live first if Fyers credentials are live ──
+          if (cfg.isIndianMarket) {
+            if (cfg.id === 'INDIA_VIX') {
+              const fyersVix = await fyersService.fetchIndiaVix();
+              if (fyersVix && fyersVix.price > 0) {
+                price     = fyersVix.price;
+                change    = fyersVix.change;
+                pctChange = fyersVix.pctChange;
+                sourceUsed = 'FYERS';
+                const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
+                isMarketOpen = istMin >= 555 && istMin <= 930;
+              }
+            }
+          }
+
+          // ── Step 2: Try NSE allIndices as next priority ──
+          if (price === null && cfg.isIndianMarket && cfg.nseIndexName && nseData) {
             const nseEntry = nseData[cfg.nseIndexName];
             if (nseEntry && nseEntry.price > 0) {
               price     = nseEntry.price;
@@ -382,18 +398,18 @@ export class GlobalIndicesService {
               // GIFT Nifty: add futures premium over underlying Nifty 50 spot
               if (cfg.isGiftNifty) {
                 price  = +(price  + 32.5).toFixed(1);
-                change = +(change + 0).toFixed(2); // premium is fixed, change stays same
+                change = +(change + 0).toFixed(2);
               }
               sourceUsed = 'NSE';
               // Determine market open status via IST time (NSE: 09:15–15:30 IST = UTC+05:30)
               const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
-              isMarketOpen = istMin >= 555 && istMin <= 930; // 09:15–15:30 IST
+              isMarketOpen = istMin >= 555 && istMin <= 930;
             } else {
               console.warn(`[GlobalIndicesService] NSE data missing for "${cfg.nseIndexName}" — falling back to Yahoo Finance (${cfg.symbol})`);
             }
           }
 
-          // ── Yahoo Finance (primary for non-Indian; fallback for Indian) ──
+          // ── Step 3: Yahoo Finance fallback ──
           if (price === null) {
             const yahoo = await this.fetchYahooQuote(cfg.symbol);
             if (yahoo) {
@@ -470,6 +486,31 @@ export class GlobalIndicesService {
   }
 
   public async getSpotForSymbol(symbol: string): Promise<{ spot: number; change: number; pctChange: number } | null> {
+    // 1. Try Fyers first if live and authenticated
+    const FYERS_MAP: Record<string, string> = {
+      NIFTY: 'NSE:NIFTY50-INDEX',
+      BANKNIFTY: 'NSE:NIFTYBANK-INDEX',
+      FINNIFTY: 'NSE:FINNIFTY-INDEX',
+      MIDCPNIFTY: 'NSE:MIDCPNIFTY-INDEX',
+      SENSEX: 'BSE:SENSEX-INDEX',
+      BANKEX: 'BSE:BANKEX-INDEX',
+      INDIA_VIX: 'NSE:INDIAVIX-INDEX'
+    };
+    if (FYERS_MAP[symbol]) {
+      const quotes = await fyersService.fetchQuotes([FYERS_MAP[symbol]]);
+      if (quotes && quotes.length > 0) {
+        const q = quotes[0]?.v;
+        if (q && q.lp > 0) {
+          return {
+            spot: q.lp,
+            change: q.ch ?? 0,
+            pctChange: q.chp ?? 0
+          };
+        }
+      }
+    }
+
+    // 2. Fallback to NSE India
     const nseData = await this.fetchNseAllIndices();
     if (nseData) {
       const MAP: Record<string, string[]> = {
@@ -491,6 +532,7 @@ export class GlobalIndicesService {
       }
     }
 
+    // 3. Fallback to Yahoo Finance
     const item = this.indices.find(i => i.id === symbol || i.id.replace('_', '') === symbol.replace('_', ''));
     if (item && item.price > 0) {
       return { spot: item.price, change: item.change, pctChange: item.pctChange };

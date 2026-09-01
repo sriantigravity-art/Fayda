@@ -370,6 +370,42 @@ class FyersService {
             return null;
         }
     }
+    async fetchQuotes(symbols) {
+        if (!this.config.appId || !this.config.accessToken)
+            return [];
+        try {
+            const symList = symbols.join(',');
+            const response = await fetch(`https://api-t1.fyers.in/data/quotes?symbols=${encodeURIComponent(symList)}`, {
+                headers: {
+                    'Authorization': `${this.config.appId}:${this.config.accessToken}`
+                }
+            });
+            if (!response.ok)
+                return [];
+            const json = await response.json();
+            if (json && json.s === 'ok' && Array.isArray(json.d)) {
+                return json.d;
+            }
+            return [];
+        }
+        catch {
+            return [];
+        }
+    }
+    async fetchIndiaVix() {
+        const quotes = await this.fetchQuotes(['NSE:INDIAVIX-INDEX']);
+        if (quotes && quotes.length > 0) {
+            const q = quotes[0]?.v;
+            if (q && q.lp > 0) {
+                return {
+                    price: q.lp,
+                    change: q.ch ?? 0,
+                    pctChange: q.chp ?? 0
+                };
+            }
+        }
+        return null;
+    }
 }
 exports.FyersService = FyersService;
 exports.fyersService = new FyersService();
