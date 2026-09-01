@@ -96,7 +96,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
       {/* Backdrop overlay for smooth dismissal when clicking outside */}
       {isSettingsOpen && (
         <div 
-          className="md:hidden fixed inset-0 z-[55] bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+          className="md:hidden fixed inset-0 z-[105] bg-black/70 backdrop-blur-xs transition-opacity animate-in fade-in duration-200 touch-manipulation"
           onClick={() => setIsSettingsOpen(false)}
         />
       )}
@@ -107,7 +107,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
       {isSettingsOpen && (
         <div
           ref={settingsDrawerRef}
-          className="md:hidden fixed bottom-16 left-2 right-2 z-[70] max-h-[84vh] overflow-y-auto no-scrollbar bg-terminal-card/95 backdrop-blur-2xl border border-terminal-border rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.85)] p-4 flex flex-col space-y-4 animate-in slide-in-from-bottom-5 fade-in duration-200 select-none ring-1 ring-white/10"
+          className="md:hidden fixed bottom-16 left-2 right-2 z-[110] max-h-[84vh] overflow-y-auto no-scrollbar bg-terminal-card/98 backdrop-blur-2xl border border-terminal-border rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.85)] p-4 flex flex-col space-y-4 animate-in slide-in-from-bottom-5 fade-in duration-200 select-none ring-1 ring-white/10 touch-manipulation"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between border-b border-terminal-border/60 pb-3">
@@ -465,7 +465,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
       {/* ========================================================================= */}
       <nav 
         aria-label="Mobile Navigation Bar"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-terminal-card/98 backdrop-blur-lg border-t border-terminal-border px-2 py-1 flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.5)] select-none h-14"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-terminal-card/98 backdrop-blur-lg border-t border-terminal-border px-2 py-1 flex items-center justify-around shadow-[0_-4px_25px_rgba(0,0,0,0.6)] select-none h-14 pb-safe touch-manipulation"
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key && !isSettingsOpen;
@@ -480,10 +480,10 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                 setIsSettingsOpen(false);
                 onTabChange(tab.key);
               }}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer ${
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
                 isActive
                   ? 'text-accent-sky font-bold'
-                  : 'text-terminal-muted hover:text-terminal-text'
+                  : 'text-terminal-muted hover:text-terminal-text active:text-accent-sky'
               }`}
             >
               <div className={`p-1 rounded-lg transition ${isActive ? 'bg-accent-sky/15 text-accent-sky' : ''}`}>
@@ -501,10 +501,10 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
           id="mobile-tab-settings"
           type="button"
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer ${
+          className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             isSettingsOpen
               ? 'text-accent-sky font-bold'
-              : 'text-terminal-muted hover:text-accent-sky'
+              : 'text-terminal-muted hover:text-accent-sky active:text-accent-sky'
           }`}
           title="Open Terminal Settings, Mode, Audio & Tools"
         >
