@@ -159,7 +159,14 @@ export const HeroZeroRadar: React.FC = () => {
               const isCall = item.optionType === 'CE';
               const strikeObj = strikes.find(s => s.strikePrice === item.strike);
               const liveLtp = strikeObj ? (isCall ? strikeObj.callLtp : strikeObj.putLtp) : item.ltp;
-              const displayLtp = (liveLtp && liveLtp > 0) ? liveLtp : item.ltp;
+              const displayLtp = (liveLtp && liveLtp > 0) ? liveLtp : (item.ltp > 0 ? item.ltp : 15.0);
+
+              // Dynamically calibrate optimal entry zone (Dip Floor: -12%, Trigger Ceiling: +3%)
+              const entryLow = Math.max(1, +(displayLtp * 0.88).toFixed(1));
+              const entryHigh = +(displayLtp * 1.03).toFixed(1);
+              const displayEntryZone = `₹${entryLow} - ₹${entryHigh}`;
+              const displaySl = +(displayLtp * 0.50).toFixed(1);
+              const displayTarget = +(displayLtp * 2.0).toFixed(1);
 
               return (
                 <div 
@@ -186,15 +193,15 @@ export const HeroZeroRadar: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
                       <span className="text-[9px] text-accent-cyan font-sans block font-semibold">Optimal Entry (Dip)</span>
-                      <strong className="text-terminal-text font-bold">{item.entryZone}</strong>
+                      <strong className="text-terminal-text font-bold">{displayEntryZone}</strong>
                     </div>
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
                       <span className="text-[9px] text-bear font-sans block font-semibold">Stoploss</span>
-                      <strong className="text-bear font-bold">₹{item.stoploss.toFixed(1)}</strong>
+                      <strong className="text-bear font-bold">₹{displaySl}</strong>
                     </div>
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
                       <span className="text-[9px] text-bull font-sans block font-semibold">Target (2x)</span>
-                      <strong className="text-bull font-bold">₹{item.target1x.toFixed(1)}</strong>
+                      <strong className="text-bull font-bold">₹{displayTarget}</strong>
                     </div>
                   </div>
                 </div>
