@@ -74,6 +74,8 @@ export const getWsUrl = (): string => {
   return PROD_WS_URL;
 };
 
+const MarketContext = createContext<MarketContextType | undefined>(undefined);
+
 export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [indices, setIndices] = useState<Record<IndexSymbol, MarketIndexState | null>>({
     NIFTY: null,
