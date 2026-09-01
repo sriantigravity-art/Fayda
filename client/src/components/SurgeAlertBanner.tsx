@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
-import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock, Timer, Minimize2, Maximize2 } from 'lucide-react';
+import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock, Timer, Minimize2, Maximize2, ChevronLeft } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 
@@ -22,7 +22,7 @@ export const SurgeAlertBanner: React.FC = () => {
     }
   }, [latestExtremeSurge?.id]);
 
-  if (!latestExtremeSurge) {
+  if (!latestExtremeSurge || (latestExtremeSurge.surgeScore ?? 0) < 60) {
     return null;
   }
 
@@ -108,7 +108,7 @@ export const SurgeAlertBanner: React.FC = () => {
   const progressPct = totalWindowSeconds > 0 ? Math.min(100, Math.max(0, (remainingSeconds / totalWindowSeconds) * 100)) : 0;
 
   // ─────────────────────────────────────────────────────────────
-  // MINIMIZED STATE: Settles on the right side edge like Global Indices
+  // MINIMIZED STATE: Settles on the right side edge showing only "FLASH SURGE"
   // ─────────────────────────────────────────────────────────────
   if (isMinimized) {
     return (
@@ -116,46 +116,27 @@ export const SurgeAlertBanner: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsMinimized(false)}
-          className="flex items-center justify-center p-2.5 sm:py-3.5 sm:px-2.5 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_25px_rgba(255,59,105,0.5)] backdrop-blur-xl bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
-          title="Click to expand Extreme Surge Alert"
+          className="flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
+          title="Click to expand Flash Extreme Surge Setup"
         >
-          {/* Mobile View (< sm): Compact Glowing Right-Edge Tab */}
-          <div className="flex sm:hidden flex-col items-center justify-center relative gap-1 p-0.5">
-            <div className="relative">
-              <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
-              {/* Sober Flashing Beacon Orb */}
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-bear shadow-[0_0_8px_#FF3B69]" />
-            </div>
-            <span className="text-[9px] font-black text-amber tabular-nums mt-0.5">
-              ₹{currentOptionLtp.toFixed(0)}
-            </span>
+          {/* Mobile View (< sm): Compact Glowing Right-Edge Tab with Sober Flashing Beacon */}
+          <div className="flex sm:hidden items-center justify-center relative p-0.5">
+            <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear shadow-[0_0_6px_#FF3B69]" />
           </div>
 
-          {/* Tablet & Desktop View (>= sm): Full Vertical Dock Tab like Global Indices */}
-          <div className="hidden sm:flex flex-col items-center gap-2" style={{ writingMode: 'vertical-rl' }}>
+          {/* Tablet & Desktop View (>= sm): Clean Vertical Tab matching Global Indices */}
+          <div className="hidden sm:flex flex-col items-center gap-1.5" style={{ writingMode: 'vertical-rl' }}>
             <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
-              <span className="w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
-              <span className="w-2 h-2 rounded-full bg-bear shadow-[0_0_8px_#FF3B69]" />
+              <ChevronLeft className="w-3.5 h-3.5 text-bear animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
             </div>
             
             <div className="flex items-center gap-1 text-bear">
-              <Zap className="w-3.5 h-3.5 rotate-90 text-bear animate-pulse" />
-              <span className="font-black text-bear tracking-widest">FLASH SURGE</span>
+              <Zap className="w-3.5 h-3.5 rotate-90 text-bear" />
+              <span>FLASH SURGE</span>
             </div>
-
-            <div className="flex items-center gap-1 font-bold text-white tracking-wider my-0.5">
-              <span>{latestExtremeSurge.indexSymbol}</span>
-              <span className={isCall ? 'text-bull' : 'text-bear'}>{latestExtremeSurge.strikePrice} {latestExtremeSurge.optionType}</span>
-            </div>
-
-            <div className="px-1.5 py-0.5 rounded bg-amber/15 border border-amber/40 text-amber font-black text-[10px] tracking-normal my-0.5">
-              ₹{currentOptionLtp.toFixed(1)}
-            </div>
-
-            <span className="text-[9px] text-terminal-muted tracking-normal">
-              ⏳ {formattedCountdown}
-            </span>
           </div>
         </button>
       </div>
