@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { getApiBase } from '../context/MarketContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import type { SymbolConfig } from '../types';
 import { McxOfflineModal } from './McxOfflineModal';
@@ -8,15 +9,12 @@ import {
   ChevronDown, 
   Layers, 
   Check, 
-  X,
-  WifiOff
+  X
 } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 async function checkMcxOpen(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/api/mcx-status`, { signal: AbortSignal.timeout(2500) });
+    const res = await fetch(`${getApiBase()}/api/mcx-status`, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return false;
     const d = await res.json();
     return !!d.isOpen;
@@ -43,20 +41,26 @@ export const getPrettyIndexName = (item: SymbolConfig): string => {
   return item.name || item.symbol;
 };
 
+interface SpotData {
+  spotPrice: number;
+  change: number;
+  pctChange: number;
+}
+
 export const StockSelectorDropdown: React.FC = () => {
   const { 
     selectedIndex, 
     setSelectedIndex, 
-    indices, 
+    indices,
     visibleIndices, 
-    toggleIndexVisibility, 
-    globalIndices,
-    refreshIndexStates 
+    toggleIndexVisibility
   } = useMarket();
   
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'INDICES' | 'COMMODITIES' | 'NIFTY50_STOCKS'>('ALL');
+  // Local full snapshot for ALL symbols — fetched independently of WS context
+  const [allStates, setAllStates] = useState<Record<string, SpotData>>({});
 
   // MCX offline modal state
   const [offlineSymbol, setOfflineSymbol] = useState<string | null>(null);
@@ -64,6 +68,35 @@ export const StockSelectorDropdown: React.FC = () => {
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch all symbol states directly from the server
+  const fetchAllStates = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/index-states`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return;
+      const data: Record<string, any> = await res.json();
+      const mapped: Record<string, SpotData> = {};
+      for (const [sym, st] of Object.entries(data)) {
+        if (st && typeof st.spotPrice === 'number' && st.spotPrice > 0) {
+          mapped[sym] = {
+            spotPrice: st.spotPrice,
+            change: typeof st.change === 'number' ? st.change : 0,
+            pctChange: typeof st.pctChange === 'number' ? st.pctChange : 0
+          };
+        }
+      }
+      if (Object.keys(mapped).length > 0) {
+        setAllStates(mapped);
+      }
+    } catch {}
+  }, []);
+
+  // Always keep allStates fresh from the live server — poll every 3 seconds
+  useEffect(() => {
+    fetchAllStates();
+    const interval = setInterval(fetchAllStates, 3000);
+    return () => clearInterval(interval);
+  }, [fetchAllStates]);
 
   // Close on outside click
   useEffect(() => {
@@ -83,23 +116,6 @@ export const StockSelectorDropdown: React.FC = () => {
     };
   }, [isOpen]);
 
-  // Synchronize all symbol states whenever the dropdown is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (refreshIndexStates) {
-      refreshIndexStates();
-    }
-
-    const interval = setInterval(() => {
-      if (refreshIndexStates) {
-        refreshIndexStates();
-      }
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [isOpen, refreshIndexStates]);
-
   const currentConfig = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex) || {
     symbol: selectedIndex,
     name: selectedIndex,
@@ -112,29 +128,19 @@ export const StockSelectorDropdown: React.FC = () => {
     exchange: 'NSE'
   };
 
-  const getSymbolState = (symbol: string) => {
-    const directState = indices[symbol];
-    if (directState && directState.spotPrice > 0) {
-      return {
-        spotPrice: directState.spotPrice,
-        change: directState.change,
-        pctChange: directState.pctChange
-      };
+  // Get spot data for a symbol: prefer the full allStates snapshot, fall back to context
+  const getSpotData = (symbol: string): SpotData | null => {
+    if (allStates[symbol] && allStates[symbol].spotPrice > 0) {
+      return allStates[symbol];
     }
-
-    const g = globalIndices?.find(item => item.id === symbol || item.id.replace('_', '') === symbol.replace('_', ''));
-    if (g && g.price > 0) {
-      return {
-        spotPrice: g.price,
-        change: g.change,
-        pctChange: g.pctChange
-      };
+    const ctx = indices[symbol];
+    if (ctx && ctx.spotPrice > 0) {
+      return { spotPrice: ctx.spotPrice, change: ctx.change, pctChange: ctx.pctChange };
     }
-
     return null;
   };
 
-  const currentState = getSymbolState(selectedIndex);
+  const currentState = getSpotData(selectedIndex);
   const isPositive = (currentState?.change || 0) >= 0;
 
   const indicesCount = ALL_SYMBOLS_CONFIG.filter(s => s.category === 'INDICES').length;
@@ -158,7 +164,6 @@ export const StockSelectorDropdown: React.FC = () => {
     const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
     const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.exchange === 'MCX';
 
-    // For MCX commodities: check if market is open before proceeding
     if (isCommodity) {
       setCheckingMcx(true);
       const isOpen = await checkMcxOpen();
@@ -186,7 +191,7 @@ export const StockSelectorDropdown: React.FC = () => {
 
   return (
     <div className="relative font-sans" ref={dropdownRef}>
-      {/* Header Bar Watchlist-Style Asset Selection Trigger */}
+      {/* Header Bar Trigger */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -295,8 +300,8 @@ export const StockSelectorDropdown: React.FC = () => {
             ) : (
               filteredSymbols.map((item: SymbolConfig) => {
                 const isSelected = selectedIndex === item.symbol;
-                const state = getSymbolState(item.symbol);
-                const isItemPositive = (state?.change || 0) >= 0;
+                const spotData = getSpotData(item.symbol);
+                const isItemPositive = (spotData?.change || 0) >= 0;
 
                 return (
                   <div
@@ -326,22 +331,22 @@ export const StockSelectorDropdown: React.FC = () => {
 
                     {/* Right: Live Price & Delta + Pin Action */}
                     <div className="flex items-center space-x-2 shrink-0">
-                      {state ? (
+                      {spotData ? (
                         <div className="flex items-center space-x-2 font-mono text-xs whitespace-nowrap text-right">
                           <span className="font-semibold text-slate-900 dark:text-terminal-text">
-                            {state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {spotData.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                           <span className={`font-bold ${isItemPositive ? 'text-emerald-600 dark:text-bull' : 'text-red-500 dark:text-bear'}`}>
-                            {isItemPositive ? '+' : ''}{state.change.toFixed(2)} ({isItemPositive ? '+' : ''}{state.pctChange.toFixed(2)}%)
+                            {isItemPositive ? '+' : ''}{spotData.change.toFixed(2)} ({isItemPositive ? '+' : ''}{spotData.pctChange.toFixed(2)}%)
                           </span>
                         </div>
                       ) : (
                         <span className="text-[10px] text-slate-400 dark:text-terminal-muted italic font-mono">
-                          Click to load
+                          Loading…
                         </span>
                       )}
 
-                      {/* Pin to Top Bar Action */}
+                      {/* Pin to Dashboard Bar */}
                       <div className="flex items-center pl-1 text-slate-400 dark:text-terminal-muted">
                         <button
                           type="button"
