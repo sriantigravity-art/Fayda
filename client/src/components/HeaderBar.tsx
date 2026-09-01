@@ -236,8 +236,14 @@ export const HeaderBar: React.FC = () => {
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
   const daysToExpiry = currentIndexState?.daysToExpiry ?? 4;
   const spotPrice = currentIndexState?.spotPrice || 0;
-  const netChange = currentIndexState?.change || 0;
-  const pctChange = currentIndexState?.pctChange || 0;
+  // Freshness guard: skip stale delta values that were cached from a previous poll cycle.
+  // updatedAtIso is written by the server's OI engine on every fresh snapshot.
+  const stateAgeMs = currentIndexState?.updatedAtIso
+    ? Date.now() - new Date(currentIndexState.updatedAtIso).getTime()
+    : Infinity;
+  const isStateFresh = stateAgeMs <= 60000;
+  const netChange = isStateFresh ? (currentIndexState?.change || 0) : 0;
+  const pctChange = isStateFresh ? (currentIndexState?.pctChange || 0) : 0;
   const isPositive = netChange >= 0;
 
   const activePcr = currentIndexState?.pcr?.atmPlusMinus5Pcr ?? 1.0;
@@ -925,9 +931,17 @@ export const HeaderBar: React.FC = () => {
           {visibleIndices.map((sym: string) => {
             const isSelected = selectedIndex === sym;
             const state = sym === selectedIndex ? currentIndexState : indices[sym];
-            const pts = state?.change ?? 0;
-            const pct = state?.pctChange ?? 0;
-            const isPos = pts >= 0;
+
+            // Freshness check: only show change/pct if data is ≤60s old.
+            // Prevents stale cached deltas (e.g. +84.80) from flashing on page refresh.
+            const ageMs = state?.updatedAtIso
+              ? Date.now() - new Date(state.updatedAtIso).getTime()
+              : Infinity;
+            const isFresh = ageMs <= 60000;
+
+            const pts = isFresh ? (state?.change ?? 0) : null;
+            const pct = isFresh ? (state?.pctChange ?? 0) : null;
+            const isPos = (pts ?? 0) >= 0;
 
             return (
               <div
@@ -951,9 +965,13 @@ export const HeaderBar: React.FC = () => {
                   <span className="text-terminal-text font-bold tabular-nums">
                     ₹{state && state.spotPrice > 0 ? state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                   </span>
-                  <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
-                    {isPos ? '+' : ''}{pct.toFixed(2)}%
-                  </span>
+                  {pct !== null ? (
+                    <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
+                      {isPos ? '+' : ''}{pct.toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span className="text-[9px] sm:text-[10px] text-terminal-muted tabular-nums animate-pulse">…</span>
+                  )}
                 </div>
               </div>
             );

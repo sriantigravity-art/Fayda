@@ -734,7 +734,8 @@ export class OIEngine {
         daysToExpiry,
         PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')
       ),
-      indiaVix
+      indiaVix,
+      updatedAtIso: new Date(now).toISOString()
     };
 
     return {

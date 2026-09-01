@@ -319,8 +319,17 @@ wss.on('connection', async (ws: WebSocket) => {
     }
   }
 
-  // Trigger an immediate live snapshot fetch for watched symbols on new connection
-  fetchSymbolSnapshot(getSymbolConfig('NIFTY')).catch(() => {});
+  // Immediately refresh all watched symbols so the new client gets fresh data,
+  // not stale cache values. Run sequentially with small delays to avoid overloading NSE/Fyers.
+  (async () => {
+    const syms = Array.from(watchedSymbols);
+    for (const sym of syms) {
+      try {
+        await fetchSymbolSnapshot(getSymbolConfig(sym));
+        await new Promise(r => setTimeout(r, 120));
+      } catch {}
+    }
+  })();
 
   ws.on('close', () => {
     activeClients.delete(ws);

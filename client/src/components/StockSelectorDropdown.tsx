@@ -128,14 +128,24 @@ export const StockSelectorDropdown: React.FC = () => {
     exchange: 'NSE'
   };
 
-  // Get spot data for a symbol: prefer the full allStates snapshot, fall back to context
+  // Get spot data for a symbol: prefer the fresh allStates REST snapshot (polled every 3s),
+  // fall back to context WS data only if it's fresh (<60s old).
   const getSpotData = (symbol: string): SpotData | null => {
     if (allStates[symbol] && allStates[symbol].spotPrice > 0) {
       return allStates[symbol];
     }
     const ctx = indices[symbol];
     if (ctx && ctx.spotPrice > 0) {
-      return { spotPrice: ctx.spotPrice, change: ctx.change, pctChange: ctx.pctChange };
+      // Only use context's change/pct if the state has a fresh updatedAtIso timestamp
+      const ageMs = ctx.updatedAtIso
+        ? Date.now() - new Date(ctx.updatedAtIso).getTime()
+        : Infinity;
+      const isFresh = ageMs <= 60000;
+      return {
+        spotPrice: ctx.spotPrice,
+        change: isFresh ? ctx.change : 0,
+        pctChange: isFresh ? ctx.pctChange : 0
+      };
     }
     return null;
   };

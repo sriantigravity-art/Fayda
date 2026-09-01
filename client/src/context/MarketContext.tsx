@@ -316,9 +316,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (!strikeRow) return;
 
               const liveLtp = isBull ? strikeRow.callLtp : strikeRow.putLtp;
-              const entryNum = parseFloat(String(pick.recommendedEntry || '').replace(/[^0-9.]/g, '')) || (liveLtp * 0.85);
-              const targetNum = parseFloat(String(pick.target || '').replace(/[^0-9.]/g, '')) || (entryNum * 1.35);
-              const stoplossNum = parseFloat(String(pick.stoploss || '').replace(/[^0-9.]/g, '')) || (entryNum * 0.82);
+              // ✅ FIX: Extract first number from '₹52.75 (+28%)' → 52.75
+              // Old regex /[^0-9.]/ merged digits: '52.7528' → target never hit
+              const parsePrice = (s: string) => {
+                const m = String(s || '').match(/[\d]+(?:\.[\d]+)?/);
+                return m ? parseFloat(m[0]) : 0;
+              };
+              const entryNum = parseFloat(String(pick.recommendedEntry || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (liveLtp * 0.85);
+              const targetNum = parsePrice(pick.target) || (entryNum * 1.30);
+              const stoplossNum = parsePrice(pick.stoploss) || (entryNum * 0.88);
 
               if (liveLtp > 0 && targetNum > 0 && liveLtp >= targetNum) {
                 const targetKey = `${symbol}_${isBull ? 'CE' : 'PE'}_${pick.strike}_${Math.round(targetNum)}`;
@@ -352,8 +358,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 }
               }
 
-              // Check Stoploss Breach / Sudden Reversal
+              // SL: require confirmed -5% drawdown from entry to prevent false triggers from option noise
               if (liveLtp > 0 && stoplossNum > 0 && liveLtp <= stoplossNum) {
+                const drawdownPct = ((entryNum - liveLtp) / entryNum) * 100;
+                if (drawdownPct < 5.0) return; // ignore tiny noise oscillations below 5%
                 const slKey = `sl_${symbol}_${isBull ? 'CE' : 'PE'}_${pick.strike}_${Math.round(stoplossNum)}`;
                 if (!slTriggeredSetRef.current.has(slKey)) {
                   slTriggeredSetRef.current.add(slKey);
