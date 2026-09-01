@@ -263,7 +263,7 @@ export const HighlightSignalTicker: React.FC = () => {
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-0.5 px-2 rounded-lg shadow-sm">
           <Zap className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
           <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-terminal-text">
-            TOP HIGH-CONVICTION RADAR PICKS
+            FAYDA RADAR
           </span>
           <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded bg-bull/20 text-bull border border-bull/40 font-bold">
             FILTER: SCORE ≥ 88%
