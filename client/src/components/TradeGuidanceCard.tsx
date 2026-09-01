@@ -39,7 +39,9 @@ export const TradeGuidanceCard: React.FC = () => {
 
   if (!currentIndexState) return null;
 
-  const { recommendedTrades, spotPrice, atmStrike, resistanceLevels, supportLevels, strikes, masterConfluence } = currentIndexState;
+  const { recommendedTrades, spotPrice, atmStrike, resistanceLevels, supportLevels, strikes, masterConfluence, change, pctChange } = currentIndexState;
+  const netChange = change ?? 0;
+  const netPctChange = pctChange ?? 0;
   const mc = masterConfluence;
 
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
@@ -170,6 +172,20 @@ export const TradeGuidanceCard: React.FC = () => {
 
       {isExpanded && (
         <div className="p-3.5 sm:p-4 space-y-3.5">
+          {/* Day's Net Movement & Price Action Context Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-terminal-panel/80 border border-terminal-border text-xs font-mono">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-sans font-bold text-terminal-muted">Day's Net Movement (Delta):</span>
+              <span className={`font-black flex items-center gap-0.5 ${netChange >= 0 ? 'text-bull' : 'text-bear'}`}>
+                {netChange >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                <span>{netChange >= 0 ? '+' : ''}{netChange.toFixed(2)} pts ({netPctChange >= 0 ? '+' : ''}{netPctChange.toFixed(2)}%)</span>
+              </span>
+            </div>
+            <span className="text-[10px] text-terminal-muted font-sans hidden sm:inline">
+              Net point difference between live market LTP (₹{spotPrice > 0 ? spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}) and yesterday's official close
+            </span>
+          </div>
+
           {/* ========================================================================= */}
           {/* VIEW 1: BEGINNER MODE (Simplified, Plain English, Lot Risk & Rules)        */}
           {/* ========================================================================= */}

@@ -212,7 +212,7 @@ export const SurgeAlertBanner: React.FC = () => {
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-terminal-panel text-terminal-muted border border-terminal-border">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-slate-100 dark:bg-terminal-panel text-terminal-muted border border-slate-200 dark:border-terminal-border">
         {score}/100
       </span>
     );
@@ -253,26 +253,26 @@ export const SurgeAlertBanner: React.FC = () => {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          2. STANDALONE CENTERED MODALBOX (With Backdrop Click-to-Dismiss)
+          2. STANDALONE CENTERED MODALBOX (Theme Aware: Pure Light / Dark)
          ───────────────────────────────────────────────────────────── */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
           {/* Backdrop Blur Overlay */}
           <div
             onClick={toggleModal}
-            className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
           />
 
           {/* Center Modalbox Container */}
           <div
-            className="w-full max-w-4xl max-h-[90vh] bg-terminal-bg/98 backdrop-blur-2xl border-2 border-terminal-border rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.9)] flex flex-col font-mono relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden"
+            className="w-full max-w-4xl max-h-[90vh] bg-slate-50 dark:bg-terminal-bg backdrop-blur-2xl border-2 border-slate-200 dark:border-terminal-border rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.35)] dark:shadow-[0_25px_80px_rgba(0,0,0,0.9)] flex flex-col font-mono relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
             {/* Header Bar */}
-            <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/90 flex flex-col gap-2.5 relative shrink-0">
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-terminal-border bg-white dark:bg-terminal-panel/90 flex flex-col gap-2.5 relative shrink-0">
               {/* Ambient Glow */}
-              <div className="absolute top-0 right-0 w-48 h-24 bg-bear/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute top-0 right-0 w-48 h-24 bg-bear/10 dark:bg-bear/15 rounded-full blur-3xl pointer-events-none" />
 
               {/* Top Title Line */}
               <div className="flex items-center justify-between">
@@ -299,8 +299,8 @@ export const SurgeAlertBanner: React.FC = () => {
                   {/* Live Hover Freeze Indicator */}
                   <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 border transition ${
                     isHovered 
-                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber border-amber-500/40' 
-                      : 'bg-terminal-bg text-terminal-muted border-terminal-border'
+                      ? 'bg-amber-500/20 text-amber-800 dark:text-amber border-amber-500/40' 
+                      : 'bg-slate-100 dark:bg-terminal-bg text-terminal-muted border-slate-200 dark:border-terminal-border'
                   }`}>
                     {isHovered ? <Pause className="w-2.5 h-2.5 animate-pulse" /> : <Play className="w-2.5 h-2.5 text-bull" />}
                     <span>{isHovered ? 'STREAM PAUSED (HOVER)' : 'LIVE STREAM'}</span>
@@ -309,7 +309,7 @@ export const SurgeAlertBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={toggleModal}
-                    className="p-1.5 rounded-xl bg-terminal-panel border border-terminal-border hover:bg-terminal-card hover:border-terminal-muted text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border hover:bg-slate-200 dark:hover:bg-terminal-card hover:border-terminal-muted text-terminal-muted hover:text-terminal-text transition cursor-pointer"
                     title="Close Modal (Esc)"
                   >
                     <X className="w-4 h-4" />
@@ -318,14 +318,14 @@ export const SurgeAlertBanner: React.FC = () => {
               </div>
 
               {/* 1. SCORE & TARGET WIN CATEGORY TABS */}
-              <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-terminal-bg border border-terminal-border/80 text-[10px] sm:text-xs">
+              <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-terminal-bg border border-slate-200 dark:border-terminal-border/80 text-[10px] sm:text-xs">
                 {/* 🏆 Target Wins Highlight Tab */}
                 <button
                   onClick={() => setScoreCategory('TARGET_WINS')}
                   className={`py-1.5 px-1.5 rounded-lg font-black uppercase transition-all flex items-center justify-center gap-1 ${
                     scoreCategory === 'TARGET_WINS'
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.7)]'
-                      : 'text-emerald-700 dark:text-bull hover:bg-terminal-panel'
+                      : 'text-emerald-700 dark:text-bull hover:bg-white dark:hover:bg-terminal-panel'
                   }`}
                   title="Filter by trades that have successfully achieved Target 1"
                 >
@@ -338,7 +338,7 @@ export const SurgeAlertBanner: React.FC = () => {
                   className={`py-1.5 px-1.5 rounded-lg font-black uppercase transition-all flex items-center justify-center gap-1 ${
                     scoreCategory === '60_PLUS'
                       ? 'bg-bear text-white shadow-[0_0_12px_rgba(255,59,105,0.7)]'
-                      : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                      : 'text-terminal-muted hover:text-terminal-text hover:bg-white dark:hover:bg-terminal-panel'
                   }`}
                 >
                   <Flame className="w-3 h-3 text-white" />
@@ -350,7 +350,7 @@ export const SurgeAlertBanner: React.FC = () => {
                   className={`py-1.5 px-1.5 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
                     scoreCategory === '50_60'
                   ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-white dark:hover:bg-terminal-panel'
                   }`}
                 >
                   <Zap className="w-3 h-3 text-amber" />
@@ -361,8 +361,8 @@ export const SurgeAlertBanner: React.FC = () => {
                   onClick={() => setScoreCategory('40_50')}
                   className={`py-1.5 px-1.5 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
                     scoreCategory === '40_50'
-                      ? 'bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
-                      : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                      ? 'bg-white dark:bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text hover:bg-white dark:hover:bg-terminal-panel'
                   }`}
                 >
                   <Activity className="w-3 h-3 text-accent-cyan" />
@@ -373,8 +373,8 @@ export const SurgeAlertBanner: React.FC = () => {
                   onClick={() => setScoreCategory('ALL')}
                   className={`py-1.5 px-1.5 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
                     scoreCategory === 'ALL'
-                      ? 'bg-terminal-card text-terminal-text border border-terminal-border shadow-sm'
-                      : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                      ? 'bg-white dark:bg-terminal-card text-terminal-text border border-slate-200 dark:border-terminal-border shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text hover:bg-white dark:hover:bg-terminal-panel'
                   }`}
                 >
                   <Layers className="w-3 h-3" />
@@ -385,12 +385,12 @@ export const SurgeAlertBanner: React.FC = () => {
               {/* 2. CALL (CE) / PUT (PE) SORT & FILTER ROW */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                 {/* Side Filter: ALL vs CALLS (CE) vs PUTS (PE) */}
-                <div className="flex items-center space-x-1 p-0.5 rounded-lg bg-terminal-bg border border-terminal-border/80 text-[10px]">
+                <div className="flex items-center space-x-1 p-0.5 rounded-lg bg-slate-100/80 dark:bg-terminal-bg border border-slate-200 dark:border-terminal-border/80 text-[10px]">
                   <button
                     onClick={() => setSideFilter('ALL')}
                     className={`px-2 py-1 rounded font-bold uppercase transition ${
                       sideFilter === 'ALL'
-                        ? 'bg-terminal-panel text-terminal-text shadow-sm'
+                        ? 'bg-white dark:bg-terminal-panel text-terminal-text shadow-sm'
                         : 'text-terminal-muted hover:text-terminal-text'
                     }`}
                   >
@@ -401,7 +401,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     className={`px-2 py-1 rounded font-bold uppercase transition flex items-center gap-1 ${
                       sideFilter === 'CE'
                         ? 'bg-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                        : 'text-emerald-700 dark:text-bull hover:bg-terminal-panel'
+                        : 'text-emerald-700 dark:text-bull hover:bg-white dark:hover:bg-terminal-panel'
                     }`}
                   >
                     <span>🟢 Calls (CE)</span>
@@ -412,7 +412,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     className={`px-2 py-1 rounded font-bold uppercase transition flex items-center gap-1 ${
                       sideFilter === 'PE'
                         ? 'bg-rose-600 text-white shadow-[0_0_8px_rgba(244,63,94,0.5)]'
-                        : 'text-rose-600 dark:text-bear hover:bg-terminal-panel'
+                        : 'text-rose-600 dark:text-bear hover:bg-white dark:hover:bg-terminal-panel'
                     }`}
                   >
                     <span>🔴 Puts (PE)</span>
@@ -430,7 +430,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
                       sortOrder === 'PROBABILITY'
                         ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40'
-                        : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                        : 'bg-white dark:bg-terminal-panel text-terminal-muted hover:text-terminal-text'
                     }`}
                     title="Sort by Target Wins and highest probability setup first"
                   >
@@ -441,7 +441,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
                       sortOrder === 'CE_FIRST'
                         ? 'bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40'
-                        : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                        : 'bg-white dark:bg-terminal-panel text-terminal-muted hover:text-terminal-text'
                     }`}
                     title="Sort Calls (CE) first, then Puts (PE)"
                   >
@@ -452,7 +452,7 @@ export const SurgeAlertBanner: React.FC = () => {
                     className={`px-1.5 py-0.5 rounded font-bold uppercase transition ${
                       sortOrder === 'PE_FIRST'
                         ? 'bg-rose-500/20 text-rose-600 dark:text-bear border border-rose-500/40'
-                        : 'bg-terminal-panel text-terminal-muted hover:text-terminal-text'
+                        : 'bg-white dark:bg-terminal-panel text-terminal-muted hover:text-terminal-text'
                     }`}
                     title="Sort Puts (PE) first, then Calls (CE)"
                   >
@@ -474,8 +474,8 @@ export const SurgeAlertBanner: React.FC = () => {
                       onClick={() => setAssetFilter(sym)}
                       className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase transition shrink-0 ${
                         active
-                          ? 'bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
-                          : 'bg-terminal-bg text-terminal-muted border border-terminal-border/60 hover:text-terminal-text'
+                          ? 'bg-white dark:bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                          : 'bg-slate-100/90 dark:bg-terminal-bg text-terminal-muted border border-slate-200 dark:border-terminal-border/60 hover:text-terminal-text'
                       }`}
                     >
                       {sym}
@@ -489,13 +489,13 @@ export const SurgeAlertBanner: React.FC = () => {
                 TABLE LIST VIEW: Real-time Trade Lifecycle & Target Hit Flash
                ───────────────────────────────────────────────────────────── */}
             <div 
-              className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-thin"
+              className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-thin bg-slate-100/60 dark:bg-terminal-bg"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
               {displayedSurges.length === 0 ? (
                 <div className="py-16 text-center flex flex-col items-center justify-center space-y-3 font-mono">
-                  <div className="p-3 rounded-2xl bg-terminal-panel border border-terminal-border text-terminal-muted">
+                  <div className="p-3 rounded-2xl bg-white dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-terminal-muted">
                     <AlertOctagon className="w-8 h-8 opacity-40 animate-pulse" />
                   </div>
                   <div className="text-xs font-bold text-terminal-muted uppercase tracking-wider">
@@ -552,14 +552,14 @@ export const SurgeAlertBanner: React.FC = () => {
                   return (
                     <div
                       key={surge.id}
-                      className={`rounded-2xl border-2 p-3.5 transition-all duration-200 relative overflow-hidden shadow-md flex flex-col space-y-2.5 ${
+                      className={`rounded-2xl border-2 p-3.5 transition-all duration-200 relative overflow-hidden shadow-sm flex flex-col space-y-2.5 ${
                         isTargetHit
-                          ? 'border-emerald-500 bg-gradient-to-b from-terminal-card to-emerald-950/20 shadow-[0_0_30px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/50'
+                          ? 'border-emerald-500 bg-white dark:bg-gradient-to-b dark:from-terminal-card dark:to-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/40'
                           : isStoplossHit
-                          ? 'border-rose-500/60 bg-terminal-card'
+                          ? 'border-rose-300 dark:border-rose-500/60 bg-white dark:bg-terminal-card'
                           : isRunningInProfit
-                          ? 'border-emerald-500/70 bg-terminal-card shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-                          : 'border-terminal-border hover:border-bear/80 bg-terminal-card'
+                          ? 'border-emerald-400 dark:border-emerald-500/70 bg-white dark:bg-terminal-card shadow-sm'
+                          : 'border-slate-200 dark:border-terminal-border hover:border-bear/60 bg-white dark:bg-terminal-card'
                       }`}
                     >
                       {/* 🌟 CELEBRATORY TARGET 1 HIT FLASH BANNER 🌟 */}
@@ -588,7 +588,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       {/* Top Progress / P&L Indicator */}
                       <div className="flex items-center justify-between pt-0.5">
                         <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <span className="px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-terminal-border">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-slate-200 dark:border-terminal-border">
                             #{idx + 1}
                           </span>
                           {getScoreBadge(surge.surgeScore)}
@@ -596,8 +596,8 @@ export const SurgeAlertBanner: React.FC = () => {
                           {/* CE / PE Explicit Badge */}
                           <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
                             isCall
-                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40'
-                              : 'bg-rose-500/20 text-rose-600 dark:text-bear border border-rose-500/40'
+                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-bull border border-emerald-500/30'
+                              : 'bg-rose-500/15 text-rose-600 dark:text-bear border border-rose-500/30'
                           }`}>
                             {isCall ? '🟢 CALL (CE)' : '🔴 PUT (PE)'}
                           </span>
@@ -628,7 +628,7 @@ export const SurgeAlertBanner: React.FC = () => {
 
                         {/* Fixed Signal Given Time */}
                         <div className="flex items-center space-x-1.5 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-lg bg-terminal-panel border border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Original Signal Triggered at ${formattedGivenTime} IST`}>
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Original Signal Triggered at ${formattedGivenTime} IST`}>
                             <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
                             <span>GIVEN AT: <strong className="text-terminal-text">{formattedGivenTime}</strong></span>
                             <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
@@ -654,7 +654,7 @@ export const SurgeAlertBanner: React.FC = () => {
                           onClick={() => {
                             setSelectedIndex(surge.indexSymbol);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg border border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0 shadow-sm cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-terminal-panel hover:bg-slate-200 dark:hover:bg-terminal-bg border border-slate-200 dark:border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0 shadow-sm cursor-pointer"
                           title="Focus on this asset chart and option chain"
                         >
                           <span>Focus</span>
@@ -667,8 +667,8 @@ export const SurgeAlertBanner: React.FC = () => {
                         {/* Live LTP & P&L */}
                         <div className={`p-2 rounded-xl border shadow-sm ${
                           isTargetHit || pnlPoints >= 0 
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-bull' 
-                            : 'bg-rose-500/10 border-rose-500/40 text-rose-700 dark:text-bear'
+                            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/40 text-emerald-700 dark:text-bull' 
+                            : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-bear'
                         }`}>
                           <span className="text-[8px] text-terminal-muted block font-bold uppercase tracking-wider">LIVE LTP</span>
                           <span className="font-black text-xs sm:text-sm block tabular-nums mt-0.5">
@@ -680,7 +680,7 @@ export const SurgeAlertBanner: React.FC = () => {
                         </div>
 
                         {/* Entry Zone */}
-                        <div className="p-2 rounded-xl bg-terminal-panel border border-cyan-500/30">
+                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-terminal-panel border border-cyan-200 dark:border-cyan-500/30">
                           <span className="text-[8px] text-cyan-800 dark:text-accent-cyan block font-bold uppercase tracking-wider">ENTRY ZONE</span>
                           <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}>
                             {`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}
@@ -688,7 +688,7 @@ export const SurgeAlertBanner: React.FC = () => {
                         </div>
 
                         {/* Stop Loss */}
-                        <div className="p-2 rounded-xl bg-terminal-panel border border-rose-500/30">
+                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-terminal-panel border border-rose-200 dark:border-rose-500/30">
                           <span className="text-[8px] text-rose-700 dark:text-bear block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                             <ShieldAlert className="w-2.5 h-2.5" /> SL
                           </span>
@@ -700,8 +700,8 @@ export const SurgeAlertBanner: React.FC = () => {
                         {/* Target */}
                         <div className={`p-2 rounded-xl border ${
                           isTargetHit 
-                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-bull shadow-sm' 
-                            : 'bg-terminal-panel border-emerald-500/30 text-emerald-700 dark:text-bull'
+                            ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500 text-emerald-700 dark:text-bull shadow-sm' 
+                            : 'bg-slate-50 dark:bg-terminal-panel border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-bull'
                         }`}>
                           <span className="text-[8px] text-emerald-800 dark:text-bull block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                             <Target className="w-2.5 h-2.5" /> TARGET
@@ -713,7 +713,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       </div>
 
                       {/* 4. Dynamic Analytical Momentum Horizon Bar */}
-                      <div className="px-2.5 py-1.5 rounded-xl bg-terminal-panel/90 border border-terminal-border/80 flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                      <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border/80 flex flex-wrap items-center justify-between gap-1 text-[10px]">
                         <span className="flex items-center gap-1.5 text-accent-cyan font-bold">
                           <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
                           <span>{surge.horizonDescription || '⏱️ Momentum Horizon: 15-20 min'}</span>
@@ -724,7 +724,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       </div>
 
                       {/* 5. Footer Flow Metrics */}
-                      <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-terminal-border/50">
+                      <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-slate-200 dark:border-terminal-border/50">
                         <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
                         <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
                         <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
@@ -737,7 +737,7 @@ export const SurgeAlertBanner: React.FC = () => {
             </div>
 
             {/* Modal Footer Notice */}
-            <div className="p-3 border-t border-terminal-border bg-terminal-panel/80 rounded-b-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
+            <div className="p-3 border-t border-slate-200 dark:border-terminal-border bg-white dark:bg-terminal-panel/80 rounded-b-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
               <span className="flex items-center gap-1">
                 <Trophy className="w-3.5 h-3.5 text-yellow-500" />
                 <span>Hover any entry to freeze live stream • Target 1 Hits Verified Live</span>
