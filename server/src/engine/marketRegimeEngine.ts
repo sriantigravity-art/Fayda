@@ -24,7 +24,7 @@ export interface IntradayMarketRegimeData {
 
 export class MarketRegimeEngine {
   /**
-   * Evaluates the 3 types of Intraday Chart Structures (Vikram Prabhu Chapter 2)
+   * Evaluates the 3 types of Intraday Chart Structures (Fayda Market Regime Engine)
    * Type 1: Trending Day (Initiative participants dominating)
    * Type 2: Sideways Day (Responsive auction between IBH and IBL)
    * Type 3: Reversal / Trapping Day (Initial false breakout violently rejecting back)

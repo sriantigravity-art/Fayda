@@ -7,7 +7,7 @@ import { PatternEngine } from './patternEngine.js';
 import { ConfluenceEngine } from './confluenceEngine.js';
 import { CPREngine } from './cprEngine.js';
 import { MarketRegimeEngine } from './marketRegimeEngine.js';
-import { PrabhuStrategyEngine } from './prabhuStrategyEngine.js';
+import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
 export class OIEngine {
     history = new Map();
     recentSurges = [];
@@ -582,12 +582,12 @@ export class OIEngine {
         // Evaluate 0DTE Gamma Spike & Hero-or-Zero Setups
         const heroZeroSignals = gammaEngine.evaluateHeroZeroSignals(symbol, spotPrice, atmStrike, strikesData, daysToExpiry, strikeStep);
         // ─────────────────────────────────────────────────────────────
-        // CPR & Vikram Prabhu 25 Strategies & Market Regime Engine
+        // CPR & Fayda 25 Strategies & Market Regime Engine
         // ─────────────────────────────────────────────────────────────
         const cprData = CPREngine.calculateCPR(symbol, spotPrice);
         const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
         const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
-        const prabhuScan = PrabhuStrategyEngine.scanStrategies(symbol, spotPrice, cprData, marketRegime, strikesData, pcr, virginCPRs);
+        const faydaScan = FaydaStrategyEngine.scanStrategies(symbol, spotPrice, cprData, marketRegime, strikesData, pcr, virginCPRs);
         const indexState = {
             symbol,
             spotPrice,
@@ -619,9 +619,9 @@ export class OIEngine {
             cprData,
             virginCPRs,
             marketRegime,
-            prabhuStrategy: prabhuScan.activeSetup,
-            allPrabhuStrategies: prabhuScan.allDetectedSetups,
-            preMarketChecklist: prabhuScan.preMarketChecklist,
+            faydaStrategy: faydaScan.activeSetup,
+            allFaydaStrategies: faydaScan.allDetectedSetups,
+            preMarketChecklist: faydaScan.preMarketChecklist,
             indiaVix,
             updatedAtIso: new Date(now).toISOString()
         };

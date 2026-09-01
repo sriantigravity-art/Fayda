@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MarketProvider, useMarket } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { TerminalModeProvider } from './context/TerminalModeContext';
+import { TerminalModeProvider, useTerminalMode } from './context/TerminalModeContext';
 import { DensityProvider } from './context/DensityContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { HeaderBar } from './components/HeaderBar';
@@ -42,6 +42,7 @@ const DashboardContent: React.FC = () => {
   const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
   const { currentIndexState, selectedIndex } = useMarket();
+  const { isBeginner, isExpert } = useTerminalMode();
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
@@ -99,10 +100,30 @@ const DashboardContent: React.FC = () => {
         <div className="hidden md:grid md:grid-cols-12 gap-3.5 flex-1 items-start">
           {/* Left Column (8 cols on xl, 7 cols on lg, 12 cols on md) */}
           <div className="md:col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col space-y-3.5">
-            {panelVisibility.optionChain && <OptionChainHeatmap />}
-            {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
-            {panelVisibility.patternRadar && <BreakoutPatternRadar />}
-            {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+            {isBeginner ? (
+              <>
+                {/* Beginner Mode Layout: Guidance First -> Simplified Chain -> Educational Journal */}
+                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+                {panelVisibility.optionChain && <OptionChainHeatmap />}
+                <PostMarketTradeJournal isModal={false} />
+              </>
+            ) : isExpert ? (
+              <>
+                {/* Expert Mode Layout: High-density Chain Matrix -> Confluence & Trap Detector -> 0DTE Gamma */}
+                {panelVisibility.optionChain && <OptionChainHeatmap />}
+                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+                {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
+              </>
+            ) : (
+              <>
+                {/* Intermediate Mode Layout: Balanced Technical Flow & 25 Strategies */}
+                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+                {panelVisibility.optionChain && <OptionChainHeatmap />}
+                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
+                {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+              </>
+            )}
           </div>
 
           {/* Right Column (4 cols on xl, 5 cols on lg, 12 cols on md) */}
@@ -124,7 +145,7 @@ const DashboardContent: React.FC = () => {
               {/* Real-Time Flash Surge & Activity Radar Feed on Mobile */}
               <RadarFeed />
               {panelVisibility.patternRadar && <BreakoutPatternRadar />}
-              {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
+              {!isBeginner && panelVisibility.heroZeroRadar && <HeroZeroRadar />}
             </div>
           )}
           {mobileTab === 'NEWS' && <NewsWireTab />}
