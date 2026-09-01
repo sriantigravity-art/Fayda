@@ -1460,13 +1460,13 @@
     "target1Price": 63.7,
     "stoplossPrice": 42.3,
     "riskReward": "1:1.9",
-    "currentLtp": 44.1,
+    "currentLtp": 45.35,
     "peakLtp": 52.2,
     "status": "ACTIVE",
-    "pointsPnl": -5.7,
-    "pnlPct": -11.4,
+    "pointsPnl": -4.45,
+    "pnlPct": -8.9,
     "nearTargetPct": 17,
-    "nearTargetDescription": "17% of Target (LTP ₹44.10)",
+    "nearTargetDescription": "17% of Target (LTP ₹45.35)",
     "notes": "Put holders exiting positions at 24050 PE (-OI, -price). Downside panic subsiding."
   }
 ]

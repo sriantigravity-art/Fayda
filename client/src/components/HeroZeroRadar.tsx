@@ -45,6 +45,11 @@ export const HeroZeroRadar: React.FC = () => {
     const cLtp = Math.max(8, cObj?.callLtp || 18.5);
     const pLtp = Math.max(8, pObj?.putLtp || 16.0);
 
+    const cEntryLow = Math.max(1, +(cLtp * 0.88).toFixed(1));
+    const cEntryHigh = +(cLtp * 1.03).toFixed(1);
+    const pEntryLow = Math.max(1, +(pLtp * 0.88).toFixed(1));
+    const pEntryHigh = +(pLtp * 1.03).toFixed(1);
+
     fallbackList.push({
       id: `${selectedIndex}-${callStrike}-CE-fb`,
       symbol: selectedIndex,
@@ -52,7 +57,7 @@ export const HeroZeroRadar: React.FC = () => {
       strike: callStrike,
       optionType: 'CE',
       ltp: cLtp,
-      entryZone: `₹${cLtp.toFixed(1)} - ₹${(cLtp * 1.05).toFixed(1)}`,
+      entryZone: `₹${cEntryLow} - ₹${cEntryHigh}`,
       stoploss: +(cLtp * 0.5).toFixed(1),
       stoplossPct: 50,
       target1x: +(cLtp * 2.0).toFixed(1),
@@ -74,7 +79,7 @@ export const HeroZeroRadar: React.FC = () => {
       strike: putStrike,
       optionType: 'PE',
       ltp: pLtp,
-      entryZone: `₹${pLtp.toFixed(1)} - ₹${(pLtp * 1.05).toFixed(1)}`,
+      entryZone: `₹${pEntryLow} - ₹${pEntryHigh}`,
       stoploss: +(pLtp * 0.5).toFixed(1),
       stoplossPct: 50,
       target1x: +(pLtp * 2.0).toFixed(1),
@@ -152,6 +157,9 @@ export const HeroZeroRadar: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filtered.map((item) => {
               const isCall = item.optionType === 'CE';
+              const strikeObj = strikes.find(s => s.strikePrice === item.strike);
+              const liveLtp = strikeObj ? (isCall ? strikeObj.callLtp : strikeObj.putLtp) : item.ltp;
+              const displayLtp = (liveLtp && liveLtp > 0) ? liveLtp : item.ltp;
 
               return (
                 <div 
@@ -163,9 +171,12 @@ export const HeroZeroRadar: React.FC = () => {
                       {isCall ? <TrendingUp className="w-4 h-4 text-bull" /> : <TrendingDown className="w-4 h-4 text-bear" />}
                       <span className="font-bold text-terminal-text text-sm">{item.contractSymbol}</span>
                     </div>
-                    <span className="font-bold text-accent-sky tabular-nums">
-                      LTP: ₹{item.ltp.toFixed(2)}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] text-terminal-muted uppercase">Live LTP:</span>
+                      <span className="font-black text-accent-cyan text-sm tabular-nums">
+                        ₹{displayLtp.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
 
                   <p className="text-[11px] font-sans text-terminal-muted leading-tight">
@@ -174,16 +185,16 @@ export const HeroZeroRadar: React.FC = () => {
 
                   <div className="grid grid-cols-3 gap-2 text-center text-[11px] pt-1">
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
-                      <span className="text-[9px] text-terminal-muted font-sans block">Entry Zone</span>
-                      <strong className="text-terminal-text">{item.entryZone}</strong>
+                      <span className="text-[9px] text-accent-cyan font-sans block font-semibold">Optimal Entry (Dip)</span>
+                      <strong className="text-terminal-text font-bold">{item.entryZone}</strong>
                     </div>
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
-                      <span className="text-[9px] text-bear font-sans block">SL</span>
-                      <strong className="text-bear">₹{item.stoploss.toFixed(1)}</strong>
+                      <span className="text-[9px] text-bear font-sans block font-semibold">Stoploss</span>
+                      <strong className="text-bear font-bold">₹{item.stoploss.toFixed(1)}</strong>
                     </div>
                     <div className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border">
-                      <span className="text-[9px] text-bull font-sans block">Target (2x)</span>
-                      <strong className="text-bull">₹{item.target1x.toFixed(1)}</strong>
+                      <span className="text-[9px] text-bull font-sans block font-semibold">Target (2x)</span>
+                      <strong className="text-bull font-bold">₹{item.target1x.toFixed(1)}</strong>
                     </div>
                   </div>
                 </div>
