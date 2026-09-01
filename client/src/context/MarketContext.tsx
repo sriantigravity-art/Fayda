@@ -495,19 +495,19 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     document.addEventListener('visibilitychange', handleResume);
     window.addEventListener('online', handleResume);
 
-    // Fallback polling every 6 seconds if WS is disconnected on mobile
+    // Always poll all symbol states every 5 seconds.
+    // The WebSocket only pushes INDEX_UPDATE for the *selected* symbol, so
+    // non-selected indices (mini ticker strip, dropdown) stay stale without this.
     const pollInterval = setInterval(() => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        fetch(`${getApiBase()}/api/index-states`)
-          .then((r) => r.json())
-          .then((states) => {
-            if (states && Object.keys(states).length > 0) {
-              setIndices((prev) => ({ ...prev, ...states }));
-            }
-          })
-          .catch(() => {});
-      }
-    }, 6000);
+      fetch(`${getApiBase()}/api/index-states`)
+        .then((r) => r.json())
+        .then((states) => {
+          if (states && Object.keys(states).length > 0) {
+            setIndices((prev) => ({ ...prev, ...states }));
+          }
+        })
+        .catch(() => {});
+    }, 5000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleResume);
