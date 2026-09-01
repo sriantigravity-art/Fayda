@@ -47,14 +47,31 @@ interface MarketContextType {
   globalMarketContext: import('../types').GlobalMarketContextData | null;
 }
 
-const MarketContext = createContext<MarketContextType | undefined>(undefined);
+const PROD_API_BASE = 'https://fayda-production-a914.up.railway.app';
+const PROD_WS_URL = 'wss://fayda-production-a914.up.railway.app/ws';
 
 export const getApiBase = (): string => {
-  if (typeof window === 'undefined') return 'http://localhost:3001';
+  if (typeof window === 'undefined') return PROD_API_BASE;
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  const host = window.location.hostname || 'localhost';
-  const isHttps = window.location.protocol === 'https:';
-  return `${isHttps ? 'https:' : 'http:'}//${host}:3001`;
+  const host = window.location.hostname || '';
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
+  if (isLocal) {
+    const isHttps = window.location.protocol === 'https:';
+    return `${isHttps ? 'https:' : 'http:'}//${host || 'localhost'}:3001`;
+  }
+  return PROD_API_BASE;
+};
+
+export const getWsUrl = (): string => {
+  if (typeof window === 'undefined') return PROD_WS_URL;
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  const host = window.location.hostname || '';
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
+  if (isLocal) {
+    const isHttps = window.location.protocol === 'https:';
+    return `${isHttps ? 'wss:' : 'ws:'}//${host || 'localhost'}:3001/ws`;
+  }
+  return PROD_WS_URL;
 };
 
 export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -247,10 +264,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    const host = window.location.hostname || 'localhost';
-    const isHttps = window.location.protocol === 'https:';
-    const defaultWs = `${isHttps ? 'wss:' : 'ws:'}//${host}:3001/ws`;
-    const wsUrl = import.meta.env.VITE_WS_URL || defaultWs;
+    const wsUrl = getWsUrl();
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -540,16 +554,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const fetchBackendJson = async (endpointPath: string, method = 'POST', data?: any): Promise<any> => {
-    const host = window.location.hostname || 'localhost';
-    const isHttps = window.location.protocol === 'https:';
+    const apiBase = getApiBase();
     const body = data ? JSON.stringify(data) : undefined;
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
 
     const candidates = [
-      `${isHttps ? 'https:' : 'http:'}//${host}:3001${endpointPath}`,
-      `http://localhost:3001${endpointPath}`,
-      `http://127.0.0.1:3001${endpointPath}`,
-      endpointPath
+      `${apiBase}${endpointPath}`,
+      endpointPath,
+      `${PROD_API_BASE}${endpointPath}`,
+      `http://localhost:3001${endpointPath}`
     ];
 
     let lastError = '';
@@ -569,7 +582,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return {
       success: false,
-      message: lastError || 'Unable to connect to backend server at port 3001. Please ensure backend is running.'
+      message: lastError || 'Unable to connect to backend server. Please verify network connection.'
     };
   };
 
