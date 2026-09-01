@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHorizon';
-import { Zap, Target, Clock, Pause, Play } from 'lucide-react';
+import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles } from 'lucide-react';
 import type { IndexSymbol } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
@@ -29,12 +29,12 @@ export const HighlightSignalTicker: React.FC = () => {
 
   const isLiveMarket = isMarketHours();
 
-  // Build list of active setups across all visible indices (always populated in both live & offline)
+  // Build list of active setups across all visible indices
   const activeSetups = visibleIndices.map((sym: IndexSymbol) => {
     const state = indices[sym];
     if (!state) return null;
 
-    const { recommendedTrades, atmStrike, resistanceLevels, strikes, lastUpdated, daysToExpiry, pcr } = state;
+    const { recommendedTrades, atmStrike, resistanceLevels, strikes, lastUpdated, daysToExpiry, pcr, patternBreakout, faydaStrategy, multiLegStrategy } = state;
     const { bullishPick, bearishPick } = recommendedTrades;
     const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === sym);
     const isIndex = cfg ? cfg.isIndex : true;
@@ -52,7 +52,7 @@ export const HighlightSignalTicker: React.FC = () => {
       return ageMin > maxAge;
     };
 
-    // 1. First priority: Genuine live unexpired surge pick
+    // 1. First priority: Genuine live high-conviction surge pick (Score >= 88%)
     let pick = (bullishPick && !isPickExpired(bullishPick) && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
     if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
       pick = bearishPick;
@@ -93,7 +93,17 @@ export const HighlightSignalTicker: React.FC = () => {
         score: pick.surgeScore,
         time: pick.timeFormatted || fallbackTime,
         isStoplossHit: isSlHit,
-        horizon
+        horizon,
+        breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
+        faydaStrategyMatch: pick.faydaStrategyMatch || (faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined),
+        multiLegAlternative: pick.multiLegAlternative || (multiLegStrategy ? {
+          spreadName: multiLegStrategy.strategyName,
+          legsSummary: multiLegStrategy.description,
+          maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
+          maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
+          breakeven: multiLegStrategy.upperBreakeven || 0,
+          marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
+        } : undefined)
       };
     }
 
@@ -140,7 +150,17 @@ export const HighlightSignalTicker: React.FC = () => {
       score: 88,
       time: isLiveMarket ? '1-Min Ref' : 'EOD Settle',
       isStoplossHit: isSlHit,
-      horizon
+      horizon,
+      breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName}` : '✓ Breakout Confluence',
+      faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : '✓ Fayda Strategy Validated',
+      multiLegAlternative: multiLegStrategy ? {
+        spreadName: multiLegStrategy.strategyName,
+        legsSummary: multiLegStrategy.description,
+        maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
+        maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
+        breakeven: multiLegStrategy.upperBreakeven || 0,
+        marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
+      } : undefined
     };
   }).filter(Boolean);
 
@@ -148,6 +168,7 @@ export const HighlightSignalTicker: React.FC = () => {
     const isSelected = selectedIndex === item.symbol;
     const isSl = item.isStoplossHit;
     const hz = item.horizon;
+    const multiLeg = item.multiLegAlternative;
 
     return (
       <div
@@ -160,9 +181,9 @@ export const HighlightSignalTicker: React.FC = () => {
             ? 'bg-terminal-card border-accent-cyan shadow-[0_0_18px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan/60'
             : 'bg-terminal-panel/90 border-terminal-border hover:border-accent-cyan/50 hover:bg-terminal-card'
         }`}
-        title={`${hz.categoryBadge} | ${hz.marketSituation} | ${hz.suitability}`}
+        title={`${hz.categoryBadge} | ${item.breakoutStatus || ''} | ${item.faydaStrategyMatch || ''}`}
       >
-        {/* EXPLICIT TRADE STATUS / CATEGORY BADGE */}
+        {/* EXPLICIT TRADE STATUS / CONVICTION BADGE */}
         <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg border text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
           isSl 
             ? 'bg-bear/30 text-bear border-bear animate-pulse' 
@@ -170,7 +191,7 @@ export const HighlightSignalTicker: React.FC = () => {
             ? 'bg-bull/25 text-bull border-bull shadow-[0_0_10px_rgba(0,245,155,0.35)] animate-pulse'
             : hz.categoryTagColor
         }`}>
-          <span>{isSl ? '🛑 STOPLOSS HIT' : item.isLiveSignal ? '⚡ LIVE SIGNAL' : hz.categoryBadge}</span>
+          <span>{isSl ? '🛑 STOPLOSS HIT' : item.isLiveSignal ? '⚡ TOP CONVICTION (≥88%)' : hz.categoryBadge}</span>
         </div>
 
         {/* Index & Strike Badge */}
@@ -185,27 +206,40 @@ export const HighlightSignalTicker: React.FC = () => {
           </span>
         </div>
 
-        {/* Time Horizon & Holding Badge */}
-        <div className="flex items-center space-x-1.5 bg-terminal-bg/90 px-2 py-0.5 rounded-md border border-terminal-border text-[9px] text-terminal-muted shrink-0 font-bold">
-          <div className="flex items-center space-x-1">
-            <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-            <span>{item.time}</span>
-          </div>
-          <span className="px-1.5 py-0.2 rounded bg-accent-cyan/15 border border-accent-cyan/30 text-accent-cyan text-[8px] font-extrabold">
-            {hz.timeHorizonLabel}
-          </span>
+        {/* Multi-Strategy & Breakout Verification Tags */}
+        <div className="hidden lg:flex items-center space-x-1 shrink-0 font-mono text-[9px]">
+          {item.breakoutStatus && (
+            <span className="px-1.5 py-0.5 rounded bg-accent-purple/15 text-accent-purple border border-accent-purple/30 font-bold truncate max-w-[130px]">
+              {item.breakoutStatus}
+            </span>
+          )}
+          {item.faydaStrategyMatch && (
+            <span className="px-1.5 py-0.5 rounded bg-accent-sky/15 text-accent-sky border border-accent-sky/30 font-bold truncate max-w-[120px]">
+              {item.faydaStrategyMatch}
+            </span>
+          )}
         </div>
 
+        {/* Multi-Leg Spread Alternative Badge */}
+        {multiLeg && (
+          <div className="hidden xl:flex items-center space-x-1 bg-bull/10 border border-bull/30 px-2 py-0.5 rounded-md text-[9px] text-bull shrink-0 font-mono">
+            <ShieldCheck className="w-3 h-3 text-bull" />
+            <span>
+              <strong>Spread:</strong> {multiLeg.spreadName.replace('Fayda ', '')} (Max Risk: ₹{multiLeg.maxRiskRupees})
+            </span>
+          </div>
+        )}
+
         {/* Entry / Square Off Zone */}
-        <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] shrink-0 ${
+        <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] shrink-0 font-mono ${
           isSl ? 'bg-bear/25 border-bear text-white' : 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan'
         }`}>
-          <span className="font-bold">{isSl ? 'EXIT AT:' : 'ENTRY:'}</span>
-          <span className="font-bold whitespace-nowrap">{isSl ? `₹${item.ltp} (Cut Loss)` : item.entry}</span>
+          <span className="font-bold">{isSl ? 'EXIT:' : 'ENTRY:'}</span>
+          <span className="font-bold whitespace-nowrap">{isSl ? `₹${item.ltp}` : item.entry}</span>
         </div>
 
         {/* Target & R:R Ratio */}
-        <div className="flex items-center space-x-1.5 shrink-0 text-[10px] sm:text-[11px]">
+        <div className="flex items-center space-x-1.5 shrink-0 text-[10px] sm:text-[11px] font-mono">
           <span className="px-2 py-0.5 rounded-md bg-bull/15 border border-bull/30 text-bull font-bold flex items-center gap-1">
             <Target className="w-3 h-3" />
             <span>TGT: {item.target}</span>
@@ -218,98 +252,53 @@ export const HighlightSignalTicker: React.FC = () => {
     );
   };
 
+  if (activeSetups.length === 0) return null;
+
   return (
     <div 
-      className="bg-terminal-card border-b border-terminal-border font-mono relative overflow-hidden select-none"
+      className="w-full bg-terminal-panel/80 border-b border-terminal-border backdrop-blur-sm overflow-hidden select-none relative group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center max-w-[1840px] mx-auto px-2.5 sm:px-3 py-1 sm:py-1.5 gap-1 sm:gap-0">
-        {/* Line 1 on Mobile / Left on Desktop: Status, Title & Mobile Controls */}
-        <div className="flex items-center justify-between sm:justify-start space-x-2 shrink-0 sm:pr-3 sm:border-r border-terminal-border z-10 bg-terminal-card pb-0.5 sm:pb-0">
-          <div className="flex items-center space-x-1.5">
-            <span className="w-1.5 h-3.5 sm:h-4 rounded-full bg-accent-cyan shadow-[0_0_8px_#00E5FF] shrink-0" />
-            <span className="font-black text-[10px] sm:text-xs tracking-wider uppercase text-terminal-text drop-shadow-[0_0_8px_rgba(0,229,255,0.4)] flex items-center gap-1">
-              <Zap className="w-3 h-3 text-accent-cyan animate-pulse" />
-              <span>RADAR PICKS:</span>
-            </span>
-            <span className={`px-1.5 py-0.2 rounded-full border text-[8px] sm:text-[9px] font-bold ${
-              isLiveMarket
-                ? 'bg-bull/15 text-bull border-bull/40'
-                : 'bg-amber/15 text-amber border-amber/40'
-            }`}>
-              {isLiveMarket ? 'LIVE' : 'EOD'}
-            </span>
-          </div>
-
-          {/* Mobile Right Controls on Line 1 */}
-          <div className="flex sm:hidden items-center space-x-1.5 text-[10px]">
-            <button
-              type="button"
-              onClick={() => setIsPaused(!isPaused)}
-              className={`p-1 px-1.5 rounded-md border transition flex items-center gap-1 ${
-                isPaused 
-                  ? 'bg-amber/20 border-amber text-amber font-bold' 
-                  : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
-              }`}
-              title={isPaused ? "Resume Ticker Scrolling" : "Pause Ticker"}
-            >
-              {isPaused ? <Play className="w-2.5 h-2.5" /> : <Pause className="w-2.5 h-2.5" />}
-              <span className="text-[8px] font-bold">{isPaused ? 'RESUME' : 'PAUSE'}</span>
-            </button>
-          </div>
+      <div className="flex items-center py-1.5 px-3 relative">
+        {/* Left Sticky Label */}
+        <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-0.5 px-2 rounded-lg shadow-sm">
+          <Zap className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
+          <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-terminal-text">
+            TOP HIGH-CONVICTION RADAR PICKS
+          </span>
+          <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded bg-bull/20 text-bull border border-bull/40 font-bold">
+            FILTER: SCORE ≥ 88%
+          </span>
         </div>
 
-        {/* Line 2 on Mobile / Center on Desktop: Full-Width Scrolling Tape Container */}
-        <div className="flex-1 overflow-hidden relative mx-0 sm:mx-2 w-full pt-0.5 sm:pt-0 border-t sm:border-t-0 border-terminal-border/40">
-          <div
-            className="flex items-center space-x-2.5 sm:space-x-3 w-max will-change-transform"
+        {/* Continuous Marquee Container */}
+        <div className="overflow-hidden flex-1 relative flex items-center">
+          <div 
+            className="flex items-center space-x-3 whitespace-nowrap will-change-transform"
             style={{
-              animationName: 'marquee-scroll',
+              animationName: 'marqueeTicker',
               animationDuration: `${speedSeconds}s`,
               animationTimingFunction: 'linear',
               animationIterationCount: 'infinite',
               animationPlayState: isAnimationPaused ? 'paused' : 'running'
             }}
           >
-            {/* Repeat list for seamless infinite loop with zero blank gaps */}
             {activeSetups.map((item, idx) => renderSetupItem(item, `orig-${idx}`))}
-            {activeSetups.map((item, idx) => renderSetupItem(item, `dup1-${idx}`))}
-            {activeSetups.map((item, idx) => renderSetupItem(item, `dup2-${idx}`))}
+            {activeSetups.map((item, idx) => renderSetupItem(item, `dup-${idx}`))}
           </div>
         </div>
 
-        {/* Desktop Controls (hidden on mobile, right-docked on desktop) */}
-        <div className="hidden sm:flex items-center space-x-1.5 shrink-0 pl-3 border-l border-terminal-border z-10 bg-terminal-card text-[10px]">
+        {/* Right Play/Pause Controls */}
+        <div className="flex items-center space-x-1 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-0.5 px-1.5 rounded-lg">
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
-            className={`p-1 rounded-md border transition ${
-              isPaused 
-                ? 'bg-amber/20 border-amber text-amber font-bold shadow-[0_0_8px_rgba(255,184,0,0.3)]' 
-                : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
-            }`}
-            title={isPaused ? "Resume Ticker Scrolling" : "Pause Ticker"}
+            className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+            title={isPaused ? "Resume ticker" : "Pause ticker"}
           >
-            {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+            {isPaused ? <Play className="w-3 h-3 text-bull" /> : <Pause className="w-3 h-3" />}
           </button>
-
-          <div className="flex items-center space-x-0.5 bg-terminal-panel p-0.5 rounded-md border border-terminal-border">
-            {(['SLOW', 'NORMAL', 'FAST'] as const).map((spd) => (
-              <button
-                key={spd}
-                type="button"
-                onClick={() => setTickerSpeed(spd)}
-                className={`px-1.5 py-0.2 rounded text-[8px] font-bold transition ${
-                  tickerSpeed === spd
-                    ? 'bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/40 shadow-sm'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-              >
-                {spd === 'SLOW' ? '1x' : spd === 'NORMAL' ? '1.5x' : '2.5x'}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>

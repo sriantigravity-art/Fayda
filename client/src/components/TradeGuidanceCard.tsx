@@ -228,6 +228,19 @@ export const TradeGuidanceCard: React.FC = () => {
                   {strat.description}
                 </p>
 
+                {/* Breakout & Pattern Confluence */}
+                {currentIndexState.patternBreakout && currentIndexState.patternBreakout.predictedBreakout && (
+                  <div className="p-2 rounded-lg bg-accent-purple/10 border border-accent-purple/30 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                    <span className="flex items-center gap-1 text-accent-purple font-bold">
+                      <Target className="w-3 h-3" />
+                      <span>Chart Breakout: {currentIndexState.patternBreakout.activePattern?.patternName || 'Breakout'} ({currentIndexState.patternBreakout.activeTimeframe || '15m'})</span>
+                    </span>
+                    <span className="text-terminal-text font-mono font-bold">
+                      Trigger: ₹{currentIndexState.patternBreakout.predictedBreakout.triggerPrice?.toFixed(1) || '—'} → TGT: ₹{currentIndexState.patternBreakout.predictedBreakout.target1?.toFixed(1) || '—'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Technical Stop Loss, Entry, & Targets Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 border-t border-terminal-border/60">
                   <div className="p-2 rounded-lg bg-terminal-bg/70 border border-terminal-border">
@@ -263,6 +276,31 @@ export const TradeGuidanceCard: React.FC = () => {
                     <span className="text-[9px] text-terminal-muted block">Runner Target</span>
                   </div>
                 </div>
+
+                {/* Fayda Multi-Leg Spread Alternative Pairing */}
+                {currentIndexState.multiLegStrategy && (
+                  <div className="p-2.5 rounded-xl bg-bull/10 border border-bull/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <ShieldCheck className="w-4 h-4 text-bull shrink-0" />
+                      <div>
+                        <span className="font-bold text-terminal-text font-sans">
+                          Fayda Defined-Risk Spread Alternative: {currentIndexState.multiLegStrategy.strategyName}
+                        </span>
+                        <p className="text-[10px] text-terminal-muted font-sans">
+                          {currentIndexState.multiLegStrategy.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 font-mono text-[11px]">
+                      <span className="px-2 py-0.5 rounded bg-terminal-panel text-bear font-bold">
+                        Max Risk: {typeof currentIndexState.multiLegStrategy.maxLossRupees === 'number' ? `₹${currentIndexState.multiLegStrategy.maxLossRupees.toLocaleString('en-IN')}` : currentIndexState.multiLegStrategy.maxLossRupees}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-bull/20 text-bull font-bold">
+                        {currentIndexState.multiLegStrategy.marginSavingsPct}% Margin Benefit
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Order Flow Confirmation status */}
                 <div className="flex items-center justify-between text-[11px] pt-1 text-terminal-muted font-sans">
