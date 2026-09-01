@@ -62,6 +62,8 @@ export const StockSelectorDropdown: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'INDICES' | 'COMMODITIES' | 'NIFTY50_STOCKS'>('ALL');
   // Local full snapshot for ALL symbols — fetched independently of WS context
   const [allStates, setAllStates] = useState<Record<string, SpotData>>({});
+  // True once the first REST poll has returned. Suppresses stale WS fallback values until then.
+  const [allStatesReady, setAllStatesReady] = useState(false);
 
   // MCX offline modal state
   const [offlineSymbol, setOfflineSymbol] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export const StockSelectorDropdown: React.FC = () => {
       }
       if (Object.keys(mapped).length > 0) {
         setAllStates(mapped);
+        setAllStatesReady(true); // REST poll has arrived — can now trust change/pct values
       }
     } catch {}
   }, []);
@@ -129,14 +132,21 @@ export const StockSelectorDropdown: React.FC = () => {
     exchange: 'NSE'
   };
 
-  // Get spot data for a symbol: prefer the fresh allStates REST snapshot (polled every 3s),
-  // fall back to context WS data only if it's fresh (<60s old via client-side receivedAt stamp).
+  // Get spot data for a symbol:
+  // 1. Prefer the fresh allStates REST snapshot (polled every 3s)
+  // 2. Fall back to context WS data ONLY after allStates has been loaded at least once.
+  //    Before that, suppress change/pct to prevent stale WS-pushed deltas (+84.80) from flashing.
   const getSpotData = (symbol: string): SpotData | null => {
     if (allStates[symbol] && allStates[symbol].spotPrice > 0) {
       return allStates[symbol];
     }
     const ctx = indices[symbol];
     if (ctx && ctx.spotPrice > 0) {
+      if (!allStatesReady) {
+        // REST poll hasn't returned yet — show spot price but suppress change/pct
+        // to avoid showing stale WS-pushed delta values (e.g. +84.80 from prior session)
+        return { spotPrice: ctx.spotPrice, change: 0, pctChange: 0 };
+      }
       // Use indicesReceivedAt (client-side stamp) — more reliable than server updatedAtIso
       const receivedAt = indicesReceivedAt[symbol] ?? 0;
       const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;

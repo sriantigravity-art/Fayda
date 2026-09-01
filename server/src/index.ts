@@ -312,9 +312,16 @@ wss.on('connection', async (ws: WebSocket) => {
     timestamp: new Date().toISOString()
   }));
 
-  // Immediately push fresh active cached states
+  // Only push cached states that are genuinely fresh (< 20s old).
+  // Stale cached values (e.g. +84.80 from a prior session) must NOT be sent to new clients
+  // because they'll display as "fresh" due to the client-side receive-timestamp check.
+  const now = Date.now();
   for (const [symbol, indexState] of cachedIndexStates.entries()) {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState !== WebSocket.OPEN) break;
+    const ageMs = indexState?.updatedAtIso
+      ? now - new Date(indexState.updatedAtIso).getTime()
+      : Infinity;
+    if (ageMs <= 20000) {
       ws.send(JSON.stringify({
         type: 'INDEX_UPDATE',
         symbol,
@@ -325,6 +332,7 @@ wss.on('connection', async (ws: WebSocket) => {
         timestamp: new Date().toISOString()
       }));
     }
+    // Stale entries are intentionally skipped — the refresh below will push fresh ones.
   }
 
   // Immediately refresh all watched symbols so the new client gets fresh data,
