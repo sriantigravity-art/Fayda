@@ -8,16 +8,8 @@ import {
   ChevronDown, 
   Layers, 
   Check, 
-  Sparkles, 
-  BarChart2, 
-  BarChart3, 
   X,
-  Flame,
-  Coins,
-  Droplets,
-  WifiOff,
-  Link2,
-  MoreVertical
+  WifiOff
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -52,7 +44,16 @@ export const getPrettyIndexName = (item: SymbolConfig): string => {
 };
 
 export const StockSelectorDropdown: React.FC = () => {
-  const { selectedIndex, setSelectedIndex, indices, visibleIndices, toggleIndexVisibility } = useMarket();
+  const { 
+    selectedIndex, 
+    setSelectedIndex, 
+    indices, 
+    visibleIndices, 
+    toggleIndexVisibility, 
+    globalIndices,
+    refreshIndexStates 
+  } = useMarket();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'INDICES' | 'COMMODITIES' | 'NIFTY50_STOCKS'>('ALL');
@@ -82,6 +83,23 @@ export const StockSelectorDropdown: React.FC = () => {
     };
   }, [isOpen]);
 
+  // Synchronize all symbol states whenever the dropdown is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (refreshIndexStates) {
+      refreshIndexStates();
+    }
+
+    const interval = setInterval(() => {
+      if (refreshIndexStates) {
+        refreshIndexStates();
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isOpen, refreshIndexStates]);
+
   const currentConfig = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex) || {
     symbol: selectedIndex,
     name: selectedIndex,
@@ -94,7 +112,29 @@ export const StockSelectorDropdown: React.FC = () => {
     exchange: 'NSE'
   };
 
-  const currentState = indices[selectedIndex];
+  const getSymbolState = (symbol: string) => {
+    const directState = indices[symbol];
+    if (directState && directState.spotPrice > 0) {
+      return {
+        spotPrice: directState.spotPrice,
+        change: directState.change,
+        pctChange: directState.pctChange
+      };
+    }
+
+    const g = globalIndices?.find(item => item.id === symbol || item.id.replace('_', '') === symbol.replace('_', ''));
+    if (g && g.price > 0) {
+      return {
+        spotPrice: g.price,
+        change: g.change,
+        pctChange: g.pctChange
+      };
+    }
+
+    return null;
+  };
+
+  const currentState = getSymbolState(selectedIndex);
   const isPositive = (currentState?.change || 0) >= 0;
 
   const indicesCount = ALL_SYMBOLS_CONFIG.filter(s => s.category === 'INDICES').length;
@@ -255,7 +295,7 @@ export const StockSelectorDropdown: React.FC = () => {
             ) : (
               filteredSymbols.map((item: SymbolConfig) => {
                 const isSelected = selectedIndex === item.symbol;
-                const state = indices[item.symbol];
+                const state = getSymbolState(item.symbol);
                 const isItemPositive = (state?.change || 0) >= 0;
 
                 return (

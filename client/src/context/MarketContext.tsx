@@ -46,6 +46,7 @@ interface MarketContextType {
   // Global International Indices & Macro Context
   globalIndices: GlobalIndexItem[];
   globalMarketContext: import('../types').GlobalMarketContextData | null;
+  refreshIndexStates: () => Promise<void>;
 }
 
 const PROD_API_BASE = 'https://fayda-production-a914.up.railway.app';
@@ -654,6 +655,18 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const selectedSurges = recentSurges.filter((s) => s.indexSymbol === selectedIndex);
 
+  const refreshIndexStates = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/index-states`);
+      if (res.ok) {
+        const states = await res.json();
+        if (states && Object.keys(states).length > 0) {
+          setIndices((prev) => ({ ...prev, ...states }));
+        }
+      }
+    } catch {}
+  }, []);
+
   return (
     <MarketContext.Provider
       value={{
@@ -692,7 +705,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         latestSquareOffAlert,
         dismissSquareOffAlert,
         globalIndices,
-        globalMarketContext
+        globalMarketContext,
+        refreshIndexStates
       }}
     >
       {children}
