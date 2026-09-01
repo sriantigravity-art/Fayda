@@ -372,6 +372,12 @@ export interface FyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  /** Fyers refresh token — valid for 15 days. Used for daily auto-renewal at 6:30 AM IST. */
+  refreshToken?: string;
+  /** ISO timestamp of the last successful auto-refresh via refresh_token */
+  tokenRefreshedAt?: string;
+  /** ISO timestamp when the refresh_token itself expires (15 days from initial login) */
+  refreshTokenExpiresAt?: string;
 }
 
 export interface HeroZeroSignal {

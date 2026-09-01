@@ -455,6 +455,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else if (msg.type === 'FYERS_STATUS') {
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
+
+        } else if (msg.type === 'MARKET_OPEN') {
+          // 9:15 AM IST — server cleared all caches. Force full UI refresh.
+          console.log('[Market] 🔔 Market opened — refreshing all data...');
+          // Trigger immediate re-fetch of all index states
+          refreshIndexStates();
+          // Optional: play a distinct "market open" bell if not muted
+          if (!isMuted) soundManager.play('marketOpen').catch(() => {});
         }
       } catch (err) {
         console.error('[WS] Parse error:', err);
