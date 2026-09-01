@@ -100,7 +100,7 @@ class OIEngine {
         let atmPutTheta = 0;
         const strikesData = [];
         const detectedSurgesThisTick = [];
-        const timeStr = new Date(now).toLocaleTimeString('en-IN', { hour12: false });
+        const timeStr = new Date(now).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
         // Process each strike with GreekEngine, IV & Liquidity Evaluators
         for (const raw of strikesRaw) {
             const strike = raw.strikePrice;
@@ -296,8 +296,8 @@ class OIEngine {
                         liquidityNote: liqNote
                     },
                     confidence: actionInfo.confidence,
-                    validUntilMinutes: callSurge.level === 'EXTREME' ? 20 : callSurge.level === 'STRONG' ? 45 : 60,
-                    expiresAt: new Date(now + (callSurge.level === 'EXTREME' ? 20 : callSurge.level === 'STRONG' ? 45 : 60) * 60000).toISOString()
+                    validUntilMinutes: callSurge.level === 'EXTREME' ? 10 : callSurge.level === 'STRONG' ? 15 : 20,
+                    expiresAt: new Date(now + (callSurge.level === 'EXTREME' ? 10 : callSurge.level === 'STRONG' ? 15 : 20) * 60000).toISOString()
                 });
             }
             // Put Surge Event (Factoring IV Pricing, Liquidity Verification & ±400 Strike Window)
@@ -347,8 +347,8 @@ class OIEngine {
                         liquidityNote: liqNote
                     },
                     confidence: actionInfo.confidence,
-                    validUntilMinutes: putSurge.level === 'EXTREME' ? 20 : putSurge.level === 'STRONG' ? 45 : 60,
-                    expiresAt: new Date(now + (putSurge.level === 'EXTREME' ? 20 : putSurge.level === 'STRONG' ? 45 : 60) * 60000).toISOString()
+                    validUntilMinutes: putSurge.level === 'EXTREME' ? 10 : putSurge.level === 'STRONG' ? 15 : 20,
+                    expiresAt: new Date(now + (putSurge.level === 'EXTREME' ? 10 : putSurge.level === 'STRONG' ? 15 : 20) * 60000).toISOString()
                 });
             }
         }
@@ -474,10 +474,10 @@ class OIEngine {
             hist.shift();
         }
         this.history.set(symbol, hist);
-        // Automatically purge expired surges from memory after their validity horizon
+        // Automatically purge expired surges from memory after their validity horizon (10-15m max)
         this.recentSurges = this.recentSurges.filter(s => {
             const ageMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-            const maxAge = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60);
+            const maxAge = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : s.surgeLevel === 'STRONG' ? 15 : 20);
             return ageMin <= maxAge;
         });
         if (detectedSurgesThisTick.length > 0) {
@@ -488,7 +488,7 @@ class OIEngine {
             if (s.indexSymbol !== symbol || Math.abs(s.strikePrice - atmStrike) > 400)
                 return false;
             const ageMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-            const maxAge = s.validUntilMinutes || 60;
+            const maxAge = s.validUntilMinutes || 15;
             return ageMin <= maxAge;
         });
         // Select recommendations prioritizing Liquid strikes with reasonable IV (Low Crush Risk) within ±400 pts

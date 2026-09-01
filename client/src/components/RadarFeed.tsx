@@ -63,6 +63,17 @@ export const RadarFeed: React.FC = () => {
     return { count5m, count10m, count15m, count1h };
   }, [recentSurges, visibleIndices]);
 
+  const formatIstTime = (timestamp?: string, defaultStr?: string) => {
+    if (!timestamp) return defaultStr || '';
+    try {
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return defaultStr || '';
+      return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+    } catch {
+      return defaultStr || '';
+    }
+  };
+
   const filteredSurges = useMemo(() => {
     const now = Date.now();
 
@@ -73,9 +84,9 @@ export const RadarFeed: React.FC = () => {
       const atm = idxState?.atmStrike;
       if (atm && Math.abs(s.strikePrice - atm) > 600) return false;
 
-      // Auto-Expire Signal after given validity window (e.g. 20m for Extreme Scalps, 45m for Strong, 60m for Moderate)
+      // Auto-Expire Signal after given validity window (e.g. 10m for Extreme Scalps, 15m for Strong, 20m for Moderate)
       const diffMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-      const maxValidity = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 25 : s.surgeLevel === 'STRONG' ? 45 : 60);
+      const maxValidity = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : s.surgeLevel === 'STRONG' ? 15 : 20);
       if (diffMin > maxValidity) return false;
 
       // Time Window Filter
@@ -446,7 +457,7 @@ export const RadarFeed: React.FC = () => {
                   <div className="flex items-center space-x-1.5">
                     <span className="font-mono text-[10px] text-terminal-text bg-terminal-bg px-1.5 py-0.5 rounded border border-terminal-border font-bold flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-                      <span>{surge.timeFormatted}</span>
+                      <span>{formatIstTime(surge.timestamp, surge.timeFormatted)}</span>
                       <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
                     </span>
                     <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border text-amber font-bold">
