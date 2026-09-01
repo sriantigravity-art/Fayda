@@ -9,6 +9,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import type { HeroZeroSignal } from '../types';
+import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
 export const HeroZeroRadar: React.FC = () => {
   const { currentIndexState, selectedIndex } = useMarket();
@@ -22,14 +23,19 @@ export const HeroZeroRadar: React.FC = () => {
   const strikes = currentIndexState?.strikes || [];
   const strikeStep = currentIndexState?.strikeStep || 50;
 
-  // Calibrated Hero-or-Zero signals
+  // Calibrated Hero-or-Zero signals (strictly non-expired)
   const signals: HeroZeroSignal[] = useMemo(() => {
     if (!currentIndexState) return [];
     
+    // If selected contract expiry date has passed, do not show active hero zero signals
+    if (isContractOrSignalExpired(selectedExpiry)) {
+      return [];
+    }
+
     const now = Date.now();
     const activeLiveSignals = heroZeroSignals.filter(s => {
-      if (!s.expiresAt) return true;
-      return new Date(s.expiresAt).getTime() > now;
+      if (!s.expiresAt) return !isContractOrSignalExpired(selectedExpiry);
+      return new Date(s.expiresAt).getTime() > now && !isContractOrSignalExpired(selectedExpiry);
     });
 
     if (activeLiveSignals.length > 0) return activeLiveSignals;
