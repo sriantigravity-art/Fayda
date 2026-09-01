@@ -5,24 +5,24 @@ import { useDensity, type TerminalDensity } from '../context/DensityContext';
 import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import { 
-  Volume2, 
-  VolumeX, 
-  Globe, 
-  Calendar, 
-  KeyRound, 
-  Clock, 
-  Radio, 
-  CheckCircle2, 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  Sun, 
-  Moon, 
-  X, 
-  MoreHorizontal, 
-  Sliders, 
-  Maximize2, 
+import {
+  Volume2,
+  VolumeX,
+  Globe,
+  Calendar,
+  KeyRound,
+  Clock,
+  Radio,
+  CheckCircle2,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Sun,
+  Moon,
+  X,
+  MoreHorizontal,
+  Sliders,
+  Maximize2,
   Minimize2,
   Calculator,
   ShieldAlert,
@@ -51,19 +51,19 @@ import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { UserProfileEditModal } from './profile/UserProfileEditModal';
 
 export const HeaderBar: React.FC = () => {
-  const { 
-    currentIndexState, 
-    indices, 
-    indicesReceivedAt, 
-    selectedIndex, 
-    setSelectedIndex, 
-    visibleIndices, 
-    recentSurges, 
-    setStrikeRange, 
-    strikeRange, 
-    setOptionExpiry, 
-    fyersConfig, 
-    dataSource, 
+  const {
+    currentIndexState,
+    indices,
+    indicesReceivedAt,
+    selectedIndex,
+    setSelectedIndex,
+    visibleIndices,
+    recentSurges,
+    setStrikeRange,
+    strikeRange,
+    setOptionExpiry,
+    fyersConfig,
+    dataSource,
     setDataSource,
     globalMarketContext,
     toggleIndexVisibility,
@@ -77,7 +77,7 @@ export const HeaderBar: React.FC = () => {
   const { mode, setMode } = useTerminalMode();
   const { density, setDensity } = useDensity();
   const { user, isAuthenticated, isSuperAdmin, logout, panelVisibility } = useAuth();
-  
+
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
@@ -170,7 +170,7 @@ export const HeaderBar: React.FC = () => {
     } else {
       try {
         if (doc.exitFullscreen && doc.fullscreenElement) {
-          doc.exitFullscreen().catch(() => {});
+          doc.exitFullscreen().catch(() => { });
         } else if (doc.webkitExitFullscreen && doc.webkitFullscreenElement) {
           doc.webkitExitFullscreen();
         } else if (doc.mozCancelFullScreen && doc.mozFullScreenElement) {
@@ -262,7 +262,7 @@ export const HeaderBar: React.FC = () => {
       {/* TIER 1: PRIMARY ACTION & CONTROL BAR */}
       {/* ========================================================================= */}
       <div className="flex items-center justify-between gap-2 max-w-[1840px] w-full mx-auto">
-        
+
         {/* LEFT SECTION: BRAND + ASSET SELECTOR + SPOT METRICS */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0 min-w-0">
           {/* Logo & Brand Name */}
@@ -290,7 +290,7 @@ export const HeaderBar: React.FC = () => {
 
         {/* RIGHT SECTION: RESPONSIVE ACTIONS & TOOLS */}
         <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-          
+
           {/* Command Palette Trigger Button (Ctrl + K) */}
           <button
             type="button"
@@ -311,11 +311,10 @@ export const HeaderBar: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsFyersModalOpen(true)}
-              className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-xs font-sans font-bold transition cursor-pointer shrink-0 ${
-                isFyersActive
+              className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-xs font-sans font-bold transition cursor-pointer shrink-0 ${isFyersActive
                   ? 'bg-bull/15 border-bull/40 text-bull'
                   : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
-              }`}
+                }`}
               title={isFyersActive ? 'Fyers API v3 Connected' : 'Connect Fyers Broker'}
             >
               <KeyRound className="w-3.5 h-3.5 text-accent-sky" />
@@ -341,11 +340,10 @@ export const HeaderBar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setMode('BEGINNER')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
-                    mode === 'BEGINNER'
+                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'BEGINNER'
                       ? 'bg-bull/15 text-bull font-bold shadow-subtle'
                       : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
+                    }`}
                   title="Beginner Mode"
                 >
                   Beginner
@@ -354,11 +352,10 @@ export const HeaderBar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setMode('INTERMEDIATE')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
-                    mode === 'INTERMEDIATE'
+                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'INTERMEDIATE'
                       ? 'bg-amber/15 text-amber font-bold shadow-subtle'
                       : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
+                    }`}
                   title="Intermediate Mode"
                 >
                   Interm.
@@ -367,11 +364,10 @@ export const HeaderBar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setMode('EXPERT')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${
-                    mode === 'EXPERT'
+                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'EXPERT'
                       ? 'bg-accent-purple/15 text-accent-purple font-bold shadow-subtle'
                       : 'text-terminal-muted hover:text-terminal-text'
-                  }`}
+                    }`}
                   title="Expert Mode"
                 >
                   Expert
@@ -432,11 +428,10 @@ export const HeaderBar: React.FC = () => {
               type="button"
               onClick={toggleMute}
               title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
-              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                isMuted
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${isMuted
                   ? 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
                   : 'bg-bull/15 border-bull/30 text-bull'
-              }`}
+                }`}
             >
               {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
             </button>
@@ -511,13 +506,12 @@ export const HeaderBar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMobileModeDropdownOpen(!isMobileModeDropdownOpen)}
-                className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${
-                  mode === 'BEGINNER'
+                className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${mode === 'BEGINNER'
                     ? 'bg-bull/15 text-bull border-bull/40 shadow-[0_0_10px_rgba(0,245,155,0.2)]'
                     : mode === 'INTERMEDIATE'
-                    ? 'bg-amber/15 text-amber border-amber/40 shadow-[0_0_10px_rgba(255,180,0,0.2)]'
-                    : 'bg-accent-purple/15 text-accent-purple border-accent-purple/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                }`}
+                      ? 'bg-amber/15 text-amber border-amber/40 shadow-[0_0_10px_rgba(255,180,0,0.2)]'
+                      : 'bg-accent-purple/15 text-accent-purple border-accent-purple/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                  }`}
                 title="Switch Trader Experience Mode (Beginner / Intermediate / Expert)"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -543,11 +537,10 @@ export const HeaderBar: React.FC = () => {
                       setMode('BEGINNER');
                       setIsMobileModeDropdownOpen(false);
                     }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
-                      mode === 'BEGINNER'
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'BEGINNER'
                         ? 'bg-bull/20 text-bull font-bold border border-bull/40'
                         : 'text-terminal-text hover:bg-terminal-panel hover:text-bull'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <span className="w-2 h-2 rounded-full bg-bull shrink-0" />
@@ -566,11 +559,10 @@ export const HeaderBar: React.FC = () => {
                       setMode('INTERMEDIATE');
                       setIsMobileModeDropdownOpen(false);
                     }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
-                      mode === 'INTERMEDIATE'
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'INTERMEDIATE'
                         ? 'bg-amber/20 text-amber font-bold border border-amber/40'
                         : 'text-terminal-text hover:bg-terminal-panel hover:text-amber'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <span className="w-2 h-2 rounded-full bg-amber shrink-0" />
@@ -589,11 +581,10 @@ export const HeaderBar: React.FC = () => {
                       setMode('EXPERT');
                       setIsMobileModeDropdownOpen(false);
                     }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${
-                      mode === 'EXPERT'
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'EXPERT'
                         ? 'bg-accent-purple/20 text-accent-purple font-bold border border-accent-purple/40'
                         : 'text-terminal-text hover:bg-terminal-panel hover:text-accent-purple'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <span className="w-2 h-2 rounded-full bg-accent-purple shrink-0" />
@@ -627,11 +618,10 @@ export const HeaderBar: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                isMoreMenuOpen
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${isMoreMenuOpen
                   ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-subtle'
                   : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
-              }`}
+                }`}
               title="More Terminal Tools & Settings"
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -640,7 +630,7 @@ export const HeaderBar: React.FC = () => {
             {/* Mobile Dropdown Popover Menu (Solid Opaque Background & Full Options) */}
             {isMoreMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto no-scrollbar bg-terminal-card border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-3.5 z-50 flex flex-col space-y-3 animate-scale-up font-sans select-none ring-1 ring-black/20">
-                
+
                 {/* Account / User Profile Section */}
                 {isAuthenticated && user ? (
                   <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border flex items-center justify-between gap-2">
@@ -703,27 +693,24 @@ export const HeaderBar: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => { setMode('BEGINNER'); setIsMoreMenuOpen(false); }}
-                        className={`py-1 rounded-lg transition text-center ${
-                          mode === 'BEGINNER' ? 'bg-bull/20 text-bull font-bold' : 'text-terminal-muted hover:text-terminal-text'
-                        }`}
+                        className={`py-1 rounded-lg transition text-center ${mode === 'BEGINNER' ? 'bg-bull/20 text-bull font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                          }`}
                       >
                         Beginner
                       </button>
                       <button
                         type="button"
                         onClick={() => { setMode('INTERMEDIATE'); setIsMoreMenuOpen(false); }}
-                        className={`py-1 rounded-lg transition text-center ${
-                          mode === 'INTERMEDIATE' ? 'bg-amber/20 text-amber font-bold' : 'text-terminal-muted hover:text-terminal-text'
-                        }`}
+                        className={`py-1 rounded-lg transition text-center ${mode === 'INTERMEDIATE' ? 'bg-amber/20 text-amber font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                          }`}
                       >
                         Interm.
                       </button>
                       <button
                         type="button"
                         onClick={() => { setMode('EXPERT'); setIsMoreMenuOpen(false); }}
-                        className={`py-1 rounded-lg transition text-center ${
-                          mode === 'EXPERT' ? 'bg-accent-purple/20 text-accent-purple font-bold' : 'text-terminal-muted hover:text-terminal-text'
-                        }`}
+                        className={`py-1 rounded-lg transition text-center ${mode === 'EXPERT' ? 'bg-accent-purple/20 text-accent-purple font-bold' : 'text-terminal-muted hover:text-terminal-text'
+                          }`}
                       >
                         Expert
                       </button>
@@ -778,9 +765,8 @@ export const HeaderBar: React.FC = () => {
                       <KeyRound className="w-4 h-4 text-accent-sky" />
                       <span className="font-semibold text-terminal-text">Fyers Broker API</span>
                     </div>
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
-                      isFyersActive ? 'bg-bull/20 text-bull' : 'bg-terminal-panel text-terminal-muted'
-                    }`}>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${isFyersActive ? 'bg-bull/20 text-bull' : 'bg-terminal-panel text-terminal-muted'
+                      }`}>
                       {isFyersActive ? 'Live' : 'Connect'}
                     </span>
                   </button>
@@ -879,11 +865,10 @@ export const HeaderBar: React.FC = () => {
                   <button
                     type="button"
                     onClick={toggleMute}
-                    className={`p-2 rounded-xl border flex flex-col items-center justify-center space-y-1 transition cursor-pointer ${
-                      isMuted
+                    className={`p-2 rounded-xl border flex flex-col items-center justify-center space-y-1 transition cursor-pointer ${isMuted
                         ? 'bg-terminal-panel border-terminal-border text-terminal-muted'
                         : 'bg-bull/15 border-bull/30 text-bull'
-                    }`}
+                      }`}
                     title={isMuted ? 'Unmute Alerts' : 'Mute Alerts'}
                   >
                     {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -908,11 +893,10 @@ export const HeaderBar: React.FC = () => {
                       toggleFullscreen(e);
                       setIsMoreMenuOpen(false);
                     }}
-                    className={`p-2 rounded-xl border flex flex-col items-center justify-center space-y-1 transition cursor-pointer ${
-                      isFullscreen
+                    className={`p-2 rounded-xl border flex flex-col items-center justify-center space-y-1 transition cursor-pointer ${isFullscreen
                         ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky'
                         : 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
-                    }`}
+                      }`}
                     title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
                   >
                     {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -929,7 +913,7 @@ export const HeaderBar: React.FC = () => {
       {/* TIER 2: MULTI-INDEX STRIP + EXPIRY PICKER & LIVE CONTEXT METRICS */}
       {/* ========================================================================= */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-terminal-border/60 max-w-[1840px] w-full mx-auto text-xs">
-        
+
         {/* Left: Multi-Index Mini Ticker Strip */}
         <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           {visibleIndices.map((sym: string) => {
@@ -956,11 +940,10 @@ export const HeaderBar: React.FC = () => {
                     setSelectedIndex(sym as any);
                   }
                 }}
-                className={`flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${
-                  isSelected
+                className={`flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${isSelected
                     ? 'bg-accent-sky/15 border-accent-sky/50 shadow-subtle'
                     : 'bg-terminal-panel/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-1 font-mono font-bold text-[10px] sm:text-[11px]">
                   <span className="text-terminal-text">{sym}</span>
@@ -1015,9 +998,8 @@ export const HeaderBar: React.FC = () => {
 
             <div className="hidden sm:flex items-center space-x-1">
               <span className="text-terminal-muted font-medium text-[11px]">PCR:</span>
-              <span className={`font-mono font-bold ${
-                isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
-              }`}>
+              <span className={`font-mono font-bold ${isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
+                }`}>
                 {activePcr.toFixed(2)}
               </span>
             </div>
