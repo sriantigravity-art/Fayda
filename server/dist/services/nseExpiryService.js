@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NseExpiryService = void 0;
-const types_js_1 = require("../types.js");
+import { ALL_SYMBOLS_CONFIG } from '../types.js';
 /**
  * Official NSE, BSE & MCX Derivatives Contract Specifications & Expiry Calendars
  *
@@ -21,7 +18,7 @@ const types_js_1 = require("../types.js");
  *   SILVER      → 5th of Mar, Jul, Sep, Dec (or preceding business day)
  *   Others      → 19th of each month (fallback)
  */
-class NseExpiryService {
+export class NseExpiryService {
     static MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     // ─── Public helpers ───────────────────────────────────────────────────────
     static getValidExpiries(symbol, count = 6) {
@@ -36,7 +33,7 @@ class NseExpiryService {
      * All dates are computed from the current date — zero hardcoded strings.
      */
     static getUpcomingExpiries(symbol, count = 6) {
-        const cfg = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
         const isStock = cfg?.category === 'NIFTY50_STOCKS';
         if (isCommodity)
@@ -209,4 +206,3 @@ class NseExpiryService {
         return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
 }
-exports.NseExpiryService = NseExpiryService;

@@ -1,27 +1,21 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.signalLedgerService = void 0;
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const types_js_1 = require("../types.js");
+import fs from 'fs';
+import path from 'path';
+import { ALL_SYMBOLS_CONFIG } from '../types.js';
 class SignalLedgerService {
     dataFilePath;
     calls = new Map(); // id -> call
     datesSet = new Set();
     constructor() {
-        const dataDir = path_1.default.join(process.cwd(), 'server', 'data');
-        if (!fs_1.default.existsSync(dataDir)) {
+        const dataDir = path.join(process.cwd(), 'server', 'data');
+        if (!fs.existsSync(dataDir)) {
             try {
-                fs_1.default.mkdirSync(dataDir, { recursive: true });
+                fs.mkdirSync(dataDir, { recursive: true });
             }
             catch (err) {
                 // Ignore fallback
             }
         }
-        this.dataFilePath = path_1.default.join(dataDir, 'signals_ledger.json');
+        this.dataFilePath = path.join(dataDir, 'signals_ledger.json');
         this.loadFromFile();
         // If no calls exist, seed rich historical data for testing & instant date-wise report availability
         if (this.calls.size === 0) {
@@ -41,8 +35,8 @@ class SignalLedgerService {
     }
     loadFromFile() {
         try {
-            if (fs_1.default.existsSync(this.dataFilePath)) {
-                const raw = fs_1.default.readFileSync(this.dataFilePath, 'utf-8');
+            if (fs.existsSync(this.dataFilePath)) {
+                const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
                 const list = JSON.parse(raw);
                 if (Array.isArray(list)) {
                     list.forEach(c => {
@@ -59,12 +53,12 @@ class SignalLedgerService {
     }
     saveToFile() {
         try {
-            const dataDir = path_1.default.dirname(this.dataFilePath);
-            if (!fs_1.default.existsSync(dataDir)) {
-                fs_1.default.mkdirSync(dataDir, { recursive: true });
+            const dataDir = path.dirname(this.dataFilePath);
+            if (!fs.existsSync(dataDir)) {
+                fs.mkdirSync(dataDir, { recursive: true });
             }
             const list = Array.from(this.calls.values());
-            fs_1.default.writeFileSync(this.dataFilePath, JSON.stringify(list, null, 2), 'utf-8');
+            fs.writeFileSync(this.dataFilePath, JSON.stringify(list, null, 2), 'utf-8');
         }
         catch (err) {
             console.warn('[SignalLedgerService] Save error:', err.message);
@@ -73,7 +67,7 @@ class SignalLedgerService {
     recordSignal(signal) {
         const today = this.getTodayDateStr();
         const timeFormatted = this.getIstTimeFormatted();
-        const cfg = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
         let category = 'OPTIONS';
         if (cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY') {
             category = 'COMMODITIES';
@@ -767,4 +761,4 @@ class SignalLedgerService {
         console.log(`[SignalLedgerService] Seeded ${this.calls.size} unique trade calls across ${this.datesSet.size} distinct sessions.`);
     }
 }
-exports.signalLedgerService = new SignalLedgerService();
+export const signalLedgerService = new SignalLedgerService();

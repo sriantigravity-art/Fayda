@@ -36,34 +36,17 @@ interface CacheEntry {
   ts: number;
 }
 
+import { usdInrService } from './usdInrService.js';
+
 export class McxCommodityService {
   private cache: Map<string, CacheEntry> = new Map();
   private readonly UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-  // USD/INR for Yahoo fallback
-  private usdInrRate = 84.5;
-  private usdInrTs   = 0;
-
   // ─── USD/INR helper ──────────────────────────────────────────────────────────
 
   private async getUsdInr(): Promise<number> {
-    if (Date.now() - this.usdInrTs < 5 * 60 * 1000) return this.usdInrRate;
-    try {
-      const res = await fetch(
-        'https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d',
-        { headers: { 'User-Agent': this.UA }, signal: AbortSignal.timeout(4000) }
-      );
-      if (res.ok) {
-        const d = (await res.json()) as any;
-        const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof p === 'number' && p > 50 && p < 200) {
-          this.usdInrRate = p;
-          this.usdInrTs = Date.now();
-        }
-      }
-    } catch { /* keep existing */ }
-    return this.usdInrRate;
+    return usdInrService.get();
   }
 
   // ─── Source 1: IBJA (India Bullion and Jewellers Association) ────────────────

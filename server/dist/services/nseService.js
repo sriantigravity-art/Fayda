@@ -1,17 +1,22 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.nseService = exports.NseService = void 0;
-const types_js_1 = require("../types.js");
-const greekEngine_js_1 = require("../engine/greekEngine.js");
-const nseExpiryService_js_1 = require("./nseExpiryService.js");
-const mcxCommodityService_js_1 = require("./mcxCommodityService.js");
-const globalIndicesService_js_1 = require("./globalIndicesService.js");
-// NSE equity-derivatives API index keys
+import { ALL_SYMBOLS_CONFIG } from '../types.js';
+import { GreekEngine } from '../engine/greekEngine.js';
+import { NseExpiryService } from './nseExpiryService.js';
+import { mcxCommodityService } from './mcxCommodityService.js';
+import { globalIndicesService } from './globalIndicesService.js';
+import { bseService } from './bseService.js';
+import { mcxOptionChainService } from './mcxOptionChainService.js';
+import { usdInrService } from './usdInrService.js';
+// NSE liveEquity-derivatives API index keys (NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY)
 const NSE_DERIVATIVE_INDEX_MAP = {
     NIFTY: 'nse50_opt',
     BANKNIFTY: 'nifty_bank_opt',
     FINNIFTY: 'finnifty_opt',
     MIDCPNIFTY: 'midcap_nifty_opt'
+};
+// NSE option-chain-indices API symbol names (NIFTYNXT50 uses a different NSE endpoint).
+// NSE accepts both 'NIFTYNXT50' and 'NIFTY NEXT 50' — try primary first, fallback second.
+const NSE_INDICES_CHAIN_MAP = {
+    NIFTYNXT50: { primary: 'NIFTYNXT50', fallback: 'NIFTY NEXT 50' }
 };
 const YAHOO_SPOT_MAP = {
     NIFTY: { ticker: '^NSEI', convert: 'DIRECT' },
@@ -54,42 +59,17 @@ const EMERGENCY_FALLBACK_SPOT = {
     INFY: 1850,
     TCS: 4200,
 };
-class NseService {
+export class NseService {
     cookies = '';
     cookieTimestamp = 0;
     isRefreshingCookies = false;
     cachedChain = new Map();
     // Unified spot data cache (60 s TTL): holds live Yahoo spot + change per symbol
     spotCache = new Map();
-    // USD/INR rate cache (5 min TTL) — used to convert commodity prices from USD to INR
-    usdInrRate = 84.5;
-    usdInrCacheTs = 0;
     userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
     // ─── USD/INR live rate ─────────────────────────────────────────────────────
-    /** Fetches live USD/INR exchange rate from Yahoo Finance (5-minute cache). */
     async fetchUsdInrRate() {
-        if (Date.now() - this.usdInrCacheTs < 5 * 60 * 1000)
-            return this.usdInrRate;
-        try {
-            const url = 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d';
-            const res = await fetch(url, {
-                headers: { 'User-Agent': this.userAgent },
-                signal: AbortSignal.timeout(4000)
-            });
-            if (res.ok) {
-                const data = (await res.json());
-                const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-                if (typeof price === 'number' && price > 50 && price < 200) {
-                    this.usdInrRate = price;
-                    this.usdInrCacheTs = Date.now();
-                    console.log(`[NSE] USD/INR rate updated: ₹${price.toFixed(2)}`);
-                }
-            }
-        }
-        catch {
-            // Keep existing cached rate
-        }
-        return this.usdInrRate;
+        return usdInrService.get();
     }
     // ─── Yahoo Finance spot price fetcher ─────────────────────────────────────
     /**
@@ -106,7 +86,7 @@ class NseService {
     async fetchYahooSpot(symbol) {
         // ── Priority 1: Check live NSE allIndices feed from globalIndicesService ──
         try {
-            const liveNseQuote = await globalIndicesService_js_1.globalIndicesService.getSpotForSymbol(symbol);
+            const liveNseQuote = await globalIndicesService.getSpotForSymbol(symbol);
             if (liveNseQuote && liveNseQuote.spot > 0) {
                 this.spotCache.set(symbol, { ...liveNseQuote, ts: Date.now() });
                 return liveNseQuote;
@@ -115,7 +95,7 @@ class NseService {
         catch { }
         // ── GOLD and SILVER: use MCX-aligned IBJA benchmark (official Indian rates) ──
         if (symbol === 'GOLD' || symbol === 'SILVER') {
-            const mcqQuote = await mcxCommodityService_js_1.mcxCommodityService.fetchSpot(symbol);
+            const mcqQuote = await mcxCommodityService.fetchSpot(symbol);
             if (mcqQuote) {
                 const result = { spot: mcqQuote.spot, change: mcqQuote.change, pctChange: mcqQuote.pctChange };
                 this.spotCache.set(symbol, { ...result, ts: Date.now() });
@@ -209,6 +189,112 @@ class NseService {
         return this.cookies;
     }
     // ─── Main option chain fetcher ─────────────────────────────────────────────
+    // ── Helper: convert external OI result (BSE/MCX) to NseFetchResult shape ───
+    convertExternalResult(symbol, ext) {
+        return {
+            symbol,
+            spotPrice: ext.spotPrice,
+            spotChange: ext.spotChange,
+            spotPctChange: ext.spotPctChange,
+            timestamp: new Date().toISOString(),
+            strikes: ext.strikes,
+            expiryDates: ext.expiryDates,
+            selectedExpiry: ext.selectedExpiry,
+            totalCallOI: ext.totalCallOI,
+            totalPutOI: ext.totalPutOI,
+        };
+    }
+    // ── NSE option-chain-indices API (for NIFTYNXT50) ────────────────────────────
+    async fetchNseIndicesChain(symbol, expiry) {
+        const nseSymCfg = NSE_INDICES_CHAIN_MAP[symbol];
+        if (!nseSymCfg)
+            return null;
+        // Try primary symbol name, then fallback if primary returns empty data
+        const namesToTry = [nseSymCfg.primary, ...(nseSymCfg.fallback ? [nseSymCfg.fallback] : [])];
+        for (const nseSymbolName of namesToTry) {
+            try {
+                const cookies = await this.ensureCookies();
+                const url = `https://www.nseindia.com/api/option-chain-indices?symbol=${encodeURIComponent(nseSymbolName)}`;
+                const res = await fetch(url, {
+                    headers: {
+                        'User-Agent': this.userAgent,
+                        'Accept': 'application/json, text/plain, */*',
+                        'Referer': 'https://www.nseindia.com/option-chain',
+                        'Cookie': cookies
+                    },
+                    signal: AbortSignal.timeout(5000)
+                });
+                if (!res.ok)
+                    return null;
+                const json = (await res.json());
+                const records = json?.records || {};
+                const filtered = json?.filtered || {};
+                const rawList = filtered.data || records.data || [];
+                if (!rawList.length)
+                    return null;
+                const spotPrice = +(records.underlyingValue || filtered.underlyingValue || 0);
+                const expiryDates = records.expiryDates || [];
+                const selectedExp = expiry && expiryDates.includes(expiry) ? expiry : (expiryDates[0] || '');
+                const yahooQuote = await this.fetchYahooSpot(symbol);
+                const spotChangeFinal = yahooQuote?.change ?? 0;
+                const spotPctFinal = yahooQuote?.pctChange ?? 0;
+                const strikeMap = new Map();
+                let totalCallOI = 0;
+                let totalPutOI = 0;
+                for (const item of rawList) {
+                    if (item.expiryDate !== selectedExp)
+                        continue;
+                    const sp = item.strikePrice;
+                    if (typeof sp !== 'number' || sp <= 0)
+                        continue;
+                    if (!strikeMap.has(sp)) {
+                        strikeMap.set(sp, {
+                            strikePrice: sp,
+                            callOI: 0, callLtp: 0, callVolume: 0, callOIChangeTotal: 0,
+                            putOI: 0, putLtp: 0, putVolume: 0, putOIChangeTotal: 0
+                        });
+                    }
+                    const entry = strikeMap.get(sp);
+                    if (item.CE) {
+                        entry.callOI = item.CE.openInterest || 0;
+                        entry.callLtp = item.CE.lastPrice || 0;
+                        entry.callVolume = item.CE.totalTradedVolume || 0;
+                        entry.callOIChangeTotal = item.CE.changeinOpenInterest || 0;
+                        totalCallOI += entry.callOI;
+                    }
+                    if (item.PE) {
+                        entry.putOI = item.PE.openInterest || 0;
+                        entry.putLtp = item.PE.lastPrice || 0;
+                        entry.putVolume = item.PE.totalTradedVolume || 0;
+                        entry.putOIChangeTotal = item.PE.changeinOpenInterest || 0;
+                        totalPutOI += entry.putOI;
+                    }
+                }
+                const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strikePrice - b.strikePrice);
+                if (strikes.length === 0)
+                    return null;
+                console.log(`[NSE-Indices] ${symbol} (${nseSymbolName}): ${strikes.length} strikes, ` +
+                    `spot ₹${spotPrice.toLocaleString('en-IN')} (CE OI: ${totalCallOI.toLocaleString()}, PE OI: ${totalPutOI.toLocaleString()})`);
+                return {
+                    symbol,
+                    spotPrice: spotPrice || yahooQuote?.spot || 0,
+                    spotChange: spotChangeFinal,
+                    spotPctChange: spotPctFinal,
+                    timestamp: new Date().toISOString(),
+                    strikes,
+                    expiryDates,
+                    selectedExpiry: selectedExp,
+                    totalCallOI,
+                    totalPutOI
+                };
+            }
+            catch (err) {
+                console.warn(`[NSE-Indices] ${symbol} (${nseSymbolName}) fetch error:`, err.message);
+                // try next symbol name variant
+            }
+        } // end namesToTry loop
+        return null;
+    }
     async fetchOptionChain(symbol, expiry) {
         const cacheKey = `${symbol}_${expiry || 'default'}`;
         const cached = this.cachedChain.get(cacheKey);
@@ -304,6 +390,35 @@ class NseService {
                 console.warn(`[NSE] liveEquity-derivatives error for ${symbol}:`, err.message);
             }
         }
+        // ── Attempt 2: NSE option-chain-indices API (NIFTYNXT50) ──────────────────
+        if (NSE_INDICES_CHAIN_MAP[symbol]) {
+            const nseIndResult = await this.fetchNseIndicesChain(symbol, expiry);
+            if (nseIndResult && nseIndResult.strikes.length > 0) {
+                this.cachedChain.set(cacheKey, { result: nseIndResult, timestamp: now });
+                this.cachedChain.set(`${symbol}_default`, { result: nseIndResult, timestamp: now });
+                return nseIndResult;
+            }
+        }
+        // ── Attempt 3: BSE option chain API (SENSEX, BANKEX) ─────────────────────
+        if (symbol === 'SENSEX' || symbol === 'BANKEX') {
+            const bseResult = await bseService.fetchOptionChain(symbol, expiry);
+            if (bseResult && bseResult.strikes.length > 0) {
+                const nseFmt = this.convertExternalResult(symbol, bseResult);
+                this.cachedChain.set(cacheKey, { result: nseFmt, timestamp: now });
+                this.cachedChain.set(`${symbol}_default`, { result: nseFmt, timestamp: now });
+                return nseFmt;
+            }
+        }
+        // ── Attempt 4: MCX option chain API (GOLD, SILVER, CRUDEOIL, NATURALGAS) ──
+        if (mcxOptionChainService.canHandle(symbol)) {
+            const mcxResult = await mcxOptionChainService.fetchOptionChain(symbol, expiry);
+            if (mcxResult && mcxResult.strikes.length > 0) {
+                const nseFmt = this.convertExternalResult(symbol, mcxResult);
+                this.cachedChain.set(cacheKey, { result: nseFmt, timestamp: now });
+                this.cachedChain.set(`${symbol}_default`, { result: nseFmt, timestamp: now });
+                return nseFmt;
+            }
+        }
         // ── Return stale cache if available (avoids unnecessary fallback OI chain) ─
         if (cached)
             return cached.result;
@@ -321,14 +436,14 @@ class NseService {
         const defaultSpot = yahooData?.spot ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000;
         const spotChangeFbk = yahooData?.change ?? 0;
         const spotPctFbk = yahooData?.pctChange ?? 0;
-        const cfg = types_js_1.ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const step = cfg?.step ?? 50;
         const atmStrike = Math.round(defaultSpot / step) * step;
         // Use NseExpiryService for dynamically computed official expiry dates (no hardcoding)
-        const expiryDates = nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries(symbol, 6);
+        const expiryDates = NseExpiryService.getUpcomingExpiries(symbol, 6);
         const selectedExpiry = expiry && expiryDates.includes(expiry) ? expiry : (expiryDates[0] || '');
         // Exact dynamic Days-To-Expiry from calendar (min 0.25 days for 0-DTE intraday)
-        const rawDte = nseExpiryService_js_1.NseExpiryService.getDaysToExpiry(selectedExpiry);
+        const rawDte = NseExpiryService.getDaysToExpiry(selectedExpiry);
         const dteDays = Math.max(0.25, rawDte);
         const daysToExp = dteDays / 365;
         // Realistic market-calibrated base volatilities
@@ -355,8 +470,8 @@ class NseService {
             const moneyness = (strikePrice - defaultSpot) / (defaultSpot || 1);
             const callSigma = baseSigma * (1 + 0.10 * Math.max(0, moneyness));
             const putSigma = baseSigma * (1 + 0.24 * Math.max(0, -moneyness)); // Downside put skew
-            const callLtp = Math.max(0.5, +(greekEngine_js_1.GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, callSigma, 'CE')).toFixed(2));
-            const putLtp = Math.max(0.5, +(greekEngine_js_1.GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, putSigma, 'PE')).toFixed(2));
+            const callLtp = Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, callSigma, 'CE')).toFixed(2));
+            const putLtp = Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, putSigma, 'PE')).toFixed(2));
             // Natural round-strike institutional OI concentration
             const isMajorRound = strikePrice % (step * 5) === 0;
             const roundMultiplier = isMajorRound ? 1.35 : 1.0;
@@ -391,6 +506,21 @@ class NseService {
             totalPutOI
         };
     }
+    /**
+     * Called at 9:15 AM IST (market open) to flush all stale pre-market caches.
+     * Next OI/spot request will fetch fresh live data from NSE.
+     */
+    onMarketOpen() {
+        // Reset session cookies — NSE rotates them at market open
+        this.cookies = '';
+        this.cookieTimestamp = 0;
+        // Clear option-chain result cache
+        this.cachedChain.clear();
+        // Clear spot price cache so first tick fetches live price
+        this.spotCache.clear();
+        // Refresh USD/INR rate so morning rate is loaded
+        usdInrService.refresh().catch(() => { });
+        console.log('[NSE] \u2705 Market-open cache reset complete \u2014 cookies, OI chain, and spot cache cleared.');
+    }
 }
-exports.NseService = NseService;
-exports.nseService = new NseService();
+export const nseService = new NseService();

@@ -1,10 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.classifyBuildup = classifyBuildup;
-exports.determineTradeAction = determineTradeAction;
-exports.calculateDynamicTarget = calculateDynamicTarget;
-exports.generateOptionSuggestion = generateOptionSuggestion;
-function classifyBuildup(oiDelta, priceDelta) {
+export function classifyBuildup(oiDelta, priceDelta) {
     if (oiDelta >= 0) {
         return priceDelta >= 0 ? 'LONG_BUILDUP' : 'SHORT_BUILDUP';
     }
@@ -12,7 +6,7 @@ function classifyBuildup(oiDelta, priceDelta) {
         return priceDelta >= 0 ? 'SHORT_COVERING' : 'LONG_UNWINDING';
     }
 }
-function determineTradeAction(symbol, optionType, buildup, strike, atmStrike, ltp) {
+export function determineTradeAction(symbol, optionType, buildup, strike, atmStrike, ltp) {
     const isNearAtm = Math.abs(strike - atmStrike) <= (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER' ? 400 : 100);
     if (optionType === 'CE') {
         switch (buildup) {
@@ -79,7 +73,7 @@ function determineTradeAction(symbol, optionType, buildup, strike, atmStrike, lt
         }
     }
 }
-function calculateDynamicTarget(ltp, strike, atmStrike) {
+export function calculateDynamicTarget(ltp, strike, atmStrike) {
     const cleanLtp = Math.max(0.5, ltp);
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -134,7 +128,7 @@ function calculateDynamicTarget(ltp, strike, atmStrike) {
         riskReward: `1:${rrRatio}`
     };
 }
-function generateOptionSuggestion(symbol, strike, optionType, ltp, _tradeAction, expiryDate = 'CURRENT_WEEKLY', atmStrike) {
+export function generateOptionSuggestion(symbol, strike, optionType, ltp, _tradeAction, expiryDate = 'CURRENT_WEEKLY', atmStrike) {
     const cleanLtp = Math.max(0.5, ltp);
     const dyn = calculateDynamicTarget(cleanLtp, strike, atmStrike);
     const sl = Math.max(0.1, +(cleanLtp - dyn.slPoints).toFixed(2));

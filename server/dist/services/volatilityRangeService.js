@@ -1,4 +1,3 @@
-"use strict";
 /**
  * VolatilityRangeService
  *
@@ -13,8 +12,6 @@
  *
  * Data source: Yahoo Finance /v8/finance/chart/ (same API as globalIndicesService)
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.volatilityRangeService = void 0;
 // Yahoo Finance ticker map for all supported symbols
 const YAHOO_TICKER = {
     NIFTY: '^NSEI',
@@ -54,28 +51,13 @@ const FALLBACK_RANGES = {
     GOLD: { dRange: 400, wRange: 1200, mRange: 2500, h6Range: 6000 },
     SILVER: { dRange: 1500, wRange: 4000, mRange: 8000, h6Range: 20000 },
 };
+import { usdInrService } from './usdInrService.js';
 class VolatilityRangeService {
     cache = new Map();
     CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-    usdInrRate = 84.5;
-    usdInrTs = 0;
     async getUsdInr() {
-        if (Date.now() - this.usdInrTs < 5 * 60 * 1000)
-            return this.usdInrRate;
-        try {
-            const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d', { headers: { 'User-Agent': this.UA }, signal: AbortSignal.timeout(4000) });
-            if (res.ok) {
-                const d = await res.json();
-                const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-                if (typeof p === 'number' && p > 50 && p < 200) {
-                    this.usdInrRate = p;
-                    this.usdInrTs = Date.now();
-                }
-            }
-        }
-        catch { /* keep existing */ }
-        return this.usdInrRate;
+        return usdInrService.get();
     }
     constructor() {
         // Warm up cache for the most-used symbols at startup (non-blocking)
@@ -177,4 +159,4 @@ class VolatilityRangeService {
     }
 }
 // Singleton export
-exports.volatilityRangeService = new VolatilityRangeService();
+export const volatilityRangeService = new VolatilityRangeService();

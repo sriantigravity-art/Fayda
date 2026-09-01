@@ -1,31 +1,35 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.globalIndicesService = exports.GlobalIndicesService = void 0;
-const fyersService_js_1 = require("./fyersService.js");
+import { fyersService } from './fyersService.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+// Persistent disk cache — stores last successful Yahoo quote for every symbol.
+// server/src/services/ → ../../ = server/
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const QUOTES_CACHE_PATH = path.join(__dirname, '../../', 'globalQuotesCache.json');
 const INSTRUMENTS = [
     {
         id: 'GIFT_NIFTY',
-        symbol: '^NSEI', // Yahoo Finance fallback (Nifty 50 spot + ~32.5 pt premium)
+        symbol: '^NSEI',
         name: 'GIFT Nifty',
         country: 'India / Singapore',
         flag: '🇮🇳',
         region: 'ASIA',
         isGiftNifty: true,
         isIndianMarket: true,
-        nseIndexName: 'NIFTY 50', // NSE allIndices key → used as proxy for GIFT Nifty
+        nseIndexName: 'NIFTY 50',
         notes: 'NSE IX Gandhinagar (+32 pts premium over Spot)',
         defaultPrice: 0, defaultChange: 0, defaultPct: 0
     },
     {
         id: 'INDIA_VIX',
-        symbol: '^INDIAVIX', // Yahoo Finance fallback for India VIX
+        symbol: '^INDIAVIX',
         name: 'India VIX',
         country: 'India',
         flag: '⚡',
         region: 'ASIA',
         isVix: true,
         isIndianMarket: true,
-        nseIndexName: 'INDIA VIX', // NSE allIndices key
+        nseIndexName: 'INDIA VIX',
         notes: 'NSE India Volatility Index — fear gauge for Nifty options',
         defaultPrice: 0, defaultChange: 0, defaultPct: 0
     },
@@ -167,7 +171,7 @@ const INSTRUMENTS = [
 const NSE_ALL_INDICES_URL = 'https://www.nseindia.com/api/allIndices';
 const NSE_HOME_URL = 'https://www.nseindia.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-class GlobalIndicesService {
+export class GlobalIndicesService {
     static instance;
     indices = [];
     pollTimer = null;
@@ -178,13 +182,19 @@ class GlobalIndicesService {
     isRefreshingNseCookies = false;
     // Cache of NSE allIndices data (15 s TTL)
     nseIndicesCache = null;
+    // In-memory Yahoo batch quote cache (symbol → quote). Written to disk on every success.
+    yahooQuoteCache = new Map();
+    marketOpenTimer = null;
     constructor() {
+        this.loadDiskCache(); // ←─ populate yahooQuoteCache from last run immediately
         this.initDefaultIndices();
         this.fetchAllRealQuotes();
         // Refresh live quotes from global exchanges every 15 seconds
         this.pollTimer = setInterval(() => {
             this.fetchAllRealQuotes();
         }, 15000);
+        // Schedule automatic cache clear at market open (9:15 AM IST daily)
+        this.scheduleMarketOpenReset();
     }
     static getInstance() {
         if (!GlobalIndicesService.instance) {
@@ -192,22 +202,93 @@ class GlobalIndicesService {
         }
         return GlobalIndicesService.instance;
     }
+    /** Callback fired when market opens — server index.ts wires this to broadcast MARKET_OPEN */
+    onMarketOpen = null;
+    /**
+     * Clears all stale caches (Yahoo in-memory, NSE allIndices, disk cache).
+     * Called automatically at 9:15 AM IST and also exposed for manual use.
+     */
+    clearAllCaches() {
+        console.log('[GlobalIndicesService] 🔔 Market open reset — clearing all stale caches...');
+        this.yahooQuoteCache.clear();
+        this.nseIndicesCache = null;
+        // Delete disk cache so we don't re-serve yesterday's data after a restart today
+        try {
+            if (fs.existsSync(QUOTES_CACHE_PATH)) {
+                fs.unlinkSync(QUOTES_CACHE_PATH);
+                console.log('[GlobalIndicesService] ✅ Disk cache cleared.');
+            }
+        }
+        catch (err) {
+            console.warn('[GlobalIndicesService] Could not delete disk cache:', err.message);
+        }
+        // Force an immediate re-fetch with fresh live data
+        this.fetchAllRealQuotes().then(() => {
+            console.log('[GlobalIndicesService] ✅ Fresh market-open quotes loaded.');
+            this.onMarketOpen?.();
+        });
+    }
+    /**
+     * Schedules the automatic daily cache clear at 9:15 AM IST (NSE market open).
+     * Recursively reschedules itself so it fires every day without manual intervention.
+     */
+    scheduleMarketOpenReset() {
+        if (this.marketOpenTimer)
+            clearTimeout(this.marketOpenTimer);
+        const msUntilOpen = this.msUntilMarketOpen();
+        const minutesUntil = Math.round(msUntilOpen / 60000);
+        console.log(`[GlobalIndicesService] Market-open cache reset scheduled in ${minutesUntil} minutes (9:15 AM IST)`);
+        this.marketOpenTimer = setTimeout(() => {
+            this.clearAllCaches();
+            // Reschedule for next day's 9:15 AM IST
+            this.scheduleMarketOpenReset();
+        }, msUntilOpen);
+    }
+    /** Returns milliseconds until the next 9:15 AM IST market open. */
+    msUntilMarketOpen() {
+        const now = new Date();
+        const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+        const ist = new Date(utcMs + 3600000 * 5.5); // current IST time
+        const next915 = new Date(ist);
+        next915.setHours(9, 15, 0, 0); // 9:15:00 AM IST
+        if (ist >= next915)
+            next915.setDate(next915.getDate() + 1); // already past today → tomorrow
+        // Convert next915 (IST) back to UTC ms
+        const next915Utc = next915.getTime() - 3600000 * 5.5;
+        return Math.max(next915Utc - Date.now(), 5000); // minimum 5 s
+    }
     initDefaultIndices() {
         const now = new Date().toISOString();
-        this.indices = INSTRUMENTS.map(item => ({
-            id: item.id,
-            name: item.name,
-            country: item.country,
-            flag: item.flag,
-            region: item.region,
-            price: item.defaultPrice,
-            change: item.defaultChange,
-            pctChange: item.defaultPct,
-            status: 'OPEN',
-            lastUpdated: now,
-            impactOnIndia: this.calculateImpact(item.defaultPct, item),
-            notes: item.notes
-        }));
+        this.indices = INSTRUMENTS.map(item => {
+            // Use disk-cached quote if available (real last-close data from a previous run)
+            const cached = this.yahooQuoteCache.get(item.symbol);
+            const price = cached ? cached.price : item.defaultPrice;
+            const change = cached ? cached.change : item.defaultChange;
+            const pctChange = cached ? cached.pctChange : item.defaultPct;
+            const isStale = !cached; // No disk cache → using built-in defaults
+            let adjustedPrice = price;
+            let adjustedChange = change;
+            if (item.isGiftNifty && price > 0) {
+                adjustedPrice = +(price + 32.5).toFixed(1);
+                adjustedChange = +(change + 0).toFixed(2);
+            }
+            return {
+                id: item.id,
+                name: item.name,
+                country: item.country,
+                flag: item.flag,
+                region: item.region,
+                price: adjustedPrice,
+                change: adjustedChange,
+                pctChange,
+                status: 'CLOSED',
+                lastUpdated: now,
+                impactOnIndia: this.calculateImpact(pctChange, item),
+                notes: isStale
+                    ? `${item.notes} [loading…]`
+                    : `${item.notes} [last close]`
+            };
+        });
     }
     calculateImpact(pctChange, cfg) {
         if (cfg.isCrude) {
@@ -231,7 +312,7 @@ class GlobalIndicesService {
         try {
             const res = await fetch(NSE_HOME_URL, {
                 headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml,*/*', 'Accept-Language': 'en-US,en;q=0.9' },
-                signal: AbortSignal.timeout(4000)
+                signal: AbortSignal.timeout(6000)
             });
             const rawCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
             this.nseCookies = rawCookies.map((c) => c.split(';')[0]).join('; ');
@@ -263,7 +344,7 @@ class GlobalIndicesService {
                     'Referer': 'https://www.nseindia.com/',
                     'Cookie': cookies
                 },
-                signal: AbortSignal.timeout(5000)
+                signal: AbortSignal.timeout(10000)
             });
             if (!res.ok) {
                 console.warn('[GlobalIndicesService] NSE allIndices returned HTTP', res.status, '— using Yahoo Finance fallback for Indian market');
@@ -295,34 +376,124 @@ class GlobalIndicesService {
             return null;
         }
     }
-    /**
-     * Fetches a single quote from Yahoo Finance for the given symbol.
-     * Returns null on failure.
-     */
-    async fetchYahooQuote(symbol) {
+    // ── Disk cache helpers ───────────────────────────────────────────────────────────
+    loadDiskCache() {
         try {
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-            const res = await fetch(url, {
-                headers: { 'User-Agent': USER_AGENT },
-                signal: AbortSignal.timeout(4000)
-            });
-            if (!res.ok)
-                return null;
-            const data = (await res.json());
+            if (fs.existsSync(QUOTES_CACHE_PATH)) {
+                const raw = JSON.parse(fs.readFileSync(QUOTES_CACHE_PATH, 'utf-8'));
+                for (const [symbol, quote] of Object.entries(raw)) {
+                    if (quote && typeof quote.price === 'number' && quote.price > 0) {
+                        this.yahooQuoteCache.set(symbol, quote);
+                    }
+                }
+                console.log(`[GlobalIndicesService] Loaded ${this.yahooQuoteCache.size} cached quotes from disk (last-close data)`);
+            }
+        }
+        catch (err) {
+            console.warn('[GlobalIndicesService] Could not load disk cache:', err.message);
+        }
+    }
+    saveDiskCache() {
+        try {
+            const obj = {};
+            for (const [sym, q] of this.yahooQuoteCache.entries())
+                obj[sym] = q;
+            fs.writeFileSync(QUOTES_CACHE_PATH, JSON.stringify(obj, null, 2));
+        }
+        catch { /* non-critical */ }
+    }
+    // ── Yahoo Finance BATCH fetch (one request for all symbols) ─────────────────────
+    /**
+     * Fetches all non-NSE Yahoo Finance quotes in a single HTTP request.
+     * Uses Yahoo Finance v7/finance/quote?symbols=... batch endpoint.
+     * On success, updates in-memory cache AND writes to disk.
+     * On failure, existing cache continues to serve last-known-good values.
+     */
+    async fetchAllYahooQuotesBatch(symbols) {
+        const result = new Map();
+        if (symbols.length === 0)
+            return result;
+        // Yahoo v8/finance/chart works without auth. Fetch all concurrently (no rate limit issues for ~15 symbols).
+        const fetches = symbols.map(async (sym) => {
+            try {
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+                const res = await fetch(url, {
+                    headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+                    signal: AbortSignal.timeout(8000)
+                });
+                if (!res.ok)
+                    return { sym, data: null };
+                const json = await res.json();
+                return { sym, data: json };
+            }
+            catch {
+                return { sym, data: null };
+            }
+        });
+        const results = await Promise.allSettled(fetches);
+        let updated = 0;
+        for (const settled of results) {
+            if (settled.status !== 'fulfilled' || !settled.value?.data)
+                continue;
+            const { sym, data } = settled.value;
             const meta = data?.chart?.result?.[0]?.meta;
             if (!meta || typeof meta.regularMarketPrice !== 'number')
-                return null;
-            const isMarketOpen = meta.currentTradingPeriod?.regular?.start && meta.currentTradingPeriod?.regular?.end
+                continue;
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
+            const change = +(price - prevClose).toFixed(2);
+            const pctChange = prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0;
+            const isOpen = meta.currentTradingPeriod?.regular
+                ? (Date.now() / 1000 >= meta.currentTradingPeriod.regular.start &&
+                    Date.now() / 1000 <= meta.currentTradingPeriod.regular.end)
+                : false;
+            if (price > 0) {
+                const entry = { price, prevClose, change, pctChange, isMarketOpen: isOpen, ts: Date.now() };
+                result.set(sym, entry);
+                this.yahooQuoteCache.set(sym, entry);
+                updated++;
+            }
+        }
+        if (updated > 0) {
+            console.log(`[GlobalIndicesService] Yahoo v8 batch OK — ${updated}/${symbols.length} quotes fetched`);
+            this.saveDiskCache();
+        }
+        else {
+            console.warn(`[GlobalIndicesService] Yahoo v8 batch: 0 quotes fetched. Using existing cache (${this.yahooQuoteCache.size} entries).`);
+            // Return stale cache so UI always has data
+            for (const sym of symbols) {
+                const cached = this.yahooQuoteCache.get(sym);
+                if (cached)
+                    result.set(sym, cached);
+            }
+        }
+        return result;
+    }
+    /**
+     * @deprecated Use fetchAllYahooQuotesBatch() instead. Kept for getSpotForSymbol fallback.
+     */
+    async fetchYahooQuote(symbol) {
+        // Check in-memory cache first (populated by batch fetch)
+        const cached = this.yahooQuoteCache.get(symbol);
+        if (cached && Date.now() - cached.ts < 30000) {
+            return { price: cached.price, prevClose: cached.prevClose, isMarketOpen: cached.isMarketOpen };
+        }
+        try {
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(5000) });
+            if (!res.ok)
+                return cached ? { price: cached.price, prevClose: cached.prevClose, isMarketOpen: false } : null;
+            const data = await res.json();
+            const meta = data?.chart?.result?.[0]?.meta;
+            if (!meta || typeof meta.regularMarketPrice !== 'number')
+                return cached ? { price: cached.price, prevClose: cached.prevClose, isMarketOpen: false } : null;
+            const isMarketOpen = meta.currentTradingPeriod?.regular
                 ? (Date.now() / 1000 >= meta.currentTradingPeriod.regular.start && Date.now() / 1000 <= meta.currentTradingPeriod.regular.end)
                 : true;
-            return {
-                price: meta.regularMarketPrice,
-                prevClose: meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice,
-                isMarketOpen
-            };
+            return { price: meta.regularMarketPrice, prevClose: meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice, isMarketOpen };
         }
         catch {
-            return null;
+            return cached ? { price: cached.price, prevClose: cached.prevClose, isMarketOpen: false } : null;
         }
     }
     async fetchAllRealQuotes() {
@@ -331,6 +502,16 @@ class GlobalIndicesService {
         this.isFetching = true;
         // Pre-fetch NSE allIndices once for all Indian market entries in this batch
         const nseData = await this.fetchNseAllIndices();
+        // Pre-fetch ALL Yahoo Finance symbols in one batch request
+        const yahooSymbols = INSTRUMENTS
+            .filter(cfg => !cfg.isIndianMarket) // Indian ones use NSE/Fyers first
+            .map(cfg => cfg.symbol);
+        // Also include Yahoo fallback symbols for Indian instruments
+        const indianYahooFallbacks = INSTRUMENTS
+            .filter(cfg => cfg.isIndianMarket)
+            .map(cfg => cfg.symbol);
+        const allYahooSymbols = [...yahooSymbols, ...indianYahooFallbacks];
+        const yahooQuotes = await this.fetchAllYahooQuotesBatch(allYahooSymbols);
         try {
             const updatedList = [];
             for (const cfg of INSTRUMENTS) {
@@ -338,9 +519,9 @@ class GlobalIndicesService {
                     let price = null;
                     let change = null;
                     let pctChange = null;
-                    let isMarketOpen = true;
+                    let isMarketOpen = false;
                     let sourceUsed = 'YAHOO';
-                    // ── Step 1: Try Fyers Live first for all Indian Indices & Commodities if Fyers is connected ──
+                    // ── Step 1: Fyers Live (Indian indices & commodities when connected) ──
                     if (cfg.isIndianMarket) {
                         const FYERS_MAP = {
                             NIFTY_50: 'NSE:NIFTY50-INDEX',
@@ -360,7 +541,7 @@ class GlobalIndicesService {
                         };
                         const fyersSym = FYERS_MAP[cfg.id] || FYERS_MAP[cfg.symbol];
                         if (fyersSym) {
-                            const quotes = await fyersService_js_1.fyersService.fetchQuotes([fyersSym]);
+                            const quotes = await fyersService.fetchQuotes([fyersSym]);
                             if (quotes && quotes.length > 0) {
                                 const q = quotes[0]?.v;
                                 if (q && q.lp > 0) {
@@ -378,48 +559,52 @@ class GlobalIndicesService {
                             }
                         }
                     }
-                    // ── Step 2: Try NSE allIndices as next priority ──
+                    // ── Step 2: NSE allIndices (Indian indices) ─────────────────────────────
                     if (price === null && cfg.isIndianMarket && cfg.nseIndexName && nseData) {
                         const nseEntry = nseData[cfg.nseIndexName];
                         if (nseEntry && nseEntry.price > 0) {
                             price = nseEntry.price;
                             change = nseEntry.change;
                             pctChange = nseEntry.pctChange;
-                            // GIFT Nifty: add futures premium over underlying Nifty 50 spot
                             if (cfg.isGiftNifty) {
                                 price = +(price + 32.5).toFixed(1);
                                 change = +(change + 0).toFixed(2);
                             }
                             sourceUsed = 'NSE';
-                            // Determine market open status via IST time (NSE: 09:15–15:30 IST = UTC+05:30)
                             const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
                             isMarketOpen = istMin >= 555 && istMin <= 930;
                         }
-                        else {
-                            console.warn(`[GlobalIndicesService] NSE data missing for "${cfg.nseIndexName}" — falling back to Yahoo Finance (${cfg.symbol})`);
-                        }
                     }
-                    // ── Step 3: Yahoo Finance fallback ──
+                    // ── Step 3: Yahoo Finance batch result (or cache) ───────────────────────
                     if (price === null) {
-                        const yahoo = await this.fetchYahooQuote(cfg.symbol);
-                        if (yahoo) {
+                        const yahoo = yahooQuotes.get(cfg.symbol);
+                        if (yahoo && yahoo.price > 0) {
                             price = yahoo.price;
+                            change = yahoo.change;
+                            pctChange = yahoo.pctChange;
                             isMarketOpen = yahoo.isMarketOpen;
                             sourceUsed = 'YAHOO';
-                            // GIFT Nifty: add ~32.5 pt futures premium over Nifty 50 spot (^NSEI)
+                            // GIFT Nifty: add futures premium
                             if (cfg.isGiftNifty) {
-                                price = +(price + 32.5).toFixed(1);
-                                const prevClose = +(yahoo.prevClose + 32.5).toFixed(1);
-                                change = +(price - prevClose).toFixed(2);
-                                pctChange = +(((price - prevClose) / (prevClose || 1)) * 100).toFixed(2);
-                            }
-                            else {
-                                change = +(price - yahoo.prevClose).toFixed(2);
-                                pctChange = +(((price - yahoo.prevClose) / (yahoo.prevClose || 1)) * 100).toFixed(2);
+                                const prev = yahoo.prevClose + 32.5;
+                                price = +(yahoo.price + 32.5).toFixed(1);
+                                change = +(price - prev).toFixed(2);
+                                pctChange = +((change / (prev || 1)) * 100).toFixed(2);
                             }
                         }
                     }
-                    if (price !== null && change !== null && pctChange !== null) {
+                    // ── Step 4: In-memory / disk cache (last-close from a previous successful fetch) ──
+                    if (price === null) {
+                        const cached = this.yahooQuoteCache.get(cfg.symbol);
+                        if (cached && cached.price > 0) {
+                            price = cfg.isGiftNifty ? +(cached.price + 32.5).toFixed(1) : cached.price;
+                            change = cached.change;
+                            pctChange = cached.pctChange;
+                            isMarketOpen = false;
+                            sourceUsed = 'CACHE';
+                        }
+                    }
+                    if (price !== null && change !== null && pctChange !== null && price > 0) {
                         updatedList.push({
                             id: cfg.id,
                             name: cfg.name,
@@ -434,7 +619,9 @@ class GlobalIndicesService {
                             impactOnIndia: this.calculateImpact(pctChange, cfg),
                             notes: cfg.isIndianMarket
                                 ? `${cfg.notes} [src: ${sourceUsed}]`
-                                : cfg.notes
+                                : sourceUsed === 'CACHE'
+                                    ? `${cfg.notes} [last close]`
+                                    : cfg.notes
                         });
                         continue;
                     }
@@ -442,11 +629,10 @@ class GlobalIndicesService {
                 catch (itemErr) {
                     console.warn(`[GlobalIndicesService] Error fetching ${cfg.id}:`, itemErr.message);
                 }
-                // Final fallback: keep last known good value from memory cache
+                // Keep last known good value rather than drop the card entirely
                 const existing = this.indices.find(i => i.id === cfg.id);
-                if (existing) {
+                if (existing)
                     updatedList.push(existing);
-                }
             }
             if (updatedList.length > 0) {
                 this.indices = updatedList;
@@ -484,7 +670,7 @@ class GlobalIndicesService {
             INDIA_VIX: 'NSE:INDIAVIX-INDEX'
         };
         if (FYERS_MAP[symbol]) {
-            const quotes = await fyersService_js_1.fyersService.fetchQuotes([FYERS_MAP[symbol]]);
+            const quotes = await fyersService.fetchQuotes([FYERS_MAP[symbol]]);
             if (quotes && quotes.length > 0) {
                 const q = quotes[0]?.v;
                 if (q && q.lp > 0) {
@@ -529,5 +715,4 @@ class GlobalIndicesService {
         return null;
     }
 }
-exports.GlobalIndicesService = GlobalIndicesService;
-exports.globalIndicesService = GlobalIndicesService.getInstance();
+export const globalIndicesService = GlobalIndicesService.getInstance();

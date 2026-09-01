@@ -1,8 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateSurgeScore = calculateSurgeScore;
-exports.formatIndianNumber = formatIndianNumber;
-function calculateSurgeScore(symbol, oiChange1m, avgOiChange1m, volume, avgVolume, ltpPctChange, pcr1mChange, strike, atmStrike) {
+export function calculateSurgeScore(symbol, oiChange1m, avgOiChange1m, volume, avgVolume, ltpPctChange, pcr1mChange, strike, atmStrike) {
     // 1. OI Velocity (40%)
     const absOiChange = Math.abs(oiChange1m);
     const baselineOi = Math.max(10000, avgOiChange1m);
@@ -79,7 +75,7 @@ function calculateSurgeScore(symbol, oiChange1m, avgOiChange1m, volume, avgVolum
         }
     };
 }
-function formatIndianNumber(num) {
+export function formatIndianNumber(num) {
     const isNegative = num < 0;
     const absNum = Math.abs(num);
     let res = '';

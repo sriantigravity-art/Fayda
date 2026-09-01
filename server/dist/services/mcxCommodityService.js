@@ -1,4 +1,3 @@
-"use strict";
 /**
  * MCX Commodity Spot Price Service
  *
@@ -20,32 +19,14 @@
  * Primary live data: Fyers API (when user is logged in) handles MCX directly.
  * This service is used when Fyers is offline (NSE/offline fallback path).
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.mcxCommodityService = exports.McxCommodityService = void 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (IBJA rates are published twice daily)
-class McxCommodityService {
+import { usdInrService } from './usdInrService.js';
+export class McxCommodityService {
     cache = new Map();
     UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-    // USD/INR for Yahoo fallback
-    usdInrRate = 84.5;
-    usdInrTs = 0;
     // ─── USD/INR helper ──────────────────────────────────────────────────────────
     async getUsdInr() {
-        if (Date.now() - this.usdInrTs < 5 * 60 * 1000)
-            return this.usdInrRate;
-        try {
-            const res = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d', { headers: { 'User-Agent': this.UA }, signal: AbortSignal.timeout(4000) });
-            if (res.ok) {
-                const d = (await res.json());
-                const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-                if (typeof p === 'number' && p > 50 && p < 200) {
-                    this.usdInrRate = p;
-                    this.usdInrTs = Date.now();
-                }
-            }
-        }
-        catch { /* keep existing */ }
-        return this.usdInrRate;
+        return usdInrService.get();
     }
     // ─── Source 1: IBJA (India Bullion and Jewellers Association) ────────────────
     /**
@@ -278,5 +259,4 @@ class McxCommodityService {
         return quote;
     }
 }
-exports.McxCommodityService = McxCommodityService;
-exports.mcxCommodityService = new McxCommodityService();
+export const mcxCommodityService = new McxCommodityService();

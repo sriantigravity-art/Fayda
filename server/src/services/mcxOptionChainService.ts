@@ -61,10 +61,10 @@ const YAHOO_COMMODITY_MAP: Record<string, { ticker: string; convert: 'USD_CRUDE'
   NATURALGAS: { ticker: 'NG=F', convert: 'USD_GAS'   },
 };
 
+import { usdInrService } from './usdInrService.js';
+
 export class McxOptionChainService {
   private cache: Map<string, CacheEntry> = new Map();
-  private usdInrRate: number = 84.5;
-  private usdInrTs: number = 0;
   private mcxCookies: string = '';
   private mcxCookieTs: number = 0;
 
@@ -93,22 +93,7 @@ export class McxOptionChainService {
   // ── USD/INR for CRUDEOIL / NATURALGAS spot conversion ───────────────────────
 
   private async getUsdInr(): Promise<number> {
-    if (Date.now() - this.usdInrTs < 5 * 60 * 1000) return this.usdInrRate;
-    try {
-      const res = await fetch(
-        'https://query1.finance.yahoo.com/v8/finance/chart/USDINR%3DX?interval=1d&range=1d',
-        { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4000) }
-      );
-      if (res.ok) {
-        const d = await res.json() as any;
-        const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof p === 'number' && p > 50 && p < 200) {
-          this.usdInrRate = p;
-          this.usdInrTs   = Date.now();
-        }
-      }
-    } catch { /* keep existing */ }
-    return this.usdInrRate;
+    return usdInrService.get();
   }
 
   // ── Spot price for commodities not covered by mcxCommodityService ────────────

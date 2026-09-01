@@ -1,4 +1,3 @@
-"use strict";
 /**
  * MCX Offline Data Service
  *
@@ -12,8 +11,6 @@
  * When Fyers is live and MCX market is open → Fyers handles all commodity data.
  * When market is closed → this service provides the last-known settlement data.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.McxOfflineService = exports.mcxOfflineService = void 0;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min cache
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 // Known MCX commodity units
@@ -241,5 +238,5 @@ class McxOfflineService {
         return data;
     }
 }
-exports.McxOfflineService = McxOfflineService;
-exports.mcxOfflineService = new McxOfflineService();
+export const mcxOfflineService = new McxOfflineService();
+export { McxOfflineService };

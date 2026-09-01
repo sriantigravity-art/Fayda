@@ -1,15 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const crypto_1 = __importDefault(require("crypto"));
+import crypto from 'crypto';
 async function generateAccessToken() {
     const appId = 'KMSSMU5OGR-100';
     const secretKey = 'MVADUMZWBM';
     const authCode = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiJLTVNTTVU1T0dSIiwidXVpZCI6Ijg3ZDVmM2I2NmYxZTRlN2Y4NDFjYjdlY2M2NDNhNDE2IiwiaXBBZGRyIjoiIiwibm9uY2UiOiIiLCJzY29wZSI6IiIsImRpc3BsYXlfbmFtZSI6IllTMDQwMzYiLCJvbXMiOiJLMSIsImhzbV9rZXkiOiIyYTUwN2Q1ZDI5ZGU5MzIxNmU2M2Q0MjM4ZWQyZDQ3MTY1NDI2Yzc2NTMyOTlmM2E4NjdkMzQxZCIsImlzRGRwaUVuYWJsZWQiOiJOIiwiaXNNdGZFbmFibGVkIjoiTiIsImF1ZCI6IltcImQ6MVwiLFwiZDoyXCIsXCJ4OjBcIixcIng6MVwiXSIsImV4cCI6MTc4Nzg4NTE1MSwiaWF0IjoxNzg3ODU1MTUxLCJpc3MiOiJhcGkubG9naW4uZnllcnMuaW4iLCJuYmYiOjE3ODc4NTUxNTEsInN1YiI6ImF1dGhfY29kZSJ9.clnt_QjRg4f15mUYDm8ftOG5hfGLjr2eALoeMSK9ib0';
     // Calculate SHA-256 hash of appId:secretKey
-    const hash = crypto_1.default.createHash('sha256').update(`${appId}:${secretKey}`).digest('hex');
+    const hash = crypto.createHash('sha256').update(`${appId}:${secretKey}`).digest('hex');
     console.log('AppId Hash:', hash);
     const payload = {
         grant_type: 'authorization_code',

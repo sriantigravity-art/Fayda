@@ -1,11 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const nseExpiryService_js_1 = require("./services/nseExpiryService.js");
+import { NseExpiryService } from './services/nseExpiryService.js';
 console.log('NIFTY Expiries:');
-console.log(nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries('NIFTY'));
+console.log(NseExpiryService.getUpcomingExpiries('NIFTY'));
 console.log('\nBANKNIFTY Expiries (Wednesdays):');
-console.log(nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries('BANKNIFTY'));
+console.log(NseExpiryService.getUpcomingExpiries('BANKNIFTY'));
 console.log('\nFINNIFTY Expiries (Tuesdays):');
-console.log(nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries('FINNIFTY'));
+console.log(NseExpiryService.getUpcomingExpiries('FINNIFTY'));
 console.log('\nMIDCPNIFTY Expiries (Mondays):');
-console.log(nseExpiryService_js_1.NseExpiryService.getUpcomingExpiries('MIDCPNIFTY'));
+console.log(NseExpiryService.getUpcomingExpiries('MIDCPNIFTY'));

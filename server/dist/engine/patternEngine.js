@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PatternEngine = void 0;
-const volatilityRangeService_js_1 = require("../services/volatilityRangeService.js");
-class PatternEngine {
+import { volatilityRangeService } from '../services/volatilityRangeService.js';
+export class PatternEngine {
     /**
      * Generates comprehensive Multi-Timeframe Levels (1D, 1W, 1M, 6M)
      */
@@ -10,7 +7,7 @@ class PatternEngine {
         const levels = [];
         // Fetch live volatility ranges derived from 6-month Yahoo Finance OHLC data.
         // Falls back to calibrated defaults synchronously if live data not yet available.
-        const { dRange, wRange, mRange, h6Range } = volatilityRangeService_js_1.volatilityRangeService.getRange(symbol);
+        const { dRange, wRange, mRange, h6Range } = volatilityRangeService.getRange(symbol);
         // 1. Day Levels (1D): PDH, PDL, PDC, Central Pivot Range (CPR)
         const pdh = spotPrice + dRange * 0.55;
         const pdl = spotPrice - dRange * 0.45;
@@ -334,4 +331,3 @@ class PatternEngine {
         };
     }
 }
-exports.PatternEngine = PatternEngine;

@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.gammaEngine = exports.GammaEngine = void 0;
-class GammaEngine {
+export class GammaEngine {
     /**
      * Evaluates the option chain to detect explosive 0DTE Gamma Spike & Hero-or-Zero setups.
      */
@@ -147,5 +144,4 @@ class GammaEngine {
         return signals.sort((a, b) => b.gammaScore - a.gammaScore).slice(0, 6);
     }
 }
-exports.GammaEngine = GammaEngine;
-exports.gammaEngine = new GammaEngine();
+export const gammaEngine = new GammaEngine();
