@@ -26,6 +26,7 @@ import {
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import type { SurgeEvent } from '../types';
+import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
 /**
  * Parse the first standalone price number from formatted strings like:
@@ -121,6 +122,9 @@ export const SurgeAlertBanner: React.FC = () => {
     const map = new Map<string, SurgeEvent>();
 
     recentSurges.forEach((s: SurgeEvent) => {
+      // 0. Strict expiration filter: expired contracts only belong in the Trade Journal
+      if (isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) return;
+
       const score = s.surgeScore ?? 0;
 
       // 1. Score bracket / Target Win filter

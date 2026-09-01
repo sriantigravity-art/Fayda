@@ -3,6 +3,7 @@ import { useMarket } from '../context/MarketContext';
 import type { SurgeEvent, SurgeLevel, IndexSymbol, TradeAction } from '../types';
 import { calculateTargetHorizon } from '../utils/tradeHorizon';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
+import { isContractOrSignalExpired } from '../utils/expiryHelper';
 import { 
   Flame, 
   Filter, 
@@ -53,6 +54,7 @@ export const RadarFeed: React.FC = () => {
     
     recentSurges.forEach((s) => {
       if (!visibleIndices.includes(s.indexSymbol)) return;
+      if (isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) return;
       const diffMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
       if (diffMin <= 5) count5m++;
       if (diffMin <= 10) count10m++;
@@ -75,8 +77,6 @@ export const RadarFeed: React.FC = () => {
   };
 
   const filteredSurges = useMemo(() => {
-    const now = Date.now();
-
     return recentSurges.filter((s) => {
       // Must belong to user's selected/visible indices
       if (!visibleIndices.includes(s.indexSymbol)) return false;
@@ -84,10 +84,8 @@ export const RadarFeed: React.FC = () => {
       const atm = idxState?.atmStrike;
       if (atm && Math.abs(s.strikePrice - atm) > 600) return false;
 
-      // Auto-Expire Signal after given validity window (e.g. 10m for Extreme Scalps, 15m for Strong, 20m for Moderate)
-      const diffMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-      const maxValidity = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : s.surgeLevel === 'STRONG' ? 15 : 20);
-      if (diffMin > maxValidity) return false;
+      // Auto-Expire Signal after contract expiry date or intraday lifetime
+      if (isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) return false;
 
       // Time Window Filter
       if (timeFilter !== 'ALL') {

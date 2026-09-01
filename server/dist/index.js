@@ -23,10 +23,20 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
-app.options('*', cors({ origin: true, credentials: true }));
 app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
+app.get('/api/health', (_req, res) => {
+    res.json({ status: 'OK', server: 'Fayda Terminal', timestamp: new Date().toISOString() });
+});
+app.get('/api/status', (_req, res) => {
+    res.json({
+        status: 'ONLINE',
+        dataSource: currentDataSource,
+        activeWsClients: activeClients.size,
+        timestamp: new Date().toISOString()
+    });
+});
 const engine = new OIEngine();
 const activeClients = new Set();
 let currentDataSource = 'NSE_LIVE'; // Default to NSE on Railway (no Fyers credentials)

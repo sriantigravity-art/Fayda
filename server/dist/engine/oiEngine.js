@@ -9,6 +9,7 @@ import { CPREngine } from './cprEngine.js';
 import { MarketRegimeEngine } from './marketRegimeEngine.js';
 import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
 import { FaydaMultiLegEngine } from './faydaMultiLegEngine.js';
+import { isContractOrSignalExpired } from '../utils/expiryHelper.js';
 export class OIEngine {
     history = new Map();
     recentSurges = [];
@@ -553,14 +554,15 @@ export class OIEngine {
             hist.shift();
         }
         this.history.set(symbol, hist);
-        // Automatically purge expired surges from memory after their validity horizon (10-15m max)
+        // Automatically purge expired contracts & timed-out surges from active memory
+        // Expired contracts ONLY belong in the PostMarketTradeJournal
         this.recentSurges = this.recentSurges.filter(s => {
-            const ageMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-            const maxAge = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : s.surgeLevel === 'STRONG' ? 15 : 20);
-            return ageMin <= maxAge;
+            const isExpired = isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes);
+            return !isExpired;
         });
         if (detectedSurgesThisTick.length > 0) {
-            this.recentSurges = [...detectedSurgesThisTick, ...this.recentSurges].slice(0, this.maxSurgeHistory);
+            const validNew = detectedSurgesThisTick.filter(s => !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes));
+            this.recentSurges = [...validNew, ...this.recentSurges].slice(0, this.maxSurgeHistory);
         }
         // ─────────────────────────────────────────────────────────────
         // CPR & Fayda 25 Strategies & Multi-Leg Spreads Engine & Breakouts
@@ -571,13 +573,11 @@ export class OIEngine {
         const patternBreakout = PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m');
         const faydaScan = FaydaStrategyEngine.scanStrategies(symbol, spotPrice, cprData, marketRegime, strikesData, pcr, virginCPRs);
         const multiLegScan = FaydaMultiLegEngine.evaluateMultiLegStrategies(symbol, spotPrice, strikesData, lotSize, cprData, marketRegime, pcr, indiaVix);
-        // Filter active (unexpired) surges for current symbol within ±400 pts
+        // Filter strictly active (non-expired) surges for current symbol within ±400 pts
         const indexSurges = this.recentSurges.filter(s => {
             if (s.indexSymbol !== symbol || Math.abs(s.strikePrice - atmStrike) > 400)
                 return false;
-            const ageMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
-            const maxAge = s.validUntilMinutes || 15;
-            return ageMin <= maxAge;
+            return !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes);
         });
         // ─────────────────────────────────────────────────────────────
         // High-Conviction Multi-Strategy Gatekeeper (Score >= 88%)

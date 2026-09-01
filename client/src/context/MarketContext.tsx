@@ -3,6 +3,7 @@ import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem } from '../types';
 import { soundManager } from '../utils/audioAlert';
+import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
 interface MarketContextType {
   indices: Record<IndexSymbol, MarketIndexState | null>;
@@ -289,13 +290,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (msg.type === 'INITIAL_STATE') {
           if (msg.recentSurges && msg.recentSurges.length > 0) {
-            setRecentSurges(msg.recentSurges);
-            const latest = msg.recentSurges.find((s: SurgeEvent) => (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') && (s.surgeScore ?? 0) >= 60);
+            const activeSurges = msg.recentSurges.filter((s: SurgeEvent) => !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes));
+            setRecentSurges(activeSurges);
+            const latest = activeSurges.find((s: SurgeEvent) => (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') && (s.surgeScore ?? 0) >= 60);
             if (latest) {
-              const ageMin = (Date.now() - new Date(latest.timestamp).getTime()) / (60 * 1000);
-              if (ageMin <= (latest.validUntilMinutes || 15)) {
-                setLatestExtremeSurge(latest);
-              }
+              setLatestExtremeSurge(latest);
             }
           }
           if (msg.recentNews) setNewsList(msg.recentNews);
@@ -409,15 +408,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const atm = indexState?.atmStrike;
             const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
             const maxRange = symCfg?.defaultRange ? symCfg.defaultRange * 2.5 : 500;
-            const validSurges = atm 
+            const validSurges = (atm 
               ? newSurges.filter((s: SurgeEvent) => Math.abs(s.strikePrice - atm) <= maxRange)
-              : newSurges;
+              : newSurges
+            ).filter((s: SurgeEvent) => !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes));
 
             setRecentSurges((prev) => {
               const map = new Map<string, SurgeEvent>();
               validSurges.forEach((s: SurgeEvent) => map.set(s.id, s));
               prev.forEach((s: SurgeEvent) => {
-                if (!map.has(s.id)) {
+                if (!map.has(s.id) && !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) {
                   map.set(s.id, s);
                 }
               });
@@ -426,7 +426,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // Only trigger flash surge for High-Quality Institutional Momentum (Score >= 60)
             const visibleExtreme = validSurges.find(
-              (s: SurgeEvent) => s.surgeLevel === 'EXTREME' && (s.surgeScore ?? 0) >= 60
+              (s: SurgeEvent) => s.surgeLevel === 'EXTREME' && (s.surgeScore ?? 0) >= 60 && !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)
             );
 
             if (visibleExtreme) {
@@ -434,7 +434,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               setLatestExtremeSurge(visibleExtreme);
             } else {
               const visibleStrong = validSurges.find(
-                (s: SurgeEvent) => s.surgeLevel === 'STRONG' && (s.surgeScore ?? 0) >= 60
+                (s: SurgeEvent) => s.surgeLevel === 'STRONG' && (s.surgeScore ?? 0) >= 60 && !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)
               );
               if (visibleStrong) {
                 soundManager.playStrongAlert();
