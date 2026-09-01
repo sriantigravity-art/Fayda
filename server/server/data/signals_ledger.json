@@ -1442,5 +1442,31 @@
     "nearTargetPct": 100,
     "nearTargetDescription": "🎯 Target 1 Hit (+7.5 pts / +51.7%)",
     "targetHitTime": "20:10:45 IST"
+  },
+  {
+    "id": "sig_2026-09-01_NIFTY_24050_1788237053547",
+    "date": "2026-09-01",
+    "timestamp": "2026-09-01T04:30:53.547Z",
+    "timeFormatted": "10:00:53 IST",
+    "symbol": "NIFTY",
+    "category": "OPTIONS",
+    "contractName": "NIFTY 24050 PE",
+    "strikePrice": 24050,
+    "optionType": "PE",
+    "action": "BUY_CALL",
+    "signalSource": "OI_SURGE",
+    "entryPrice": 49.8,
+    "recommendedEntryRange": "₹49.80 - ₹50.80",
+    "target1Price": 63.7,
+    "stoplossPrice": 42.3,
+    "riskReward": "1:1.9",
+    "currentLtp": 44.1,
+    "peakLtp": 52.2,
+    "status": "ACTIVE",
+    "pointsPnl": -5.7,
+    "pnlPct": -11.4,
+    "nearTargetPct": 17,
+    "nearTargetDescription": "17% of Target (LTP ₹44.10)",
+    "notes": "Put holders exiting positions at 24050 PE (-OI, -price). Downside panic subsiding."
   }
 ]
