@@ -2450,5 +2450,31 @@
     "notes": "Call buyers liquidating long positions at 24100 CE (-OI, -price). Momentum fading downwards.",
     "exitLtp": 57.05,
     "stoplossHitTime": "11:37:56 IST"
+  },
+  {
+    "id": "sig_2026-09-01_NIFTY_24100_1788244378756",
+    "date": "2026-09-01",
+    "timestamp": "2026-09-01T06:32:58.756Z",
+    "timeFormatted": "12:02:58 IST",
+    "symbol": "NIFTY",
+    "category": "OPTIONS",
+    "contractName": "NIFTY 24100 PE",
+    "strikePrice": 24100,
+    "optionType": "PE",
+    "action": "BUY_PUT",
+    "signalSource": "OI_SURGE",
+    "entryPrice": 26.85,
+    "recommendedEntryRange": "₹26.85 - ₹27.39",
+    "target1Price": 32.3,
+    "stoplossPrice": 23.9,
+    "riskReward": "1:1.8",
+    "currentLtp": 26.85,
+    "peakLtp": 26.85,
+    "status": "ACTIVE",
+    "pointsPnl": 0,
+    "pnlPct": 0,
+    "nearTargetPct": 0,
+    "nearTargetDescription": "0% of Target (LTP ₹26.85)",
+    "notes": "Heavy Put buying at 24100 PE (+price, +OI). Market participants positioning for breakdown."
   }
 ]
