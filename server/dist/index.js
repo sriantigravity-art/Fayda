@@ -138,6 +138,14 @@ const fetchSymbolSnapshot = async (symConfig) => {
                 spotChange = liveQuote.change;
                 spotPctChange = liveQuote.pctChange;
             }
+            // ✅ PERMANENT FIX: When market is closed, Yahoo Finance / NSE feeds return the
+            // PREVIOUS SESSION's change as "current" (e.g. +84.80 from a prior day).
+            // Zero out change values so clients never display yesterday's delta.
+            const isOpen = (0, exports.isMarketOpenForSymbol)(symConfig.symbol);
+            if (!isOpen) {
+                spotChange = 0;
+                spotPctChange = 0;
+            }
             // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
             let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
             if (!indiaVix) {
@@ -150,7 +158,6 @@ const fetchSymbolSnapshot = async (symConfig) => {
             // Track & update live LTP and target nearness in Signal Ledger
             signalLedgerService_js_1.signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
             // Auto-record high-confluence trade recommendations during market hours
-            const isOpen = (0, exports.isMarketOpenForSymbol)(symConfig.symbol);
             if (isOpen && newSurges && newSurges.length > 0) {
                 for (const s of newSurges) {
                     if (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') {
