@@ -1,16 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
-import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock } from 'lucide-react';
+import { AlertOctagon, X, Zap, Target, ShieldAlert, Clock, Timer } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 
 export const SurgeAlertBanner: React.FC = () => {
   const { latestExtremeSurge, dismissExtremeBanner, indices } = useMarket();
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // 1-second live countdown ticker for strict timebound expiry
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (!latestExtremeSurge) {
     return null;
   }
 
-  // Guard: Do not display live flash surge banner when market is closed
+  // Guard 1: Do not display live flash surge banner when market is closed
   const isMarketOpen = (symbol: string): boolean => {
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -38,28 +45,56 @@ export const SurgeAlertBanner: React.FC = () => {
     return null;
   }
 
-  // Auto-expire surge banner once signal exceeds its validity window
-  const ageMinutes = (Date.now() - new Date(latestExtremeSurge.timestamp).getTime()) / (60 * 1000);
-  const maxWindow = latestExtremeSurge.validUntilMinutes || (latestExtremeSurge.surgeLevel === 'EXTREME' ? 25 : 40);
-  if (ageMinutes > maxWindow) {
+  // Guard 2: Strict Timebound Window (Extreme: 10 mins, Strong: 15 mins)
+  const maxWindowMinutes = latestExtremeSurge.validUntilMinutes || (latestExtremeSurge.surgeLevel === 'EXTREME' ? 10 : 15);
+  const ageSeconds = (currentTime - new Date(latestExtremeSurge.timestamp).getTime()) / 1000;
+  const totalWindowSeconds = maxWindowMinutes * 60;
+  const remainingSeconds = Math.max(0, Math.floor(totalWindowSeconds - ageSeconds));
+
+  // If time window expired, immediately remove from flash screen
+  if (remainingSeconds <= 0) {
     return null;
   }
+
+  const mins = Math.floor(remainingSeconds / 60);
+  const secs = remainingSeconds % 60;
+  const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
   const isCall = latestExtremeSurge.optionType === 'CE';
   const isBullAction = latestExtremeSurge.tradeAction === 'BUY_CALL';
   const contract = latestExtremeSurge.suggestedContract;
-
-  // Extract current asset spot price & day's delta
-  const assetSpotPrice = idxState?.spotPrice || 0;
-  const assetChange = idxState?.change || 0;
-  const assetPctChange = idxState?.pctChange || 0;
-  const isAssetPositive = assetChange >= 0;
 
   // Extract current live LTP of the option strike
   const strikeObj = idxState?.strikes?.find((s) => s.strikePrice === latestExtremeSurge.strikePrice);
   const currentOptionLtp = isCall
     ? (strikeObj?.callLtp ?? latestExtremeSurge.ltp)
     : (strikeObj?.putLtp ?? latestExtremeSurge.ltp);
+
+  // Guard 3: Target Hit Check (Tip Completed -> Remove from flash screen)
+  const targetPrice = parseFloat(String(contract?.target || '').replace(/[^0-9.]/g, ''));
+  if (targetPrice > 0 && currentOptionLtp >= targetPrice) {
+    return null;
+  }
+
+  // Guard 4: Stoploss Breached Check (Risk Level Hit -> Invalidate and remove)
+  const stoplossPrice = parseFloat(String(contract?.stoploss || '').replace(/[^0-9.]/g, ''));
+  if (stoplossPrice > 0 && currentOptionLtp > 0 && currentOptionLtp <= stoplossPrice) {
+    return null;
+  }
+
+  // Guard 5: Surge Slowdown / Reversal Check
+  if (strikeObj) {
+    const currentBuildup = isCall ? strikeObj.callBuildup : strikeObj.putBuildup;
+    if (isBullAction && currentBuildup === 'LONG_UNWINDING') {
+      return null; // Buyers exited
+    }
+  }
+
+  // Extract current asset spot price & day's delta
+  const assetSpotPrice = idxState?.spotPrice || 0;
+  const assetChange = idxState?.change || 0;
+  const assetPctChange = idxState?.pctChange || 0;
+  const isAssetPositive = assetChange >= 0;
 
   return (
     <div className="bg-gradient-to-r from-bear/15 via-terminal-panel to-bear/15 border-y-2 border-bear shadow-md px-3 sm:px-4 py-2.5 text-terminal-text relative z-30 font-mono animate-in fade-in slide-in-from-top-2 duration-300">
@@ -92,8 +127,9 @@ export const SurgeAlertBanner: React.FC = () => {
                 <Clock className="w-3 h-3 text-accent-cyan" />
                 <span>{latestExtremeSurge.timeFormatted} IST</span>
               </span>
-              <span className="px-2 py-0.5 rounded bg-bear/20 border border-bear/50 text-bear font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
-                ⚡ 5-10 Min Target Window
+              <span className="px-2 py-0.5 rounded bg-bear/25 border border-bear/60 text-bear font-black text-[10px] sm:text-xs flex items-center gap-1 shadow-sm">
+                <Timer className="w-3 h-3 text-bear animate-spin" style={{ animationDuration: '3s' }} />
+                <span>⏳ {formattedCountdown} Left</span>
               </span>
               <span className="text-xs font-bold text-amber bg-amber/15 px-1.5 py-0.5 rounded border border-amber/30">
                 Score {latestExtremeSurge.surgeScore}/100
