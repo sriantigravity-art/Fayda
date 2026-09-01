@@ -11,20 +11,25 @@ import {
   TrendingUp, 
   TrendingDown, 
   Timer,
-  Layers,
   ArrowRight,
-  Filter
+  Sparkles,
+  Flame,
+  Activity,
+  Layers
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import type { IndexSymbol, SurgeEvent } from '../types';
+import type { SurgeEvent } from '../types';
+
+type ScoreCategory = 'ALL' | '60_PLUS' | '50_60' | '40_50';
 
 export const SurgeAlertBanner: React.FC = () => {
-  const { recentSurges, setSelectedIndex, selectedIndex, indices } = useMarket();
+  const { recentSurges, setSelectedIndex, indices } = useMarket();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem('oi_radar_surge_sidebar_open');
     return saved === 'true';
   });
+  const [scoreCategory, setScoreCategory] = useState<ScoreCategory>('60_PLUS');
   const [assetFilter, setAssetFilter] = useState<string>('ALL');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
@@ -54,22 +59,27 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Helper to get strictly unexpired, Score 60+, de-duplicated surges for any symbol
-  const getActiveScore60Surges = (symbol?: string) => {
+  // Helper to get strictly unexpired surges matching score and asset filter
+  const getFilteredSurges = (category: ScoreCategory, symbol: string = 'ALL') => {
     const now = currentTime;
     const map = new Map<string, SurgeEvent>();
 
     recentSurges.forEach((s: SurgeEvent) => {
-      // 1. Strict Score 60+ requirement
-      if ((s.surgeScore ?? 0) < 60) return;
+      const score = s.surgeScore ?? 0;
 
-      // 2. Strict Unexpired timeline check (10m for Extreme, 15m for Strong, 20m for Moderate)
+      // Score filter
+      if (category === '60_PLUS' && score < 60) return;
+      if (category === '50_60' && (score < 50 || score >= 60)) return;
+      if (category === '40_50' && (score < 40 || score >= 50)) return;
+      if (category === 'ALL' && score < 40) return;
+
+      // Timeline unexpired check (20m for Extreme, 45m for Strong, 60m for Moderate)
       const ageMs = now - new Date(s.timestamp).getTime();
-      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : 15)) * 60 * 1000;
+      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60)) * 60 * 1000;
       if (ageMs > maxAgeMs) return;
 
-      // 3. Asset filter
-      if (symbol && symbol !== 'ALL') {
+      // Asset filter
+      if (symbol !== 'ALL') {
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === s.indexSymbol);
         if (symbol === 'COMMODITIES') {
           const isComm = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
@@ -79,39 +89,71 @@ export const SurgeAlertBanner: React.FC = () => {
         }
       }
 
-      // Unique by contract key (symbol + strike + optionType) so older repeat ticks don't inflate counts
+      // De-duplicate by contract key (symbol + strike + optionType)
       const contractKey = `${s.indexSymbol}_${s.strikePrice}_${s.optionType}`;
       if (!map.has(contractKey) || new Date(s.timestamp).getTime() > new Date(map.get(contractKey)!.timestamp).getTime()) {
         map.set(contractKey, s);
       }
     });
 
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
+    // SORTING: Most probable / highest conviction trades FIRST (highest score first, then newest)
+    return Array.from(map.values()).sort((a, b) => {
+      const scoreDiff = (b.surgeScore ?? 0) - (a.surgeScore ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
   };
 
-  const activeScore60Surges = useMemo(() => {
-    return getActiveScore60Surges(assetFilter);
-  }, [recentSurges, assetFilter, currentTime]);
+  const displayedSurges = useMemo(() => {
+    return getFilteredSurges(scoreCategory, assetFilter);
+  }, [recentSurges, scoreCategory, assetFilter, currentTime]);
 
-  const allActiveSurges = useMemo(() => {
-    return getActiveScore60Surges('ALL');
-  }, [recentSurges, currentTime]);
+  // Counts for each score category tab
+  const count60Plus = useMemo(() => getFilteredSurges('60_PLUS', assetFilter).length, [recentSurges, assetFilter, currentTime]);
+  const count50To60 = useMemo(() => getFilteredSurges('50_60', assetFilter).length, [recentSurges, assetFilter, currentTime]);
+  const count40To50 = useMemo(() => getFilteredSurges('40_50', assetFilter).length, [recentSurges, assetFilter, currentTime]);
+  const countAll = useMemo(() => getFilteredSurges('ALL', assetFilter).length, [recentSurges, assetFilter, currentTime]);
 
-  const totalActiveCount = allActiveSurges.length;
+  const getScoreBadge = (score: number) => {
+    if (score >= 70) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-black text-xs bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.7)] animate-pulse">
+          <Flame className="w-3 h-3 mr-0.5" /> {score}/100
+        </span>
+      );
+    }
+    if (score >= 60) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-black text-xs bg-amber-600 text-white shadow-sm">
+          <Zap className="w-3 h-3 mr-0.5" /> {score}/100
+        </span>
+      );
+    }
+    if (score >= 50) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-amber/20 text-amber-800 dark:text-amber border border-amber/40">
+          <Activity className="w-3 h-3 mr-0.5" /> {score}/100
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-terminal-panel text-terminal-muted border border-terminal-border">
+        {score}/100
+      </span>
+    );
+  };
 
   return (
     <>
       {/* ─────────────────────────────────────────────────────────────
-          1. RIGHT SIDE BUTTON: Clean Tab matching Global Indices
+          1. RIGHT SIDE DOCK BUTTON: Clean Tab matching Global Indices
          ───────────────────────────────────────────────────────────── */}
       {!isOpen && (
         <button
           type="button"
           onClick={toggleSidebar}
-          className="fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
-          title="Open Flash Surge Radar (Score 60+ Institutional Flow)"
+          className="fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3.5 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
+          title="Open Flash Surge Radar"
         >
           {/* Mobile View (< sm): Compact Glowing Right-Edge Icon */}
           <div className="flex sm:hidden items-center justify-center relative p-0.5">
@@ -146,18 +188,19 @@ export const SurgeAlertBanner: React.FC = () => {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          3. SLIDE-OUT DRAWER PANEL (Right Side Window with List View)
+          3. SLIDE-OUT MODAL DRAWER (High-Density Table List View)
          ───────────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 right-0 sm:top-14 sm:bottom-10 w-full sm:w-[420px] md:w-[460px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 sm:top-12 sm:bottom-8 w-full sm:w-[580px] md:w-[680px] lg:w-[740px] max-w-full bg-terminal-bg/98 backdrop-blur-2xl sm:border-l-2 sm:border-t sm:border-b sm:border-terminal-border z-50 shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:rounded-l-3xl flex flex-col font-mono transition-all duration-300 ease-out ${
           isOpen ? 'translate-x-0 opacity-100 visible pointer-events-auto' : 'translate-x-full opacity-0 invisible pointer-events-none'
         }`}
       >
         {/* Header Bar */}
-        <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/90 sm:rounded-tl-3xl flex flex-col gap-2 relative shrink-0">
+        <div className="p-3.5 sm:p-4 border-b border-terminal-border bg-terminal-panel/90 sm:rounded-tl-3xl flex flex-col gap-2.5 relative shrink-0">
           {/* Ambient Glow */}
-          <div className="absolute top-0 right-0 w-32 h-20 bg-bear/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-40 h-24 bg-bear/15 rounded-full blur-2xl pointer-events-none" />
 
+          {/* Top Title Line */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <span className="w-1.5 h-5 rounded-full bg-bear shadow-[0_0_8px_#FF3B69] shrink-0" />
@@ -165,14 +208,14 @@ export const SurgeAlertBanner: React.FC = () => {
                 <Zap className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.4)] flex items-center gap-1.5">
+                <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)] flex items-center gap-2">
                   <span>FLASH SURGE RADAR</span>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-bear/20 text-bear border border-bear/40">
-                    60+ SCORE
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-bear/20 text-bear border border-bear/40">
+                    SORTED: HIGH PROBABILITY FIRST
                   </span>
                 </h2>
                 <span className="text-[9px] sm:text-[10px] text-terminal-muted block">
-                  Institutional Momentum & Scalping Signals
+                  Calibrated Institutional Momentum & Dip Entry Setups
                 </span>
               </div>
             </div>
@@ -187,53 +230,99 @@ export const SurgeAlertBanner: React.FC = () => {
             </button>
           </div>
 
-          {/* Asset Category Filters Bar */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto scrollbar-thin pt-1 pb-0.5">
+          {/* 1. SCORE CATEGORY TABS (40-50, 50-60, 60-70+) */}
+          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-terminal-bg border border-terminal-border/80 text-[10px] sm:text-xs">
             <button
-              onClick={() => setAssetFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition shrink-0 ${
-                assetFilter === 'ALL'
-                  ? 'bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.6)]'
-                  : 'bg-terminal-card text-terminal-muted border border-terminal-border hover:text-terminal-text'
+              onClick={() => setScoreCategory('60_PLUS')}
+              className={`py-1.5 px-2 rounded-lg font-black uppercase transition-all flex items-center justify-center gap-1 ${
+                scoreCategory === '60_PLUS'
+                  ? 'bg-bear text-white shadow-[0_0_12px_rgba(255,59,105,0.7)]'
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
               }`}
             >
-              ALL ({totalActiveCount})
+              <Flame className="w-3 h-3 text-white" />
+              <span>60-70+ ({count60Plus})</span>
             </button>
-            {['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX'].map((sym) => {
-              const count = getActiveScore60Surges(sym).length;
+
+            <button
+              onClick={() => setScoreCategory('50_60')}
+              className={`py-1.5 px-2 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
+                scoreCategory === '50_60'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+              }`}
+            >
+              <Zap className="w-3 h-3 text-amber" />
+              <span>50-60 ({count50To60})</span>
+            </button>
+
+            <button
+              onClick={() => setScoreCategory('40_50')}
+              className={`py-1.5 px-2 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
+                scoreCategory === '40_50'
+                  ? 'bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+              }`}
+            >
+              <Activity className="w-3 h-3 text-accent-cyan" />
+              <span>40-50 ({count40To50})</span>
+            </button>
+
+            <button
+              onClick={() => setScoreCategory('ALL')}
+              className={`py-1.5 px-2 rounded-lg font-bold uppercase transition-all flex items-center justify-center gap-1 ${
+                scoreCategory === 'ALL'
+                  ? 'bg-terminal-card text-terminal-text border border-terminal-border shadow-sm'
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+              }`}
+            >
+              <Layers className="w-3 h-3" />
+              <span>ALL ({countAll})</span>
+            </button>
+          </div>
+
+          {/* 2. Asset Category Filter Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto scrollbar-thin pb-0.5">
+            <span className="text-[9px] text-terminal-muted font-bold uppercase tracking-wider shrink-0 mr-1">
+              Asset:
+            </span>
+            {['ALL', 'NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX', 'COMMODITIES'].map((sym) => {
+              const active = assetFilter === sym;
               return (
                 <button
                   key={sym}
                   onClick={() => setAssetFilter(sym)}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition shrink-0 ${
-                    assetFilter === sym
-                      ? 'bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.6)]'
-                      : 'bg-terminal-card text-terminal-muted border border-terminal-border hover:text-terminal-text'
+                  className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase transition shrink-0 ${
+                    active
+                      ? 'bg-terminal-card text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                      : 'bg-terminal-bg text-terminal-muted border border-terminal-border/60 hover:text-terminal-text'
                   }`}
                 >
-                  {sym} {count > 0 && <span className="opacity-80">({count})</span>}
+                  {sym}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* List View of Active Surges (Ordered by Latest First) */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-thin">
-          {activeScore60Surges.length === 0 ? (
+        {/* ─────────────────────────────────────────────────────────────
+            TABLE LIST VIEW: Sorted by Most Probable Trade First
+           ───────────────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 scrollbar-thin">
+          {displayedSurges.length === 0 ? (
             <div className="py-16 text-center flex flex-col items-center justify-center space-y-3 font-mono">
               <div className="p-3 rounded-2xl bg-terminal-panel border border-terminal-border text-terminal-muted">
                 <AlertOctagon className="w-8 h-8 opacity-40 animate-pulse" />
               </div>
               <div className="text-xs font-bold text-terminal-muted uppercase tracking-wider">
-                No Active 60+ Score Surges
+                No Active Setups in this Category
               </div>
               <p className="text-[11px] text-terminal-muted/70 max-w-xs leading-relaxed">
-                The institutional momentum engine is actively scanning. High-conviction flow with score ≥ 60 will list here instantly in real time.
+                The institutional momentum engine is actively scanning. High-probability surge trades will list here automatically in real time.
               </p>
             </div>
           ) : (
-            activeScore60Surges.map((surge) => {
+            displayedSurges.map((surge, idx) => {
               const isCall = surge.optionType === 'CE';
               const isBullAction = surge.tradeAction === 'BUY_CALL';
               const contract = surge.suggestedContract;
@@ -246,7 +335,7 @@ export const SurgeAlertBanner: React.FC = () => {
                 : (strikeObj?.putLtp ?? surge.ltp);
 
               // Timeline calculations
-              const maxWindowMinutes = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 10 : 15);
+              const maxWindowMinutes = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 20 : surge.surgeLevel === 'STRONG' ? 45 : 60);
               const ageSeconds = Math.floor((currentTime - new Date(surge.timestamp).getTime()) / 1000);
               const totalWindowSeconds = maxWindowMinutes * 60;
               const remainingSeconds = Math.max(0, totalWindowSeconds - ageSeconds);
@@ -260,7 +349,7 @@ export const SurgeAlertBanner: React.FC = () => {
               return (
                 <div
                   key={surge.id}
-                  className="rounded-2xl border-2 border-terminal-border hover:border-bear/70 bg-terminal-card/90 p-3.5 sm:p-4 transition-all duration-200 relative overflow-hidden shadow-sm hover:shadow-[0_0_25px_rgba(255,59,105,0.25)] flex flex-col space-y-2.5"
+                  className="rounded-xl border border-terminal-border hover:border-bear/60 bg-terminal-card/90 p-3 transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-[0_0_20px_rgba(255,59,105,0.2)] flex flex-col space-y-2"
                 >
                   {/* Fading Timeline Progress Bar */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-terminal-bg">
@@ -270,36 +359,44 @@ export const SurgeAlertBanner: React.FC = () => {
                     />
                   </div>
 
-                  {/* Header Row: Score Badge + Timestamp + Countdown */}
-                  <div className="flex items-center justify-between pt-0.5">
+                  {/* 1. Header Line: Rank Tag, Score Badge, Trade Action, Timestamp */}
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
                     <div className="flex items-center space-x-1.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-bear text-white shadow-[0_0_10px_rgba(255,59,105,0.7)] flex items-center gap-1">
-                        <Zap className="w-2.5 h-2.5" /> Score {surge.surgeScore}/100
+                      <span className="px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-terminal-border">
+                        #{idx + 1}
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isBullAction ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bear/20 text-bear border border-bear/40'}`}>
+                      {getScoreBadge(surge.surgeScore)}
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        isBullAction 
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-bull border border-emerald-500/30' 
+                          : 'bg-rose-500/15 text-rose-600 dark:text-bear border border-rose-500/30'
+                      }`}>
                         {surge.actionTitle}
                       </span>
                     </div>
 
-                    <div className="flex items-center space-x-1 text-[10px]">
+                    <div className="flex items-center space-x-1.5 text-[10px]">
                       <span className="px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border text-accent-cyan font-bold flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" />
                         <span>{formatISTTime(surge.timestamp, { showSeconds: false })}</span>
                         <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-bear/15 border border-bear/40 text-bear font-bold">
+                      <span className="px-1.5 py-0.5 rounded bg-bear/15 border border-bear/40 text-rose-700 dark:text-bear font-bold text-[9px]">
                         ⏳ {formattedCountdown}
                       </span>
                     </div>
                   </div>
 
-                  {/* Strike & Asset Title */}
+                  {/* 2. Asset & Strike Name + Focus Button */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-black text-sm sm:text-base text-white tracking-wide">
-                        {surge.indexSymbol} <span className={isCall ? 'text-bull' : 'text-bear'}>{surge.strikePrice} {surge.optionType}</span>
+                      <h3 className="font-black text-sm sm:text-base text-terminal-text tracking-wide flex items-center gap-1.5">
+                        <span>{surge.indexSymbol}</span>
+                        <span className={isCall ? 'text-emerald-700 dark:text-bull font-black' : 'text-rose-600 dark:text-bear font-black'}>
+                          {surge.strikePrice} {surge.optionType}
+                        </span>
                       </h3>
-                      <span className="text-[10px] text-terminal-muted block">
+                      <span className="text-[10px] text-terminal-muted block mt-0.5 leading-tight">
                         {surge.actionDescription}
                       </span>
                     </div>
@@ -308,7 +405,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       onClick={() => {
                         setSelectedIndex(surge.indexSymbol);
                       }}
-                      className="px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg border border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0"
+                      className="px-2.5 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-bg border border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0 shadow-sm"
                       title="Focus on this asset chart and option chain"
                     >
                       <span>Focus</span>
@@ -316,48 +413,48 @@ export const SurgeAlertBanner: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* 4-Box High-Visibility Trade Matrix */}
+                  {/* 3. Structured 4-Box High-Visibility Trade Matrix */}
                   <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
                     {/* Live LTP */}
-                    <div className="p-1.5 rounded-xl bg-amber/15 border border-amber/50 shadow-sm">
-                      <span className="text-[8px] text-amber block font-bold uppercase">LIVE LTP</span>
-                      <span className="font-black text-xs sm:text-sm text-amber block tabular-nums mt-0.5">
+                    <div className="p-1.5 rounded-lg bg-amber/15 border border-amber/50 shadow-sm">
+                      <span className="text-[8px] text-amber-800 dark:text-amber block font-bold uppercase">LIVE LTP</span>
+                      <span className="font-black text-xs sm:text-sm text-amber-700 dark:text-amber block tabular-nums mt-0.5">
                         ₹{currentOptionLtp.toFixed(2)}
                       </span>
                     </div>
 
                     {/* Entry Zone */}
-                    <div className="p-1.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/40">
-                      <span className="text-[8px] text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
+                    <div className="p-1.5 rounded-lg bg-accent-cyan/10 border border-accent-cyan/40">
+                      <span className="text-[8px] text-cyan-800 dark:text-accent-cyan block font-bold uppercase">ENTRY ZONE</span>
                       <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={contract?.recommendedEntry}>
                         {contract?.recommendedEntry || '—'}
                       </span>
                     </div>
 
                     {/* Stop Loss */}
-                    <div className="p-1.5 rounded-xl bg-bear/15 border border-bear/50">
-                      <span className="text-[8px] text-bear block font-bold uppercase flex items-center justify-center gap-0.5">
+                    <div className="p-1.5 rounded-lg bg-bear/15 border border-bear/50">
+                      <span className="text-[8px] text-rose-700 dark:text-bear block font-bold uppercase flex items-center justify-center gap-0.5">
                         <ShieldAlert className="w-2.5 h-2.5" /> SL
                       </span>
-                      <span className="font-bold text-[11px] sm:text-sm text-bear block mt-0.5">
+                      <span className="font-bold text-[10px] sm:text-xs text-rose-700 dark:text-bear block mt-0.5">
                         {contract?.stoploss || '—'}
                       </span>
                     </div>
 
                     {/* Target */}
-                    <div className="p-1.5 rounded-xl bg-bull/15 border border-bull/50">
-                      <span className="text-[8px] text-bull block font-bold uppercase flex items-center justify-center gap-0.5">
+                    <div className="p-1.5 rounded-lg bg-bull/15 border border-bull/50">
+                      <span className="text-[8px] text-emerald-800 dark:text-bull block font-bold uppercase flex items-center justify-center gap-0.5">
                         <Target className="w-2.5 h-2.5" /> TARGET
                       </span>
-                      <span className="font-bold text-[11px] sm:text-sm text-bull block mt-0.5">
+                      <span className="font-bold text-[10px] sm:text-xs text-emerald-700 dark:text-bull block mt-0.5">
                         {contract?.target || '—'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Footer Metrics */}
+                  {/* 4. Footer Flow Metrics */}
                   <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                    <span>⚡ OI Surge: <strong className="text-terminal-text">{surge.oiChange1mFormatted}</strong></span>
+                    <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
                     <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
                     <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
                   </div>
@@ -369,8 +466,8 @@ export const SurgeAlertBanner: React.FC = () => {
 
         {/* Drawer Footer Notice */}
         <div className="p-3 border-t border-terminal-border bg-terminal-panel/80 sm:rounded-bl-3xl flex items-center justify-between text-[10px] text-terminal-muted shrink-0">
-          <span>⚡ Auto-refreshing institutional flow</span>
-          <span>Score threshold: <strong className="text-bear">60+</strong></span>
+          <span>⚡ Ordered by highest probability setup first</span>
+          <span>Active filter: <strong className="text-bear">{scoreCategory === '60_PLUS' ? '60-70+ Score' : scoreCategory === '50_60' ? '50-60 Score' : scoreCategory === '40_50' ? '40-50 Score' : 'All Scores'}</strong></span>
         </div>
       </aside>
     </>
