@@ -399,7 +399,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               ? newSurges.filter((s: SurgeEvent) => Math.abs(s.strikePrice - atm) <= maxRange)
               : newSurges;
 
-            setRecentSurges((prev) => [...validSurges, ...prev].slice(0, 80));
+            setRecentSurges((prev) => {
+              const map = new Map<string, SurgeEvent>();
+              validSurges.forEach((s: SurgeEvent) => map.set(s.id, s));
+              prev.forEach((s: SurgeEvent) => {
+                if (!map.has(s.id)) {
+                  map.set(s.id, s);
+                }
+              });
+              return Array.from(map.values()).slice(0, 80);
+            });
 
             // Only trigger flash surge for High-Quality Institutional Momentum (Score >= 60)
             const visibleExtreme = validSurges.find(
