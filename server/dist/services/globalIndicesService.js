@@ -340,17 +340,41 @@ class GlobalIndicesService {
                     let pctChange = null;
                     let isMarketOpen = true;
                     let sourceUsed = 'YAHOO';
-                    // ── Step 1: Try Fyers Live first if Fyers credentials are live ──
+                    // ── Step 1: Try Fyers Live first for all Indian Indices & Commodities if Fyers is connected ──
                     if (cfg.isIndianMarket) {
-                        if (cfg.id === 'INDIA_VIX') {
-                            const fyersVix = await fyersService_js_1.fyersService.fetchIndiaVix();
-                            if (fyersVix && fyersVix.price > 0) {
-                                price = fyersVix.price;
-                                change = fyersVix.change;
-                                pctChange = fyersVix.pctChange;
-                                sourceUsed = 'FYERS';
-                                const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
-                                isMarketOpen = istMin >= 555 && istMin <= 930;
+                        const FYERS_MAP = {
+                            NIFTY_50: 'NSE:NIFTY50-INDEX',
+                            NIFTY: 'NSE:NIFTY50-INDEX',
+                            GIFT_NIFTY: 'NSE:NIFTY50-INDEX',
+                            NIFTY_BANK: 'NSE:NIFTYBANK-INDEX',
+                            BANKNIFTY: 'NSE:NIFTYBANK-INDEX',
+                            FINNIFTY: 'NSE:FINNIFTY-INDEX',
+                            MIDCPNIFTY: 'NSE:MIDCPNIFTY-INDEX',
+                            SENSEX: 'BSE:SENSEX-INDEX',
+                            BANKEX: 'BSE:BANKEX-INDEX',
+                            INDIA_VIX: 'NSE:INDIAVIX-INDEX',
+                            CRUDE_OIL: 'MCX:CRUDEOIL26SEPFUT',
+                            NATURAL_GAS: 'MCX:NATURALGAS26SEPFUT',
+                            GOLD: 'MCX:GOLD26OCTFUT',
+                            SILVER: 'MCX:SILVER26DECFUT'
+                        };
+                        const fyersSym = FYERS_MAP[cfg.id] || FYERS_MAP[cfg.symbol];
+                        if (fyersSym) {
+                            const quotes = await fyersService_js_1.fyersService.fetchQuotes([fyersSym]);
+                            if (quotes && quotes.length > 0) {
+                                const q = quotes[0]?.v;
+                                if (q && q.lp > 0) {
+                                    const livePrice = q.lp;
+                                    const prevClose = q.prev_close_price || (livePrice - (q.ch ?? 0));
+                                    const liveChange = typeof q.ch === 'number' ? q.ch : +(livePrice - prevClose).toFixed(2);
+                                    const livePctChange = typeof q.chp === 'number' ? q.chp : (prevClose > 0 ? +((liveChange / prevClose) * 100).toFixed(2) : 0);
+                                    price = cfg.isGiftNifty ? +(livePrice + 32.5).toFixed(1) : livePrice;
+                                    change = liveChange;
+                                    pctChange = livePctChange;
+                                    sourceUsed = 'FYERS';
+                                    const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
+                                    isMarketOpen = istMin >= 555 && istMin <= 930;
+                                }
                             }
                         }
                     }
@@ -464,10 +488,14 @@ class GlobalIndicesService {
             if (quotes && quotes.length > 0) {
                 const q = quotes[0]?.v;
                 if (q && q.lp > 0) {
+                    const spot = q.lp;
+                    const prevClose = q.prev_close_price || (spot - (q.ch ?? 0));
+                    const change = typeof q.ch === 'number' ? q.ch : +(spot - prevClose).toFixed(2);
+                    const pctChange = typeof q.chp === 'number' ? q.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
                     return {
-                        spot: q.lp,
-                        change: q.ch ?? 0,
-                        pctChange: q.chp ?? 0
+                        spot,
+                        change,
+                        pctChange
                     };
                 }
             }

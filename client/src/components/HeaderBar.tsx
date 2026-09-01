@@ -271,21 +271,6 @@ export const HeaderBar: React.FC = () => {
           {/* Quick Stock / Index Selector Dropdown */}
           <StockSelectorDropdown />
 
-          {/* Live Spot Price & Percentage Change */}
-          <div className="flex items-baseline space-x-1 sm:space-x-1.5 font-mono shrink-0">
-            <span className="text-xs sm:text-base font-black text-terminal-text tabular-nums" title={`${selectedIndex} Live Spot LTP: ₹${spotPrice > 0 ? spotPrice.toFixed(2) : '—'}`}>
-              ₹{spotPrice > 0 ? spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-            </span>
-            <span 
-              className={`text-[10px] sm:text-[11px] font-bold tabular-nums flex items-center ${
-                isPositive ? 'text-bull' : 'text-bear'
-              }`}
-              title={`Day's Net Movement: ${isPositive ? '+' : ''}${netChange.toFixed(2)} pts (${isPositive ? '+' : ''}${pctChange.toFixed(2)}%)`}
-            >
-              ({isPositive ? '+' : ''}{pctChange.toFixed(2)}%)
-            </span>
-          </div>
-
           {/* Live / Closed Market Indicator (Visible on mobile & desktop) */}
           <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0">
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />

@@ -13,7 +13,7 @@ import { formatISTTime } from '../utils/formatTime';
 export const TargetHitFlashModal: React.FC = () => {
   const { latestTargetHit, dismissTargetHit } = useMarket();
   const [progress, setProgress] = useState(100);
-  const [secondsRemaining, setSecondsRemaining] = useState(10);
+  const [secondsRemaining, setSecondsRemaining] = useState(5);
   const dismissRef = React.useRef(dismissTargetHit);
   dismissRef.current = dismissTargetHit;
 
@@ -22,13 +22,13 @@ export const TargetHitFlashModal: React.FC = () => {
   useEffect(() => {
     if (!hitId) {
       setProgress(100);
-      setSecondsRemaining(10);
+      setSecondsRemaining(5);
       return;
     }
 
     setProgress(100);
-    setSecondsRemaining(10);
-    const durationMs = 10000; // 10 seconds auto-dismiss
+    setSecondsRemaining(5);
+    const durationMs = 5000; // 5 seconds flash screen auto-dismiss
     const startTime = Date.now();
 
     const interval = setInterval(() => {
@@ -50,21 +50,12 @@ export const TargetHitFlashModal: React.FC = () => {
 
   if (!latestTargetHit) return null;
 
-  // Market hours check
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const day = ist.getDay();
-  const currentMin = ist.getHours() * 60 + ist.getMinutes();
-  const isMarketOpen = day !== 0 && day !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (23 * 60 + 30);
-  if (!isMarketOpen) return null;
-
   const isBull = latestTargetHit.isBull;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-lg bg-terminal-card border-2 border-bull/80 rounded-3xl p-5 sm:p-6 shadow-[0_0_60px_rgba(0,245,155,0.45)] overflow-hidden font-mono text-terminal-text">
-        {/* Top 10-Second Progress Bar */}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-terminal-card border-2 border-bull/90 rounded-3xl p-5 sm:p-6 shadow-[0_0_80px_rgba(0,245,155,0.6)] overflow-hidden font-mono text-terminal-text animate-in zoom-in-95 duration-200">
+        {/* Top 5-Second Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-terminal-bg">
           <div
             className="h-full bg-gradient-to-r from-accent-cyan via-bull to-amber transition-all duration-100 ease-linear"
