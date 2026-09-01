@@ -54,54 +54,52 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Filter surges: Strict Score >= 60, unexpired, and within active market hours
-  const activeScore60Surges = useMemo(() => {
+  // Helper to get strictly unexpired, Score 60+, de-duplicated surges for any symbol
+  const getActiveScore60Surges = (symbol?: string) => {
     const now = currentTime;
-    return recentSurges.filter((s: SurgeEvent) => {
-      // 1. Strict Score 60+ requirement
-      if ((s.surgeScore ?? 0) < 60) return false;
+    const map = new Map<string, SurgeEvent>();
 
-      // 2. Unexpired timeline check (10m for Extreme, 15m for Strong, 20m for Moderate)
+    recentSurges.forEach((s: SurgeEvent) => {
+      // 1. Strict Score 60+ requirement
+      if ((s.surgeScore ?? 0) < 60) return;
+
+      // 2. Strict Unexpired timeline check (10m for Extreme, 15m for Strong, 20m for Moderate)
       const ageMs = now - new Date(s.timestamp).getTime();
       const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : 15)) * 60 * 1000;
-      if (ageMs > maxAgeMs) return false;
+      if (ageMs > maxAgeMs) return;
 
       // 3. Asset filter
-      if (assetFilter !== 'ALL') {
+      if (symbol && symbol !== 'ALL') {
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === s.indexSymbol);
-        if (assetFilter === 'COMMODITIES') {
+        if (symbol === 'COMMODITIES') {
           const isComm = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
-          if (!isComm) return false;
-        } else if (s.indexSymbol !== assetFilter) {
-          return false;
+          if (!isComm) return;
+        } else if (s.indexSymbol !== symbol) {
+          return;
         }
       }
 
-      return true;
-    }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [recentSurges, assetFilter, currentTime]);
-
-  // Overall count of all active score 60+ surges
-  const totalActiveCount = useMemo(() => {
-    const now = currentTime;
-    return recentSurges.filter((s: SurgeEvent) => {
-      if ((s.surgeScore ?? 0) < 60) return false;
-      const ageMs = now - new Date(s.timestamp).getTime();
-      const maxAgeMs = (s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 10 : 15)) * 60 * 1000;
-      return ageMs <= maxAgeMs;
-    }).length;
-  }, [recentSurges, currentTime]);
-
-  // Unique asset list for filtering
-  const availableAssetFilters = useMemo(() => {
-    const set = new Set<string>();
-    recentSurges.forEach((s) => {
-      if ((s.surgeScore ?? 0) >= 60) {
-        set.add(s.indexSymbol);
+      // Unique by contract key (symbol + strike + optionType) so older repeat ticks don't inflate counts
+      const contractKey = `${s.indexSymbol}_${s.strikePrice}_${s.optionType}`;
+      if (!map.has(contractKey) || new Date(s.timestamp).getTime() > new Date(map.get(contractKey)!.timestamp).getTime()) {
+        map.set(contractKey, s);
       }
     });
-    return Array.from(set);
-  }, [recentSurges]);
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  };
+
+  const activeScore60Surges = useMemo(() => {
+    return getActiveScore60Surges(assetFilter);
+  }, [recentSurges, assetFilter, currentTime]);
+
+  const allActiveSurges = useMemo(() => {
+    return getActiveScore60Surges('ALL');
+  }, [recentSurges, currentTime]);
+
+  const totalActiveCount = allActiveSurges.length;
 
   return (
     <>
@@ -120,11 +118,6 @@ export const SurgeAlertBanner: React.FC = () => {
             <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear shadow-[0_0_6px_#FF3B69]" />
-            {totalActiveCount > 0 && (
-              <span className="absolute -bottom-1.5 -left-1 bg-bear text-white text-[8px] font-black px-1 rounded-full shadow-sm">
-                {totalActiveCount}
-              </span>
-            )}
           </div>
 
           {/* Tablet & Desktop View (>= sm): Clean Vertical Tab matching Global Indices */}
@@ -138,12 +131,6 @@ export const SurgeAlertBanner: React.FC = () => {
               <Zap className="w-3.5 h-3.5 rotate-90 text-bear" />
               <span>FLASH SURGE</span>
             </div>
-
-            {totalActiveCount > 0 && (
-              <span className="mt-1 px-1.5 py-0.2 rounded-full bg-bear text-white font-black text-[9px] shadow-[0_0_8px_rgba(255,59,105,0.8)]">
-                {totalActiveCount}
-              </span>
-            )}
           </div>
         </button>
       )}
@@ -213,7 +200,7 @@ export const SurgeAlertBanner: React.FC = () => {
               ALL ({totalActiveCount})
             </button>
             {['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX'].map((sym) => {
-              const count = recentSurges.filter(s => s.indexSymbol === sym && (s.surgeScore ?? 0) >= 60).length;
+              const count = getActiveScore60Surges(sym).length;
               return (
                 <button
                   key={sym}
