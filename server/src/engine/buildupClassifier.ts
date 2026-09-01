@@ -101,7 +101,7 @@ export function calculateDynamicTarget(
   targetPct: number;
   riskReward: string;
 } {
-  const cleanLtp = Math.max(5, ltp);
+  const cleanLtp = Math.max(0.5, ltp);
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const ist = new Date(utc + (3600000 * 5.5));
@@ -138,18 +138,18 @@ export function calculateDynamicTarget(
   // Stoploss percentage (maintain healthy 1:1.6 - 1:2.0 Risk-to-Reward)
   let slPct = Math.round(Math.max(5, Math.min(16, targetPct * 0.55)));
 
-  let targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(1);
-  let slPoints = +(cleanLtp * (slPct / 100)).toFixed(1);
+  let targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(2);
+  let slPoints = +(cleanLtp * (slPct / 100)).toFixed(2);
 
   // High premium adjustment
   if (cleanLtp > 250) {
     targetPct = Math.round(Math.max(6, targetPct * 0.75));
     slPct = Math.round(Math.max(4, slPct * 0.75));
-    targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(1);
-    slPoints = +(cleanLtp * (slPct / 100)).toFixed(1);
+    targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(2);
+    slPoints = +(cleanLtp * (slPct / 100)).toFixed(2);
   }
 
-  const rrRatio = (targetPoints / Math.max(1, slPoints)).toFixed(1);
+  const rrRatio = (targetPoints / Math.max(0.1, slPoints)).toFixed(1);
 
   return {
     slPoints,
@@ -169,11 +169,11 @@ export function generateOptionSuggestion(
   expiryDate: string = 'CURRENT_WEEKLY',
   atmStrike?: number
 ) {
-  const cleanLtp = Math.max(5, ltp);
+  const cleanLtp = Math.max(0.5, ltp);
   const dyn = calculateDynamicTarget(cleanLtp, strike, atmStrike);
 
-  const sl = Math.max(1, +(cleanLtp - dyn.slPoints).toFixed(1));
-  const tgt = +(cleanLtp + dyn.targetPoints).toFixed(1);
+  const sl = Math.max(0.1, +(cleanLtp - dyn.slPoints).toFixed(2));
+  const tgt = +(cleanLtp + dyn.targetPoints).toFixed(2);
 
   return {
     symbol: `${symbol} ${strike} ${optionType}`,
