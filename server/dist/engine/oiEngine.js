@@ -249,8 +249,25 @@ class OIEngine {
                 isAtm,
                 distanceFromAtm: strike - atmStrike
             });
-            // Call Surge Event (Factoring IV Pricing, Liquidity Verification & ±400 Strike Window)
-            if (callSurge.level !== 'NORMAL' && raw.callVolume >= 10000 && Math.abs(strike - atmStrike) <= 400) {
+            // ─────────────────────────────────────────────────────────────
+            // Call Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
+            // ─────────────────────────────────────────────────────────────
+            if (callSurge.level !== 'NORMAL' && raw.callVolume >= 10000 && Math.abs(strike - atmStrike) <= 350) {
+                // Multi-Factor Confluence Adjustment
+                let calibratedCallScore = callSurge.score;
+                if (spotPctChange > 0.05)
+                    calibratedCallScore += 6; // Spot trend alignment
+                if (callBuyVolPct >= 55)
+                    calibratedCallScore += 5; // Aggressive buyer volume dominance
+                if (greeks.callIvStatus === 'CHEAP')
+                    calibratedCallScore += 4; // Low IV crush risk
+                if (callLiq.rating === 'HIGH_LIQUIDITY')
+                    calibratedCallScore += 4; // Tight execution spread
+                if (callLiq.rating === 'LOW_SLIPPAGE_RISK')
+                    calibratedCallScore -= 12; // Penalty for wide spread slippage
+                if (greeks.callIvStatus === 'EXPENSIVE_CRUSH_RISK')
+                    calibratedCallScore -= 10; // Volatility crush penalty
+                calibratedCallScore = Math.min(100, Math.max(0, calibratedCallScore));
                 const actionInfo = (0, buildupClassifier_js_1.determineTradeAction)(symbol, 'CE', callBuildup, strike, atmStrike, raw.callLtp);
                 const suggestion = (0, buildupClassifier_js_1.generateOptionSuggestion)(symbol, strike, 'CE', raw.callLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
                 const ivNote = greeks.callIvStatus === 'CHEAP'
@@ -269,8 +286,8 @@ class OIEngine {
                     strikePrice: strike,
                     optionType: 'CE',
                     expiryDate: activeExpiry,
-                    surgeLevel: callSurge.level,
-                    surgeScore: callSurge.score,
+                    surgeLevel: calibratedCallScore >= 80 ? 'EXTREME' : calibratedCallScore >= 60 ? 'STRONG' : 'MODERATE',
+                    surgeScore: calibratedCallScore,
                     oiChange1m: callOIChange1m,
                     oiChange1mFormatted: (0, surgeDetector_js_1.formatIndianNumber)(callOIChange1m),
                     oiChangePct: prevCallOI > 0 ? +((callOIChange1m / prevCallOI) * 100).toFixed(1) : 0,
@@ -296,12 +313,29 @@ class OIEngine {
                         liquidityNote: liqNote
                     },
                     confidence: actionInfo.confidence,
-                    validUntilMinutes: callSurge.level === 'EXTREME' ? 10 : callSurge.level === 'STRONG' ? 15 : 20,
-                    expiresAt: new Date(now + (callSurge.level === 'EXTREME' ? 10 : callSurge.level === 'STRONG' ? 15 : 20) * 60000).toISOString()
+                    validUntilMinutes: calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 15 : 20,
+                    expiresAt: new Date(now + (calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 15 : 20) * 60000).toISOString()
                 });
             }
-            // Put Surge Event (Factoring IV Pricing, Liquidity Verification & ±400 Strike Window)
-            if (putSurge.level !== 'NORMAL' && raw.putVolume >= 10000 && Math.abs(strike - atmStrike) <= 400) {
+            // ─────────────────────────────────────────────────────────────
+            // Put Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
+            // ─────────────────────────────────────────────────────────────
+            if (putSurge.level !== 'NORMAL' && raw.putVolume >= 10000 && Math.abs(strike - atmStrike) <= 350) {
+                // Multi-Factor Confluence Adjustment
+                let calibratedPutScore = putSurge.score;
+                if (spotPctChange < -0.05)
+                    calibratedPutScore += 6; // Spot trend alignment (falling index)
+                if (putBuyVolPct >= 55)
+                    calibratedPutScore += 5; // Aggressive buyer volume dominance
+                if (greeks.putIvStatus === 'CHEAP')
+                    calibratedPutScore += 4; // Low IV crush risk
+                if (putLiq.rating === 'HIGH_LIQUIDITY')
+                    calibratedPutScore += 4; // Tight execution spread
+                if (putLiq.rating === 'LOW_SLIPPAGE_RISK')
+                    calibratedPutScore -= 12; // Penalty for wide spread slippage
+                if (greeks.putIvStatus === 'EXPENSIVE_CRUSH_RISK')
+                    calibratedPutScore -= 10; // Volatility crush penalty
+                calibratedPutScore = Math.min(100, Math.max(0, calibratedPutScore));
                 const actionInfo = (0, buildupClassifier_js_1.determineTradeAction)(symbol, 'PE', putBuildup, strike, atmStrike, raw.putLtp);
                 const suggestion = (0, buildupClassifier_js_1.generateOptionSuggestion)(symbol, strike, 'PE', raw.putLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
                 const ivNote = greeks.putIvStatus === 'CHEAP'
@@ -320,8 +354,8 @@ class OIEngine {
                     strikePrice: strike,
                     optionType: 'PE',
                     expiryDate: activeExpiry,
-                    surgeLevel: putSurge.level,
-                    surgeScore: putSurge.score,
+                    surgeLevel: calibratedPutScore >= 80 ? 'EXTREME' : calibratedPutScore >= 60 ? 'STRONG' : 'MODERATE',
+                    surgeScore: calibratedPutScore,
                     oiChange1m: putOIChange1m,
                     oiChange1mFormatted: (0, surgeDetector_js_1.formatIndianNumber)(putOIChange1m),
                     oiChangePct: prevPutOI > 0 ? +((putOIChange1m / prevPutOI) * 100).toFixed(1) : 0,
@@ -347,8 +381,8 @@ class OIEngine {
                         liquidityNote: liqNote
                     },
                     confidence: actionInfo.confidence,
-                    validUntilMinutes: putSurge.level === 'EXTREME' ? 10 : putSurge.level === 'STRONG' ? 15 : 20,
-                    expiresAt: new Date(now + (putSurge.level === 'EXTREME' ? 10 : putSurge.level === 'STRONG' ? 15 : 20) * 60000).toISOString()
+                    validUntilMinutes: calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 15 : 20,
+                    expiresAt: new Date(now + (calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 15 : 20) * 60000).toISOString()
                 });
             }
         }
