@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { MarketProvider } from './context/MarketContext';
+import { MarketProvider, useMarket } from './context/MarketContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { TerminalModeProvider } from './context/TerminalModeContext';
 import { DensityProvider } from './context/DensityContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { HeaderBar } from './components/HeaderBar';
+import { CPRStrip } from './components/CPRStrip';
+import { PreMarketRadarCard } from './components/PreMarketRadarCard';
 import { OptionChainHeatmap } from './components/OptionChainHeatmap';
 import { BreakoutPatternRadar } from './components/BreakoutPatternRadar';
 import { TradeGuidanceCard } from './components/TradeGuidanceCard';
@@ -39,6 +41,7 @@ const DashboardContent: React.FC = () => {
   const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
+  const { currentIndexState, selectedIndex } = useMarket();
 
   return (
     <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
@@ -71,7 +74,25 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
-        
+        {/* Pre-Market Preparation Radar & Market Structure Ribbon */}
+        {currentIndexState && (
+          <PreMarketRadarCard
+            symbol={selectedIndex}
+            preMarket={currentIndexState.preMarketChecklist}
+            marketRegime={currentIndexState.marketRegime}
+          />
+        )}
+
+        {/* Central Pivot Range (CPR) & Floor Pivots Strip */}
+        {currentIndexState && (
+          <CPRStrip
+            symbol={selectedIndex}
+            spotPrice={currentIndexState.spotPrice}
+            cprData={currentIndexState.cprData}
+            virginCPRs={currentIndexState.virginCPRs}
+          />
+        )}
+
         {/* ========================================================================= */}
         {/* DESKTOP & TABLET ADAPTIVE WORKSPACE (>= 768px) */}
         {/* ========================================================================= */}

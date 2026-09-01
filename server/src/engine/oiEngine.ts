@@ -16,6 +16,9 @@ import { GreekEngine } from './greekEngine.js';
 import { gammaEngine } from './gammaEngine.js';
 import { PatternEngine } from './patternEngine.js';
 import { ConfluenceEngine } from './confluenceEngine.js';
+import { CPREngine } from './cprEngine.js';
+import { MarketRegimeEngine } from './marketRegimeEngine.js';
+import { PrabhuStrategyEngine } from './prabhuStrategyEngine.js';
 
 interface RawStrikeSnapshot {
   strikePrice: number;
@@ -697,6 +700,22 @@ export class OIEngine {
       strikeStep
     );
 
+    // ─────────────────────────────────────────────────────────────
+    // CPR & Vikram Prabhu 25 Strategies & Market Regime Engine
+    // ─────────────────────────────────────────────────────────────
+    const cprData = CPREngine.calculateCPR(symbol, spotPrice);
+    const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
+    const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
+    const prabhuScan = PrabhuStrategyEngine.scanStrategies(
+      symbol,
+      spotPrice,
+      cprData,
+      marketRegime,
+      strikesData,
+      pcr,
+      virginCPRs
+    );
+
     const indexState: MarketIndexState = {
       symbol,
       spotPrice,
@@ -734,6 +753,12 @@ export class OIEngine {
         daysToExpiry,
         PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')
       ),
+      cprData,
+      virginCPRs,
+      marketRegime,
+      prabhuStrategy: prabhuScan.activeSetup,
+      allPrabhuStrategies: prabhuScan.allDetectedSetups,
+      preMarketChecklist: prabhuScan.preMarketChecklist,
       indiaVix,
       updatedAtIso: new Date(now).toISOString()
     };

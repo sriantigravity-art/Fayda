@@ -234,8 +234,26 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
           </div>
         </div>
 
+        {/* Vikram Prabhu 5 Golden Risk Management Rules (Chapter 10) */}
+        <div className="bg-terminal-panel/60 border border-terminal-border rounded-xl p-3.5 space-y-2 text-xs font-mono">
+          <div className="flex items-center justify-between text-terminal-text font-bold border-b border-terminal-border/60 pb-1.5">
+            <span className="flex items-center gap-1.5 text-bull">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Vikram Prabhu 5 Rules of Capital Preservation</span>
+            </span>
+            <span className="text-[10px] text-terminal-muted font-sans">Chapter 10</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-terminal-muted font-sans">
+            <div><strong>1. The 1% Rule:</strong> Max risk &le; 1% of total capital per trade (₹{maxRiskAmount.toLocaleString('en-IN')}).</div>
+            <div><strong>2. Hard System SL:</strong> Always place technical SL in broker terminal, never mental.</div>
+            <div><strong>3. Never Average Down:</strong> Never add contracts to a losing option trade.</div>
+            <div><strong>4. 2-Loss Circuit Breaker:</strong> Max 2 trades/day. If both hit SL (-2%), STOP trading for the day.</div>
+            <div className="sm:col-span-2 text-accent-sky"><strong>5. 1:2 Minimum R:R:</strong> Maintain &ge; 1:2 Risk to Reward for positive mathematical expectancy.</div>
+          </div>
+        </div>
+
         {/* SEBI Investor Education Advisory */}
-        <div className="flex items-start gap-2.5 bg-amber/10 border border-amber/30 rounded-xl p-3 text-[11px] text-amber">
+        <div className="flex items-start gap-2.5 bg-amber/10 border border-amber/30 rounded-xl p-3 text-[11px] text-amber font-sans">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <div>
             <strong className="font-bold">SEBI Risk Advisory:</strong> 9 out of 10 individual traders in equity F&O incur net losses. Strict adherence to position sizing and predefined stop-loss rules is required to protect trading capital.

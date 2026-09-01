@@ -566,6 +566,118 @@ export interface MasterStrategyConfluence {
   };
 }
 
+export interface CPRLevelData {
+  pivot: number;
+  bottomCPR: number;
+  topCPR: number;
+  cprWidthPts: number;
+  cprWidthPct: number;
+  cprWidthCategory: 'NARROW_CPR' | 'WIDE_CPR' | 'AVERAGE_CPR';
+  cprWidthDescription: string;
+  expectedDayType: 'TRENDING_DAY' | 'SIDEWAYS_DAY' | 'AVERAGE_DAY';
+  r1: number;
+  r2: number;
+  r3: number;
+  s1: number;
+  s2: number;
+  s3: number;
+  pdh: number;
+  pdl: number;
+  pdc: number;
+}
+
+export interface VirginCPRItem {
+  date: string;
+  symbol: IndexSymbol;
+  topCPR: number;
+  pivot: number;
+  bottomCPR: number;
+  isUntouched: boolean;
+  ageDays: number;
+  significance: 'STRONG_MAGNET' | 'MODERATE_MAGNET' | 'WEAKENING';
+}
+
+export type ChartStructureType = 'TRENDING_DAY' | 'SIDEWAYS_DAY' | 'REVERSAL_DAY';
+
+export interface InitialBalanceData {
+  ibh: number;
+  ibl: number;
+  rangePts: number;
+  isFormed: boolean;
+  status: 'INSIDE_IB' | 'BREAKOUT_ABOVE_IBH' | 'BREAKDOWN_BELOW_IBL';
+}
+
+export interface IntradayMarketRegimeData {
+  symbol: IndexSymbol;
+  structureType: ChartStructureType;
+  structureLabel: string;
+  participantType: 'INITIATIVE_BUYERS' | 'INITIATIVE_SELLERS' | 'RESPONSIVE_BUYERS_SELLERS' | 'TRAPPED_PARTICIPANTS';
+  description: string;
+  initialBalance: InitialBalanceData;
+  favorableStrategyTypes: ('TRENDING' | 'SIDEWAYS' | 'REVERSAL')[];
+  keyActionAdvice: string;
+}
+
+export type PrabhuStrategyId =
+  | 'OD_PATTERN'
+  | 'MORNING_STAR'
+  | 'EVENING_STAR'
+  | 'CPRBO_PATTERN'
+  | 'SZ_BREAKOUT'
+  | 'ORB_PATTERN'
+  | 'DH_BREAKOUT'
+  | 'GAP_FILLING'
+  | 'EMA_TREND_FOLLOWING'
+  | 'PPT_PATTERN'
+  | 'GCR_PATTERN'
+  | 'RCR_PATTERN'
+  | 'M_PATTERN'
+  | 'W_PATTERN'
+  | 'ODR_PATTERN'
+  | 'GCBO_PATTERN'
+  | 'RCBO_PATTERN'
+  | 'VIRGIN_CPR_REVERSAL'
+  | 'GAP_DOWN_REJECTION'
+  | 'GAP_UP_REJECTION'
+  | 'CPR_REVERSAL'
+  | 'EXTREME_CANDLE_REVERSAL'
+  | 'SZ_REVERSAL'
+  | 'GAP_BORDER_REJECTION'
+  | 'FAKE_BREAKOUT';
+
+export interface PrabhuStrategySetup {
+  strategyId: PrabhuStrategyId;
+  strategyNumber: number;
+  strategyName: string;
+  category: 'TRENDING' | 'SIDEWAYS' | 'REVERSAL';
+  signal: 'BUY_CALL' | 'BUY_PUT' | 'WAIT' | 'NO_TRADE';
+  confidenceScore: number;
+  description: string;
+  triggerCondition: string;
+  entryPrice: number;
+  stoplossPrice: number;
+  stoplossRationale: string;
+  target1Price: number;
+  target2Price: number;
+  riskReward: string;
+  timeframe: string;
+  isOiConfirmed: boolean;
+  oiConfirmationDetails: string;
+  trappingWarning?: string;
+}
+
+export interface PreMarketChecklist {
+  symbol: IndexSymbol;
+  globalTrend: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  giftNiftyGap: string;
+  dailyEma20Trend: 'BULLISH_ABOVE_20EMA' | 'BEARISH_BELOW_20EMA' | 'CHOP_AT_20EMA';
+  cprWidthForecast: 'NARROW_CPR (Trend Setup)' | 'WIDE_CPR (Sideways/Reversal Setup)' | 'AVERAGE_CPR';
+  keySupplyZone: string;
+  keyDemandZone: string;
+  eventRisk: 'HIGH' | 'LOW' | 'NORMAL';
+  verdictSummary: string;
+}
+
 export interface MarketIndexState {
   symbol: IndexSymbol;
   spotPrice: number;
@@ -595,6 +707,12 @@ export interface MarketIndexState {
   heroZeroSignals?: HeroZeroSignal[];
   patternBreakout?: PatternBreakoutAnalysis;
   masterConfluence?: MasterStrategyConfluence;
+  cprData?: CPRLevelData;
+  virginCPRs?: VirginCPRItem[];
+  marketRegime?: IntradayMarketRegimeData;
+  prabhuStrategy?: PrabhuStrategySetup;
+  allPrabhuStrategies?: PrabhuStrategySetup[];
+  preMarketChecklist?: PreMarketChecklist;
   indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
 }
 

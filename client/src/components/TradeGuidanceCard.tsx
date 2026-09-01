@@ -186,6 +186,93 @@ export const TradeGuidanceCard: React.FC = () => {
             </span>
           </div>
 
+          {/* Active Vikram Prabhu 25 Strategy Setup Banner (Chapters 7, 8, 9) */}
+          {currentIndexState.prabhuStrategy && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-terminal-panel via-terminal-card to-terminal-panel border border-accent-sky/40 shadow-sm space-y-2.5 font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center space-x-2">
+                  <span className="p-1 rounded-lg bg-accent-sky/20 text-accent-sky text-xs">
+                    <Sparkles className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-xs sm:text-sm text-terminal-text">
+                        Strategy #{currentIndexState.prabhuStrategy.strategyNumber}: {currentIndexState.prabhuStrategy.strategyName}
+                      </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                        currentIndexState.prabhuStrategy.category === 'TRENDING'
+                          ? 'bg-bull/15 text-bull border-bull/30'
+                          : currentIndexState.prabhuStrategy.category === 'REVERSAL'
+                          ? 'bg-accent-purple/15 text-accent-purple border-accent-purple/30'
+                          : 'bg-amber/15 text-amber border-amber/30'
+                      }`}>
+                        {currentIndexState.prabhuStrategy.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-accent-sky/15 text-accent-sky border border-accent-sky/30 font-bold">
+                    R:R {currentIndexState.prabhuStrategy.riskReward}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-terminal-panel text-terminal-text border border-terminal-border font-bold">
+                    {currentIndexState.prabhuStrategy.confidenceScore}% Conviction
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-terminal-muted font-sans leading-relaxed">
+                {currentIndexState.prabhuStrategy.description}
+              </p>
+
+              {/* Technical Stop Loss, Entry, & Targets Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 border-t border-terminal-border/60">
+                <div className="p-2 rounded-lg bg-terminal-bg/70 border border-terminal-border">
+                  <span className="text-[9px] text-terminal-muted uppercase block">Trigger Condition</span>
+                  <span className="text-[11px] font-bold text-accent-sky truncate block">
+                    {currentIndexState.prabhuStrategy.triggerCondition}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-terminal-bg/70 border border-bear/30">
+                  <span className="text-[9px] text-bear uppercase block">Technical Stop Loss</span>
+                  <span className="text-[11px] font-bold text-bear block">
+                    ₹{currentIndexState.prabhuStrategy.stoplossPrice}
+                  </span>
+                  <span className="text-[9px] text-terminal-muted truncate block">
+                    {currentIndexState.prabhuStrategy.stoplossRationale}
+                  </span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-terminal-bg/70 border border-bull/30">
+                  <span className="text-[9px] text-bull uppercase block">Target 1 (1:2 R:R)</span>
+                  <span className="text-[11px] font-bold text-bull block">
+                    ₹{currentIndexState.prabhuStrategy.target1Price}
+                  </span>
+                  <span className="text-[9px] text-terminal-muted block">Primary Book</span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-terminal-bg/70 border border-bull/30">
+                  <span className="text-[9px] text-bull uppercase block">Target 2 (Next Pivot)</span>
+                  <span className="text-[11px] font-bold text-bull block">
+                    ₹{currentIndexState.prabhuStrategy.target2Price}
+                  </span>
+                  <span className="text-[9px] text-terminal-muted block">Runner Target</span>
+                </div>
+              </div>
+
+              {/* Order Flow Confirmation status */}
+              <div className="flex items-center justify-between text-[11px] pt-1 text-terminal-muted font-sans">
+                <span className="flex items-center gap-1.5 text-accent-cyan">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{currentIndexState.prabhuStrategy.oiConfirmationDetails}</span>
+                </span>
+                <span className="text-[10px] text-terminal-muted">Timeframe: {currentIndexState.prabhuStrategy.timeframe}</span>
+              </div>
+            </div>
+          )}
+
           {/* ========================================================================= */}
           {/* VIEW 1: BEGINNER MODE (Simplified, Plain English, Lot Risk & Rules)        */}
           {/* ========================================================================= */}

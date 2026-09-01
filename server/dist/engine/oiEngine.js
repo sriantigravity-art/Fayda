@@ -5,6 +5,9 @@ import { GreekEngine } from './greekEngine.js';
 import { gammaEngine } from './gammaEngine.js';
 import { PatternEngine } from './patternEngine.js';
 import { ConfluenceEngine } from './confluenceEngine.js';
+import { CPREngine } from './cprEngine.js';
+import { MarketRegimeEngine } from './marketRegimeEngine.js';
+import { PrabhuStrategyEngine } from './prabhuStrategyEngine.js';
 export class OIEngine {
     history = new Map();
     recentSurges = [];
@@ -578,6 +581,13 @@ export class OIEngine {
             : null;
         // Evaluate 0DTE Gamma Spike & Hero-or-Zero Setups
         const heroZeroSignals = gammaEngine.evaluateHeroZeroSignals(symbol, spotPrice, atmStrike, strikesData, daysToExpiry, strikeStep);
+        // ─────────────────────────────────────────────────────────────
+        // CPR & Vikram Prabhu 25 Strategies & Market Regime Engine
+        // ─────────────────────────────────────────────────────────────
+        const cprData = CPREngine.calculateCPR(symbol, spotPrice);
+        const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
+        const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
+        const prabhuScan = PrabhuStrategyEngine.scanStrategies(symbol, spotPrice, cprData, marketRegime, strikesData, pcr, virginCPRs);
         const indexState = {
             symbol,
             spotPrice,
@@ -606,6 +616,12 @@ export class OIEngine {
             heroZeroSignals,
             patternBreakout: PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
             masterConfluence: ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')),
+            cprData,
+            virginCPRs,
+            marketRegime,
+            prabhuStrategy: prabhuScan.activeSetup,
+            allPrabhuStrategies: prabhuScan.allDetectedSetups,
+            preMarketChecklist: prabhuScan.preMarketChecklist,
             indiaVix,
             updatedAtIso: new Date(now).toISOString()
         };
