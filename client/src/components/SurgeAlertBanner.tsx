@@ -108,61 +108,56 @@ export const SurgeAlertBanner: React.FC = () => {
   const progressPct = totalWindowSeconds > 0 ? Math.min(100, Math.max(0, (remainingSeconds / totalWindowSeconds) * 100)) : 0;
 
   // ─────────────────────────────────────────────────────────────
-  // MINIMIZED STATE: Sleek floating badge on the right edge with sober flashing indicator
+  // MINIMIZED STATE: Settles on the right side edge like Global Indices
   // ─────────────────────────────────────────────────────────────
   if (isMinimized) {
     return (
-      <div className="fixed top-20 right-2 sm:right-4 z-[60] animate-in fade-in slide-in-from-right-4 duration-300 font-mono select-none">
-        <div 
+      <div className="fixed right-0 top-[32%] sm:top-[34%] -translate-y-1/2 z-40 select-none font-mono animate-in fade-in slide-in-from-right-4 duration-300">
+        <button
+          type="button"
           onClick={() => setIsMinimized(false)}
-          className="bg-terminal-card/95 backdrop-blur-xl border-2 border-bear/70 hover:border-bear rounded-full px-3 sm:px-4 py-2 shadow-[0_0_25px_rgba(255,59,105,0.4)] flex items-center space-x-2.5 cursor-pointer group transition-all duration-200 hover:scale-105"
+          className="flex items-center justify-center p-2.5 sm:py-3.5 sm:px-2.5 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_25px_rgba(255,59,105,0.5)] backdrop-blur-xl bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
           title="Click to expand Extreme Surge Alert"
         >
-          {/* Sober Flashing Indicator Orb */}
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bear opacity-60" style={{ animationDuration: '2.5s' }} />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-bear shadow-[0_0_8px_rgba(255,59,105,1)]" />
-          </span>
-
-          <span className="inline-flex items-center text-[10px] font-black uppercase text-bear">
-            <Zap className="w-3 h-3 mr-0.5 text-bear animate-pulse" /> SURGE
-          </span>
-
-          <span className="font-black text-xs text-white">
-            {latestExtremeSurge.indexSymbol} <span className={isCall ? 'text-bull' : 'text-bear'}>{latestExtremeSurge.strikePrice} {latestExtremeSurge.optionType}</span>
-          </span>
-
-          <span className="font-black text-xs text-amber tabular-nums px-1.5 py-0.2 rounded bg-amber/15 border border-amber/30">
-            ₹{currentOptionLtp.toFixed(1)}
-          </span>
-
-          <span className="text-[10px] text-terminal-muted hidden sm:inline">
-            ⏳ {formattedCountdown}
-          </span>
-
-          <div className="flex items-center space-x-1 pl-1 border-l border-terminal-border/60">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsMinimized(false);
-              }}
-              className="p-1 rounded hover:bg-terminal-panel text-accent-cyan hover:text-white transition"
-              title="Expand Modal"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                dismissExtremeBanner();
-              }}
-              className="p-1 rounded hover:bg-bear/20 text-terminal-muted hover:text-bear transition"
-              title="Dismiss Alert"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+          {/* Mobile View (< sm): Compact Glowing Right-Edge Tab */}
+          <div className="flex sm:hidden flex-col items-center justify-center relative gap-1 p-0.5">
+            <div className="relative">
+              <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
+              {/* Sober Flashing Beacon Orb */}
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-bear shadow-[0_0_8px_#FF3B69]" />
+            </div>
+            <span className="text-[9px] font-black text-amber tabular-nums mt-0.5">
+              ₹{currentOptionLtp.toFixed(0)}
+            </span>
           </div>
-        </div>
+
+          {/* Tablet & Desktop View (>= sm): Full Vertical Dock Tab like Global Indices */}
+          <div className="hidden sm:flex flex-col items-center gap-2" style={{ writingMode: 'vertical-rl' }}>
+            <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
+              <span className="w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
+              <span className="w-2 h-2 rounded-full bg-bear shadow-[0_0_8px_#FF3B69]" />
+            </div>
+            
+            <div className="flex items-center gap-1 text-bear">
+              <Zap className="w-3.5 h-3.5 rotate-90 text-bear animate-pulse" />
+              <span className="font-black text-bear tracking-widest">FLASH SURGE</span>
+            </div>
+
+            <div className="flex items-center gap-1 font-bold text-white tracking-wider my-0.5">
+              <span>{latestExtremeSurge.indexSymbol}</span>
+              <span className={isCall ? 'text-bull' : 'text-bear'}>{latestExtremeSurge.strikePrice} {latestExtremeSurge.optionType}</span>
+            </div>
+
+            <div className="px-1.5 py-0.5 rounded bg-amber/15 border border-amber/40 text-amber font-black text-[10px] tracking-normal my-0.5">
+              ₹{currentOptionLtp.toFixed(1)}
+            </div>
+
+            <span className="text-[9px] text-terminal-muted tracking-normal">
+              ⏳ {formattedCountdown}
+            </span>
+          </div>
+        </button>
       </div>
     );
   }
