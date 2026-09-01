@@ -150,7 +150,7 @@ export const StockSelectorDropdown: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center space-x-2 px-2 sm:px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-terminal-panel/80 transition text-left cursor-pointer shrink-0 border border-transparent hover:border-slate-200 dark:hover:border-terminal-border"
+        className="inline-flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-terminal-panel/80 transition text-left cursor-pointer shrink-0 border border-transparent hover:border-slate-200 dark:hover:border-terminal-border"
         title="Click to select Asset / Index"
       >
         <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-terminal-text tracking-tight whitespace-nowrap">
@@ -246,7 +246,7 @@ export const StockSelectorDropdown: React.FC = () => {
             </div>
           </div>
 
-          {/* Watchlist Rows (Formatted exactly as requested) */}
+          {/* Watchlist Rows */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-terminal-border/40 max-h-[360px]">
             {filteredSymbols.length === 0 ? (
               <div className="py-8 text-center text-slate-400 dark:text-terminal-muted">
@@ -284,7 +284,7 @@ export const StockSelectorDropdown: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Right: Live Price & Delta + Quick Actions */}
+                    {/* Right: Live Price & Delta + Pin Action */}
                     <div className="flex items-center space-x-2 shrink-0">
                       {state ? (
                         <div className="flex items-center space-x-2 font-mono text-xs whitespace-nowrap text-right">
@@ -301,19 +301,8 @@ export const StockSelectorDropdown: React.FC = () => {
                         </span>
                       )}
 
-                      {/* Quick Action Icons */}
-                      <div className="flex items-center space-x-0.5 pl-1.5 text-slate-400 dark:text-terminal-muted">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelect(item.symbol);
-                          }}
-                          className="p-1 rounded border border-slate-200 dark:border-terminal-border/60 hover:bg-slate-100 dark:hover:bg-terminal-border text-slate-500 dark:text-terminal-muted hover:text-slate-800 dark:hover:text-terminal-text"
-                          title="Open Chart"
-                        >
-                          <BarChart2 className="w-3 h-3" />
-                        </button>
+                      {/* Pin to Top Bar Action */}
+                      <div className="flex items-center pl-1 text-slate-400 dark:text-terminal-muted">
                         <button
                           type="button"
                           onClick={(e) => {
