@@ -27,6 +27,7 @@ import { FyersModal } from './components/FyersModal';
 import { LegalDocumentModal, type LegalDocType } from './components/auth/LegalDocumentModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileEditModal } from './components/profile/UserProfileEditModal';
+import { MultiLegStrategyCard } from './components/MultiLegStrategyCard';
 import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
@@ -102,23 +103,26 @@ const DashboardContent: React.FC = () => {
           <div className="md:col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col space-y-3.5">
             {isBeginner ? (
               <>
-                {/* Beginner Mode Layout: Guidance First -> Simplified Chain -> Educational Journal */}
+                {/* Beginner Mode Layout: Guidance First -> Protected Spreads -> Simplified Chain -> Educational Journal */}
                 {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+                <MultiLegStrategyCard />
                 {panelVisibility.optionChain && <OptionChainHeatmap />}
                 <PostMarketTradeJournal isModal={false} />
               </>
             ) : isExpert ? (
               <>
-                {/* Expert Mode Layout: High-density Chain Matrix -> Confluence & Trap Detector -> 0DTE Gamma */}
+                {/* Expert Mode Layout: High-density Chain Matrix -> Multi-Leg Spreads & Arb -> Confluence & Trap Detector -> 0DTE Gamma */}
                 {panelVisibility.optionChain && <OptionChainHeatmap />}
+                <MultiLegStrategyCard />
                 {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
                 {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
                 {panelVisibility.patternRadar && <BreakoutPatternRadar />}
               </>
             ) : (
               <>
-                {/* Intermediate Mode Layout: Balanced Technical Flow & 25 Strategies */}
+                {/* Intermediate Mode Layout: Balanced Technical Flow & Multi-Leg Spreads */}
                 {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
+                <MultiLegStrategyCard />
                 {panelVisibility.optionChain && <OptionChainHeatmap />}
                 {panelVisibility.patternRadar && <BreakoutPatternRadar />}
                 {panelVisibility.heroZeroRadar && <HeroZeroRadar />}

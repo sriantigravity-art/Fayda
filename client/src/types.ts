@@ -231,6 +231,8 @@ export interface OptionStrikeData {
   callIvStatus: IvStatus;
   callLiquidity: LiquidityRating;
   callBidAskSpreadPct: number;
+  callDelta?: number;
+  callGamma?: number;
   
   putOI: number;
   putOIChange1m: number;
@@ -251,6 +253,8 @@ export interface OptionStrikeData {
   putIvStatus: IvStatus;
   putLiquidity: LiquidityRating;
   putBidAskSpreadPct: number;
+  putDelta?: number;
+  putGamma?: number;
   
   iv: number;
   thetaIntensity: ThetaIntensity;
@@ -313,6 +317,20 @@ export interface SurgeEvent {
   expiresAt?: string;
   givenTimestamp?: string;
   horizonDescription?: string;
+
+  // Multi-Strategy & Multi-Leg Confluence Verification
+  breakoutStatus?: string;
+  faydaStrategyMatch?: string;
+  pcrConfirmation?: string;
+  isHighConvictionPick?: boolean;
+  multiLegAlternative?: {
+    spreadName: string;
+    legsSummary: string;
+    maxRiskRupees: number;
+    maxProfitRupees: number;
+    breakeven: number;
+    marginBenefitPct: number;
+  };
 }
 
 export interface TargetHitEvent {
@@ -678,6 +696,72 @@ export interface PreMarketChecklist {
   verdictSummary: string;
 }
 
+export interface MultiLegOptionLeg {
+  action: 'BUY' | 'SELL';
+  optionType: 'CE' | 'PE';
+  strikePrice: number;
+  premium: number;
+  lotRatio: number;
+  delta: number;
+  theta: number;
+  iv: number;
+}
+
+export type MultiLegStrategyId =
+  | 'BULL_CALL_SPREAD'
+  | 'BEAR_PUT_SPREAD'
+  | 'BULL_PUT_SPREAD'
+  | 'BEAR_CALL_SPREAD'
+  | 'CALL_RATIO_BACKSPREAD'
+  | 'PUT_RATIO_BACKSPREAD'
+  | 'LONG_STRADDLE'
+  | 'SHORT_STRADDLE'
+  | 'LONG_STRANGLE'
+  | 'SHORT_STRANGLE'
+  | 'SYNTHETIC_LONG_FUTURE'
+  | 'PUT_CALL_PARITY_ARB';
+
+export interface MultiLegStrategySetup {
+  strategyId: MultiLegStrategyId;
+  strategyName: string;
+  category: 'DIRECTIONAL_SPREAD' | 'RATIO_BACKSPREAD' | 'VOLATILITY_EVENT' | 'THETA_HARVESTING' | 'SYNTHETIC_ARB';
+  outlook: 'MODERATELY_BULLISH' | 'MODERATELY_BEARISH' | 'HIGHLY_BULLISH_EXPLOSIVE' | 'HIGHLY_BEARISH_CRASH' | 'HIGH_VOLATILITY_BREAKOUT' | 'RANGEBOUND_DECAY' | 'ARBITRAGE';
+  type: 'NET_DEBIT' | 'NET_CREDIT' | 'ZERO_COST';
+  confidenceScore: number;
+  description: string;
+  legs: MultiLegOptionLeg[];
+  lotSize: number;
+  netDebitCreditPts: number;
+  netDebitCreditRupees: number;
+  maxProfitPts: number | string;
+  maxProfitRupees: number | string;
+  maxLossPts: number | string;
+  maxLossRupees: number | string;
+  riskReward: string;
+  lowerBreakeven?: number;
+  upperBreakeven?: number;
+  netDelta: number;
+  netThetaDaily: number;
+  netThetaHourly: number;
+  netVega: number;
+  netGamma: number;
+  estimatedMarginRupees: number;
+  marginSavingsPct: number;
+  tacticalRules: string[];
+  recommendedMarketCondition: string;
+}
+
+export interface SyntheticArbitrageItem {
+  strikePrice: number;
+  callPrice: number;
+  putPrice: number;
+  spotPrice: number;
+  syntheticPrice: number;
+  deviationPts: number;
+  arbitrageType: 'REVERSAL_ARB' | 'CONVERSION_ARB' | 'FAIR_VALUED';
+  opportunityNote: string;
+}
+
 export interface MarketIndexState {
   symbol: IndexSymbol;
   spotPrice: number;
@@ -713,6 +797,9 @@ export interface MarketIndexState {
   faydaStrategy?: FaydaStrategySetup;
   allFaydaStrategies?: FaydaStrategySetup[];
   preMarketChecklist?: PreMarketChecklist;
+  multiLegStrategy?: MultiLegStrategySetup;
+  allMultiLegStrategies?: MultiLegStrategySetup[];
+  syntheticArbitrage?: SyntheticArbitrageItem[];
   indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
 }
 

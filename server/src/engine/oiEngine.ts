@@ -19,6 +19,7 @@ import { ConfluenceEngine } from './confluenceEngine.js';
 import { CPREngine } from './cprEngine.js';
 import { MarketRegimeEngine } from './marketRegimeEngine.js';
 import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
+import { FaydaMultiLegEngine } from './faydaMultiLegEngine.js';
 
 interface RawStrikeSnapshot {
   strikePrice: number;
@@ -665,6 +666,35 @@ export class OIEngine {
       this.recentSurges = [...detectedSurgesThisTick, ...this.recentSurges].slice(0, this.maxSurgeHistory);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CPR & Fayda 25 Strategies & Multi-Leg Spreads Engine & Breakouts
+    // ─────────────────────────────────────────────────────────────
+    const cprData = CPREngine.calculateCPR(symbol, spotPrice);
+    const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
+    const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
+    const patternBreakout = PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m');
+    
+    const faydaScan = FaydaStrategyEngine.scanStrategies(
+      symbol,
+      spotPrice,
+      cprData,
+      marketRegime,
+      strikesData,
+      pcr,
+      virginCPRs
+    );
+
+    const multiLegScan = FaydaMultiLegEngine.evaluateMultiLegStrategies(
+      symbol,
+      spotPrice,
+      strikesData,
+      lotSize,
+      cprData,
+      marketRegime,
+      pcr,
+      indiaVix
+    );
+
     // Filter active (unexpired) surges for current symbol within ±400 pts
     const indexSurges = this.recentSurges.filter(s => {
       if (s.indexSymbol !== symbol || Math.abs(s.strikePrice - atmStrike) > 400) return false;
@@ -672,19 +702,70 @@ export class OIEngine {
       const maxAge = s.validUntilMinutes || 15;
       return ageMin <= maxAge;
     });
-    
-    // Select recommendations prioritizing Liquid strikes with reasonable IV (Low Crush Risk) within ±400 pts
-    const bullishPick = indexSurges.find(s => 
-      s.tradeAction === 'BUY_CALL' && 
-      s.liquidityRating === 'HIGH_LIQUIDITY' && 
-      s.ivStatus !== 'EXPENSIVE_CRUSH_RISK'
-    ) || indexSurges.find(s => s.tradeAction === 'BUY_CALL') || null;
 
-    const bearishPick = indexSurges.find(s => 
-      s.tradeAction === 'BUY_PUT' && 
+    // ─────────────────────────────────────────────────────────────
+    // High-Conviction Multi-Strategy Gatekeeper (Score >= 88%)
+    // ─────────────────────────────────────────────────────────────
+    const bullSpread = multiLegScan.allStrategies.find(s => s.strategyId === 'BULL_CALL_SPREAD') || multiLegScan.allStrategies[0];
+    const bearSpread = multiLegScan.allStrategies.find(s => s.strategyId === 'BEAR_PUT_SPREAD') || multiLegScan.allStrategies[1];
+
+    let bullishPick: SurgeEvent | null = null;
+    const qualifiedBullSurges = indexSurges.filter(s => 
+      s.tradeAction === 'BUY_CALL' && 
+      s.surgeScore >= 88 &&
       s.liquidityRating === 'HIGH_LIQUIDITY' && 
       s.ivStatus !== 'EXPENSIVE_CRUSH_RISK'
-    ) || indexSurges.find(s => s.tradeAction === 'BUY_PUT') || null;
+    ).sort((a, b) => b.surgeScore - a.surgeScore);
+
+    if (qualifiedBullSurges.length > 0) {
+      const topBull = { ...qualifiedBullSurges[0] };
+      topBull.isHighConvictionPick = true;
+      topBull.breakoutStatus = patternBreakout.predictedBreakout.direction === 'UPWARD_BREAKOUT'
+        ? `✓ ${patternBreakout.activePattern.patternName} Breakout`
+        : '✓ Level Consolidation Breakout';
+      topBull.faydaStrategyMatch = `✓ ${faydaScan.activeSetup.strategyName}`;
+      topBull.pcrConfirmation = `✓ PCR: ${pcr.overallPcr.toFixed(2)} (Supportive)`;
+      if (bullSpread) {
+        topBull.multiLegAlternative = {
+          spreadName: bullSpread.strategyName,
+          legsSummary: bullSpread.description,
+          maxRiskRupees: typeof bullSpread.maxLossRupees === 'number' ? bullSpread.maxLossRupees : 2500,
+          maxProfitRupees: typeof bullSpread.maxProfitRupees === 'number' ? bullSpread.maxProfitRupees : 5000,
+          breakeven: bullSpread.upperBreakeven || (spotPrice + 50),
+          marginBenefitPct: bullSpread.marginSavingsPct || 70
+        };
+      }
+      bullishPick = topBull;
+    }
+
+    let bearishPick: SurgeEvent | null = null;
+    const qualifiedBearSurges = indexSurges.filter(s => 
+      s.tradeAction === 'BUY_PUT' && 
+      s.surgeScore >= 88 &&
+      s.liquidityRating === 'HIGH_LIQUIDITY' && 
+      s.ivStatus !== 'EXPENSIVE_CRUSH_RISK'
+    ).sort((a, b) => b.surgeScore - a.surgeScore);
+
+    if (qualifiedBearSurges.length > 0) {
+      const topBear = { ...qualifiedBearSurges[0] };
+      topBear.isHighConvictionPick = true;
+      topBear.breakoutStatus = patternBreakout.predictedBreakout.direction === 'DOWNWARD_BREAKDOWN'
+        ? `⚠️ ${patternBreakout.activePattern.patternName} Breakdown`
+        : '⚠️ Resistance Rejection';
+      topBear.faydaStrategyMatch = `✓ ${faydaScan.activeSetup.strategyName}`;
+      topBear.pcrConfirmation = `✓ PCR: ${pcr.overallPcr.toFixed(2)} (Overhead Resistance)`;
+      if (bearSpread) {
+        topBear.multiLegAlternative = {
+          spreadName: bearSpread.strategyName,
+          legsSummary: bearSpread.description,
+          maxRiskRupees: typeof bearSpread.maxLossRupees === 'number' ? bearSpread.maxLossRupees : 2500,
+          maxProfitRupees: typeof bearSpread.maxProfitRupees === 'number' ? bearSpread.maxProfitRupees : 5000,
+          breakeven: bearSpread.lowerBreakeven || (spotPrice - 50),
+          marginBenefitPct: bearSpread.marginSavingsPct || 70
+        };
+      }
+      bearishPick = topBear;
+    }
 
     const highestScoreEvent = indexSurges.length > 0
       ? [...indexSurges].sort((a, b) => b.surgeScore - a.surgeScore)[0]
@@ -698,22 +779,6 @@ export class OIEngine {
       strikesData,
       daysToExpiry,
       strikeStep
-    );
-
-    // ─────────────────────────────────────────────────────────────
-    // CPR & Fayda 25 Strategies & Market Regime Engine
-    // ─────────────────────────────────────────────────────────────
-    const cprData = CPREngine.calculateCPR(symbol, spotPrice);
-    const virginCPRs = CPREngine.getVirginCPRs(symbol, spotPrice);
-    const marketRegime = MarketRegimeEngine.evaluateRegime(symbol, spotPrice, cprData);
-    const faydaScan = FaydaStrategyEngine.scanStrategies(
-      symbol,
-      spotPrice,
-      cprData,
-      marketRegime,
-      strikesData,
-      pcr,
-      virginCPRs
     );
 
     const indexState: MarketIndexState = {
@@ -742,7 +807,7 @@ export class OIEngine {
         highestScoreEvent
       },
       heroZeroSignals,
-      patternBreakout: PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m'),
+      patternBreakout,
       masterConfluence: ConfluenceEngine.calculateMasterConfluence(
         symbol,
         spotPrice,
@@ -751,7 +816,7 @@ export class OIEngine {
         maxPain,
         straddleRange,
         daysToExpiry,
-        PatternEngine.analyzePatternAndBreakout(symbol, spotPrice, strikesData, pcr, '15m')
+        patternBreakout
       ),
       cprData,
       virginCPRs,
@@ -759,6 +824,9 @@ export class OIEngine {
       faydaStrategy: faydaScan.activeSetup,
       allFaydaStrategies: faydaScan.allDetectedSetups,
       preMarketChecklist: faydaScan.preMarketChecklist,
+      multiLegStrategy: multiLegScan.recommendedStrategy,
+      allMultiLegStrategies: multiLegScan.allStrategies,
+      syntheticArbitrage: multiLegScan.syntheticArbitrage,
       indiaVix,
       updatedAtIso: new Date(now).toISOString()
     };
