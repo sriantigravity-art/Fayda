@@ -390,6 +390,8 @@ export interface FyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  /** Fyers 4-digit account PIN for seamless validate-refresh-token renewal */
+  pin?: string;
   /** Fyers refresh token — valid for 15 days. Used for daily auto-renewal at 6:30 AM IST. */
   refreshToken?: string;
   /** ISO timestamp of the last successful auto-refresh via refresh_token */

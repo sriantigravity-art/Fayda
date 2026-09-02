@@ -858,6 +858,27 @@ app.post('/api/fyers/exchange-authcode', async (req, res) => {
   res.json(result);
 });
 
+// Fyers Refresh Token Trigger / Renewal Endpoint
+app.post('/api/fyers/refresh-token', async (req, res) => {
+  const { pin } = req.body || {};
+  const result = await fyersService.refreshAccessToken(pin);
+
+  if (result.success) {
+    currentDataSource = 'FYERS_LIVE';
+    startFyersPolling();
+
+    broadcast({
+      type: 'FYERS_STATUS',
+      fyersConfig: fyersService.getConfig(),
+      dataSource: currentDataSource,
+      isMarketOpen: isNseMarketOpen(),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  res.json(result);
+});
+
 app.post('/api/expiry', (req, res) => {
   const { symbol, expiry } = req.body as { symbol: IndexSymbol; expiry: string };
   if (symbol && expiry) {

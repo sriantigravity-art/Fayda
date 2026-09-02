@@ -78,6 +78,7 @@ export class FyersService {
             isConnected:          false,
             userName:             parsed.userName,
             lastConnected:        parsed.lastConnected,
+            pin:                  parsed.pin,
             refreshToken:         parsed.refreshToken,
             tokenRefreshedAt:     parsed.tokenRefreshedAt,
             refreshTokenExpiresAt: parsed.refreshTokenExpiresAt,
@@ -128,6 +129,7 @@ export class FyersService {
         isConnected:          this.config.isConnected,
         userName:             this.config.userName,
         lastConnected:        this.config.lastConnected,
+        pin:                  this.config.pin,
         refreshToken:         this.config.refreshToken,
         tokenRefreshedAt:     this.config.tokenRefreshedAt,
         refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
@@ -216,9 +218,9 @@ export class FyersService {
    * No browser interaction required. Refresh tokens are valid for 15 days.
    *
    * Fyers endpoint: POST https://api-t1.fyers.in/api/v3/validate-refresh-token
-   * Body: { grant_type, appIdHash, refresh_token }
+   * Body: { grant_type, appIdHash, refresh_token, pin }
    */
-  public async refreshAccessToken(): Promise<{ success: boolean; message: string; userName?: string }> {
+  public async refreshAccessToken(pinOverride?: string): Promise<{ success: boolean; message: string; userName?: string }> {
     if (!this.config.refreshToken) {
       return { success: false, message: 'No refresh token stored. Please login via auth code first.' };
     }
@@ -235,14 +237,20 @@ export class FyersService {
 
       console.log(`[Fyers] Refreshing access token for appId: ${this.config.appId}...`);
 
+      const pinToSend = pinOverride || this.config.pin;
+      const requestBody: any = {
+        grant_type:    'refresh_token',
+        appIdHash,
+        refresh_token: this.config.refreshToken
+      };
+      if (pinToSend) {
+        requestBody.pin = pinToSend;
+      }
+
       const response = await fetch('https://api-t1.fyers.in/api/v3/validate-refresh-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type:    'refresh_token',
-          appIdHash,
-          refresh_token: this.config.refreshToken
-        })
+        body: JSON.stringify(requestBody)
       });
 
       let json: any = null;
