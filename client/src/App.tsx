@@ -83,23 +83,21 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
-        {/* Pre-Market Preparation Radar & Market Structure Ribbon */}
+        {/* Dual Market Intelligence & Pivot Range Ribbon (Side-by-Side) */}
         {currentIndexState && (
-          <PreMarketRadarCard
-            symbol={selectedIndex}
-            preMarket={currentIndexState.preMarketChecklist}
-            marketRegime={currentIndexState.marketRegime}
-          />
-        )}
-
-        {/* Central Pivot Range (CPR) & Floor Pivots Strip */}
-        {currentIndexState && (
-          <CPRStrip
-            symbol={selectedIndex}
-            spotPrice={currentIndexState.spotPrice}
-            cprData={currentIndexState.cprData}
-            virginCPRs={currentIndexState.virginCPRs}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-stretch">
+            <PreMarketRadarCard
+              symbol={selectedIndex}
+              preMarket={currentIndexState.preMarketChecklist}
+              marketRegime={currentIndexState.marketRegime}
+            />
+            <CPRStrip
+              symbol={selectedIndex}
+              spotPrice={currentIndexState.spotPrice}
+              cprData={currentIndexState.cprData}
+              virginCPRs={currentIndexState.virginCPRs}
+            />
+          </div>
         )}
 
         {/* ========================================================================= */}
