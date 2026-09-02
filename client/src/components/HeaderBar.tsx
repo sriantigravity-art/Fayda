@@ -466,44 +466,6 @@ export const HeaderBar: React.FC = () => {
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* User Auth Profile Badge (Icon/Avatar only) */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg p-1 gap-1.5 font-sans text-xs shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsProfileEditOpen(true)}
-                className="hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
-                title={`Profile: ${user.fullName} (${user.role}) - Click to edit profile`}
-              >
-                <div className="w-6 h-6 rounded-full border border-accent-sky/50 bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-sm hover:border-accent-sky">
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
-                  ) : (
-                    user.fullName.charAt(0).toUpperCase()
-                  )}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="p-1 text-terminal-muted hover:text-bear hover:bg-bear/10 rounded transition cursor-pointer"
-                title="Sign Out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAuthModalOpen(true)}
-              className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition cursor-pointer shrink-0 flex items-center space-x-1"
-              title="Sign In with SEBI Consent"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign In</span>
-            </button>
-          )}
-
           {/* ========================================================================= */}
           {/* MOBILE / TABLET TRADER MODE DROPDOWN TRIGGER (< 1024px) */}
           {/* ========================================================================= */}
@@ -1045,12 +1007,6 @@ export const HeaderBar: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Mobile View: Compact Clock on Right */}
-        <div className="flex md:hidden items-center space-x-1 font-mono text-terminal-muted text-[10px] shrink-0 pl-1">
-          <Clock className="w-2.5 h-2.5 text-accent-sky" />
-          <span>{currentTime}</span>
-        </div>
       </div>
 
       {/* Modals & Drawers */}

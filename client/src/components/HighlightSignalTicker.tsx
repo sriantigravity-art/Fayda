@@ -25,8 +25,8 @@ export const HighlightSignalTicker: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Increased speed of ticker: 10s (FAST), 18s (NORMAL), 30s (SLOW)
-  const speedSeconds = tickerSpeed === 'SLOW' ? 30 : tickerSpeed === 'NORMAL' ? 18 : 10;
+  // Ticker speed: 18s (FAST), 28s (NORMAL), 48s (SLOW)
+  const speedSeconds = tickerSpeed === 'SLOW' ? 48 : tickerSpeed === 'NORMAL' ? 28 : 18;
   const isAnimationPaused = isPaused || isHovered;
 
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
@@ -326,6 +326,9 @@ export const HighlightSignalTicker: React.FC = () => {
       className="w-full bg-terminal-panel/95 border-b border-terminal-border backdrop-blur-md overflow-hidden select-none relative group z-20 shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={() => setIsHovered(true)}
+      onTouchEnd={() => setIsHovered(false)}
+      onTouchCancel={() => setIsHovered(false)}
     >
       {/* ========================================================================= */}
       {/* MOBILE LAYOUT: LINE 1 = FAYDA RADAR + SYSTEM TIME | LINE 2 = FAST TICKER  */}
@@ -368,8 +371,13 @@ export const HighlightSignalTicker: React.FC = () => {
           </div>
         </div>
 
-        {/* LINE 2: CONTINUOUS SCROLLING TICKER */}
-        <div className="overflow-hidden whitespace-nowrap w-full relative flex items-center py-0.5 border-t border-terminal-border/50">
+        {/* LINE 2: CONTINUOUS SCROLLING TICKER (FREEZES ON MOUSEOVER / TOUCH) */}
+        <div 
+          className="overflow-hidden whitespace-nowrap w-full relative flex items-center py-0.5 border-t border-terminal-border/50 active:cursor-grabbing"
+          onTouchStart={() => setIsHovered(true)}
+          onTouchEnd={() => setIsHovered(false)}
+          onTouchCancel={() => setIsHovered(false)}
+        >
           <div 
             className="flex items-center whitespace-nowrap will-change-transform py-0.5"
             style={{

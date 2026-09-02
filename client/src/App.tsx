@@ -38,6 +38,7 @@ import { TradeTipModal } from './components/TradeTipModal';
 import { EntityChartModal } from './components/EntityChartModal';
 import { OptionsDataTableModal } from './components/OptionsDataTableModal';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
+import { User, LogOut } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -47,7 +48,7 @@ const DashboardContent: React.FC = () => {
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
   const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
-  const { panelVisibility } = useAuth();
+  const { panelVisibility, user, isAuthenticated, logout } = useAuth();
   const { currentIndexState, selectedIndex, activeTradeTipModal, closeTradeTipModal } = useMarket();
   const { isBeginner, isExpert } = useTerminalMode();
 
@@ -156,22 +157,71 @@ const DashboardContent: React.FC = () => {
         </div>
       </main>
 
-      {/* Terminal Status Footer */}
-      <footer className="border-t border-terminal-border bg-terminal-card px-4 py-2.5 text-[11px] font-sans text-terminal-muted flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto">
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+      {/* Terminal Status & Fayda Pro Terminal Auth Footer */}
+      <footer className="border-t border-terminal-border bg-terminal-card px-4 py-3 text-[11px] font-sans text-terminal-muted flex flex-col md:flex-row items-center justify-between gap-3 mt-auto shadow-inner">
+        {/* Left: Terminal Branding & Real-time Stream Status */}
+        <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-center md:text-left">
           <span className="font-bold text-terminal-text tracking-tight flex items-center gap-1.5">
-            <img src="/favicon-32x32.png" className="w-3.5 h-3.5 object-contain" alt="" />
-            <span>FAYDA PRO</span>
+            <img src="/favicon-32x32.png" className="w-4 h-4 object-contain" alt="" />
+            <span className="text-xs font-black">FAYDA PRO TERMINAL</span>
           </span>
-          <span>•</span>
-          <span>Official NSE / BSE Real-time Stream</span>
-          <span>•</span>
-          <span className="text-bull font-semibold">Fyers API v3 Authorized</span>
-          <span>•</span>
-          <span>@vertexinfo.co.in</span>
+          <span className="text-terminal-border hidden sm:inline">•</span>
+          <span className="hidden sm:inline">Official NSE / BSE Real-time Stream</span>
+          <span className="text-terminal-border hidden sm:inline">•</span>
+          <span className="text-bull font-semibold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-bull animate-pulse" />
+            Fyers API v3 Authorized
+          </span>
+          <span className="text-terminal-border hidden lg:inline">•</span>
+          <span className="hidden lg:inline font-mono text-[10px]">Market Hours: <strong className="text-terminal-text">09:15 – 15:40 IST</strong></span>
         </div>
-        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5 text-center font-mono">
-          <span>Market Hours: <strong className="text-terminal-text">09:15 – 15:40 IST</strong></span>
+
+        {/* Right: Fayda Pro Terminal Auth & User Status */}
+        <div className="flex items-center justify-center md:justify-end gap-2 shrink-0">
+          {isAuthenticated && user ? (
+            <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-xl px-2.5 py-1 gap-2 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setIsProfileEditOpen(true)}
+                className="flex items-center space-x-2 hover:opacity-85 transition cursor-pointer"
+                title={`Logged in as ${user.fullName} (${user.role}) - Click to edit profile`}
+              >
+                <div className="w-6 h-6 rounded-full border border-accent-sky/50 bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    user.fullName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="font-bold text-xs text-terminal-text leading-none">{user.fullName}</span>
+                  <span className="text-[9px] text-accent-sky font-mono leading-tight uppercase">{user.role || 'Pro Trader'}</span>
+                </div>
+              </button>
+
+              <div className="h-4 w-[1px] bg-terminal-border mx-0.5" />
+
+              <button
+                type="button"
+                onClick={logout}
+                className="p-1 text-terminal-muted hover:text-bear hover:bg-bear/10 rounded-lg transition cursor-pointer flex items-center gap-1 text-[10px] font-mono"
+                title="Sign Out from Fayda Pro"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsMobileAuthOpen(true)}
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition cursor-pointer shadow-sm"
+              title="Sign In to Fayda Pro Terminal with SEBI Consent"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In to Fayda Pro</span>
+            </button>
+          )}
         </div>
       </footer>
 
