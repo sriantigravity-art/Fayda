@@ -251,9 +251,10 @@ export const OptionChainHeatmap: React.FC = () => {
             setSelectedStrikeForModal(null);
           }}
           strike={selectedStrikeForModal}
+          symbol={selectedIndex}
           spotPrice={spotPrice}
-          atmStrike={atmStrike}
-          selectedIndex={selectedIndex}
+          selectedExpiry={selectedExpiry || 'Current Expiry'}
+          daysToExpiry={currentIndexState?.daysToExpiry ?? 2}
         />
       )}
     </div>

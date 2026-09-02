@@ -667,7 +667,7 @@ export class ConfluenceEngine {
         carriedForwardTrades: [],
         regimeWarning: isCommodity
           ? '🌙 MCX Commodity Market is CLOSED (23:30 - 09:00 IST). Live commodity trading opens at 09:00 AM IST.'
-          : '🌙 NSE/BSE Equity & Derivatives Market is CLOSED (09:15 - 15:30 IST). Intraday trade suggestions are suspended until tomorrow 09:15 AM market open. Switch to MCX Commodities (Crude Oil, Natural Gas, Gold, Silver) to trade live evening sessions (Open until 11:30 PM IST).',
+          : '🌙 Indian NSE and BSE Market Closed! Visit Next Trading Day! Switch to MCX Commodities (Crude Oil, Natural Gas, Gold, Silver) to trade live evening sessions (Open until 11:30 PM IST).',
         isNoTradeZone: true,
         lastEvaluatedAt: new Date().toISOString()
       };

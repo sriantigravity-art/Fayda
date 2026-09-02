@@ -34,6 +34,7 @@ import { RadarFeed } from './components/RadarFeed';
 import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
 import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanner';
+import { TradeTipModal } from './components/TradeTipModal';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
 
 const DashboardContent: React.FC = () => {
@@ -45,7 +46,7 @@ const DashboardContent: React.FC = () => {
   const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
   const { panelVisibility } = useAuth();
-  const { currentIndexState, selectedIndex } = useMarket();
+  const { currentIndexState, selectedIndex, activeTradeTipModal, closeTradeTipModal } = useMarket();
   const { isBeginner, isExpert } = useTerminalMode();
 
   // Automatically request fullscreen on mobile view on page load and initial user touch
@@ -219,6 +220,13 @@ const DashboardContent: React.FC = () => {
       <UserProfileEditModal
         isOpen={isProfileEditOpen}
         onClose={() => setIsProfileEditOpen(false)}
+      />
+
+      {/* Global Interactive Trade Tip Detail Modal */}
+      <TradeTipModal
+        tip={activeTradeTipModal}
+        isOpen={!!activeTradeTipModal}
+        onClose={closeTradeTipModal}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem } from '../types';
+import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
@@ -49,6 +49,10 @@ interface MarketContextType {
   globalIndices: GlobalIndexItem[];
   globalMarketContext: import('../types').GlobalMarketContextData | null;
   refreshIndexStates: () => Promise<void>;
+  // Active Trade Tip Modal Engine
+  activeTradeTipModal: ActiveTradeTipData | null;
+  openTradeTipModal: (tip: ActiveTradeTipData) => void;
+  closeTradeTipModal: () => void;
 }
 
 import { getApiBase, getWsUrl } from '../utils/apiBase';
@@ -118,6 +122,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Global International Indices State
   const [globalIndices, setGlobalIndices] = useState<GlobalIndexItem[]>([]);
   const [globalMarketContext, setGlobalMarketContext] = useState<import('../types').GlobalMarketContextData | null>(null);
+
+  // Active Trade Tip Modal Engine State
+  const [activeTradeTipModal, setActiveTradeTipModal] = useState<ActiveTradeTipData | null>(null);
+  const openTradeTipModal = useCallback((tip: ActiveTradeTipData) => {
+    setActiveTradeTipModal(tip);
+  }, []);
+  const closeTradeTipModal = useCallback(() => {
+    setActiveTradeTipModal(null);
+  }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
@@ -761,7 +774,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         dismissSquareOffAlert,
         globalIndices,
         globalMarketContext,
-        refreshIndexStates
+        refreshIndexStates,
+        activeTradeTipModal,
+        openTradeTipModal,
+        closeTradeTipModal
       }}
     >
       {children}
@@ -805,7 +821,10 @@ export const useMarket = (): MarketContextType => {
       latestSquareOffAlert: null,
       dismissSquareOffAlert: () => {},
       globalIndices: [],
-      globalMarketContext: null
+      globalMarketContext: null,
+      activeTradeTipModal: null,
+      openTradeTipModal: () => {},
+      closeTradeTipModal: () => {}
     };
   }
   return context;

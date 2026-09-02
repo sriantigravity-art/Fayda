@@ -237,3 +237,65 @@ body.terminal-fullscreen-active {
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
+
+/* Modal Entrance and Exit Animations */
+@keyframes modalBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes modalBackdropFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes modalZoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalZoomOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.93) translateY(14px);
+  }
+}
+
+.animate-modal-backdrop-enter {
+  animation: modalBackdropFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-backdrop-exit {
+  animation: modalBackdropFadeOut 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-enter {
+  animation: modalZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-exit {
+  animation: modalZoomOut 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

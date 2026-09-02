@@ -22,7 +22,7 @@ import {
 
 export const MultiLegStrategyCard: React.FC = () => {
   const { currentIndexState, selectedIndex } = useMarket();
-  const { isBeginner, isExpert } = useTerminalMode();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const [selectedStrategyId, setSelectedStrategyId] = useState<MultiLegStrategyId | 'PUT_CALL_PARITY_ARB'>('BULL_CALL_SPREAD');
   const [showArbTab, setShowArbTab] = useState<boolean>(false);
@@ -54,9 +54,13 @@ export const MultiLegStrategyCard: React.FC = () => {
             <Layers className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
               <span className="font-mono font-bold text-xs sm:text-sm text-terminal-text tracking-wide">
-                FAYDA MULTI-LEG STRATEGY BUILDER & SPREAD MATRIX
+                {isBeginner 
+                  ? '🛡️ Low-Risk Multi-Step Strategies (Capital Protection)' 
+                  : isIntermediate 
+                  ? '🛡️ Fayda Multi-Leg Spread Builder & Strategy Matrix' 
+                  : '🔬 Quantitative Multi-Leg Spreads & Arbitrage Engine'}
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted border border-terminal-border">
                 {selectedIndex} (Lot: {lotSize})
@@ -70,7 +74,9 @@ export const MultiLegStrategyCard: React.FC = () => {
             <p className="text-[11px] text-terminal-muted">
               {isBeginner 
                 ? 'Protected multi-leg spreads: Cap maximum risk and eliminate severe time decay'
-                : 'Institutional defined-risk spreads, 1:2 ratio backspreads & delta-neutral straddles'}
+                : isIntermediate
+                ? 'Institutional defined-risk spreads, 1:2 ratio backspreads & delta-neutral straddles'
+                : 'Black-Scholes delta-neutral spreads, synthetic arbitrage parity & institutional margin reduction'}
             </p>
           </div>
         </div>

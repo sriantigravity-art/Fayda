@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice } from '../utils/signalTimeHelper';
 import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer } from 'lucide-react';
@@ -9,7 +10,8 @@ import { formatISTTime } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
 export const HighlightSignalTicker: React.FC = () => {
-  const { indices, visibleIndices, setSelectedIndex, selectedIndex } = useMarket();
+  const { indices, visibleIndices, setSelectedIndex, selectedIndex, openTradeTipModal } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [tickerSpeed, setTickerSpeed] = useState<'SLOW' | 'NORMAL' | 'FAST'>('SLOW');
@@ -239,10 +241,36 @@ export const HighlightSignalTicker: React.FC = () => {
       maxValidityMinutes: timing.validUntilMinutes
     });
 
+    const handleCardClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSelectedIndex(item.symbol);
+      openTradeTipModal({
+        symbol: item.symbol,
+        title: item.strike,
+        contractSymbol: item.strike,
+        action: item.action === 'BUY CALL' ? 'BUY_CALL' : 'BUY_PUT',
+        entryPrice: item.entry,
+        entryRange: item.entry,
+        currentLtp: item.ltp,
+        stoplossPrice: item.exitSL,
+        target1Price: item.target,
+        riskReward: item.riskReward,
+        confluenceScore: item.score,
+        givenTimeFormatted: timing.givenTimeFormatted,
+        elapsedTimeFormatted: timing.elapsedFormatted,
+        actionGuidance: advice.explanation,
+        actionBadge: advice.badgeLabel,
+        actionClass: advice.badgeClass,
+        status: isSl ? 'SL_HIT' : 'ACTIVE',
+        strategyTag: item.faydaStrategyMatch || item.breakoutStatus,
+        tierLabel: '⚡ FAYDA RADAR HIGH-CONVICTION PICK'
+      });
+    };
+
     return (
       <div
         key={`${item.symbol}-${keySuffix}`}
-        onClick={() => setSelectedIndex(item.symbol)}
+        onClick={handleCardClick}
         className={`flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer shrink-0 shadow-sm ${
           isSl
             ? 'bg-bear/20 border-bear shadow-[0_0_15px_rgba(255,59,105,0.4)] animate-pulse'
@@ -335,14 +363,14 @@ export const HighlightSignalTicker: React.FC = () => {
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
           <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
           <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-terminal-text">
-            FAYDA RADAR
+            {isBeginner ? '🟢 TOP SAFE PICKS' : isIntermediate ? '⚡ FAYDA RADAR' : '🔬 HIGH-ALPHA SIGNALS'}
           </span>
           <span className={`hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
             isLiveNseMarket 
-              ? 'bg-bull/20 text-bull border border-bull/40' 
+              ? isBeginner ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bull/20 text-bull border border-bull/40'
               : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
           }`}>
-            {isLiveNseMarket ? 'FILTER: SCORE ≥ 88%' : 'MCX COMMODITIES LIVE'}
+            {isLiveNseMarket ? (isBeginner ? 'SAFETY SCORE ≥ 88%' : isIntermediate ? 'FILTER: SCORE ≥ 88%' : 'CONVICTION ALPHA ≥ 88%') : 'MCX COMMODITIES LIVE'}
           </span>
         </div>
 

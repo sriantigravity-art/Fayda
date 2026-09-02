@@ -32,11 +32,21 @@ export const StrikeDetailModal: React.FC<StrikeDetailModalProps> = ({
   daysToExpiry
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [isClosing, setIsClosing] = React.useState(false);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 200);
+  };
 
   // Keyboard escape listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && isOpen && !isClosing) handleClose();
     };
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
@@ -46,9 +56,10 @@ export const StrikeDetailModal: React.FC<StrikeDetailModalProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, isClosing, onClose]);
 
-  if (!isOpen || !strike) return null;
+  if (!isOpen && !isClosing) return null;
+  if (!strike) return null;
 
   const strikePrice = strike.strikePrice;
   const isAtm = strike.isAtm;
@@ -95,10 +106,20 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[105000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+    <div className="fixed inset-0 z-[105000] overflow-y-auto p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none">
+      {/* Animated Backdrop */}
+      <div 
+        onClick={handleClose}
+        className={`fixed inset-0 bg-black/80 backdrop-blur-md transition-all ${
+          isClosing ? 'animate-modal-backdrop-exit' : 'animate-modal-backdrop-enter'
+        }`}
+      />
+
       {/* Modal Container */}
       <div 
-        className="relative w-full max-w-4xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up font-sans text-terminal-text"
+        className={`relative w-full max-w-4xl max-h-[88vh] bg-terminal-card border-2 border-accent-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.18)] flex flex-col overflow-hidden my-auto font-sans text-terminal-text z-10 ${
+          isClosing ? 'animate-modal-exit' : 'animate-modal-enter'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Pinned Modal Header */}
@@ -143,7 +164,7 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
               <span className="hidden sm:inline text-[11px]">{copied ? 'Copied' : 'Copy'}</span>
             </button>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 rounded-xl bg-terminal-bg border border-terminal-border text-terminal-muted hover:text-terminal-text hover:bg-bear/20 hover:text-bear hover:border-bear/40 transition"
               title="Close (ESC)"
             >
@@ -365,7 +386,7 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
             <span>Click any other strike on heatmap to inspect</span>
           </span>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-3 sm:px-4 py-1.5 rounded-xl bg-accent-sky/15 hover:bg-accent-sky/25 border border-accent-sky/40 text-accent-sky font-bold transition text-xs cursor-pointer"
           >
             Close
