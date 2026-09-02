@@ -27,6 +27,7 @@ import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import type { SurgeEvent } from '../types';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
+import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 
 /**
  * Parse the first standalone price number from formatted strings like:
@@ -568,12 +569,22 @@ export const SurgeAlertBanner: React.FC = () => {
                   const isInEntryZone = currentOptionLtp >= (entryBase * 0.96) && currentOptionLtp <= (entryBase * 1.04) && !isTargetHit && !isStoplossHit;
                   const isPullback = currentOptionLtp < (entryBase * 0.96) && !isStoplossHit;
 
-                  // Timeline & Fixed Call Trigger Time
-                  const callGivenTime = surge.givenTimestamp || surge.timestamp;
-                  const ageSeconds = Math.floor((currentTime - new Date(callGivenTime).getTime()) / 1000);
-                  const diffMin = Math.floor(ageSeconds / 60);
-                  const relTimeStr = diffMin === 0 ? 'Just now' : `${diffMin}m ago`;
-                  const formattedGivenTime = formatISTTime(callGivenTime, { showSeconds: false });
+                  // Timing & Actionability Calculation
+                  const maxValMin = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 20 : surge.surgeLevel === 'STRONG' ? 45 : 60);
+                  const timing = getSignalTimingData(
+                    surge.givenTimestamp || surge.timestamp,
+                    maxValMin,
+                    currentTime
+                  );
+
+                  const advice = getUserTradeAdvice({
+                    currentLtp: currentOptionLtp,
+                    entryPrice: entryBase,
+                    targetPrice,
+                    stoplossPrice,
+                    elapsedMinutes: timing.elapsedMinutes,
+                    maxValidityMinutes: timing.validUntilMinutes
+                  });
 
                   return (
                     <div
@@ -612,7 +623,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       )}
 
                       {/* Top Progress / P&L Indicator */}
-                      <div className="flex items-center justify-between pt-0.5">
+                      <div className="flex items-center justify-between pt-0.5 flex-wrap gap-2">
                         <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-slate-200 dark:border-terminal-border">
                             #{idx + 1}
@@ -654,11 +665,46 @@ export const SurgeAlertBanner: React.FC = () => {
 
                         {/* Fixed Signal Given Time */}
                         <div className="flex items-center space-x-1.5 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Original Signal Triggered at ${formattedGivenTime} IST`}>
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Fixed Signal Trigger Time: ${timing.givenTimeFormatted} IST`}>
                             <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
-                            <span>GIVEN AT: <strong className="text-terminal-text">{formattedGivenTime}</strong></span>
-                            <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
+                            <span>GIVEN AT: <strong className="text-terminal-text">{timing.givenTimeShort}</strong></span>
+                            <span className="text-[9px] text-terminal-muted font-normal">({timing.givenTimeFormatted})</span>
                           </span>
+                        </div>
+                      </div>
+
+                      {/* Real-Time Live Math Equation Bar */}
+                      <div className="bg-slate-100/80 dark:bg-terminal-bg/85 p-2 rounded-xl border border-slate-200 dark:border-terminal-border/80 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
+                          <span className="text-terminal-muted font-bold text-[9px] uppercase shrink-0">TIMING:</span>
+                          <span className="text-terminal-text truncate">
+                            {timing.liveTimeFormatted} <span className="text-terminal-muted text-[9px]">(Live)</span> - {timing.givenTimeFormatted} <span className="text-terminal-muted text-[9px]">(Given)</span> = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
+                          </span>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded font-bold text-[9px] border shrink-0 ${timing.actionability.tagClass}`}>
+                          {timing.actionability.badge}
+                        </span>
+                      </div>
+
+                      {/* Explicit User Action Recommendation Callout (BOOK / ENTER / HOLD / EXIT) */}
+                      <div className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono ${
+                        advice.actionType === 'BOOK_PROFIT'
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
+                          : advice.actionType === 'EXIT_SL'
+                          ? 'bg-rose-500/15 border-rose-500/40 text-rose-800 dark:text-rose-300'
+                          : advice.actionType === 'TRAIL_SL'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+                          : advice.actionType === 'ENTER_NOW'
+                          ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                          : 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-200'
+                      }`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`px-2 py-0.5 rounded-md font-black text-[9px] uppercase shadow-sm shrink-0 ${advice.badgeClass}`}>
+                            {advice.badgeLabel}
+                          </span>
+                          <span className="text-[11px] text-slate-700 dark:text-terminal-text font-sans">{advice.explanation}</span>
                         </div>
                       </div>
 

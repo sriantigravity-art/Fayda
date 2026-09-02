@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { 
   Zap, 
@@ -6,15 +6,25 @@ import {
   TrendingDown, 
   Activity,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Clock,
+  Timer
 } from 'lucide-react';
 import type { HeroZeroSignal } from '../types';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
+import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 
 export const HeroZeroRadar: React.FC = () => {
   const { currentIndexState, selectedIndex } = useMarket();
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [filterType, setFilterType] = useState<'ALL' | 'CE' | 'PE'>('ALL');
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // 1-second live clock ticker
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const heroZeroSignals = currentIndexState?.heroZeroSignals || [];
   const atmStrike = currentIndexState?.atmStrike || 0;
@@ -171,25 +181,75 @@ export const HeroZeroRadar: React.FC = () => {
               const entryLow = Math.max(1, +(displayLtp * 0.88).toFixed(1));
               const entryHigh = +(displayLtp * 1.03).toFixed(1);
               const displayEntryZone = `₹${entryLow} - ₹${entryHigh}`;
-              const displaySl = +(displayLtp * 0.50).toFixed(1);
-              const displayTarget = +(displayLtp * 2.0).toFixed(1);
+              const displaySl = item.stoploss || +(displayLtp * 0.50).toFixed(1);
+              const displayTarget = item.target1x || +(displayLtp * 2.0).toFixed(1);
+
+              const timing = getSignalTimingData(item.detectedAt, 20, currentTime);
+              const advice = getUserTradeAdvice({
+                currentLtp: displayLtp,
+                entryPrice: item.ltp || displayLtp,
+                targetPrice: displayTarget,
+                stoplossPrice: displaySl,
+                elapsedMinutes: timing.elapsedMinutes,
+                maxValidityMinutes: timing.validUntilMinutes
+              });
 
               return (
                 <div 
                   key={item.id}
-                  className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-2.5 font-mono text-xs"
+                  className="p-3.5 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-2.5 font-mono text-xs shadow-sm"
                 >
-                  <div className="flex items-center justify-between border-b border-terminal-border/60 pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-terminal-border/60 pb-2">
                     <div className="flex items-center space-x-2">
                       {isCall ? <TrendingUp className="w-4 h-4 text-bull" /> : <TrendingDown className="w-4 h-4 text-bear" />}
                       <span className="font-bold text-terminal-text text-sm">{item.contractSymbol}</span>
                     </div>
+
                     <div className="flex items-center space-x-2">
-                      <span className="text-[10px] text-terminal-muted uppercase">Live LTP:</span>
-                      <span className="font-black text-accent-cyan text-sm tabular-nums">
-                        ₹{displayLtp.toFixed(2)}
+                      {/* Fixed Tip Given Time Badge */}
+                      <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-accent-cyan font-bold text-[10px] flex items-center gap-1" title={`Fixed Signal Time: ${timing.givenTimeFormatted} IST`}>
+                        <Clock className="w-3 h-3 text-accent-cyan" />
+                        <span>GIVEN: {timing.givenTimeShort}</span>
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[10px] text-terminal-muted uppercase">LTP:</span>
+                        <span className="font-black text-accent-cyan text-sm tabular-nums">
+                          ₹{displayLtp.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timing Equation Bar */}
+                  <div className="bg-terminal-bg/90 p-2 rounded-lg border border-terminal-border/70 flex flex-wrap items-center justify-between gap-1.5 text-[10px]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Timer className="w-3 h-3 text-accent-cyan shrink-0" />
+                      <span className="text-terminal-muted uppercase font-bold text-[9px]">TIMING:</span>
+                      <span className="text-terminal-text truncate">
+                        {timing.liveTimeFormatted} - {timing.givenTimeFormatted} = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
                       </span>
                     </div>
+                    <span className={`px-2 py-0.5 rounded font-bold text-[9px] border shrink-0 ${timing.actionability.tagClass}`}>
+                      {timing.actionability.badge}
+                    </span>
+                  </div>
+
+                  {/* Explicit User Action Advice */}
+                  <div className={`p-2 rounded-lg border flex items-center gap-2 text-xs ${
+                    advice.actionType === 'BOOK_PROFIT'
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                      : advice.actionType === 'EXIT_SL'
+                      ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                      : advice.actionType === 'TRAIL_SL'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                      : advice.actionType === 'ENTER_NOW'
+                      ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200'
+                      : 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                  }`}>
+                    <span className={`px-2 py-0.5 rounded font-black text-[9px] uppercase shadow-sm shrink-0 ${advice.badgeClass}`}>
+                      {advice.badgeLabel}
+                    </span>
+                    <span className="text-[10px] text-terminal-text font-sans truncate">{advice.explanation}</span>
                   </div>
 
                   <p className="text-[11px] font-sans text-terminal-muted leading-tight">

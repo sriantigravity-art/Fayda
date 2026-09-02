@@ -162,7 +162,16 @@ body {
   }
 }
 
-/* Seamless infinite ticker animation for HighlightSignalTicker (Radar Picks) */
+/* Seamless infinite ticker animation for HighlightSignalTicker ("FAYDA RADAR" Picks) */
+@keyframes marqueeTicker {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 @keyframes marquee-scroll {
   0% {
     transform: translateX(0%);
@@ -191,6 +200,16 @@ body {
   animation-play-state: paused;
 }
 
+.animate-marquee-ticker {
+  display: flex;
+  width: max-content;
+  animation: marqueeTicker 48s linear infinite;
+}
+
+.animate-marquee-ticker:hover {
+  animation-play-state: paused;
+}
+
 /* Seamless infinite ticker animation for active strike signals */
 @keyframes tickerSeamless {
   0% {
@@ -211,14 +230,10 @@ body {
   animation-play-state: paused;
 }
 
-/* Pseudo-fullscreen fallback for iOS Safari and restricted webviews */
+/* Pseudo-fullscreen fallback for iOS Safari and restricted webviews (without breaking page scroll) */
 body.terminal-fullscreen-active {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  min-height: 100vh !important;
   max-width: 100vw !important;
-  max-height: 100vh !important;
-  overflow: auto !important;
-  z-index: 99999 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
