@@ -45,8 +45,8 @@ export const RightAnalyticsColumn: React.FC = () => {
   const totalCallOi = (pcr && pcr.totalCallOI) || 1;
   const totalPutOi = (pcr && pcr.totalPutOI) || 1;
   const totalOi = totalCallOi + totalPutOi;
-  const putPct = ((totalPutOi / totalOi) * 100).toFixed(1);
-  const callPct = ((totalCallOi / totalOi) * 100).toFixed(1);
+  const putPct = ((totalPutOi / totalOi) * 100).toFixed(2);
+  const callPct = ((totalCallOi / totalOi) * 100).toFixed(2);
 
   const maxPainStrike = typeof maxPain === 'object' && maxPain !== null ? maxPain.strikePrice : (maxPain || 0);
 
@@ -132,8 +132,8 @@ export const RightAnalyticsColumn: React.FC = () => {
           {/* OI Balance Ratio Bar */}
           <div className="space-y-1.5 font-mono text-xs">
             <div className="flex justify-between text-[11px]">
-              <span className="text-bull font-medium">Put OI: {(totalPutOi / 100000).toFixed(1)}L ({putPct}%)</span>
-              <span className="text-bear font-medium">Call OI: {(totalCallOi / 100000).toFixed(1)}L ({callPct}%)</span>
+              <span className="text-bull font-medium">Put OI: {(totalPutOi / 100000).toFixed(2)}L ({putPct}%)</span>
+              <span className="text-bear font-medium">Call OI: {(totalCallOi / 100000).toFixed(2)}L ({callPct}%)</span>
             </div>
             <div className="h-2 w-full bg-terminal-panel rounded-full overflow-hidden flex">
               <div className="bg-bull transition-all duration-500" style={{ width: `${putPct}%` }} />
@@ -165,7 +165,7 @@ export const RightAnalyticsColumn: React.FC = () => {
                 <span className="font-bold text-terminal-text tabular-nums">{res.strikePrice} CE</span>
               </div>
               <div className="text-right text-[11px] text-terminal-muted">
-                <span className="text-bear font-medium">{res.oiFormatted || 'High OI'}</span> ({Math.abs((res.strikePrice || 0) - (spotPrice || 0)).toFixed(0)} pts away)
+                <span className="text-bear font-medium">{res.oiFormatted || 'High OI'}</span> ({Math.abs((res.strikePrice || 0) - (spotPrice || 0)).toFixed(2)} pts away)
               </div>
             </div>
           ))}
@@ -173,7 +173,7 @@ export const RightAnalyticsColumn: React.FC = () => {
           {/* Current Spot Indicator */}
           <div className="py-1 px-2.5 rounded-lg bg-terminal-panel border border-terminal-border flex items-center justify-between text-xs">
             <span className="font-sans text-[11px] text-terminal-muted font-medium">Spot Anchor</span>
-            <span className="font-bold text-terminal-text tabular-nums">₹{(spotPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span>
+            <span className="font-bold text-terminal-text tabular-nums">₹{(spotPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
 
           {/* Top Support Wall */}
@@ -186,7 +186,7 @@ export const RightAnalyticsColumn: React.FC = () => {
                 <span className="font-bold text-terminal-text tabular-nums">{sup.strikePrice} PE</span>
               </div>
               <div className="text-right text-[11px] text-terminal-muted">
-                <span className="text-bull font-medium">{sup.oiFormatted || 'High OI'}</span> ({Math.abs((spotPrice || 0) - (sup.strikePrice || 0)).toFixed(0)} pts below)
+                <span className="text-bull font-medium">{sup.oiFormatted || 'High OI'}</span> ({Math.abs((spotPrice || 0) - (sup.strikePrice || 0)).toFixed(2)} pts below)
               </div>
             </div>
           ))}
@@ -216,7 +216,7 @@ export const RightAnalyticsColumn: React.FC = () => {
               <span>Upper Bound: <strong className="text-terminal-text">{straddleRange.upperBreakeven || (spotPrice + 150)}</strong></span>
             </div>
             <div className="text-[10px] text-terminal-muted font-sans text-center">
-              Combined Straddle Premium: ₹{(straddleRange.combinedPremium || 0).toFixed(1)}
+              Combined Straddle Premium: ₹{(straddleRange.combinedPremium || 0).toFixed(2)}
             </div>
           </div>
         )}

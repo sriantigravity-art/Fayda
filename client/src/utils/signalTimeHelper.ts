@@ -192,7 +192,7 @@ export function getUserTradeAdvice(params: {
 
   const cleanEntry = Math.max(1, entryPrice);
   const pnlPoints = +(currentLtp - cleanEntry).toFixed(2);
-  const pnlPct = +( (pnlPoints / cleanEntry) * 100 ).toFixed(1);
+  const pnlPct = +( (pnlPoints / cleanEntry) * 100 ).toFixed(2);
 
   const isTargetAchieved = targetPrice > 0 && currentLtp >= targetPrice;
   const isStoplossHit = stoplossPrice > 0 && currentLtp <= stoplossPrice;
@@ -205,7 +205,7 @@ export function getUserTradeAdvice(params: {
       badgeLabel: '🎯 TARGET 1 HIT — BOOK PROFIT',
       badgeClass: 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse',
       buttonLabel: 'Book Call & Shift to Journal',
-      explanation: `Target ₹${targetPrice.toFixed(1)} achieved (+${pnlPct}%). Lock full profits or trail tight SL.`,
+      explanation: `Target ₹${targetPrice.toFixed(2)} achieved (+${pnlPct}%). Lock full profits or trail tight SL.`,
       pnlPoints,
       pnlPct,
       isTargetAchieved: true,
@@ -222,7 +222,7 @@ export function getUserTradeAdvice(params: {
       badgeLabel: '🛑 STOPLOSS HIT — EXIT CALL',
       badgeClass: 'bg-rose-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.5)] animate-pulse',
       buttonLabel: 'Exit Position & Record Journal',
-      explanation: `Price breached SL floor ₹${stoplossPrice.toFixed(1)} (${pnlPct}%). Exit to preserve capital.`,
+      explanation: `Price breached SL floor ₹${stoplossPrice.toFixed(2)} (${pnlPct}%). Exit to preserve capital.`,
       pnlPoints,
       pnlPct,
       isTargetAchieved: false,
@@ -258,7 +258,7 @@ export function getUserTradeAdvice(params: {
       badgeLabel: '🚀 60%+ TO TARGET — TRAIL SL TO COST',
       badgeClass: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40',
       buttonLabel: 'Trail SL to Entry',
-      explanation: `Running +${pnlPct}% in profit. Trail stoploss to breakeven (₹${cleanEntry.toFixed(1)}) to lock risk-free ride.`,
+      explanation: `Running +${pnlPct}% in profit. Trail stoploss to breakeven (₹${cleanEntry.toFixed(2)}) to lock risk-free ride.`,
       pnlPoints,
       pnlPct,
       isTargetAchieved: false,
@@ -275,7 +275,7 @@ export function getUserTradeAdvice(params: {
       badgeLabel: '🟢 PRIME ENTRY — CONTINUE CALL',
       badgeClass: 'bg-teal-500/20 text-teal-600 dark:text-teal-300 border border-teal-500/40',
       buttonLabel: 'Enter Call Now',
-      explanation: `Within optimal entry zone ₹${(cleanEntry * 0.98).toFixed(1)} - ₹${(cleanEntry * 1.02).toFixed(1)}. High probability momentum.`,
+      explanation: `Within optimal entry zone ₹${(cleanEntry * 0.98).toFixed(2)} - ₹${(cleanEntry * 1.02).toFixed(2)}. High probability momentum.`,
       pnlPoints,
       pnlPct,
       isTargetAchieved: false,
@@ -291,7 +291,7 @@ export function getUserTradeAdvice(params: {
     badgeLabel: '⏸️ HOLD POSITION — ABOVE SL',
     badgeClass: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40',
     buttonLabel: 'Hold Position',
-    explanation: `Consolidating above SL floor ₹${stoplossPrice.toFixed(1)}. Hold position and monitor volume delta.`,
+    explanation: `Consolidating above SL floor ₹${stoplossPrice.toFixed(2)}. Hold position and monitor volume delta.`,
     pnlPoints,
     pnlPct,
     isTargetAchieved: false,

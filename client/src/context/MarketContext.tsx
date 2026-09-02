@@ -205,12 +205,12 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       strike: targetStrike,
       optionType: 'CE',
       ltp,
-      entryZone: `₹${ltp.toFixed(1)} - ₹${(ltp * 1.05).toFixed(1)}`,
-      stoploss: +(ltp * 0.5).toFixed(1),
+      entryZone: `₹${ltp.toFixed(2)} - ₹${(ltp * 1.05).toFixed(2)}`,
+      stoploss: +(ltp * 0.5).toFixed(2),
       stoplossPct: 50,
-      target1x: +(ltp * 2.0).toFixed(1),
-      target3x: +(ltp * 3.5).toFixed(1),
-      target5x: +(ltp * 5.0).toFixed(1),
+      target1x: +(ltp * 2.0).toFixed(2),
+      target3x: +(ltp * 3.5).toFixed(2),
+      target5x: +(ltp * 5.0).toFixed(2),
       gamma: 0.048,
       gammaScore: 95,
       volume: 680000,
@@ -248,7 +248,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       currentLtp: ltp,
       stoplossPrice: 92.0,
       pointsGained: +(ltp - entry).toFixed(2),
-      roiPct: +(((ltp - entry) / entry) * 100).toFixed(1),
+      roiPct: +(((ltp - entry) / entry) * 100).toFixed(2),
       timestamp: new Date().toISOString(),
       timeFormatted: formatISTTime(null, { showSeconds: true }),
       targetNumber: 1
@@ -359,7 +359,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   hitTargetsSetRef.current.add(targetKey);
                   
                   const points = +(liveLtp - entryNum).toFixed(2);
-                  const roi = +(((liveLtp - entryNum) / entryNum) * 100).toFixed(1);
+                  const roi = +(((liveLtp - entryNum) / entryNum) * 100).toFixed(2);
 
                   const hitEvent: TargetHitEvent = {
                     id: `th-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -394,7 +394,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   slTriggeredSetRef.current.add(slKey);
 
                   const lossPts = +(entryNum - liveLtp).toFixed(2);
-                  const lossPct = +(((entryNum - liveLtp) / entryNum) * 100).toFixed(1);
+                  const lossPct = +(((entryNum - liveLtp) / entryNum) * 100).toFixed(2);
 
                   const slEvent: SquareOffEvent = {
                     id: `sq-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,

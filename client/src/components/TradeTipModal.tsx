@@ -229,7 +229,7 @@ Generated via Fayda Trading Terminal`;
             <div className="bg-accent-cyan/10 p-3 rounded-xl border border-accent-cyan/30">
               <span className="text-accent-cyan block text-[9px] font-bold uppercase">ENTRY ZONE</span>
               <span className="font-black text-terminal-text text-sm sm:text-base block">
-                {typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(1)}` : (tip.entryRange || tip.entryPrice || '—')}
+                {typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(2)}` : (tip.entryRange || tip.entryPrice || '—')}
               </span>
               <span className="text-[9px] text-accent-cyan/80 block mt-0.5">Recommended</span>
             </div>
@@ -238,10 +238,10 @@ Generated via Fayda Trading Terminal`;
             <div className="bg-bear/15 p-3 rounded-xl border border-bear/30">
               <span className="text-bear block text-[9px] font-bold uppercase">STOP LOSS</span>
               <span className="font-black text-bear text-sm sm:text-base block">
-                {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(1)}` : (tip.stoplossPrice || '—')}
+                {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
               </span>
               <span className="text-[9px] text-bear/80 block mt-0.5">
-                {tip.stoplossPct ? `-${tip.stoplossPct}% Risk` : 'Capital Shield'}
+                {tip.stoplossPct ? `-${Number(tip.stoplossPct).toFixed(2)}% Risk` : 'Capital Shield'}
               </span>
             </div>
 
@@ -249,10 +249,10 @@ Generated via Fayda Trading Terminal`;
             <div className="bg-bull/15 p-3 rounded-xl border border-bull/30">
               <span className="text-bull block text-[9px] font-bold uppercase">TARGET 1</span>
               <span className="font-black text-bull text-sm sm:text-base block">
-                {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(1)}` : (tip.target1Price || '—')}
+                {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(2)}` : (tip.target1Price || '—')}
               </span>
               <span className="text-[9px] text-bull/80 block mt-0.5">
-                {tip.target1Pct ? `+${tip.target1Pct}% Gain` : 'Book 50%'}
+                {tip.target1Pct ? `+${Number(tip.target1Pct).toFixed(2)}% Gain` : 'Book 50%'}
               </span>
             </div>
           </div>
@@ -262,7 +262,7 @@ Generated via Fayda Trading Terminal`;
             <div className="bg-bull/10 p-2.5 rounded-xl border border-bull/20">
               <span className="text-bull/80 block text-[9px] font-bold uppercase">TARGET 2 (RUNNER)</span>
               <span className="font-bold text-bull block text-sm">
-                {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(1)}` : (tip.target2Price || 'Trail SL')}
+                {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
               </span>
             </div>
 
@@ -281,6 +281,52 @@ Generated via Fayda Trading Terminal`;
               <span className="font-black text-amber block text-sm">
                 {tip.currentLtp ? `₹${Number(tip.currentLtp).toFixed(2)}` : '—'}
               </span>
+            </div>
+          </div>
+
+          {/* 3-Tier Actionable Entry Strategy (Sensibull / Dhan Standard) */}
+          <div className="bg-terminal-panel/80 p-3.5 rounded-xl border border-accent-cyan/30 space-y-2 font-mono">
+            <div className="flex items-center justify-between text-xs font-bold text-accent-cyan">
+              <span className="flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-accent-cyan" />
+                <span>ACTIONABLE ENTRY STRATEGY (DHAN & SENSIBULL STANDARD)</span>
+              </span>
+              <span className="text-[10px] text-terminal-muted">Smart Execution</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1.5 border-t border-terminal-border/50">
+              {/* Limit Dip Entry */}
+              <div className="bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/25 text-left">
+                <div className="text-[9px] font-bold text-emerald-400 uppercase flex items-center gap-1">
+                  <span>🟢 LIMIT / PULLBACK DIP</span>
+                </div>
+                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
+                  ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 0.98).toFixed(2) : '—'} - ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—'}
+                </div>
+                <div className="text-[9px] text-terminal-muted mt-0.5">Optimal Value / Best R:R</div>
+              </div>
+
+              {/* Market Trigger */}
+              <div className="bg-accent-sky/10 p-2.5 rounded-lg border border-accent-sky/25 text-left">
+                <div className="text-[9px] font-bold text-accent-sky uppercase flex items-center gap-1">
+                  <span>⚡ AT SIGNAL TRIGGER</span>
+                </div>
+                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
+                  ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : (tip.entryRange || '—')}
+                </div>
+                <div className="text-[9px] text-terminal-muted mt-0.5">Benchmark @ {tip.givenTimeFormatted || 'Live'}</div>
+              </div>
+
+              {/* Breakout Confirmation */}
+              <div className="bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/25 text-left">
+                <div className="text-[9px] font-bold text-purple-300 uppercase flex items-center gap-1">
+                  <span>🚀 BREAKOUT TRIGGER</span>
+                </div>
+                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
+                  &gt; ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 1.025).toFixed(2) : '—'}
+                </div>
+                <div className="text-[9px] text-terminal-muted mt-0.5">Buy on 1-min Candle Close</div>
+              </div>
             </div>
           </div>
 
@@ -311,7 +357,7 @@ Generated via Fayda Trading Terminal`;
                 <div className="bg-terminal-bg p-2 rounded-lg border border-terminal-border">
                   <span className="text-accent-cyan block text-[9px] font-bold uppercase">BREAKEVEN</span>
                   <span className="font-bold text-terminal-text text-sm">
-                    {tip.breakeven ? `₹${tip.breakeven.toFixed(1)}` : '—'}
+                    {typeof tip.breakeven === 'number' ? `₹${tip.breakeven.toFixed(2)}` : '—'}
                   </span>
                 </div>
               </div>

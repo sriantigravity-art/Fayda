@@ -558,7 +558,7 @@ export const SurgeAlertBanner: React.FC = () => {
 
                   // Live P&L and Trade Lifecycle State
                   const pnlPoints = +(currentOptionLtp - entryBase).toFixed(2);
-                  const pnlPct = entryBase > 0 ? +((pnlPoints / entryBase) * 100).toFixed(1) : 0;
+                  const pnlPct = entryBase > 0 ? +((pnlPoints / entryBase) * 100).toFixed(2) : 0;
                   const isTargetHit = targetPrice > 0 && currentOptionLtp >= targetPrice;
                   // ✅ SL: require confirmed -5% drawdown from entry (not just touching SL level)
                   // This prevents normal option premium oscillations from triggering false SL alerts

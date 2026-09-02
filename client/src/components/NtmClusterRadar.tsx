@@ -78,7 +78,7 @@ export const NtmClusterRadar: React.FC = () => {
         callOIChange1mPct: ntmStrike.call.oiChangePct,
         callLtp: ntmStrike.call.ltp,
         callLtpChange: +(ntmStrike.call.priceChange || 0),
-        callLtpPctChange: +(ntmStrike.call.priceChange && ntmStrike.call.ltp > 0 ? (ntmStrike.call.priceChange / ntmStrike.call.ltp * 100).toFixed(1) : 0),
+        callLtpPctChange: +(ntmStrike.call.priceChange && ntmStrike.call.ltp > 0 ? (ntmStrike.call.priceChange / ntmStrike.call.ltp * 100).toFixed(2) : 0),
         callVolume: ntmStrike.call.volume || 50000,
         callIv: 14.5,
         callIvStatus: 'FAIR',
@@ -98,7 +98,7 @@ export const NtmClusterRadar: React.FC = () => {
         putOIChange1mPct: ntmStrike.put.oiChangePct,
         putLtp: ntmStrike.put.ltp,
         putLtpChange: +(ntmStrike.put.priceChange || 0),
-        putLtpPctChange: +(ntmStrike.put.priceChange && ntmStrike.put.ltp > 0 ? (ntmStrike.put.priceChange / ntmStrike.put.ltp * 100).toFixed(1) : 0),
+        putLtpPctChange: +(ntmStrike.put.priceChange && ntmStrike.put.ltp > 0 ? (ntmStrike.put.priceChange / ntmStrike.put.ltp * 100).toFixed(2) : 0),
         putVolume: ntmStrike.put.volume || 50000,
         putIv: 14.5,
         putIvStatus: 'FAIR',
@@ -311,13 +311,13 @@ export const NtmClusterRadar: React.FC = () => {
 
                     {/* Call LTP */}
                     <td className="py-2 px-2 text-right whitespace-nowrap text-terminal-text font-bold">
-                      ₹{s.call.ltp.toFixed(1)}
+                      ₹{s.call.ltp.toFixed(2)}
                     </td>
 
                     {/* Call OI Δ% */}
                     <td className="py-2 px-2 text-right whitespace-nowrap">
                       <span className={`font-bold text-[11px] ${s.call.oiChangePct >= 0 ? 'text-bull' : 'text-bear'}`}>
-                        {s.call.oiChangePct >= 0 ? '+' : ''}{s.call.oiChangePct}%
+                        {s.call.oiChangePct >= 0 ? '+' : ''}{Number(s.call.oiChangePct).toFixed(2)}%
                       </span>
                     </td>
 
@@ -336,13 +336,13 @@ export const NtmClusterRadar: React.FC = () => {
                     {/* Put OI Δ% */}
                     <td className="py-2 px-2 text-left whitespace-nowrap">
                       <span className={`font-bold text-[11px] ${s.put.oiChangePct >= 0 ? 'text-bull' : 'text-bear'}`}>
-                        {s.put.oiChangePct >= 0 ? '+' : ''}{s.put.oiChangePct}%
+                        {s.put.oiChangePct >= 0 ? '+' : ''}{Number(s.put.oiChangePct).toFixed(2)}%
                       </span>
                     </td>
 
                     {/* Put LTP */}
                     <td className="py-2 px-2 text-left whitespace-nowrap text-terminal-text font-bold">
-                      ₹{s.put.ltp.toFixed(1)}
+                      ₹{s.put.ltp.toFixed(2)}
                     </td>
 
                     {/* Put Regime */}

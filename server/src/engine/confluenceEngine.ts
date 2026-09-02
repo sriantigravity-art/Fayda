@@ -673,21 +673,44 @@ export class ConfluenceEngine {
       };
     }
 
-    // ── 1. Carry-Forward Processing for Active Trades ───────────────────────
+    // ── 1. Carry-Forward Processing for Active Trades with Deduplication ────
     const carriedForwardTrades: UnifiedSmartTip[] = [];
+    const seenContracts = new Set<string>();
+
     for (const prev of previousSessionTrades) {
+      if (seenContracts.has(prev.contractSymbol)) continue;
+      seenContracts.add(prev.contractSymbol);
+
       const strikeObj = strikes.find(s => s.strikePrice === prev.strikePrice);
       if (!strikeObj) continue;
 
       const liveLtp = prev.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp;
-      const updated = { ...prev, currentLtp: liveLtp > 0 ? liveLtp : prev.currentLtp };
+      const currentLtp = liveLtp > 0 ? liveLtp : prev.currentLtp;
+      const pnlPoints = +(currentLtp - prev.entryPrice).toFixed(2);
+      const pnlPct = prev.entryPrice > 0 ? +((pnlPoints / prev.entryPrice) * 100).toFixed(2) : 0;
+
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
+      if (currentLtp >= prev.target2Price) actionabilityStatus = 'TARGET_HIT';
+      else if (currentLtp >= prev.target1Price) actionabilityStatus = 'TRAIL_SL';
+      else if (currentLtp <= prev.stoplossPrice) actionabilityStatus = 'SL_HIT';
+      else if (pnlPct >= 1.5) actionabilityStatus = 'RUNNING_PROFIT';
+      else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
+      else actionabilityStatus = 'AT_TRIGGER';
+
+      const updated: UnifiedSmartTip = {
+        ...prev,
+        currentLtp,
+        pnlPoints,
+        pnlPct,
+        actionabilityStatus
+      };
 
       // Check Target / SL triggers
-      if (liveLtp >= prev.target2Price) {
+      if (currentLtp >= prev.target2Price) {
         updated.status = 'TARGET2_HIT';
-      } else if (liveLtp >= prev.target1Price && updated.status === 'ACTIVE') {
+      } else if (currentLtp >= prev.target1Price && updated.status === 'ACTIVE') {
         updated.status = 'TARGET1_HIT';
-      } else if (liveLtp <= prev.stoplossPrice) {
+      } else if (currentLtp <= prev.stoplossPrice) {
         updated.status = 'SL_HIT';
       } else {
         updated.status = 'CARRIED_FORWARD';
@@ -705,14 +728,37 @@ export class ConfluenceEngine {
     if (isDirectional && masterConfluence.overallScore >= 65) {
       const optType = isBull ? 'CE' : 'PE';
       const targetStrike = atmStrike;
+      const contractSymbol = `${symbol} ${targetStrike} ${optType}`;
       const strikeObj = strikes.find(s => s.strikePrice === targetStrike) || strikes[0];
       const rawLtp = strikeObj ? (isBull ? strikeObj.callLtp : strikeObj.putLtp) : 110;
-      const entryPrice = Math.max(15, rawLtp || 100);
-      const entryRange = `₹${entryPrice.toFixed(1)} - ₹${(entryPrice * 1.03).toFixed(1)}`;
-      
-      const slPrice = +(entryPrice * 0.80).toFixed(1); // -20% SL
-      const t1Price = +(entryPrice * 1.30).toFixed(1); // +30% T1 (1:1.5 to 1:2)
-      const t2Price = +(entryPrice * 1.60).toFixed(1); // +60% T2 (1:3)
+      const currentLtp = Math.max(15, rawLtp || 100);
+
+      // Check if this contract was already initiated in the session to preserve original benchmark
+      const existingTrade = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
+      const entryPrice = existingTrade ? existingTrade.entryPrice : currentLtp;
+      const entryTime = existingTrade ? existingTrade.entryTime : new Date().toISOString();
+      const entryTimeFormatted = existingTrade ? existingTrade.entryTimeFormatted : timeFormatted;
+
+      const triggerPrice = entryPrice;
+      const dipEntryMin = +(entryPrice * 0.975).toFixed(2);
+      const dipEntryMax = +(entryPrice * 0.990).toFixed(2);
+      const breakoutEntryPrice = +(entryPrice * 1.025).toFixed(2);
+      const entryRange = `₹${dipEntryMin.toFixed(2)} - ₹${entryPrice.toFixed(2)}`;
+
+      const slPrice = +(entryPrice * 0.80).toFixed(2); // -20% SL
+      const t1Price = +(entryPrice * 1.30).toFixed(2); // +30% T1 (1:1.5 to 1:2)
+      const t2Price = +(entryPrice * 1.60).toFixed(2); // +60% T2 (1:3)
+
+      const pnlPoints = +(currentLtp - entryPrice).toFixed(2);
+      const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
+
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
+      if (currentLtp >= t2Price) actionabilityStatus = 'TARGET_HIT';
+      else if (currentLtp >= t1Price) actionabilityStatus = 'TRAIL_SL';
+      else if (currentLtp <= slPrice) actionabilityStatus = 'SL_HIT';
+      else if (pnlPct >= 1.5) actionabilityStatus = 'RUNNING_PROFIT';
+      else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
+      else actionabilityStatus = 'AT_TRIGGER';
 
       const stratId = faydaStrategy?.strategyName || 'Strategy #9 (20 EMA Trend Following)';
       const patternName = patternBreakout?.activePattern?.patternName || 'Ascending Momentum';
@@ -725,14 +771,21 @@ export class ConfluenceEngine {
         session: sessionInfo.session,
         sessionName: sessionInfo.sessionName,
         action: isBull ? 'BUY_CALL' : 'BUY_PUT',
-        contractSymbol: `${symbol} ${targetStrike} ${optType}`,
+        contractSymbol,
         strikePrice: targetStrike,
         optionType: optType,
-        entryTime: new Date().toISOString(),
-        entryTimeFormatted: timeFormatted,
+        entryTime,
+        entryTimeFormatted,
         entryPrice,
         entryRange,
-        currentLtp: entryPrice,
+        triggerPrice,
+        dipEntryMin,
+        dipEntryMax,
+        breakoutEntryPrice,
+        actionabilityStatus,
+        pnlPoints,
+        pnlPct,
+        currentLtp,
         stoplossPrice: slPrice,
         stoplossPct: 20,
         target1Price: t1Price,
@@ -741,7 +794,7 @@ export class ConfluenceEngine {
         target2Pct: 60,
         riskReward: '1:2.8',
         confluenceScore: masterConfluence.overallScore,
-        status: 'ACTIVE',
+        status: currentLtp >= t1Price ? 'TARGET1_HIT' : currentLtp <= slPrice ? 'SL_HIT' : 'ACTIVE',
         strategyMatches: {
           faydaRadarConfluence: true,
           oiActivitySurge: !!pcr && (isBull ? pcr.overallPcr >= 1.0 : pcr.overallPcr <= 0.95),
@@ -752,8 +805,8 @@ export class ConfluenceEngine {
         },
         strategyTag: `${stratId} + ${patternName} Breakout`,
         explanations: {
-          beginner: `Strong institutional ${isBull ? 'buyers' : 'sellers'} active in ${symbol}. Buy 1 Lot of ${targetStrike} ${optType} around ₹${entryPrice.toFixed(1)}. Keep maximum risk at ₹${slPrice.toFixed(1)} (Risk ₹${Math.round(entryPrice * 0.20 * 50)} per lot). Take profit when price reaches ₹${t1Price.toFixed(1)}.`,
-          intermediate: `${stratId} confirmed with ${patternName} breakout on 5-min chart. ${isBull ? 'Call writers capitulating' : 'Put writers liquidating'} at ${targetStrike}. Strict Stoploss at ₹${slPrice.toFixed(1)} (-20%). Target 1 at ₹${t1Price.toFixed(1)} (1:2 R:R). Trail Stoploss to cost once T1 hits.`,
+          beginner: `Strong institutional ${isBull ? 'buyers' : 'sellers'} active in ${symbol}. Buy 1 Lot of ${targetStrike} ${optType} around ₹${entryPrice.toFixed(2)} (or on dip at ₹${dipEntryMin.toFixed(2)} - ₹${dipEntryMax.toFixed(2)}). Keep maximum risk at ₹${slPrice.toFixed(2)} (Risk ₹${Math.round(entryPrice * 0.20 * 50)} per lot). Take profit when price reaches ₹${t1Price.toFixed(2)}.`,
+          intermediate: `${stratId} confirmed with ${patternName} breakout on 5-min chart. ${isBull ? 'Call writers capitulating' : 'Put writers liquidating'} at ${targetStrike}. Limit Dip Entry: ₹${dipEntryMin.toFixed(2)} - ₹${dipEntryMax.toFixed(2)} | Market Trigger: ₹${triggerPrice.toFixed(2)} | Breakout: >₹${breakoutEntryPrice.toFixed(2)}. Strict Stoploss at ₹${slPrice.toFixed(2)} (-20%). Target 1 at ₹${t1Price.toFixed(2)} (1:2 R:R). Trail Stoploss to cost once T1 hits.`,
           expert: `Delta: ${isBull ? '+0.52' : '-0.52'}, Gamma: 0.046, IV: ${strikeObj?.iv || 13.5}%. 1-Min Delta OI Order Flow confirms aggressive institutional execution. VWAP Support aligned with CPR Pivot. Risk:Reward 1:2.8.`
         }
       };
@@ -779,25 +832,34 @@ export class ConfluenceEngine {
       const sellPremium = sellStrikeObj ? (isSpreadBull ? sellStrikeObj.callLtp : sellStrikeObj.putLtp) : (buyPremium * 0.45);
 
       const spreadWidth = Math.abs(sellStrike - buyStrike) || strikeStep;
-      let spreadEntryPts = +(Math.max(1, buyPremium - sellPremium)).toFixed(1);
+      let spreadEntryPts = +(Math.max(1, buyPremium - sellPremium)).toFixed(2);
 
       // Enforce that Net Debit is capped at 40% of spread width so Max Profit is ALWAYS >= 1.5x Max Loss
       if (spreadEntryPts >= spreadWidth * 0.50) {
-        spreadEntryPts = +(spreadWidth * 0.35).toFixed(1);
+        spreadEntryPts = +(spreadWidth * 0.35).toFixed(2);
       }
 
       const maxLossPts = spreadEntryPts;
-      const maxProfitPts = +(spreadWidth - spreadEntryPts).toFixed(1);
+      const maxProfitPts = +(spreadWidth - spreadEntryPts).toFixed(2);
 
       const maxLoss = Math.round(maxLossPts * instrumentLot);
       const maxProfit = Math.round(maxProfitPts * instrumentLot);
 
-      const rrNum = +(maxProfitPts / maxLossPts).toFixed(1);
-      const riskRewardStr = `1:${rrNum >= 1.2 ? rrNum : '2.0'}`;
+      const rrNum = +(maxProfitPts / maxLossPts).toFixed(2);
+      const riskRewardStr = `1:${rrNum >= 1.2 ? rrNum : '2.00'}`;
 
-      const breakeven = isSpreadBull ? +(buyStrike + spreadEntryPts).toFixed(1) : +(buyStrike - spreadEntryPts).toFixed(1);
+      const breakeven = isSpreadBull ? +(buyStrike + spreadEntryPts).toFixed(2) : +(buyStrike - spreadEntryPts).toFixed(2);
       const stratName = isSpreadBull ? 'Fayda Bull Call Spread' : 'Fayda Bear Put Spread';
       const stratAction = isSpreadBull ? 'BULL_CALL_SPREAD' : 'BEAR_PUT_SPREAD';
+      const contractSymbol = `${symbol} ${stratName} (${buyStrike} Long / ${sellStrike} Short)`;
+
+      const existingSpread = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
+      const entryPrice = existingSpread ? existingSpread.entryPrice : spreadEntryPts;
+      const entryTime = existingSpread ? existingSpread.entryTime : new Date().toISOString();
+      const entryTimeFormatted = existingSpread ? existingSpread.entryTimeFormatted : timeFormatted;
+
+      const pnlPoints = +(spreadEntryPts - entryPrice).toFixed(2);
+      const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
 
       hedgedSpreadTrade = {
         id: `spread-${symbol}-${sessionInfo.session}-${buyStrike}-${sellStrike}`,
@@ -807,19 +869,26 @@ export class ConfluenceEngine {
         session: sessionInfo.session,
         sessionName: sessionInfo.sessionName,
         action: stratAction,
-        contractSymbol: `${symbol} ${stratName} (${buyStrike} Long / ${sellStrike} Short)`,
+        contractSymbol,
         strikePrice: buyStrike,
         optionType: 'SPREAD',
-        entryTime: new Date().toISOString(),
-        entryTimeFormatted: timeFormatted,
-        entryPrice: spreadEntryPts,
-        entryRange: `Net Debit ₹${spreadEntryPts.toFixed(1)} pts`,
+        entryTime,
+        entryTimeFormatted,
+        entryPrice,
+        entryRange: `Net Debit ₹${entryPrice.toFixed(2)} pts`,
+        triggerPrice: entryPrice,
+        dipEntryMin: +(entryPrice * 0.92).toFixed(2),
+        dipEntryMax: entryPrice,
+        breakoutEntryPrice: +(entryPrice * 1.10).toFixed(2),
+        actionabilityStatus: pnlPct >= 2.0 ? 'RUNNING_PROFIT' : pnlPct <= -2.0 ? 'DIP_OPPORTUNITY' : 'AT_TRIGGER',
+        pnlPoints,
+        pnlPct,
         currentLtp: spreadEntryPts,
-        stoplossPrice: +(spreadEntryPts * 0.50).toFixed(1),
+        stoplossPrice: +(entryPrice * 0.50).toFixed(2),
         stoplossPct: 50,
-        target1Price: +(spreadEntryPts + (maxProfitPts * 0.70)).toFixed(1),
+        target1Price: +(entryPrice + (maxProfitPts * 0.70)).toFixed(2),
         target1Pct: 70,
-        target2Price: +(spreadEntryPts + maxProfitPts).toFixed(1),
+        target2Price: +(entryPrice + maxProfitPts).toFixed(2),
         target2Pct: 100,
         riskReward: riskRewardStr,
         confluenceScore: ml?.confidenceScore || 88,
@@ -841,8 +910,8 @@ export class ConfluenceEngine {
           marginSavingsPct: 72
         },
         explanations: {
-          beginner: `100% Capital-Protected Trade for peaceful trading. Buy ${buyStrike} ${optType} and Sell ${sellStrike} ${optType} together. Your maximum risk is strictly locked at ₹${maxLoss.toLocaleString('en-IN')} and maximum profit potential is ₹${maxProfit.toLocaleString('en-IN')} (Risk:Reward ${riskRewardStr}). Zero fear of sudden crashes.`,
-          intermediate: `${stratName} (Long ${buyStrike} / Short ${sellStrike}). 72% margin reduction with complete immunity to sudden IV crush and slow theta decay. Breakeven at ₹${breakeven.toFixed(1)}. High 78% win probability.`,
+          beginner: `100% Capital-Protected Trade for peaceful trading. Buy ${buyStrike} ${optType} and Sell ${sellStrike} ${optType} together. Your maximum risk is strictly locked at ₹${maxLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} and maximum profit potential is ₹${maxProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Risk:Reward ${riskRewardStr}). Zero fear of sudden crashes.`,
+          intermediate: `${stratName} (Long ${buyStrike} / Short ${sellStrike}). 72% margin reduction with complete immunity to sudden IV crush and slow theta decay. Breakeven at ₹${breakeven.toFixed(2)}. High 78% win probability.`,
           expert: `Net Delta: ${isSpreadBull ? '+0.25' : '-0.25'}, Daily Theta: -1.2 pts, Vega: 0.15. Defined-risk asymmetric payoff with exchange margin benefit.`
         }
       };
@@ -853,6 +922,15 @@ export class ConfluenceEngine {
     const topHz = heroZeroSignals && heroZeroSignals.length > 0 ? heroZeroSignals[0] : null;
 
     if (topHz && (sessionInfo.session === 'AFTERNOON_GAMMA_POWER_HOUR' || topHz.gammaScore >= 80)) {
+      const contractSymbol = `${topHz.contractSymbol} (0DTE Gamma Burst)`;
+      const existingGamma = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
+      const entryPrice = existingGamma ? existingGamma.entryPrice : topHz.ltp;
+      const entryTime = existingGamma ? existingGamma.entryTime : new Date().toISOString();
+      const entryTimeFormatted = existingGamma ? existingGamma.entryTimeFormatted : timeFormatted;
+
+      const pnlPoints = +(topHz.ltp - entryPrice).toFixed(2);
+      const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
+
       gammaTrade = {
         id: `gamma-${symbol}-${sessionInfo.session}-${topHz.strike}-${topHz.optionType}`,
         symbol,
@@ -861,13 +939,20 @@ export class ConfluenceEngine {
         session: sessionInfo.session,
         sessionName: sessionInfo.sessionName,
         action: topHz.optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
-        contractSymbol: `${topHz.contractSymbol} (0DTE Gamma Burst)`,
+        contractSymbol,
         strikePrice: topHz.strike,
         optionType: topHz.optionType,
-        entryTime: new Date().toISOString(),
-        entryTimeFormatted: timeFormatted,
-        entryPrice: topHz.ltp,
-        entryRange: topHz.entryZone,
+        entryTime,
+        entryTimeFormatted,
+        entryPrice,
+        entryRange: `₹${(entryPrice * 0.90).toFixed(2)} - ₹${entryPrice.toFixed(2)}`,
+        triggerPrice: entryPrice,
+        dipEntryMin: +(entryPrice * 0.90).toFixed(2),
+        dipEntryMax: entryPrice,
+        breakoutEntryPrice: +(entryPrice * 1.08).toFixed(2),
+        actionabilityStatus: pnlPct >= 5.0 ? 'RUNNING_PROFIT' : 'AT_TRIGGER',
+        pnlPoints,
+        pnlPct,
         currentLtp: topHz.ltp,
         stoplossPrice: topHz.stoploss,
         stoplossPct: topHz.stoplossPct,

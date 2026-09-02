@@ -65,7 +65,7 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
   const totalInvestment = maxQuantity * entryPrice;
   const expectedProfit = targetPoints * maxQuantity;
   const actualRiskAmount = slPoints * maxQuantity;
-  const riskRewardRatio = slPoints > 0 ? (targetPoints / slPoints).toFixed(1) : '0.0';
+  const riskRewardRatio = slPoints > 0 ? (targetPoints / slPoints).toFixed(2) : '0.00';
 
   if (!isOpen) return null;
 
@@ -177,7 +177,7 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
           <div className="bg-terminal-panel/80 border border-terminal-border rounded-xl p-3 flex flex-col space-y-1">
             <label className="text-terminal-muted font-bold flex justify-between">
               <span>Stop Loss (₹)</span>
-              <span className="text-bear font-semibold">SL Dist: ₹{slPoints.toFixed(1)}</span>
+              <span className="text-bear font-semibold">SL Dist: ₹{slPoints.toFixed(2)}</span>
             </label>
             <input
               type="number"
@@ -216,21 +216,21 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
             <div className="p-2.5 rounded-lg bg-terminal-bg/70 border border-bear/30">
               <div className="text-[11px] text-bear">Max Loss (SL)</div>
               <div className="text-base sm:text-lg font-bold text-bear">
-                -₹{actualRiskAmount.toLocaleString('en-IN')}
+                -₹{actualRiskAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
             <div className="p-2.5 rounded-lg bg-terminal-bg/70 border border-bull/30">
               <div className="text-[11px] text-bull">Target Gain</div>
               <div className="text-base sm:text-lg font-bold text-bull">
-                +₹{expectedProfit.toLocaleString('en-IN')}
+                +₹{expectedProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between text-xs text-terminal-muted pt-1">
-            <span>Total Capital Deployed: <strong className="text-terminal-text">₹{totalInvestment.toLocaleString('en-IN')}</strong> ({((totalInvestment / capital) * 100).toFixed(1)}% of capital)</span>
-            <span>Risk per Lot: <strong className="text-terminal-text">₹{riskPerLot.toFixed(0)}</strong></span>
+            <span>Total Capital Deployed: <strong className="text-terminal-text">₹{totalInvestment.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ({((totalInvestment / capital) * 100).toFixed(2)}% of capital)</span>
+            <span>Risk per Lot: <strong className="text-terminal-text">₹{riskPerLot.toFixed(2)}</strong></span>
           </div>
         </div>
 

@@ -261,29 +261,38 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       // Track & update live LTP and target nearness in Signal Ledger
       signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
 
-      // Auto-record high-confluence trade recommendations during market hours
-      if (isOpen && newSurges && newSurges.length > 0) {
-        for (const s of newSurges) {
-          if (s.surgeLevel === 'EXTREME' || s.surgeLevel === 'STRONG') {
-            const entryVal = typeof s.suggestedContract?.ltp === 'number' ? s.suggestedContract.ltp : s.ltp;
-            const targetVal = parseFloat(String(s.suggestedContract?.target || '').replace(/[^0-9.]/g, '')) || (entryVal * 1.35);
-            const slVal = parseFloat(String(s.suggestedContract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryVal * 0.82);
-
-            if (entryVal > 0 && targetVal > entryVal) {
-              signalLedgerService.recordSignal({
-                symbol: symConfig.symbol,
-                strikePrice: s.strikePrice,
-                optionType: s.optionType,
-                action: s.tradeAction === 'BUY_CALL' ? 'BUY_CALL' : 'BUY_PUT',
-                signalSource: 'OI_SURGE',
-                entryPrice: entryVal,
-                target1Price: targetVal,
-                stoplossPrice: slVal,
-                riskReward: s.suggestedContract?.riskReward || '1:2.4',
-                notes: s.actionDescription
-              });
-            }
-          }
+      // Auto-record high-conviction curated cockpit trades into Signal Ledger during market hours
+      if (isOpen && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET') {
+        const utp = indexState.unifiedTipsPackage;
+        if (utp.primaryTrade && utp.primaryTrade.confluenceScore >= 70 && utp.primaryTrade.entryPrice > 0) {
+          signalLedgerService.recordSignal({
+            symbol: symConfig.symbol,
+            strikePrice: utp.primaryTrade.strikePrice,
+            optionType: (utp.primaryTrade.optionType === 'SPREAD' ? 'CE' : utp.primaryTrade.optionType) as any,
+            action: utp.primaryTrade.action as any,
+            signalSource: 'CONFLUENCE',
+            entryPrice: utp.primaryTrade.entryPrice,
+            target1Price: utp.primaryTrade.target1Price,
+            target2Price: utp.primaryTrade.target2Price,
+            stoplossPrice: utp.primaryTrade.stoplossPrice,
+            riskReward: utp.primaryTrade.riskReward,
+            notes: utp.primaryTrade.strategyTag
+          });
+        }
+        if (utp.gammaTrade && utp.gammaTrade.confluenceScore >= 80 && utp.gammaTrade.entryPrice > 0) {
+          signalLedgerService.recordSignal({
+            symbol: symConfig.symbol,
+            strikePrice: utp.gammaTrade.strikePrice,
+            optionType: (utp.gammaTrade.optionType === 'SPREAD' ? 'CE' : utp.gammaTrade.optionType) as any,
+            action: utp.gammaTrade.action as any,
+            signalSource: 'HERO_ZERO',
+            entryPrice: utp.gammaTrade.entryPrice,
+            target1Price: utp.gammaTrade.target1Price,
+            target2Price: utp.gammaTrade.target2Price,
+            stoplossPrice: utp.gammaTrade.stoplossPrice,
+            riskReward: utp.gammaTrade.riskReward,
+            notes: utp.gammaTrade.strategyTag
+          });
         }
       }
 

@@ -908,6 +908,13 @@ export interface UnifiedSmartTip {
   entryTimeFormatted: string;
   entryPrice: number;
   entryRange: string;
+  triggerPrice?: number;
+  dipEntryMin?: number;
+  dipEntryMax?: number;
+  breakoutEntryPrice?: number;
+  actionabilityStatus?: 'IN_ENTRY_ZONE' | 'AT_TRIGGER' | 'RUNNING_PROFIT' | 'DIP_OPPORTUNITY' | 'TRAIL_SL' | 'TARGET_HIT' | 'SL_HIT';
+  pnlPoints?: number;
+  pnlPct?: number;
   currentLtp: number;
   stoplossPrice: number;
   stoplossPct: number;

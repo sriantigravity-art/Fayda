@@ -608,7 +608,7 @@ export const RadarFeed: React.FC = () => {
                 tierLabel: '🔥 LIVE OI SURGE SIGNAL',
                 confluenceScore: surge.surgeScore,
                 entryPrice: entryBase,
-                entryRange: surge.suggestedContract?.recommendedEntry || `₹${entryBase.toFixed(1)}`,
+                entryRange: surge.suggestedContract?.recommendedEntry || `₹${entryBase.toFixed(2)}`,
                 currentLtp: currentOptionLtp,
                 stoplossPrice: stoplossPrice,
                 target1Price: targetPrice,
@@ -759,7 +759,7 @@ export const RadarFeed: React.FC = () => {
                   <div>
                     <span className="text-terminal-muted block text-[9px]">1-MIN OI DELTA</span>
                     <span className={`font-bold ${surge.oiChange1m >= 0 ? (isCall ? 'text-bear' : 'text-bull') : 'text-amber'}`}>
-                      {surge.oiChange1mFormatted} ({surge.oiChangePct > 0 ? '+' : ''}{surge.oiChangePct}%)
+                      {surge.oiChange1mFormatted} ({surge.oiChangePct > 0 ? '+' : ''}{Number(surge.oiChangePct).toFixed(2)}%)
                     </span>
                   </div>
                   <div>
@@ -771,13 +771,13 @@ export const RadarFeed: React.FC = () => {
                     <span className="font-bold text-terminal-text">
                       ₹{currentOptionLtp.toFixed(2)}{' '}
                       <span className={`text-[10px] ${surge.ltpChange >= 0 ? 'text-bull' : 'text-bear'}`}>
-                        ({surge.ltpChange >= 0 ? '+' : ''}{surge.ltpPctChange}%)
+                        ({surge.ltpChange >= 0 ? '+' : ''}{Number(surge.ltpPctChange).toFixed(2)}%)
                       </span>
                     </span>
                   </div>
                   <div>
                     <span className="text-terminal-muted block text-[9px]">VOLUME</span>
-                    <span className="font-semibold text-terminal-text">{(surge.volume / 1000).toFixed(0)}k</span>
+                    <span className="font-semibold text-terminal-text">{(surge.volume / 1000).toFixed(2)}k</span>
                   </div>
                 </div>
 

@@ -533,8 +533,8 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
   });
 
   const totalDecided = prof + loss;
-  const winRatePct = totalDecided > 0 ? +((prof / totalDecided) * 100).toFixed(1) : 83.3;
-  const nearTargetAccuracyPct = filtered.length > 0 ? +(((prof + near) / filtered.length) * 100).toFixed(1) : 91.5;
+  const winRatePct = totalDecided > 0 ? +((prof / totalDecided) * 100).toFixed(2) : 83.30;
+  const nearTargetAccuracyPct = filtered.length > 0 ? +(((prof + near) / filtered.length) * 100).toFixed(2) : 91.50;
 
   return {
     date: targetDate,

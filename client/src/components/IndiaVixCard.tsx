@@ -424,7 +424,7 @@ export const IndiaVixCard: React.FC = () => {
                   </div>
                   <div className="bg-terminal-bg/70 border border-terminal-border/50 rounded-lg p-1.5">
                     <span className="text-terminal-muted block text-[8px]">WEEKLY MOVE</span>
-                    <span className={`font-black ${regime.color}`}>±{(regime.dailyMovePct * Math.sqrt(5)).toFixed(1)}%</span>
+                    <span className={`font-black ${regime.color}`}>±{(regime.dailyMovePct * Math.sqrt(5)).toFixed(2)}%</span>
                   </div>
                 </div>
 

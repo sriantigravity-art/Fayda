@@ -9,9 +9,9 @@ export function formatIndianNumber(num: number): string {
   } else if (absNum >= 100000) {
     res = `${(absNum / 100000).toFixed(2)}L`;
   } else if (absNum >= 1000) {
-    res = `${(absNum / 1000).toFixed(1)}k`;
+    res = `${(absNum / 1000).toFixed(2)}k`;
   } else {
-    res = absNum.toString();
+    res = absNum.toFixed(2);
   }
 
   return isNegative ? `-${res}` : `+${res}`;
