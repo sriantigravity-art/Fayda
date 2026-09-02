@@ -6,7 +6,8 @@ class SignalLedgerService {
     calls = new Map(); // id -> call
     datesSet = new Set();
     constructor() {
-        const dataDir = path.join(process.cwd(), 'server', 'data');
+        const baseDir = process.cwd().endsWith('server') ? process.cwd() : path.join(process.cwd(), 'server');
+        const dataDir = path.join(baseDir, 'data');
         if (!fs.existsSync(dataDir)) {
             try {
                 fs.mkdirSync(dataDir, { recursive: true });
@@ -16,6 +17,16 @@ class SignalLedgerService {
             }
         }
         this.dataFilePath = path.join(dataDir, 'signals_ledger.json');
+        // Migration: if legacy nested server/server/data/signals_ledger.json exists and main does not, copy it
+        const legacyPath = path.join(baseDir, 'server', 'data', 'signals_ledger.json');
+        if (!fs.existsSync(this.dataFilePath) && fs.existsSync(legacyPath)) {
+            try {
+                fs.copyFileSync(legacyPath, this.dataFilePath);
+            }
+            catch (e) {
+                // ignore
+            }
+        }
         this.loadFromFile();
         // If no calls exist, seed rich historical data for testing & instant date-wise report availability
         if (this.calls.size === 0) {
@@ -39,11 +50,16 @@ class SignalLedgerService {
                 const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
                 const list = JSON.parse(raw);
                 if (Array.isArray(list)) {
+                    const seen = new Set();
                     list.forEach(c => {
-                        this.calls.set(c.id, c);
-                        this.datesSet.add(c.date);
+                        const dedupeKey = `${c.date}_${c.symbol}_${c.strikePrice}_${c.optionType}_${c.action}_${(c.timeFormatted || '').slice(0, 5)}`;
+                        if (!seen.has(dedupeKey)) {
+                            seen.add(dedupeKey);
+                            this.calls.set(c.id, c);
+                            this.datesSet.add(c.date);
+                        }
                     });
-                    console.log(`[SignalLedgerService] Loaded ${this.calls.size} trade calls across ${this.datesSet.size} dates.`);
+                    console.log(`[SignalLedgerService] Loaded ${this.calls.size} clean unique trade calls across ${this.datesSet.size} dates.`);
                 }
             }
         }
@@ -51,22 +67,41 @@ class SignalLedgerService {
             console.warn('[SignalLedgerService] Failed to load data file, starting clean:', err.message);
         }
     }
+    saveTimeout = null;
     saveToFile() {
-        try {
-            const dataDir = path.dirname(this.dataFilePath);
-            if (!fs.existsSync(dataDir)) {
-                fs.mkdirSync(dataDir, { recursive: true });
+        if (this.saveTimeout)
+            return;
+        this.saveTimeout = setTimeout(() => {
+            this.saveTimeout = null;
+            try {
+                const dataDir = path.dirname(this.dataFilePath);
+                if (!fs.existsSync(dataDir)) {
+                    fs.mkdirSync(dataDir, { recursive: true });
+                }
+                const list = Array.from(this.calls.values());
+                fs.writeFileSync(this.dataFilePath, JSON.stringify(list, null, 2), 'utf-8');
             }
-            const list = Array.from(this.calls.values());
-            fs.writeFileSync(this.dataFilePath, JSON.stringify(list, null, 2), 'utf-8');
-        }
-        catch (err) {
-            console.warn('[SignalLedgerService] Save error:', err.message);
-        }
+            catch (err) {
+                // Transient file lock on Windows - handled gracefully
+            }
+        }, 2500);
     }
     recordSignal(signal) {
         const today = this.getTodayDateStr();
         const timeFormatted = this.getIstTimeFormatted();
+        // Deduplicate: If an active call exists for (today, symbol, strikePrice, optionType, action), return it
+        for (const existing of this.calls.values()) {
+            if (existing.date === today &&
+                existing.symbol === signal.symbol &&
+                existing.strikePrice === signal.strikePrice &&
+                existing.optionType === signal.optionType &&
+                existing.action === signal.action &&
+                existing.status === 'ACTIVE') {
+                existing.currentLtp = +signal.entryPrice.toFixed(2);
+                existing.peakLtp = Math.max(existing.peakLtp, signal.entryPrice);
+                return existing;
+            }
+        }
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
         let category = 'OPTIONS';
         if (cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY') {
@@ -76,7 +111,7 @@ class SignalLedgerService {
             category = 'STOCKS';
         }
         const contractName = `${signal.symbol} ${signal.strikePrice > 0 ? signal.strikePrice : ''} ${signal.optionType}`.trim();
-        const id = `sig_${today}_${signal.symbol}_${signal.strikePrice}_${Date.now()}`;
+        const id = `sig_${today}_${signal.symbol}_${signal.strikePrice}_${signal.optionType}_${Date.now()}`;
         const rr = signal.riskReward || '1:2.0';
         const entryRange = `₹${signal.entryPrice.toFixed(2)} - ₹${(signal.entryPrice * 1.02).toFixed(2)}`;
         const newCall = {
@@ -310,7 +345,7 @@ class SignalLedgerService {
             symbolFilter,
             statusFilter,
             summary,
-            signals: filteredSignals
+            signals: filteredSignals.slice(0, 100)
         };
     }
     seedInitialData() {

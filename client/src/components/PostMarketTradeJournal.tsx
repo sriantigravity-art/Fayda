@@ -578,6 +578,8 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROFIT' | 'LOSS' | 'NEAR_TARGET' | 'ACTIVE'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const PAGE_SIZE = 25;
   
   // Instant initial data so modal NEVER renders blank
   const [report, setReport] = useState<JournalReportResponse>(() => 
@@ -654,6 +656,7 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
 
   useEffect(() => {
     fetchReport();
+    setCurrentPage(1);
   }, [selectedDate, selectedCategory, statusFilter]);
 
   // Client-side text search filter
@@ -669,6 +672,12 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       s.timeFormatted.toLowerCase().includes(q)
     );
   }, [report?.signals, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(displayedSignals.length / PAGE_SIZE));
+  const paginatedSignals = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return displayedSignals.slice(start, start + PAGE_SIZE);
+  }, [displayedSignals, currentPage, PAGE_SIZE]);
 
   const summary = report?.summary;
 
@@ -998,7 +1007,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-terminal-border/50 bg-white dark:bg-terminal-card/80">
-              {displayedSignals.map((call) => {
+              {paginatedSignals.map((call) => {
                 const isBull = call.action === 'BUY_CALL' || call.action === 'BUY';
                 const isTargetHit = call.status === 'TARGET_HIT';
                 const isSlHit = call.status === 'STOPLOSS_HIT';
@@ -1111,6 +1120,34 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               })}
             </tbody>
           </table>
+
+          {/* Pagination Bar */}
+          {totalPages > 1 && (
+            <div className="p-3 bg-slate-50 dark:bg-terminal-panel border-t border-slate-200 dark:border-terminal-border flex items-center justify-between text-xs font-mono">
+              <span className="text-terminal-muted">
+                Showing {((currentPage - 1) * PAGE_SIZE) + 1} to {Math.min(currentPage * PAGE_SIZE, displayedSignals.length)} of {displayedSignals.length} calls
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border text-terminal-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-terminal-border/40 font-bold"
+                >
+                  Prev
+                </button>
+                <span className="px-2 font-bold text-accent-cyan">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1 rounded bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border text-terminal-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-terminal-border/40 font-bold"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

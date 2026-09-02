@@ -26,8 +26,11 @@ export const HighlightSignalTicker: React.FC = () => {
   const speedSeconds = tickerSpeed === 'SLOW' ? 75 : tickerSpeed === 'NORMAL' ? 48 : 28;
   const isAnimationPaused = isPaused || isHovered;
 
-  // Check Official Market Hours: 09:15 to 15:40 IST (Mon-Fri)
-  const isMarketHours = () => {
+  const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+  const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
+
+  // Check Official Market Hours: 09:15 to 15:40 IST (Mon-Fri) for NSE/BSE Equity
+  const isNseMarketHours = () => {
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const ist = new Date(utc + (3600000 * 5.5));
@@ -38,145 +41,183 @@ export const HighlightSignalTicker: React.FC = () => {
     return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
   };
 
-  const isLiveMarket = isMarketHours();
+  // Check if specific symbol market is currently open
+  const isSymbolMarketOpen = (sym: string) => {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
 
-  // Build list of active setups across all visible indices
-  const activeSetups = visibleIndices.map((sym: IndexSymbol) => {
-    const state = indices[sym];
-    if (!state) return null;
-
-    const { recommendedTrades, atmStrike, resistanceLevels, strikes, lastUpdated, daysToExpiry, pcr, patternBreakout, faydaStrategy, multiLegStrategy } = state;
-    const { bullishPick, bearishPick } = recommendedTrades;
-    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === sym);
-    const isIndex = cfg ? cfg.isIndex : true;
-
-    const fallbackTime = lastUpdated 
-      ? formatISTTime(lastUpdated, { showSeconds: false })
-      : 'EOD Settle';
-
-    // Check if contract or signal has expired
-    const isPickExpired = (p: typeof bullishPick) => {
-      if (!p) return true;
-      return isContractOrSignalExpired(p.expiryDate, p.timestamp, p.validUntilMinutes);
-    };
-
-    // 1. First priority: Genuine live high-conviction surge pick (Score >= 88%)
-    let pick = (bullishPick && !isPickExpired(bullishPick) && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
-    if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
-      pick = bearishPick;
+    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    if (isCommodity(sym)) {
+      // MCX Commodities: 09:00 to 23:30 IST
+      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
     }
+    // NSE / BSE Equity & Index Derivatives: 09:15 to 15:40 IST
+    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  };
 
-    // 2. If live pick is active & unexpired:
-    if (pick) {
-      const isBull = pick.tradeAction === 'BUY_CALL';
-      const pLtp = typeof pick.suggestedContract.ltp === 'number' ? pick.suggestedContract.ltp : 0;
-      const pSl = parseFloat(String(pick.suggestedContract.stoploss || '').replace(/[^0-9.]/g, '')) || 0;
-      const pTgt = parseFloat(String(pick.suggestedContract.target || '').replace(/[^0-9.]/g, '')) || (pLtp * 1.35);
-      const isSlHit = pLtp > 0 && pSl > 0 && pLtp <= pSl;
+  const isLiveNseMarket = isNseMarketHours();
+
+  // Determine symbols to scan based on active market hours
+  const symbolsToScan = React.useMemo(() => {
+    if (isLiveNseMarket) {
+      return visibleIndices;
+    }
+    // After NSE hours: Strictly scan only open MCX Commodities!
+    const activeCommoditiesInVisible = visibleIndices.filter(s => isCommodity(s) && isSymbolMarketOpen(s));
+    if (activeCommoditiesInVisible.length > 0) {
+      return activeCommoditiesInVisible;
+    }
+    // If user has only equity symbols selected in visibleIndices, provide live open MCX commodities
+    return COMMODITY_SYMBOLS.filter(c => isSymbolMarketOpen(c));
+  }, [visibleIndices, isLiveNseMarket, currentTime]);
+
+  // Build list of active setups across eligible open symbols
+  const activeSetups = React.useMemo(() => {
+    return symbolsToScan.map((sym: IndexSymbol) => {
+      const state = indices[sym];
+      if (!state) return null;
+
+      // STRICT CHECK: If market is closed for this symbol, NEVER generate tips!
+      if (!isSymbolMarketOpen(sym)) {
+        return null;
+      }
+
+      const { recommendedTrades, atmStrike, resistanceLevels, strikes, lastUpdated, daysToExpiry, pcr, patternBreakout, faydaStrategy, multiLegStrategy } = state;
+      const { bullishPick, bearishPick } = recommendedTrades;
+      const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === sym);
+      const isIndex = cfg ? cfg.isIndex : true;
+
+      const fallbackTime = lastUpdated 
+        ? formatISTTime(lastUpdated, { showSeconds: false })
+        : 'Live Tick';
+
+      // Check if contract or signal has expired
+      const isPickExpired = (p: typeof bullishPick) => {
+        if (!p) return true;
+        return isContractOrSignalExpired(p.expiryDate, p.timestamp, p.validUntilMinutes);
+      };
+
+      // 1. First priority: Genuine live high-conviction surge pick (Score >= 88%)
+      let pick = (bullishPick && !isPickExpired(bullishPick) && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
+      if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
+        pick = bearishPick;
+      }
+
+      // 2. If live pick is active & unexpired:
+      if (pick) {
+        const isBull = pick.tradeAction === 'BUY_CALL';
+        const pLtp = typeof pick.suggestedContract.ltp === 'number' ? pick.suggestedContract.ltp : 0;
+        const pSl = parseFloat(String(pick.suggestedContract.stoploss || '').replace(/[^0-9.]/g, '')) || 0;
+        const pTgt = parseFloat(String(pick.suggestedContract.target || '').replace(/[^0-9.]/g, '')) || (pLtp * 1.35);
+        const isSlHit = pLtp > 0 && pSl > 0 && pLtp <= pSl;
+
+        const horizon = calculateTargetHorizon(
+          sym,
+          pick.strikePrice,
+          atmStrike,
+          pick.optionType,
+          pLtp,
+          pTgt,
+          pick.surgeScore,
+          daysToExpiry ?? 2,
+          pcr?.atmPlusMinus5Pcr ?? 1.0,
+          isIndex
+        );
+
+        const rawTimestamp = pick.timestamp || lastUpdated || new Date().toISOString();
+
+        return {
+          symbol: sym,
+          strike: pick.suggestedContract.symbol,
+          action: pick.tradeAction === 'BUY_CALL' ? 'BUY CALL' : 'BUY PUT',
+          isBull,
+          isLiveSignal: true,
+          ltp: pick.suggestedContract.ltp,
+          entry: pick.suggestedContract.recommendedEntry,
+          exitSL: pick.suggestedContract.stoploss,
+          target: pick.suggestedContract.target,
+          riskReward: pick.suggestedContract.riskReward || '1:2.0',
+          score: pick.surgeScore,
+          rawTimestamp,
+          time: pick.timeFormatted || fallbackTime,
+          isStoplossHit: isSlHit,
+          horizon,
+          breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
+          faydaStrategyMatch: pick.faydaStrategyMatch || (faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined),
+          multiLegAlternative: pick.multiLegAlternative || (multiLegStrategy ? {
+            spreadName: multiLegStrategy.strategyName,
+            legsSummary: multiLegStrategy.description,
+            maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
+            maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
+            breakeven: multiLegStrategy.upperBreakeven || 0,
+            marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
+          } : undefined)
+        };
+      }
+
+      // 3. Live reference setup for currently open symbols
+      const isBull = true;
+      const maxRange = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
+      const step = cfg?.step || 50;
+      const r1 = resistanceLevels && resistanceLevels.length > 0 
+        ? (resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= maxRange && r.strikePrice >= atmStrike) || resistanceLevels[0])
+        : null;
+      const targetStrike = r1 ? r1.strikePrice : (atmStrike + step * 2);
+      const optType = isBull ? 'CE' : 'PE';
+      const strikeObj = strikes.find(s => s.strikePrice === targetStrike);
+      const ltp = strikeObj ? strikeObj.callLtp : 120;
+      const cleanLtp = Math.max(10, ltp);
+
+      const dyn = calculateDynamicTarget(cleanLtp, targetStrike, atmStrike);
+      const isSlHit = cleanLtp > 0 && dyn.slPrice > 0 && cleanLtp <= dyn.slPrice;
 
       const horizon = calculateTargetHorizon(
         sym,
-        pick.strikePrice,
+        targetStrike,
         atmStrike,
-        pick.optionType,
-        pLtp,
-        pTgt,
-        pick.surgeScore,
+        optType,
+        cleanLtp,
+        dyn.targetPrice,
+        88,
         daysToExpiry ?? 2,
         pcr?.atmPlusMinus5Pcr ?? 1.0,
         isIndex
       );
 
-      const rawTimestamp = pick.timestamp || lastUpdated || new Date().toISOString();
+      const rawTimestamp = lastUpdated || new Date().toISOString();
 
       return {
         symbol: sym,
-        strike: pick.suggestedContract.symbol,
-        action: pick.tradeAction === 'BUY_CALL' ? 'BUY CALL' : 'BUY PUT',
+        strike: `${sym} ${targetStrike} ${optType}`,
+        action: isBull ? 'BUY CALL' : 'BUY PUT',
         isBull,
-        isLiveSignal: true,
-        ltp: pick.suggestedContract.ltp,
-        entry: pick.suggestedContract.recommendedEntry,
-        exitSL: pick.suggestedContract.stoploss,
-        target: pick.suggestedContract.target,
-        riskReward: pick.suggestedContract.riskReward || '1:2.0',
-        score: pick.surgeScore,
+        isLiveSignal: false,
+        ltp: cleanLtp,
+        entry: `₹${cleanLtp.toFixed(1)} - ₹${(cleanLtp * 1.02).toFixed(1)}`,
+        exitSL: `₹${dyn.slPrice.toFixed(1)} (-${dyn.slPct}%)`,
+        target: `₹${dyn.targetPrice.toFixed(1)} (+${dyn.targetPct}%)`,
+        riskReward: dyn.riskReward,
+        score: 88,
         rawTimestamp,
-        time: pick.timeFormatted || fallbackTime,
+        time: 'Live Session',
         isStoplossHit: isSlHit,
         horizon,
-        breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
-        faydaStrategyMatch: pick.faydaStrategyMatch || (faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined),
-        multiLegAlternative: pick.multiLegAlternative || (multiLegStrategy ? {
+        breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName}` : '✓ Breakout Confluence',
+        faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : '✓ Fayda Strategy Validated',
+        multiLegAlternative: multiLegStrategy ? {
           spreadName: multiLegStrategy.strategyName,
           legsSummary: multiLegStrategy.description,
           maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
           maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
           breakeven: multiLegStrategy.upperBreakeven || 0,
           marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
-        } : undefined)
+        } : undefined
       };
-    }
-
-    // 3. If offline or no live surge pick: Generate authentic exchange reference wall setup
-    const isBull = true;
-    const maxRange = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
-    const step = cfg?.step || 50;
-    const r1 = resistanceLevels && resistanceLevels.length > 0 
-      ? (resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= maxRange && r.strikePrice >= atmStrike) || resistanceLevels[0])
-      : null;
-    const targetStrike = r1 ? r1.strikePrice : (atmStrike + step * 2);
-    const optType = isBull ? 'CE' : 'PE';
-    const strikeObj = strikes.find(s => s.strikePrice === targetStrike);
-    const ltp = strikeObj ? strikeObj.callLtp : 120;
-    const cleanLtp = Math.max(10, ltp);
-
-    const dyn = calculateDynamicTarget(cleanLtp, targetStrike, atmStrike);
-    const isSlHit = cleanLtp > 0 && dyn.slPrice > 0 && cleanLtp <= dyn.slPrice;
-
-    const horizon = calculateTargetHorizon(
-      sym,
-      targetStrike,
-      atmStrike,
-      optType,
-      cleanLtp,
-      dyn.targetPrice,
-      88,
-      daysToExpiry ?? 2,
-      pcr?.atmPlusMinus5Pcr ?? 1.0,
-      isIndex
-    );
-
-    const rawTimestamp = lastUpdated || new Date().toISOString();
-
-    return {
-      symbol: sym,
-      strike: `${sym} ${targetStrike} ${optType}`,
-      action: isBull ? 'BUY CALL' : 'BUY PUT',
-      isBull,
-      isLiveSignal: false,
-      ltp: cleanLtp,
-      entry: `₹${cleanLtp.toFixed(1)} - ₹${(cleanLtp * 1.02).toFixed(1)}`,
-      exitSL: `₹${dyn.slPrice.toFixed(1)} (-${dyn.slPct}%)`,
-      target: `₹${dyn.targetPrice.toFixed(1)} (+${dyn.targetPct}%)`,
-      riskReward: dyn.riskReward,
-      score: 88,
-      rawTimestamp,
-      time: isLiveMarket ? '1-Min Ref' : 'EOD Settle',
-      isStoplossHit: isSlHit,
-      horizon,
-      breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName}` : '✓ Breakout Confluence',
-      faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : '✓ Fayda Strategy Validated',
-      multiLegAlternative: multiLegStrategy ? {
-        spreadName: multiLegStrategy.strategyName,
-        legsSummary: multiLegStrategy.description,
-        maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
-        maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
-        breakeven: multiLegStrategy.upperBreakeven || 0,
-        marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
-      } : undefined
-    };
-  }).filter(Boolean);
+    }).filter(Boolean);
+  }, [symbolsToScan, indices, currentTime]);
 
   const renderSetupItem = (item: any, keySuffix: string) => {
     const isSelected = selectedIndex === item.symbol;
@@ -202,12 +243,12 @@ export const HighlightSignalTicker: React.FC = () => {
       <div
         key={`${item.symbol}-${keySuffix}`}
         onClick={() => setSelectedIndex(item.symbol)}
-        className={`flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border transition cursor-pointer shrink-0 ${
+        className={`flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer shrink-0 shadow-sm ${
           isSl
             ? 'bg-bear/20 border-bear shadow-[0_0_15px_rgba(255,59,105,0.4)] animate-pulse'
             : isSelected
             ? 'bg-terminal-card border-accent-cyan shadow-[0_0_18px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan/60'
-            : 'bg-terminal-panel/90 border-terminal-border hover:border-accent-cyan/50 hover:bg-terminal-card'
+            : 'bg-terminal-panel/90 border-terminal-border/90 hover:border-accent-cyan/60 hover:bg-terminal-card hover:shadow-md'
         }`}
         title={`${timing.formulaText} | ${advice.explanation} | ${hz.categoryBadge}`}
       >
@@ -285,26 +326,30 @@ export const HighlightSignalTicker: React.FC = () => {
 
   return (
     <div 
-      className="w-full bg-terminal-panel/80 border-b border-terminal-border backdrop-blur-sm overflow-hidden select-none relative group"
+      className="w-full bg-terminal-panel/90 border-b-2 border-terminal-border/90 backdrop-blur-sm overflow-hidden select-none relative group z-20 shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center py-1.5 px-3 relative">
+      <div className="flex items-center py-2 px-3 relative min-h-[50px]">
         {/* Left Sticky Label */}
-        <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-0.5 px-2 rounded-lg shadow-sm">
-          <Zap className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
+        <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
+          <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
           <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-terminal-text">
             FAYDA RADAR
           </span>
-          <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded bg-bull/20 text-bull border border-bull/40 font-bold">
-            FILTER: SCORE ≥ 88%
+          <span className={`hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+            isLiveNseMarket 
+              ? 'bg-bull/20 text-bull border border-bull/40' 
+              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+          }`}>
+            {isLiveNseMarket ? 'FILTER: SCORE ≥ 88%' : 'MCX COMMODITIES LIVE'}
           </span>
         </div>
 
         {/* Continuous Marquee Container */}
-        <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center">
+        <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center py-1">
           <div 
-            className="flex items-center whitespace-nowrap will-change-transform"
+            className="flex items-center whitespace-nowrap will-change-transform py-0.5"
             style={{
               animationName: 'marqueeTicker',
               animationDuration: `${speedSeconds}s`,
@@ -324,7 +369,7 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Right Play/Pause Controls */}
-        <div className="flex items-center space-x-1 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-0.5 px-1.5 rounded-lg">
+        <div className="flex items-center space-x-1 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2 rounded-lg border border-terminal-border/60 shadow-sm">
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}

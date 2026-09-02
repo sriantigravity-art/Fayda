@@ -648,6 +648,51 @@ export class FyersService {
     }
   }
 
+  public async fetchBatchQuotes(symbolConfigs: { symbol: string; fyersSymbol: string }[]): Promise<Map<string, FyersQuoteItem>> {
+    const resultMap = new Map<string, FyersQuoteItem>();
+    if (!this.config.appId || !this.config.accessToken || symbolConfigs.length === 0) return resultMap;
+
+    try {
+      const fyersMap = new Map<string, string>(); // fyersSymbol -> appSymbol
+      const fyersList: string[] = [];
+      for (const sc of symbolConfigs) {
+        if (sc.fyersSymbol) {
+          fyersMap.set(sc.fyersSymbol, sc.symbol);
+          fyersList.push(sc.fyersSymbol);
+        }
+      }
+
+      const rawQuotes = await this.fetchQuotes(fyersList);
+      for (const item of rawQuotes) {
+        const fyersSym = item.n;
+        const appSym = fyersMap.get(fyersSym);
+        const v = item.v;
+        if (appSym && v && typeof v.lp === 'number') {
+          const prevClose = v.prev_close_price || (v.lp - (v.ch ?? 0));
+          const change = typeof v.ch === 'number' ? v.ch : +(v.lp - prevClose).toFixed(2);
+          const pctChange = typeof v.chp === 'number' ? v.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
+
+          resultMap.set(appSym, {
+            symbol: appSym,
+            fyersSymbol: fyersSym,
+            price: v.lp,
+            change,
+            pctChange,
+            high: v.high_price,
+            low: v.low_price,
+            open: v.open_price,
+            prevClose: v.prev_close_price,
+            volume: v.volume
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Fyers] fetchBatchQuotes error:', err.message);
+    }
+
+    return resultMap;
+  }
+
   public async fetchIndiaVix(): Promise<{ price: number; change: number; pctChange: number } | null> {
     const quotes = await this.fetchQuotes(['NSE:INDIAVIX-INDEX']);
     if (quotes && quotes.length > 0) {
@@ -662,6 +707,19 @@ export class FyersService {
     }
     return null;
   }
+}
+
+export interface FyersQuoteItem {
+  symbol: string;
+  fyersSymbol: string;
+  price: number;
+  change: number;
+  pctChange: number;
+  high?: number;
+  low?: number;
+  open?: number;
+  prevClose?: number;
+  volume?: number;
 }
 
 export const fyersService = new FyersService();
