@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PreMarketChecklist, IntradayMarketRegimeData, IndexSymbol, OptionStrikeData } from '../types';
+import type { PreMarketChecklist, IntradayMarketRegimeData, IndexSymbol } from '../types';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { 
@@ -8,7 +8,6 @@ import {
   Sparkles, 
   TrendingUp, 
   TrendingDown, 
-  Info, 
   X, 
   ShieldAlert, 
   BarChart3, 
@@ -16,9 +15,10 @@ import {
   Target, 
   Flame, 
   Layers, 
-  DollarSign,
-  ChevronRight,
-  HelpCircle
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Compass
 } from 'lucide-react';
 
 interface PreMarketRadarCardProps {
@@ -31,6 +31,7 @@ type MetricKey = 'PCR' | 'OI' | 'VIX' | 'MAX_PAIN' | 'IV' | 'THETA' | 'VOLUME' |
 
 interface MetricDetailConfig {
   key: MetricKey;
+  headerTitle: string; // e.g. "PCR : 0.71"
   label: string;
   shortLabel: string;
   icon: React.ReactNode;
@@ -51,6 +52,7 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
   const { currentIndexState } = useMarket();
   const { isBeginner, isExpert } = useTerminalMode();
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
+  const [isPanelExpanded, setIsPanelExpanded] = useState<boolean>(true);
 
   if (!currentIndexState) return null;
 
@@ -98,171 +100,178 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
   const metricsData: MetricDetailConfig[] = [
     {
       key: 'PCR',
+      headerTitle: `PCR : ${activePcr.toFixed(2)}`,
       label: 'PCR (Put-Call Ratio)',
       shortLabel: 'PCR',
-      icon: <Activity className="w-4 h-4 text-accent-sky" />,
+      icon: <Activity className="w-3.5 h-3.5 text-accent-sky" />,
       value: activePcr.toFixed(2),
       subValue: activePcr >= 1.0 ? 'Puts > Calls' : 'Calls > Puts',
       sentiment: pcrSentiment,
       badge: activePcr >= 1.2 ? '🟢 Oversold / Bounce' : activePcr <= 0.8 ? '🔴 Heavy Calls' : '🟡 Neutral',
-      summary: 'Compares the number of put options (bets that market will fall) to call options (bets that market will rise).',
+      summary: 'Compares the total number of open put contracts to call contracts to gauge institutional sentiment.',
       bulletPoints: [
-        'A PCR above 1 usually means more puts than calls, which can signal an oversold market and a potential bounce up.',
-        'A PCR well below 1 suggests heavy call buying, pointing to a potential overbought market or strong bullish momentum.',
-        `Live ${symbol} PCR stands at ${activePcr.toFixed(2)}, indicating ${activePcr >= 1.0 ? 'solid Put writer cushion under market.' : 'heavy Call writer resistance overhead.'}`
+        'A PCR > 1.15 signals dense Put writing defense and potential bullish bounce from support.',
+        'A PCR < 0.85 indicates aggressive Call writing resistance and upside capping.',
+        `Live ${symbol} PCR is ${activePcr.toFixed(2)} (${activePcr >= 1.0 ? 'Bullish Put cushion' : 'Call resistance dominance'}).`
       ],
-      actionTakeaway: activePcr >= 1.1 ? 'Look for bullish dip-buying setups near support levels.' : activePcr <= 0.85 ? 'Exercise caution buying calls into heavy resistance.' : 'Trade range breakouts with OI confirmation.'
+      actionTakeaway: activePcr >= 1.1 ? 'Look for dip-buying setups near support.' : activePcr <= 0.85 ? 'Avoid chasing breakout calls near resistance.' : 'Trade range breakouts with OI confirmation.'
     },
     {
       key: 'OI',
+      headerTitle: `OI : ${oiFormatted}`,
       label: 'OI (Open Interest)',
       shortLabel: 'Open Interest',
-      icon: <Layers className="w-4 h-4 text-accent-purple" />,
+      icon: <Layers className="w-3.5 h-3.5 text-accent-purple" />,
       value: oiFormatted,
       subValue: 'Active Contracts',
       sentiment: 'NEUTRAL',
-      badge: '📊 Live Accumulation',
-      summary: 'Shows the total number of active or open options contracts that are not yet settled.',
+      badge: '📊 Active Open Interest',
+      summary: 'Shows total active institutional contracts across all strikes.',
       bulletPoints: [
-        'Rising OI with rising prices means new buyers are entering, supporting an upward trend.',
-        'Rising OI with falling prices means new short positions are building, signaling a strong downward trend.',
-        `Total active market interest across ${symbol} option strikes currently stands at ${oiFormatted}.`
+        'Rising OI with rising price confirms fresh long accumulation.',
+        'Rising OI with falling price signals aggressive short buildup.',
+        `Total active market interest across ${symbol} options is ${oiFormatted}.`
       ],
-      actionTakeaway: 'Watch 1-minute Delta OI on ATM strikes to confirm whether breakouts have genuine institutional backing.'
+      actionTakeaway: 'Watch 1-min Delta OI spikes on ATM strikes to confirm institutional momentum.'
     },
     {
       key: 'VIX',
+      headerTitle: `VIX : ${vixValue.toFixed(2)}`,
       label: 'India VIX (Volatility Index)',
       shortLabel: 'India VIX',
-      icon: <Flame className="w-4 h-4 text-amber" />,
+      icon: <Flame className="w-3.5 h-3.5 text-amber" />,
       value: vixValue.toFixed(2),
-      subValue: vixValue > 18 ? 'High Volatility' : 'Calm Volatility',
+      subValue: vixValue > 18 ? 'High Vol' : 'Calm Vol',
       sentiment: vixSentiment,
-      badge: vixValue > 16 ? '⚠️ Elevated Vol' : '🟢 Stable Cushion',
-      summary: "Measures the market's expectation of near-term volatility or price swings based on index option prices.",
+      badge: vixValue > 16 ? '⚠️ Elevated Vol' : '🟢 Stable Vol',
+      summary: 'Measures expected near-term annualized market volatility.',
       bulletPoints: [
-        'A high VIX means the market expects wild swings, making options expensive to buy.',
-        'A low VIX means the market is calm, making options cheaper.',
-        `Current India VIX is at ${vixValue.toFixed(2)}, reflecting ${vixValue < 14 ? 'calm market conditions with controlled option pricing.' : 'heightened volatility expectations.'}`
+        'High VIX (> 16) inflates options premiums; sharp pullbacks are common.',
+        'Low VIX (< 13) indicates cheap options with reduced decay risk.',
+        `Current India VIX is ${vixValue.toFixed(2)}.`
       ],
-      actionTakeaway: vixValue > 16 ? 'Be careful of sharp pullbacks and IV crush after big events.' : 'Great environment for directional breakout setups.'
+      actionTakeaway: vixValue > 16 ? 'Use defined-risk spreads to avoid IV crush.' : 'Favorable for directional single-leg buyers.'
     },
     {
       key: 'MAX_PAIN',
+      headerTitle: `MAX PAIN : ₹${maxPainStrike.toLocaleString('en-IN')}`,
       label: 'Max Pain Strike',
       shortLabel: 'Max Pain',
-      icon: <Target className="w-4 h-4 text-bull" />,
+      icon: <Target className="w-3.5 h-3.5 text-bull" />,
       value: `₹${maxPainStrike.toLocaleString('en-IN')}`,
       subValue: distToMaxPain >= 0 ? `+${distToMaxPain} pts` : `${distToMaxPain} pts`,
       sentiment: Math.abs(distToMaxPain) <= 50 ? 'BULLISH' : 'NEUTRAL',
       badge: '🎯 Expiry Magnet',
-      summary: 'The strike price where the highest number of options (both puts and calls) expire worthless.',
+      summary: 'Strike price where maximum options expire worthless, acting as an expiry-day price magnet.',
       bulletPoints: [
-        'Market expiration often gravitates toward this price as option writers try to inflict maximum financial "pain" on option buyers.',
-        `For ${symbol}, Max Pain is currently pegged at ₹${maxPainStrike.toLocaleString('en-IN')}.`,
-        'As expiry day progresses (especially after 01:30 PM), prices tend to magnetize towards this strike.'
+        'Option writers defend this level to minimize payouts at expiry settlement.',
+        `For ${symbol}, Max Pain is ₹${maxPainStrike.toLocaleString('en-IN')} (${distToMaxPain >= 0 ? `+${distToMaxPain}` : distToMaxPain} pts from spot).`,
+        'Expect strong gravitational pull toward this strike as expiry approaches.'
       ],
-      actionTakeaway: `Expect strong mean-reversion pull towards ₹${maxPainStrike} on weekly/monthly expiry sessions.`
+      actionTakeaway: `Expect mean-reversion pull towards ₹${maxPainStrike} during afternoon sessions.`
     },
     {
       key: 'IV',
+      headerTitle: `ATM IV : ${avgIv}%`,
       label: 'Implied Volatility (IV)',
       shortLabel: 'ATM IV',
-      icon: <Zap className="w-4 h-4 text-accent-cyan" />,
+      icon: <Zap className="w-3.5 h-3.5 text-accent-cyan" />,
       value: `${avgIv}%`,
-      subValue: avgIv < 13 ? 'Cheap Premiums' : avgIv > 18 ? 'Expensive' : 'Fair Value',
+      subValue: avgIv < 13 ? 'Cheap' : avgIv > 18 ? 'Expensive' : 'Fair',
       sentiment: avgIv > 18 ? 'WARNING' : 'BULLISH',
       badge: avgIv < 13 ? '🟢 Cheap Vol' : avgIv > 18 ? '🚨 Crush Risk' : '📊 Fair Value',
-      summary: 'Shows how much the market expects the price to move before expiration. High IV inflates option premiums.',
+      summary: 'Pricing gauge reflecting option market expectations of future movement.',
       bulletPoints: [
-        'High IV inflates option premiums; buyers risk losing money to IV crush once uncertainty settles.',
-        'Low IV offers affordable premium buying opportunities with low decay vulnerability.',
-        `Average ATM Implied Volatility is currently ${avgIv}%.`
+        'High IV (> 18%) inflates premiums; buyers risk rapid IV crush post-event.',
+        'Low IV (< 13%) offers low-cost premium buying opportunities.',
+        `Average ATM Implied Volatility is ${avgIv}%.`
       ],
-      actionTakeaway: avgIv > 18 ? 'Avoid buying far OTM options; use spreads to hedge volatility risk.' : 'Safe conditions for directional single-leg option buys.'
+      actionTakeaway: avgIv > 18 ? 'Avoid buying far OTMs; use multi-leg spreads.' : 'Clean conditions for directional option buys.'
     },
     {
       key: 'THETA',
+      headerTitle: `THETA : ${dailyTheta.toFixed(1)} pts`,
       label: 'Time Decay (Theta)',
       shortLabel: 'Theta Decay',
-      icon: <Clock className="w-4 h-4 text-bear" />,
+      icon: <Clock className="w-3.5 h-3.5 text-bear" />,
       value: `${dailyTheta.toFixed(1)} pts`,
       subValue: `${hourlyTheta} pts/hr`,
       sentiment: 'BEARISH',
       badge: '⏳ Daily Erosion',
-      summary: 'Options lose value every single day as they get closer to their expiration date.',
+      summary: 'Rate of premium erosion over time per contract.',
       bulletPoints: [
-        'Buyers lose money to Theta time decay; sellers/writers benefit from the erosion.',
-        `ATM Straddle is currently shedding ~${Math.abs(dailyTheta).toFixed(1)} points per session (~${Math.abs(hourlyTheta)} pts/hr).`,
-        'Theta acceleration becomes non-linear during the final 48 hours of expiration (0DTE).'
+        'Long options continuously shed extrinsic value into expiry.',
+        `ATM Straddle is shedding ~${Math.abs(dailyTheta).toFixed(1)} pts/day (~${Math.abs(hourlyTheta)} pts/hr).`,
+        'Decay accelerates heavily during 0DTE sessions.'
       ],
-      actionTakeaway: 'Take quick profits on scalps; do not hold long option positions during slow lunchtime consolidation.'
+      actionTakeaway: 'Book momentum scalps swiftly; avoid holding long options in sideways markets.'
     },
     {
       key: 'VOLUME',
+      headerTitle: `VOLUME : ${volFormatted}`,
       label: 'Daily Traded Volume',
       shortLabel: 'Total Volume',
-      icon: <BarChart3 className="w-4 h-4 text-accent-sky" />,
+      icon: <BarChart3 className="w-3.5 h-3.5 text-accent-sky" />,
       value: volFormatted,
-      subValue: 'Contracts Traded',
+      subValue: 'Contracts',
       sentiment: 'NEUTRAL',
       badge: '⚡ High Liquidity',
-      summary: 'Shows how many contracts traded on a specific day.',
+      summary: 'Total turnover of option contracts traded in current session.',
       bulletPoints: [
-        'High volume confirms strong institutional conviction and participant interest at specific strike prices.',
-        'Volume spikes at breakout levels validate genuine buyer/seller momentum.',
-        `Over ${volFormatted} contracts have exchanged hands in today's ${symbol} session.`
+        'High volume validates breakouts and institutional accumulation.',
+        `Over ${volFormatted} contracts traded in ${symbol} today.`
       ],
-      actionTakeaway: 'Always trade strikes with high liquidity and tight bid-ask spreads to avoid execution slippage.'
+      actionTakeaway: 'Trade high-volume liquid strikes to eliminate execution slippage.'
     },
     {
       key: 'SR',
-      label: 'Key Support & Resistance (OI Walls)',
+      headerTitle: `S/R : ${majorSupp} / ${majorRes}`,
+      label: 'Key Support & Resistance',
       shortLabel: 'Support & Res.',
-      icon: <ShieldAlert className="w-4 h-4 text-bull" />,
-      value: `S: ${majorSupp} / R: ${majorRes}`,
-      subValue: `Floor & Ceiling`,
+      icon: <ShieldAlert className="w-3.5 h-3.5 text-bull" />,
+      value: `S: ${majorSupp} | R: ${majorRes}`,
+      subValue: 'Floor / Ceiling',
       sentiment: 'BULLISH',
-      badge: '🧱 Heavy OI Walls',
-      summary: 'Uses OI buildup spikes to spot heavy institutional walls where price might stop or reverse.',
+      badge: '🧱 Heavy Walls',
+      summary: 'Dense institutional Put/Call writing strike boundaries.',
       bulletPoints: [
-        `Primary Floor (Put Support S1): ₹${majorSupp} (Dense institutional Put writing defense).`,
-        `Primary Ceiling (Call Resistance R1): ₹${majorRes} (Dense institutional Call writing resistance).`,
-        'A clean break with 1-min Delta OI expansion through either wall signals explosive runaway momentum.'
+        `Support Floor (Put S1): ₹${majorSupp}`,
+        `Resistance Ceiling (Call R1): ₹${majorRes}`,
+        'Sustained breakouts above R1 or breakdowns below S1 trigger runaway momentum.'
       ],
-      actionTakeaway: `Buy near support ₹${majorSupp} or sell near resistance ₹${majorRes}; ride breakouts if walls collapse.`
+      actionTakeaway: `Buy near support ₹${majorSupp} or book near resistance ₹${majorRes}.`
     }
   ];
 
   const activeMetricObj = selectedMetric ? metricsData.find(m => m.key === selectedMetric) : null;
 
   return (
-    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 sm:p-4 shadow-subtle mb-3 select-none transition-all duration-300">
+    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 shadow-subtle select-none transition-all duration-300 flex flex-col justify-between">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-terminal-border/80">
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple shrink-0">
             <Clock className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-mono font-bold text-xs sm:text-sm text-terminal-text tracking-wide">
-                PRE-MARKET PREPARATION RADAR & MARKET INTELLIGENCE
+          <div className="min-w-0">
+            <div className="flex items-center space-x-1.5 flex-wrap">
+              <span className="font-mono font-black text-xs sm:text-sm text-terminal-text tracking-wider truncate">
+                PRE-MARKET RADAR & MARKET INTELLIGENCE
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-terminal-panel text-terminal-muted border border-terminal-border">
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {symbol}
               </span>
             </div>
-            <p className="text-[11px] text-terminal-muted">
-              Click any metric tile below to inspect live institutional breakdown & technical rules
+            <p className="text-[10px] text-terminal-muted font-mono truncate">
+              Click any box to expand detailed institutional metrics & trade rules
             </p>
           </div>
         </div>
 
-        {marketRegime && (
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5 font-mono">
+          {marketRegime && (
             <span
-              className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border flex items-center space-x-1 ${
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center space-x-1 ${
                 marketRegime.structureType === 'TRENDING_DAY'
                   ? 'bg-bull/15 border-bull/40 text-bull'
                   : marketRegime.structureType === 'REVERSAL_DAY'
@@ -270,112 +279,129 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
                   : 'bg-amber/15 border-amber/40 text-amber'
               }`}
             >
-              <Activity className="w-3 h-3" />
+              <Activity className="w-2.5 h-2.5" />
               <span>{marketRegime.structureLabel}</span>
             </span>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsPanelExpanded(!isPanelExpanded)}
+            className="p-1 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
+            title={isPanelExpanded ? 'Collapse Panel' : 'Expand Panel'}
+          >
+            {isPanelExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Content */}
+      {isPanelExpanded && (
+        <div className="space-y-2.5">
+          {/* 8 Compact Metric Boxes (2x4 on sm, 4x2 on md/lg) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+            {metricsData.map((m) => {
+              const isSelected = selectedMetric === m.key;
+
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setSelectedMetric(isSelected ? null : m.key)}
+                  className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer group shadow-sm ${
+                    isSelected
+                      ? 'bg-accent-sky/20 border-accent-sky shadow-[0_0_12px_rgba(0,229,255,0.3)] ring-1 ring-accent-sky/50 scale-[1.02]'
+                      : 'bg-terminal-panel/80 border-terminal-border hover:border-accent-sky/50 hover:bg-terminal-panel'
+                  }`}
+                >
+                  {/* Box Title in Format "PCR : 0.71" */}
+                  <div className="flex items-center justify-between w-full text-[11px] font-black text-terminal-text tracking-wide mb-1">
+                    <span className="truncate group-hover:text-accent-cyan transition-colors">
+                      {m.headerTitle}
+                    </span>
+                    <span className="opacity-70 group-hover:opacity-100 shrink-0 ml-1">
+                      {m.icon}
+                    </span>
+                  </div>
+
+                  {/* Sub-value / Status Pill & Expand Chevron */}
+                  <div className="flex items-center justify-between w-full text-[9px] pt-1 border-t border-terminal-border/60">
+                    <span className={`font-bold truncate ${
+                      m.sentiment === 'BULLISH' ? 'text-bull' : m.sentiment === 'BEARISH' ? 'text-bear' : m.sentiment === 'WARNING' ? 'text-amber' : 'text-terminal-muted'
+                    }`}>
+                      {m.badge.split(' ')[0]} {m.subValue}
+                    </span>
+                    <span className={`text-[9px] font-bold ${isSelected ? 'text-accent-sky' : 'text-terminal-muted'}`}>
+                      {isSelected ? '▲ Hide' : '▼ Details'}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
 
-      {/* 8-Tile Interactive Numbers Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 font-mono">
-        {metricsData.map((m) => {
-          const isSelected = selectedMetric === m.key;
-
-          return (
-            <button
-              key={m.key}
-              type="button"
-              onClick={() => setSelectedMetric(isSelected ? null : m.key)}
-              className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer group ${
-                isSelected
-                  ? 'bg-accent-sky/20 border-accent-sky shadow-md ring-1 ring-accent-sky/50 scale-[1.02]'
-                  : 'bg-terminal-panel/70 border-terminal-border hover:border-terminal-border/90 hover:bg-terminal-panel'
-              }`}
-            >
-              <div className="flex items-center justify-between w-full text-[10px] text-terminal-muted font-sans font-medium mb-1">
-                <span className="truncate">{m.shortLabel}</span>
-                <span className="opacity-70 group-hover:opacity-100 transition-opacity">{m.icon}</span>
-              </div>
-
-              {/* Clean Numbers Only */}
-              <div className="text-sm sm:text-base font-black text-terminal-text tracking-tight truncate my-0.5">
-                {m.value}
-              </div>
-
-              <div className="flex items-center justify-between w-full text-[9px] mt-1 pt-1 border-t border-terminal-border/50">
-                <span className={`font-bold truncate ${
-                  m.sentiment === 'BULLISH' ? 'text-bull' : m.sentiment === 'BEARISH' ? 'text-bear' : m.sentiment === 'WARNING' ? 'text-amber' : 'text-terminal-muted'
-                }`}>
-                  {m.badge.split(' ')[0]} {m.subValue}
-                </span>
-                <ChevronRight className={`w-3 h-3 text-terminal-muted transition-transform ${isSelected ? 'rotate-90 text-accent-sky' : 'group-hover:translate-x-0.5'}`} />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Expanded Interactive Detail Drawer (Shows on Clicking any Tile) */}
-      {activeMetricObj && (
-        <div className="mt-3 p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-terminal-panel via-terminal-card to-terminal-panel border border-accent-sky/50 shadow-elevated animate-fade-in font-sans">
-          <div className="flex items-center justify-between border-b border-terminal-border/80 pb-2.5 mb-2.5">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-lg bg-accent-sky/20 text-accent-sky border border-accent-sky/40">
-                {activeMetricObj.icon}
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-xs sm:text-sm font-bold text-terminal-text">
-                    {activeMetricObj.label}
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-accent-sky/15 text-accent-sky border border-accent-sky/30">
-                    Live: {activeMetricObj.value}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-terminal-panel text-terminal-muted border border-terminal-border">
-                    {activeMetricObj.badge}
-                  </span>
+          {/* Expand-Collapse Detailed View Drawer */}
+          {activeMetricObj && (
+            <div className="p-3 rounded-xl bg-gradient-to-br from-terminal-panel via-terminal-card to-terminal-panel border border-accent-sky/50 shadow-md animate-fade-in font-sans">
+              <div className="flex items-center justify-between border-b border-terminal-border/80 pb-2 mb-2">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <div className="p-1.5 rounded-lg bg-accent-sky/20 text-accent-sky border border-accent-sky/40 shrink-0">
+                    {activeMetricObj.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <h3 className="text-xs font-bold text-terminal-text">
+                        {activeMetricObj.label}
+                      </h3>
+                      <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-accent-sky/15 text-accent-sky border border-accent-sky/30">
+                        {activeMetricObj.headerTitle}
+                      </span>
+                      <span className="px-2 py-0.2 rounded-full text-[9px] font-mono font-bold bg-terminal-panel text-terminal-muted border border-terminal-border">
+                        {activeMetricObj.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-terminal-muted mt-0.5">
+                      {activeMetricObj.summary}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-terminal-muted mt-0.5">
-                  {activeMetricObj.summary}
-                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMetric(null)}
+                  className="p-1 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition shrink-0"
+                  title="Close Details"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Detailed Bullet Points */}
+              <div className="space-y-1.5 text-[11px] text-terminal-muted font-sans leading-relaxed">
+                {activeMetricObj.bulletPoints.map((pt, idx) => (
+                  <div key={idx} className="flex items-start gap-1.5">
+                    <span className="text-accent-sky font-bold">•</span>
+                    <span>{pt}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Rule Banner */}
+              <div className="mt-2.5 p-2 rounded-lg bg-accent-sky/10 border border-accent-sky/30 text-[11px] font-mono text-terminal-text flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-1.5 truncate">
+                  <Sparkles className="w-3 h-3 text-accent-sky shrink-0" />
+                  <span className="truncate"><strong>Rule:</strong> {activeMetricObj.actionTakeaway}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMetric(null)}
+                  className="text-[10px] font-sans text-accent-sky hover:underline shrink-0"
+                >
+                  Collapse ✕
+                </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setSelectedMetric(null)}
-              className="p-1 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition cursor-pointer"
-              title="Close Details"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Detailed Bullet Points & Guidance */}
-          <div className="space-y-2 text-xs text-terminal-muted font-sans leading-relaxed">
-            {activeMetricObj.bulletPoints.map((pt, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <span className="text-accent-sky font-bold">•</span>
-                <span>{pt}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Actionable Takeaway Banner */}
-          <div className="mt-3 p-2.5 rounded-lg bg-accent-sky/10 border border-accent-sky/30 text-xs font-mono text-terminal-text flex items-center justify-between gap-2">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-3.5 h-3.5 text-accent-sky shrink-0" />
-              <span><strong>Action Rule:</strong> {activeMetricObj.actionTakeaway}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedMetric(null)}
-              className="text-[10px] font-sans text-accent-sky hover:underline shrink-0"
-            >
-              Close ✕
-            </button>
-          </div>
+          )}
         </div>
       )}
     </div>
