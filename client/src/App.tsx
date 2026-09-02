@@ -35,6 +35,8 @@ import { NewsWireTab } from './components/NewsWireTab';
 import { PostMarketTradeJournal } from './components/PostMarketTradeJournal';
 import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanner';
 import { TradeTipModal } from './components/TradeTipModal';
+import { EntityChartModal } from './components/EntityChartModal';
+import { OptionsDataTableModal } from './components/OptionsDataTableModal';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
 
 const DashboardContent: React.FC = () => {
@@ -228,6 +230,12 @@ const DashboardContent: React.FC = () => {
         isOpen={!!activeTradeTipModal}
         onClose={closeTradeTipModal}
       />
+
+      {/* Global Live Entity Interactive Chart Modal */}
+      <EntityChartModal />
+
+      {/* Global Live Options Data Table Modal */}
+      <OptionsDataTableModal />
     </div>
   );
 };

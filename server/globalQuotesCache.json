@@ -1,27 +1,27 @@
 {
   "^NDX": {
-    "price": 29019.582,
+    "price": 29132.686,
     "prevClose": 29224.52,
-    "change": -204.94,
-    "pctChange": -0.7,
+    "change": -91.83,
+    "pctChange": -0.31,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^GSPC": {
-    "price": 7640.79,
+    "price": 7668.98,
     "prevClose": 7675.7,
-    "change": -34.91,
-    "pctChange": -0.45,
+    "change": -6.72,
+    "pctChange": -0.09,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^DJI": {
-    "price": 53034.17,
+    "price": 53127.01,
     "prevClose": 53463.88,
-    "change": -429.71,
-    "pctChange": -0.8,
+    "change": -336.87,
+    "pctChange": -0.63,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^N225": {
     "price": 64325.64,
@@ -29,7 +29,7 @@
     "change": -1806.34,
     "pctChange": -2.73,
     "isMarketOpen": false,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^HSI": {
     "price": 25311.21,
@@ -37,7 +37,7 @@
     "change": -341.76,
     "pctChange": -1.33,
     "isMarketOpen": false,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "000001.SS": {
     "price": 3941.386,
@@ -45,39 +45,39 @@
     "change": -15.18,
     "pctChange": -0.38,
     "isMarketOpen": false,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^GDAXI": {
-    "price": 25875.46,
+    "price": 25868.78,
     "prevClose": 26285.96,
-    "change": -410.5,
-    "pctChange": -1.56,
+    "change": -417.18,
+    "pctChange": -1.59,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^FTSE": {
-    "price": 10755.39,
+    "price": 10759.21,
     "prevClose": 10886.2,
-    "change": -130.81,
-    "pctChange": -1.2,
+    "change": -126.99,
+    "pctChange": -1.17,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "BZ=F": {
-    "price": 94.32,
+    "price": 94.2,
     "prevClose": 89.31,
-    "change": 5.01,
-    "pctChange": 5.61,
+    "change": 4.89,
+    "pctChange": 5.48,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "GC=F": {
-    "price": 4405,
+    "price": 4441.8,
     "prevClose": 4478.1,
-    "change": -73.1,
-    "pctChange": -1.63,
+    "change": -36.3,
+    "pctChange": -0.81,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "INR=X": {
     "price": 94.96,
@@ -85,7 +85,7 @@
     "change": -0.47,
     "pctChange": -0.49,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^TNX": {
     "price": 4.788,
@@ -93,15 +93,15 @@
     "change": 0.12,
     "pctChange": 2.57,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^VIX": {
-    "price": 16.09,
+    "price": 15.57,
     "prevClose": 14.51,
-    "change": 1.58,
-    "pctChange": 10.89,
+    "change": 1.06,
+    "pctChange": 7.31,
     "isMarketOpen": true,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^NSEI": {
     "price": 23914.45,
@@ -109,7 +109,7 @@
     "change": -176.4,
     "pctChange": -0.73,
     "isMarketOpen": false,
-    "ts": 1788356396800
+    "ts": 1788359470830
   },
   "^INDIAVIX": {
     "price": 11.592,
@@ -117,6 +117,6 @@
     "change": 0.52,
     "pctChange": 4.7,
     "isMarketOpen": false,
-    "ts": 1788356396800
+    "ts": 1788359470830
   }
 }

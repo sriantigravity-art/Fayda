@@ -304,7 +304,7 @@ export class FaydaStrategyEngine {
       detected.push({
         strategyId: 'EMA_TREND_FOLLOWING',
         strategyNumber: 9,
-        strategyName: '20 EMA Confluence Trend Setup',
+        strategyName: 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)',
         category: 'TRENDING',
         signal: spotPrice >= cpr.pivot ? 'BUY_CALL' : 'BUY_PUT',
         confidenceScore: 84,
