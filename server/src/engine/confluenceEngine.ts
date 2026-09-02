@@ -760,7 +760,7 @@ export class ConfluenceEngine {
       else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
       else actionabilityStatus = 'AT_TRIGGER';
 
-      const stratId = faydaStrategy?.strategyName || 'Strategy #9 (20 EMA Trend Following)';
+      const stratId = faydaStrategy?.strategyName || 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)';
       const patternName = patternBreakout?.activePattern?.patternName || 'Ascending Momentum';
 
       primaryTrade = {

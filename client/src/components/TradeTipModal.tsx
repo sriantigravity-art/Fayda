@@ -31,7 +31,7 @@ interface TradeTipModalProps {
 }
 
 export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClose }) => {
-  const { setSelectedIndex, indices } = useMarket();
+  const { setSelectedIndex, indices, openOptionsDataModal } = useMarket();
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'>('BEGINNER');
@@ -90,8 +90,9 @@ Generated via Fayda Trading Terminal`;
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSwitchToChart = () => {
+  const handleSwitchToOptionsData = () => {
     setSelectedIndex(tip.symbol);
+    openOptionsDataModal(tip.symbol, tip);
     handleClose();
   };
 
@@ -284,12 +285,12 @@ Generated via Fayda Trading Terminal`;
             </div>
           </div>
 
-          {/* 3-Tier Actionable Entry Strategy (Sensibull / Dhan Standard) */}
+          {/* 3-Tier Actionable Entry Strategy (Fayda Pro Standard) */}
           <div className="bg-terminal-panel/80 p-3.5 rounded-xl border border-accent-cyan/30 space-y-2 font-mono">
             <div className="flex items-center justify-between text-xs font-bold text-accent-cyan">
               <span className="flex items-center gap-1.5">
                 <Target className="w-4 h-4 text-accent-cyan" />
-                <span>ACTIONABLE ENTRY STRATEGY (DHAN & SENSIBULL STANDARD)</span>
+                <span>ACTIONABLE ENTRY STRATEGY (FAYDA PRO STANDARD)</span>
               </span>
               <span className="text-[10px] text-terminal-muted">Smart Execution</span>
             </div>
@@ -462,11 +463,12 @@ Generated via Fayda Trading Terminal`;
           <div className="flex items-center space-x-2">
             <button
               type="button"
-              onClick={handleSwitchToChart}
-              className="px-3.5 py-1.5 rounded-xl bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan border border-accent-cyan/40 font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              onClick={handleSwitchToOptionsData}
+              className="px-3.5 py-1.5 rounded-xl bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan border border-accent-cyan/40 font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              title={`View ${tip.symbol} Live Options Data Table`}
             >
-              <span>View {tip.symbol} Chart</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <Layers className="w-3.5 h-3.5 text-accent-cyan" />
+              <span>View {tip.symbol} Options Data</span>
             </button>
 
             <button

@@ -863,12 +863,12 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               </div>
             </div>
 
-            {/* 3. Strategy #9 & Playbook */}
+            {/* 3. Fayda Pivot Strategy & Playbook */}
             <div className="p-2.5 bg-terminal-card border border-terminal-border rounded-lg flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-bull shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-terminal-text">3. Strategy #9 / Playbook Setups</div>
-                <div className="text-[11px] text-terminal-muted">{faydaStrategy?.strategyName || '20 EMA Trend Following & CPR Breakouts'}.</div>
+                <div className="font-bold text-terminal-text">3. Fayda Pivot Strategy / Playbook Setups</div>
+                <div className="text-[11px] text-terminal-muted">{faydaStrategy?.strategyName || 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)'}.</div>
               </div>
             </div>
 

@@ -686,7 +686,7 @@ export class ConfluenceEngine {
                 actionabilityStatus = 'DIP_OPPORTUNITY';
             else
                 actionabilityStatus = 'AT_TRIGGER';
-            const stratId = faydaStrategy?.strategyName || 'Strategy #9 (20 EMA Trend Following)';
+            const stratId = faydaStrategy?.strategyName || 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)';
             const patternName = patternBreakout?.activePattern?.patternName || 'Ascending Momentum';
             primaryTrade = {
                 id: `prim-${symbol}-${sessionInfo.session}-${targetStrike}-${optType}`,

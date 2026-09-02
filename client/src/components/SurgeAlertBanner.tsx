@@ -589,21 +589,21 @@ export const SurgeAlertBanner: React.FC = () => {
                   return (
                     <div
                       key={surge.id}
-                      className={`rounded-2xl border-2 p-3.5 transition-all duration-200 relative overflow-hidden shadow-sm flex flex-col space-y-2.5 ${
+                      className={`rounded-2xl border-2 p-3.5 transition-all duration-200 relative overflow-hidden shadow-md flex flex-col space-y-2.5 ${
                         isTargetHit
-                          ? 'border-emerald-500 bg-white dark:bg-gradient-to-b dark:from-terminal-card dark:to-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/40'
+                          ? 'border-emerald-500/70 bg-slate-900 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
                           : isStoplossHit
-                          ? 'border-rose-300 dark:border-rose-500/60 bg-white dark:bg-terminal-card'
+                          ? 'border-rose-500/60 bg-slate-900 shadow-[0_0_15px_rgba(244,63,94,0.12)]'
                           : isRunningInProfit
-                          ? 'border-emerald-400 dark:border-emerald-500/70 bg-white dark:bg-terminal-card shadow-sm'
-                          : 'border-slate-200 dark:border-terminal-border hover:border-bear/60 bg-white dark:bg-terminal-card'
+                          ? 'border-emerald-500/40 bg-slate-900 shadow-sm'
+                          : 'border-slate-800 hover:border-accent-cyan/50 bg-slate-900 shadow-sm'
                       }`}
                     >
                       {/* 🌟 CELEBRATORY TARGET 1 HIT FLASH BANNER 🌟 */}
                       {isTargetHit && (
-                        <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 border-2 border-emerald-300 text-white flex items-center justify-between shadow-[0_0_25px_rgba(16,185,129,0.6)] animate-pulse">
+                        <div className="p-2.5 rounded-xl bg-emerald-950/60 border-2 border-emerald-400 text-white flex items-center justify-between shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                           <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-white/25 text-yellow-300 shadow-sm flex items-center justify-center shrink-0">
+                            <div className="p-1.5 rounded-lg bg-emerald-500/20 text-yellow-300 shadow-sm flex items-center justify-center shrink-0 border border-emerald-400/30">
                               <Trophy className="w-4 h-4 text-yellow-300" />
                             </div>
                             <div>
@@ -611,12 +611,12 @@ export const SurgeAlertBanner: React.FC = () => {
                                 <span>🎯 TARGET 1 HIT • SYSTEM LOGIC WIN!</span>
                                 <Sparkles className="w-3.5 h-3.5 text-yellow-300 shrink-0" />
                               </span>
-                              <span className="text-[10px] text-emerald-100 font-bold block">
-                                Gain: +₹{pnlPoints} (+{pnlPct}%) • Target ₹{targetPrice.toFixed(2)} Hit
+                              <span className="text-[11px] text-emerald-200 font-bold block">
+                                Gain: <strong className="text-yellow-300">+₹{pnlPoints} (+{pnlPct}%)</strong> • Target ₹{targetPrice.toFixed(2)} Hit
                               </span>
                             </div>
                           </div>
-                          <span className="px-2 py-1 rounded-lg bg-yellow-400 text-emerald-950 font-black text-[10px] uppercase shadow-sm shrink-0">
+                          <span className="px-2 py-1 rounded-lg bg-yellow-400 text-slate-950 font-black text-[10px] uppercase shadow-sm shrink-0">
                             🏆 100% WIN
                           </span>
                         </div>
@@ -625,7 +625,7 @@ export const SurgeAlertBanner: React.FC = () => {
                       {/* Top Progress / P&L Indicator */}
                       <div className="flex items-center justify-between pt-0.5 flex-wrap gap-2">
                         <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-terminal-panel text-terminal-muted font-mono font-bold text-[9px] border border-slate-200 dark:border-terminal-border">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 font-mono font-bold text-[9px] border border-slate-800">
                             #{idx + 1}
                           </span>
                           {getScoreBadge(surge.surgeScore)}
@@ -633,8 +633,8 @@ export const SurgeAlertBanner: React.FC = () => {
                           {/* CE / PE Explicit Badge */}
                           <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
                             isCall
-                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-bull border border-emerald-500/30'
-                              : 'bg-rose-500/15 text-rose-600 dark:text-bear border border-rose-500/30'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                           }`}>
                             {isCall ? '🟢 CALL (CE)' : '🔴 PUT (PE)'}
                           </span>
@@ -649,15 +649,15 @@ export const SurgeAlertBanner: React.FC = () => {
                               <AlertTriangle className="w-2.5 h-2.5" /> SL HIT ({pnlPct}%)
                             </span>
                           ) : isRunningInProfit ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-700 dark:text-bull border border-emerald-500/40 flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                               <TrendingUp className="w-2.5 h-2.5" /> RUNNING (+{pnlPct}%)
                             </span>
                           ) : isInEntryZone ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-500/20 text-cyan-800 dark:text-accent-cyan border border-cyan-500/40 flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-500/20 text-accent-cyan border border-cyan-500/40 flex items-center gap-1">
                               <Target className="w-2.5 h-2.5" /> IN DIP ENTRY ZONE
                             </span>
                           ) : isPullback ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-800 dark:text-amber border border-amber-500/40 flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
                               <Clock className="w-2.5 h-2.5" /> PULLBACK ABOVE SL ({pnlPct}%)
                             </span>
                           ) : null}
@@ -665,21 +665,21 @@ export const SurgeAlertBanner: React.FC = () => {
 
                         {/* Fixed Signal Given Time */}
                         <div className="flex items-center space-x-1.5 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Fixed Signal Trigger Time: ${timing.givenTimeFormatted} IST`}>
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-accent-cyan font-bold flex items-center gap-1.5 shadow-sm" title={`Fixed Signal Trigger Time: ${timing.givenTimeFormatted} IST`}>
                             <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
-                            <span>GIVEN AT: <strong className="text-terminal-text">{timing.givenTimeShort}</strong></span>
-                            <span className="text-[9px] text-terminal-muted font-normal">({timing.givenTimeFormatted})</span>
+                            <span>GIVEN AT: <strong className="text-white">{timing.givenTimeShort}</strong></span>
+                            <span className="text-[9px] text-slate-400 font-normal">({timing.givenTimeFormatted})</span>
                           </span>
                         </div>
                       </div>
 
                       {/* Real-Time Live Math Equation Bar */}
-                      <div className="bg-slate-100/80 dark:bg-terminal-bg/85 p-2 rounded-xl border border-slate-200 dark:border-terminal-border/80 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+                      <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
-                          <span className="text-terminal-muted font-bold text-[9px] uppercase shrink-0">TIMING:</span>
-                          <span className="text-terminal-text truncate">
-                            {timing.liveTimeFormatted} <span className="text-terminal-muted text-[9px]">(Live)</span> - {timing.givenTimeFormatted} <span className="text-terminal-muted text-[9px]">(Given)</span> = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
+                          <span className="text-slate-400 font-bold text-[9px] uppercase shrink-0">TIMING:</span>
+                          <span className="text-slate-200 truncate">
+                            {timing.liveTimeFormatted} <span className="text-slate-400 text-[9px]">(Live)</span> - {timing.givenTimeFormatted} <span className="text-slate-400 text-[9px]">(Given)</span> = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
                           </span>
                         </div>
 
@@ -691,33 +691,33 @@ export const SurgeAlertBanner: React.FC = () => {
                       {/* Explicit User Action Recommendation Callout (BOOK / ENTER / HOLD / EXIT) */}
                       <div className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono ${
                         advice.actionType === 'BOOK_PROFIT'
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
+                          ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
                           : advice.actionType === 'EXIT_SL'
-                          ? 'bg-rose-500/15 border-rose-500/40 text-rose-800 dark:text-rose-300'
+                          ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
                           : advice.actionType === 'TRAIL_SL'
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+                          ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
                           : advice.actionType === 'ENTER_NOW'
-                          ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
-                          : 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-200'
+                          ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-200'
+                          : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
                       }`}>
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`px-2 py-0.5 rounded-md font-black text-[9px] uppercase shadow-sm shrink-0 ${advice.badgeClass}`}>
                             {advice.badgeLabel}
                           </span>
-                          <span className="text-[11px] text-slate-700 dark:text-terminal-text font-sans">{advice.explanation}</span>
+                          <span className="text-[11px] text-slate-200 font-sans font-medium">{advice.explanation}</span>
                         </div>
                       </div>
 
                       {/* 2. Asset & Strike Name + Focus Button */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-black text-sm sm:text-base text-terminal-text tracking-wide flex items-center gap-1.5">
+                          <h3 className="font-black text-sm sm:text-base text-white tracking-wide flex items-center gap-1.5">
                             <span>{surge.indexSymbol}</span>
-                            <span className={isCall ? 'text-emerald-700 dark:text-bull font-black' : 'text-rose-600 dark:text-bear font-black'}>
+                            <span className={isCall ? 'text-emerald-400 font-black' : 'text-rose-400 font-black'}>
                               {surge.strikePrice} {surge.optionType}
                             </span>
                           </h3>
-                          <span className="text-[10px] text-terminal-muted block mt-0.5 leading-tight">
+                          <span className="text-[11px] text-slate-300 block mt-0.5 leading-tight font-medium">
                             {surge.actionDescription}
                           </span>
                         </div>
@@ -726,7 +726,7 @@ export const SurgeAlertBanner: React.FC = () => {
                           onClick={() => {
                             setSelectedIndex(surge.indexSymbol);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-terminal-panel hover:bg-slate-200 dark:hover:bg-terminal-bg border border-slate-200 dark:border-terminal-border text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0 shadow-sm cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-accent-cyan text-[10px] font-bold flex items-center gap-1 transition shrink-0 shadow-sm cursor-pointer"
                           title="Focus on this asset chart and option chain"
                         >
                           <span>Focus</span>
@@ -735,71 +735,70 @@ export const SurgeAlertBanner: React.FC = () => {
                       </div>
 
                       {/* 3. Structured 4-Box High-Visibility Trade Matrix */}
-                      <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
+                      <div className="grid grid-cols-4 gap-2 text-center text-xs font-mono">
                         {/* Live LTP & P&L */}
-                        <div className={`p-2 rounded-xl border shadow-sm ${
+                        <div className={`p-2 rounded-xl border bg-slate-950 shadow-sm ${
                           isTargetHit || pnlPoints >= 0 
-                            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/40 text-emerald-700 dark:text-bull' 
-                            : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-bear'
+                            ? 'border-emerald-500/50 text-emerald-400' 
+                            : 'border-rose-500/50 text-rose-400'
                         }`}>
-                          <span className="text-[8px] text-terminal-muted block font-bold uppercase tracking-wider">LIVE LTP</span>
-                          <span className="font-black text-xs sm:text-sm block tabular-nums mt-0.5">
+                          <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">LIVE LTP</span>
+                          <span className="font-black text-sm block tabular-nums mt-0.5 text-white">
                             ₹{currentOptionLtp.toFixed(2)}
                           </span>
-                          <span className="text-[8px] font-bold block opacity-90">
+                          <span className={`text-[10px] font-bold block ${pnlPoints >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {pnlPoints >= 0 ? `+₹${pnlPoints} (+${pnlPct}%)` : `-₹${Math.abs(pnlPoints)} (${pnlPct}%)`}
                           </span>
                         </div>
 
                         {/* Entry Zone */}
-                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-terminal-panel border border-cyan-200 dark:border-cyan-500/30">
-                          <span className="text-[8px] text-cyan-800 dark:text-accent-cyan block font-bold uppercase tracking-wider">ENTRY ZONE</span>
-                          <span className="font-bold text-[10px] sm:text-xs text-terminal-text block truncate mt-0.5" title={`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}>
+                        <div className="p-2 rounded-xl bg-slate-950 border border-cyan-500/40">
+                          <span className="text-[9px] text-cyan-400 block font-bold uppercase tracking-wider">ENTRY ZONE</span>
+                          <span className="font-bold text-sm text-cyan-300 block mt-0.5" title={`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}>
                             {`₹${(entryBase * 0.98).toFixed(2)} - ₹${(entryBase * 1.02).toFixed(2)}`}
                           </span>
+                          <span className="text-[9px] text-slate-400 block">Ref: ₹{entryBase.toFixed(2)}</span>
                         </div>
 
                         {/* Stop Loss */}
-                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-terminal-panel border border-rose-200 dark:border-rose-500/30">
-                          <span className="text-[8px] text-rose-700 dark:text-bear block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
+                        <div className="p-2 rounded-xl bg-slate-950 border border-rose-500/40">
+                          <span className="text-[9px] text-rose-400 block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                             <ShieldAlert className="w-2.5 h-2.5" /> SL
                           </span>
-                          <span className="font-bold text-[10px] sm:text-xs text-rose-700 dark:text-bear block mt-0.5">
-                            ₹{stoplossPrice.toFixed(2)} (-10%)
+                          <span className="font-bold text-sm text-rose-400 block mt-0.5">
+                            ₹{stoplossPrice.toFixed(2)}
                           </span>
+                          <span className="text-[9px] text-rose-400/80 block">(-10% Risk Floor)</span>
                         </div>
 
                         {/* Target */}
-                        <div className={`p-2 rounded-xl border ${
-                          isTargetHit 
-                            ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500 text-emerald-700 dark:text-bull shadow-sm' 
-                            : 'bg-slate-50 dark:bg-terminal-panel border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-bull'
-                        }`}>
-                          <span className="text-[8px] text-emerald-800 dark:text-bull block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
+                        <div className="p-2 rounded-xl bg-slate-950 border border-emerald-500/40">
+                          <span className="text-[9px] text-emerald-400 block font-bold uppercase tracking-wider flex items-center justify-center gap-0.5">
                             <Target className="w-2.5 h-2.5" /> TARGET
                           </span>
-                          <span className="font-black text-[10px] sm:text-xs block mt-0.5">
-                            ₹{targetPrice.toFixed(2)} (+25%)
+                          <span className="font-black text-sm text-emerald-400 block mt-0.5">
+                            ₹{targetPrice.toFixed(2)}
                           </span>
+                          <span className="text-[9px] text-emerald-400/80 block">(+25% Target 1)</span>
                         </div>
                       </div>
 
                       {/* 4. Dynamic Analytical Momentum Horizon Bar */}
-                      <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border/80 flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                      <div className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-1 text-[10px]">
                         <span className="flex items-center gap-1.5 text-accent-cyan font-bold">
                           <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
                           <span>{surge.horizonDescription || '⏱️ Momentum Horizon: 15-20 min'}</span>
                         </span>
-                        <span className="text-terminal-muted">
-                          Flow Velocity: <strong className="text-emerald-700 dark:text-bull">{surge.oiChangePct > 0 ? `+${surge.oiChangePct}%` : `${surge.oiChangePct}%`} OI/min</strong>
+                        <span className="text-slate-300">
+                          Flow Velocity: <strong className="text-emerald-400 font-bold">{surge.oiChangePct > 0 ? `+${surge.oiChangePct}%` : `${surge.oiChangePct}%`} OI/min</strong>
                         </span>
                       </div>
 
                       {/* 5. Footer Flow Metrics */}
-                      <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-terminal-muted pt-1 border-t border-slate-200 dark:border-terminal-border/50">
-                        <span>⚡ OI Surge: <strong className="text-terminal-text font-bold">{surge.oiChange1mFormatted}</strong></span>
-                        <span>{surge.ivDescription || `IV ${surge.iv}%`}</span>
-                        <span>{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-300 pt-1.5 border-t border-slate-800 font-mono">
+                        <span>⚡ OI Surge: <strong className="text-amber-400 font-bold">{surge.oiChange1mFormatted}</strong></span>
+                        <span className="text-slate-300">{surge.ivDescription || `IV ${surge.iv}%`}</span>
+                        <span className="text-slate-300">{surge.suggestedContract?.liquidityNote || surge.liquidityRating}</span>
                         <span className="text-accent-cyan font-bold">Risk:Reward 1:2.5</span>
                       </div>
                     </div>

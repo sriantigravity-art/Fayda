@@ -53,6 +53,14 @@ interface MarketContextType {
   activeTradeTipModal: ActiveTradeTipData | null;
   openTradeTipModal: (tip: ActiveTradeTipData) => void;
   closeTradeTipModal: () => void;
+  // Live Entity Chart Modal Engine
+  activeChartModal: { symbol: string; tipContext?: ActiveTradeTipData } | null;
+  openChartModal: (symbol: string, tipContext?: ActiveTradeTipData) => void;
+  closeChartModal: () => void;
+  // Live Options Data Table Modal Engine
+  activeOptionsDataModal: { symbol: string; tipContext?: ActiveTradeTipData } | null;
+  openOptionsDataModal: (symbol: string, tipContext?: ActiveTradeTipData) => void;
+  closeOptionsDataModal: () => void;
 }
 
 import { getApiBase, getWsUrl } from '../utils/apiBase';
@@ -130,6 +138,24 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
   const closeTradeTipModal = useCallback(() => {
     setActiveTradeTipModal(null);
+  }, []);
+
+  // Live Entity Chart Modal Engine State
+  const [activeChartModal, setActiveChartModal] = useState<{ symbol: string; tipContext?: ActiveTradeTipData } | null>(null);
+  const openChartModal = useCallback((symbol: string, tipContext?: ActiveTradeTipData) => {
+    setActiveChartModal({ symbol, tipContext });
+  }, []);
+  const closeChartModal = useCallback(() => {
+    setActiveChartModal(null);
+  }, []);
+
+  // Live Options Data Table Modal Engine State
+  const [activeOptionsDataModal, setActiveOptionsDataModal] = useState<{ symbol: string; tipContext?: ActiveTradeTipData } | null>(null);
+  const openOptionsDataModal = useCallback((symbol: string, tipContext?: ActiveTradeTipData) => {
+    setActiveOptionsDataModal({ symbol, tipContext });
+  }, []);
+  const closeOptionsDataModal = useCallback(() => {
+    setActiveOptionsDataModal(null);
   }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -777,7 +803,13 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         refreshIndexStates,
         activeTradeTipModal,
         openTradeTipModal,
-        closeTradeTipModal
+        closeTradeTipModal,
+        activeChartModal,
+        openChartModal,
+        closeChartModal,
+        activeOptionsDataModal,
+        openOptionsDataModal,
+        closeOptionsDataModal
       }}
     >
       {children}
@@ -824,7 +856,13 @@ export const useMarket = (): MarketContextType => {
       globalMarketContext: null,
       activeTradeTipModal: null,
       openTradeTipModal: () => {},
-      closeTradeTipModal: () => {}
+      closeTradeTipModal: () => {},
+      activeChartModal: null,
+      openChartModal: () => {},
+      closeChartModal: () => {},
+      activeOptionsDataModal: null,
+      openOptionsDataModal: () => {},
+      closeOptionsDataModal: () => {}
     };
   }
   return context;
