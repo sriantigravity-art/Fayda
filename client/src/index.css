@@ -203,7 +203,7 @@ body {
 .animate-marquee-ticker {
   display: flex;
   width: max-content;
-  animation: marqueeTicker 48s linear infinite;
+  animation: marqueeTicker 18s linear infinite;
 }
 
 .animate-marquee-ticker:hover {

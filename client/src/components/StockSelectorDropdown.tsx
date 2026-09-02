@@ -218,15 +218,16 @@ export const StockSelectorDropdown: React.FC = () => {
         title="Click to select Asset"
       >
         <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-terminal-text tracking-tight whitespace-nowrap">
-          {getPrettyIndexName(currentConfig)}
+          <span className="sm:hidden">{currentConfig.symbol}</span>
+          <span className="hidden sm:inline">{getPrettyIndexName(currentConfig)}</span>
         </span>
 
         {currentState && (
           <div className="flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-sm whitespace-nowrap font-mono font-bold">
             <span className="text-slate-900 dark:text-terminal-text font-bold">
-              {currentState.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{currentState.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className={isPositive ? 'text-emerald-600 dark:text-bull' : 'text-red-500 dark:text-bear'}>
+            <span className={`hidden sm:inline ${isPositive ? 'text-emerald-600 dark:text-bull' : 'text-red-500 dark:text-bear'}`}>
               {isPositive ? '+' : ''}{currentState.change.toFixed(2)} ({isPositive ? '+' : ''}{currentState.pctChange.toFixed(2)}%)
             </span>
           </div>

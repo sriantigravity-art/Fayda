@@ -287,9 +287,9 @@ export const HeaderBar: React.FC = () => {
           <StockSelectorDropdown />
 
           {/* Live / Closed Market Indicator (Visible on mobile & desktop) */}
-          <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0">
+          <div className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0" title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
-            <span className="text-terminal-muted hidden xs:inline">{isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}</span>
+            <span className="text-terminal-muted hidden md:inline">{isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}</span>
           </div>
         </div>
 
@@ -300,7 +300,7 @@ export const HeaderBar: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text transition text-xs font-sans cursor-pointer shadow-subtle"
+            className="p-1.5 sm:px-2 sm:py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text transition text-xs font-sans cursor-pointer shadow-subtle flex items-center space-x-1.5"
             title="Open Command Palette (Ctrl+K or ⌘K)"
           >
             <Search className="w-3.5 h-3.5" />
@@ -496,7 +496,7 @@ export const HeaderBar: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition cursor-pointer shrink-0"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky font-sans text-xs font-bold transition cursor-pointer shrink-0 flex items-center space-x-1"
               title="Sign In with SEBI Consent"
             >
               <User className="w-3.5 h-3.5" />
@@ -512,19 +512,19 @@ export const HeaderBar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMobileModeDropdownOpen(!isMobileModeDropdownOpen)}
-                className={`flex items-center space-x-1 px-2 py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${mode === 'BEGINNER'
+                className={`flex items-center space-x-1 p-1.5 sm:px-2 sm:py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${mode === 'BEGINNER'
                     ? 'bg-bull/15 text-bull border-bull/40 shadow-[0_0_10px_rgba(0,245,155,0.2)]'
                     : mode === 'INTERMEDIATE'
                       ? 'bg-amber/15 text-amber border-amber/40 shadow-[0_0_10px_rgba(255,180,0,0.2)]'
                       : 'bg-accent-purple/15 text-accent-purple border-accent-purple/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
                   }`}
-                title="Switch Trader Experience Mode (Beginner / Intermediate / Expert)"
+                title={`Mode: ${mode === 'BEGINNER' ? 'Beginner' : mode === 'INTERMEDIATE' ? 'Intermediate' : 'Expert'} - Click to switch`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-sans">
+                <span className="text-[11px] font-sans hidden sm:inline">
                   {mode === 'BEGINNER' ? 'Beginner' : mode === 'INTERMEDIATE' ? 'Interm.' : 'Expert'}
                 </span>
-                <div className={`transition-transform duration-200 ${isMobileModeDropdownOpen ? 'rotate-180' : ''}`}>
+                <div className={`transition-transform duration-200 hidden sm:block ${isMobileModeDropdownOpen ? 'rotate-180' : ''}`}>
                   <ChevronDown className="w-3 h-3" />
                 </div>
               </button>
@@ -610,11 +610,11 @@ export const HeaderBar: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsJournalModalOpen(true)}
-            className="lg:hidden flex items-center space-x-1 px-2 py-1 rounded-lg bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs cursor-pointer shrink-0 shadow-sm"
+            className="lg:hidden flex items-center space-x-1 p-1.5 sm:px-2 sm:py-1 rounded-lg bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs cursor-pointer shrink-0 shadow-sm"
             title="Trade Journal & Performance Audit"
           >
             <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
-            <span className="text-[11px]">Journal</span>
+            <span className="text-[11px] hidden sm:inline">Journal</span>
           </button>
 
           {/* ========================================================================= */}

@@ -14,10 +14,10 @@ export const HighlightSignalTicker: React.FC = () => {
   const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const [tickerSpeed, setTickerSpeed] = useState<'SLOW' | 'NORMAL' | 'FAST'>('SLOW');
+  const [tickerSpeed, setTickerSpeed] = useState<'SLOW' | 'NORMAL' | 'FAST'>('NORMAL');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
-  // Live 1-second ticker for real-time elapsed calculations
+  // Live 1-second ticker for real-time elapsed calculations & clock
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -25,7 +25,8 @@ export const HighlightSignalTicker: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const speedSeconds = tickerSpeed === 'SLOW' ? 75 : tickerSpeed === 'NORMAL' ? 48 : 28;
+  // Increased speed of ticker: 10s (FAST), 18s (NORMAL), 30s (SLOW)
+  const speedSeconds = tickerSpeed === 'SLOW' ? 30 : tickerSpeed === 'NORMAL' ? 18 : 10;
   const isAnimationPaused = isPaused || isHovered;
 
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
@@ -78,25 +79,26 @@ export const HighlightSignalTicker: React.FC = () => {
 
   // Build list of active setups across eligible open symbols
   const activeSetups = React.useMemo(() => {
-    return symbolsToScan.map((sym: IndexSymbol) => {
-      const state = indices[sym];
-      if (!state) return null;
-
-      // STRICT CHECK: If market is closed for this symbol, NEVER generate tips!
-      if (!isSymbolMarketOpen(sym)) {
-        return null;
-      }
-
-      const { recommendedTrades, atmStrike, resistanceLevels, strikes, lastUpdated, daysToExpiry, pcr, patternBreakout, faydaStrategy, multiLegStrategy } = state;
-      const { bullishPick, bearishPick } = recommendedTrades;
+    return symbolsToScan.map((sym) => {
+      const idxState = indices[sym];
       const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === sym);
-      const isIndex = cfg ? cfg.isIndex : true;
+      const isIndex = cfg?.isIndex ?? true;
+      const { 
+        recommendedTrades, 
+        atmStrike, 
+        strikes = [], 
+        daysToExpiry, 
+        pcr,
+        resistanceLevels,
+        lastUpdated,
+        patternBreakout,
+        faydaStrategy,
+        multiLegStrategy
+      } = idxState || { atmStrike: 100, strikes: [], recommendedTrades: {} as any };
 
-      const fallbackTime = lastUpdated 
-        ? formatISTTime(lastUpdated, { showSeconds: false })
-        : 'Live Tick';
+      const bullishPick = recommendedTrades?.bullishPick;
+      const bearishPick = recommendedTrades?.bearishPick;
 
-      // Check if contract or signal has expired
       const isPickExpired = (p: typeof bullishPick) => {
         if (!p) return true;
         return isContractOrSignalExpired(p.expiryDate, p.timestamp, p.validUntilMinutes);
@@ -107,6 +109,8 @@ export const HighlightSignalTicker: React.FC = () => {
       if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
         pick = bearishPick;
       }
+
+      const fallbackTime = formatISTTime(lastUpdated || new Date());
 
       // 2. If live pick is active & unexpired:
       if (pick) {
@@ -129,8 +133,6 @@ export const HighlightSignalTicker: React.FC = () => {
           isIndex
         );
 
-        const rawTimestamp = pick.timestamp || lastUpdated || new Date().toISOString();
-
         return {
           symbol: sym,
           strike: pick.suggestedContract.symbol,
@@ -143,7 +145,7 @@ export const HighlightSignalTicker: React.FC = () => {
           target: pick.suggestedContract.target,
           riskReward: pick.suggestedContract.riskReward || '1:2.0',
           score: pick.surgeScore,
-          rawTimestamp,
+          rawTimestamp: pick.timestamp || lastUpdated || new Date().toISOString(),
           time: pick.timeFormatted || fallbackTime,
           isStoplossHit: isSlHit,
           horizon,
@@ -198,17 +200,17 @@ export const HighlightSignalTicker: React.FC = () => {
         isBull,
         isLiveSignal: false,
         ltp: cleanLtp,
-        entry: `₹${cleanLtp.toFixed(2)} - ₹${(cleanLtp * 1.02).toFixed(2)}`,
-        exitSL: `₹${dyn.slPrice.toFixed(2)} (-${dyn.slPct.toFixed(2)}%)`,
-        target: `₹${dyn.targetPrice.toFixed(2)} (+${dyn.targetPct.toFixed(2)}%)`,
+        entry: `₹${(cleanLtp * 0.98).toFixed(2)} - ₹${(cleanLtp * 1.02).toFixed(2)}`,
+        exitSL: `₹${dyn.slPrice.toFixed(2)}`,
+        target: `₹${dyn.targetPrice.toFixed(2)}`,
         riskReward: dyn.riskReward,
         score: 88,
         rawTimestamp,
-        time: 'Live Session',
+        time: fallbackTime,
         isStoplossHit: isSlHit,
         horizon,
-        breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName}` : '✓ Breakout Confluence',
-        faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : '✓ Fayda Strategy Validated',
+        breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined,
+        faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined,
         multiLegAlternative: multiLegStrategy ? {
           spreadName: multiLegStrategy.strategyName,
           legsSummary: multiLegStrategy.description,
@@ -218,114 +220,90 @@ export const HighlightSignalTicker: React.FC = () => {
           marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
         } : undefined
       };
-    }).filter(Boolean);
-  }, [symbolsToScan, indices, currentTime]);
+    });
+  }, [symbolsToScan, indices, isBeginner, isIntermediate, isExpert, isLiveNseMarket, currentTime]);
 
-  const renderSetupItem = (item: any, keySuffix: string) => {
-    const isSelected = selectedIndex === item.symbol;
+  const renderSetupItem = (item: (typeof activeSetups)[0], uniquePrefix: string) => {
     const isSl = item.isStoplossHit;
-    const hz = item.horizon;
-    const multiLeg = item.multiLegAlternative;
+    const isBull = item.isBull;
 
-    const timing = getSignalTimingData(item.rawTimestamp, 30, currentTime);
-    const entryNum = parseFloat(String(item.entry || '').replace(/[^0-9.]/g, '')) || item.ltp;
-    const tgtNum = parseFloat(String(item.target || '').replace(/[^0-9.]/g, '')) || (item.ltp * 1.35);
-    const slNum = parseFloat(String(item.exitSL || '').replace(/[^0-9.]/g, '')) || (item.ltp * 0.85);
+    const timing = getSignalTimingData(
+      item.rawTimestamp,
+      item.horizon?.validUntilMinutes ?? (item.score >= 90 ? 25 : 35),
+      currentTime
+    );
 
     const advice = getUserTradeAdvice({
       currentLtp: item.ltp,
-      entryPrice: entryNum,
-      targetPrice: tgtNum,
-      stoplossPrice: slNum,
+      entryPrice: parseFloat(String(item.entry).replace(/[^0-9.]/g, '')) || item.ltp,
+      targetPrice: parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3),
+      stoplossPrice: parseFloat(String(item.exitSL).replace(/[^0-9.]/g, '')) || (item.ltp * 0.8),
       elapsedMinutes: timing.elapsedMinutes,
       maxValidityMinutes: timing.validUntilMinutes
     });
 
-    const handleCardClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setSelectedIndex(item.symbol);
+    const handleOpenModal = () => {
       openTradeTipModal({
         symbol: item.symbol,
-        title: item.strike,
         contractSymbol: item.strike,
-        action: item.action === 'BUY CALL' ? 'BUY_CALL' : 'BUY_PUT',
-        entryPrice: item.entry,
+        optionType: item.strike.includes('PE') ? 'PE' : 'CE',
+        action: item.isBull ? 'BUY_CALL' : 'BUY_PUT',
+        strikePrice: parseInt(item.strike.replace(/[^0-9]/g, '')) || 0,
+        entryPrice: typeof item.ltp === 'number' ? item.ltp : 0,
         entryRange: item.entry,
-        currentLtp: item.ltp,
-        stoplossPrice: item.exitSL,
-        target1Price: item.target,
+        target1Price: parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3),
+        target2Price: (parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3)) * 1.25,
+        stoplossPrice: parseFloat(String(item.exitSL).replace(/[^0-9.]/g, '')) || (item.ltp * 0.8),
         riskReward: item.riskReward,
         confluenceScore: item.score,
-        givenTimeFormatted: timing.givenTimeFormatted,
-        elapsedTimeFormatted: timing.elapsedFormatted,
-        actionGuidance: advice.explanation,
-        actionBadge: advice.badgeLabel,
-        actionClass: advice.badgeClass,
+        currentLtp: item.ltp,
         status: isSl ? 'SL_HIT' : 'ACTIVE',
-        strategyTag: item.faydaStrategyMatch || item.breakoutStatus,
-        tierLabel: '⚡ FAYDA RADAR HIGH-CONVICTION PICK'
+        givenTimeFormatted: item.time,
+        title: item.strike,
+        subtitle: `${item.action} • ${item.faydaStrategyMatch || 'Momentum Breakout'}`
       });
     };
 
     return (
-      <div
-        key={`${item.symbol}-${keySuffix}`}
-        onClick={handleCardClick}
-        className={`flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer shrink-0 shadow-sm ${
-          isSl
-            ? 'bg-bear/20 border-bear shadow-[0_0_15px_rgba(255,59,105,0.4)] animate-pulse'
-            : isSelected
-            ? 'bg-terminal-card border-accent-cyan shadow-[0_0_18px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan/60'
-            : 'bg-terminal-panel/90 border-terminal-border/90 hover:border-accent-cyan/60 hover:bg-terminal-card hover:shadow-md'
-        }`}
-        title={`${timing.formulaText} | ${advice.explanation} | ${hz.categoryBadge}`}
-      >
-        {/* EXPLICIT TRADE STATUS / CONVICTION BADGE */}
-        <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg border text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
+      <div 
+        key={`${uniquePrefix}-${item.symbol}`} 
+        onClick={handleOpenModal}
+        className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl border transition-all select-none shadow-sm shrink-0 cursor-pointer ${
           isSl 
-            ? 'bg-bear/30 text-bear border-bear animate-pulse' 
-            : item.isLiveSignal
-            ? 'bg-bull/25 text-bull border-bull shadow-[0_0_10px_rgba(0,245,155,0.35)] animate-pulse'
-            : hz.categoryTagColor
-        }`}>
-          <span>{isSl ? '🛑 STOPLOSS HIT' : item.isLiveSignal ? '⚡ TOP CONVICTION (≥88%)' : hz.categoryBadge}</span>
-        </div>
-
-        {/* Index & Strike Badge */}
+            ? 'bg-bear/10 border-bear/40 hover:bg-bear/20 hover:border-bear' 
+            : isBull
+              ? 'bg-bull/10 border-bull/30 hover:bg-bull/20 hover:border-bull'
+              : 'bg-bear/10 border-bear/30 hover:bg-bear/20 hover:border-bear'
+        }`}
+        title={`Click to view trade tip setup details for ${item.strike}`}
+      >
+        {/* Symbol & Strike */}
         <div className="flex items-center space-x-1.5 shrink-0">
-          <span className={`font-black text-xs sm:text-sm tracking-wide ${isSl ? 'text-bear' : item.isBull ? 'text-bull' : 'text-bear'}`}>
-            {isSl ? '🛑' : item.isBull ? '▲' : '▼'} {item.strike}
-          </span>
-          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-            isSl ? 'bg-bear text-white font-black' : item.isBull ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bear/20 text-bear border border-bear/40'
+          <span className="font-mono font-bold text-xs text-terminal-text">{item.symbol}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+            isBull ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
           }`}>
-            {isSl ? 'SQUARE OFF' : item.action}
+            {item.strike}
           </span>
         </div>
 
-        {/* Fixed Tip Given Time & Real-time Live Elapsed Duration */}
-        <div className="flex items-center space-x-1 font-mono text-[9px] shrink-0">
-          <span className="px-1.5 py-0.5 rounded bg-terminal-bg border border-terminal-border text-accent-cyan font-bold flex items-center gap-1" title={`Fixed Signal Time: ${timing.givenTimeFormatted}`}>
-            <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-            <span>{timing.givenTimeShort}</span>
-          </span>
-          <span className={`px-1.5 py-0.5 rounded border font-bold ${timing.actionability.tagClass}`} title={timing.formulaText}>
-            ⏱️ {timing.elapsedFormatted}
-          </span>
+        {/* Live LTP */}
+        <div className="flex items-center space-x-1 font-mono text-xs font-bold text-terminal-text shrink-0">
+          <span className="text-[10px] text-terminal-muted">LTP:</span>
+          <span>₹{(item.ltp || 0).toFixed(2)}</span>
         </div>
 
-        {/* Multi-Strategy & Breakout Verification Tags */}
-        <div className="hidden lg:flex items-center space-x-1 shrink-0 font-mono text-[9px]">
-          {item.breakoutStatus && (
-            <span className="px-1.5 py-0.5 rounded bg-accent-purple/15 text-accent-purple border border-accent-purple/30 font-bold truncate max-w-[130px]">
-              {item.breakoutStatus}
-            </span>
-          )}
-          {item.faydaStrategyMatch && (
-            <span className="px-1.5 py-0.5 rounded bg-accent-sky/15 text-accent-sky border border-accent-sky/30 font-bold truncate max-w-[120px]">
-              {item.faydaStrategyMatch}
-            </span>
-          )}
+        {/* Timing Tag */}
+        <div className="hidden md:flex items-center space-x-1 text-[10px] font-mono text-terminal-muted shrink-0">
+          <Clock className="w-2.5 h-2.5 text-accent-cyan" />
+          <span>{timing.givenTimeShort}</span>
+        </div>
+
+        {/* Actionability Badge */}
+        <div className="flex items-center shrink-0">
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${advice.badgeClass}`}>
+            {advice.badgeLabel}
+          </span>
         </div>
 
         {/* Entry / Square Off Zone */}
@@ -335,42 +313,100 @@ export const HighlightSignalTicker: React.FC = () => {
           <span className="font-bold">{isSl ? 'EXIT:' : 'ENTRY:'}</span>
           <span className="font-bold whitespace-nowrap">{isSl ? `₹${(item.ltp || 0).toFixed(2)}` : item.entry}</span>
         </div>
-
-        {/* Target & R:R Ratio */}
-        <div className="flex items-center space-x-1.5 shrink-0 text-[10px] sm:text-[11px] font-mono">
-          <span className="px-2 py-0.5 rounded-md bg-bull/15 border border-bull/30 text-bull font-bold flex items-center gap-1">
-            <Target className="w-3 h-3" />
-            <span>TGT: {item.target}</span>
-          </span>
-          <span className="px-1.5 py-0.5 rounded-md bg-amber/10 border border-amber/30 text-amber text-[9px] font-bold">
-            R:R {item.riskReward}
-          </span>
-        </div>
       </div>
     );
   };
 
   if (activeSetups.length === 0) return null;
 
+  const istTimeString = formatISTTime(currentTime, { showSeconds: true, includeSuffix: true });
+
   return (
     <div 
-      className="w-full bg-terminal-panel/90 border-b-2 border-terminal-border/90 backdrop-blur-sm overflow-hidden select-none relative group z-20 shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+      className="w-full bg-terminal-panel/95 border-b border-terminal-border backdrop-blur-md overflow-hidden select-none relative group z-20 shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center py-2 px-3 relative min-h-[50px]">
+      {/* ========================================================================= */}
+      {/* MOBILE LAYOUT: LINE 1 = FAYDA RADAR + SYSTEM TIME | LINE 2 = FAST TICKER  */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col sm:hidden py-1 px-2.5 space-y-1">
+        {/* LINE 1: FAYDA RADAR BRAND (LEFT) + SYSTEM TIME & CONTROLS (RIGHT) */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex items-center space-x-1.5">
+            <div className="p-1 rounded-md bg-accent-cyan/15 border border-accent-cyan/40 text-accent-cyan">
+              <Zap className="w-3.5 h-3.5 animate-pulse" />
+            </div>
+            <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
+              {isBeginner ? 'FAYDA RADAR' : isExpert ? 'FAYDA RADAR (ALPHA)' : 'FAYDA RADAR'}
+            </span>
+            <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+              isLiveNseMarket 
+                ? 'bg-bull/20 text-bull border border-bull/40' 
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            }`}>
+              {isLiveNseMarket ? 'LIVE NSE' : 'MCX LIVE'}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1.5">
+            {/* System Time in IST */}
+            <div className="flex items-center space-x-1 font-mono text-[10px] text-accent-cyan bg-terminal-card px-2 py-0.5 rounded-lg border border-terminal-border shadow-sm">
+              <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
+              <span className="font-bold">{istTimeString}</span>
+            </div>
+
+            {/* Play / Pause Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className="p-1 rounded-lg bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+              title={isPaused ? "Resume ticker" : "Pause ticker"}
+            >
+              {isPaused ? <Play className="w-3 h-3 text-bull" /> : <Pause className="w-3 h-3" />}
+            </button>
+          </div>
+        </div>
+
+        {/* LINE 2: CONTINUOUS SCROLLING TICKER */}
+        <div className="overflow-hidden whitespace-nowrap w-full relative flex items-center py-0.5 border-t border-terminal-border/50">
+          <div 
+            className="flex items-center whitespace-nowrap will-change-transform py-0.5"
+            style={{
+              animationName: 'marqueeTicker',
+              animationDuration: `${speedSeconds}s`,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              animationPlayState: isAnimationPaused ? 'paused' : 'running',
+              width: 'max-content'
+            }}
+          >
+            <div className="flex items-center space-x-2.5 shrink-0 pr-2.5">
+              {activeSetups.map((item, idx) => renderSetupItem(item, `mob-orig-${idx}`))}
+            </div>
+            <div className="flex items-center space-x-2.5 shrink-0 pr-2.5" aria-hidden="true">
+              {activeSetups.map((item, idx) => renderSetupItem(item, `mob-dup-${idx}`))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* DESKTOP LAYOUT (>= sm): INLINE SINGLE ROW WITH FAST SCROLLING TICKER      */}
+      {/* ========================================================================= */}
+      <div className="hidden sm:flex items-center py-2 px-3 relative min-h-[48px]">
         {/* Left Sticky Label */}
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
           <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
-          <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-terminal-text">
-            {isBeginner ? '🟢 TOP SAFE PICKS' : isIntermediate ? '⚡ FAYDA RADAR' : '🔬 HIGH-ALPHA SIGNALS'}
+          <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
+            {isBeginner ? 'TOP SAFE PICKS' : isIntermediate ? 'FAYDA RADAR' : 'HIGH-ALPHA SIGNALS'}
           </span>
-          <span className={`hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+          <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
             isLiveNseMarket 
-              ? isBeginner ? 'bg-bull/20 text-bull border border-bull/40' : 'bg-bull/20 text-bull border border-bull/40'
+              ? 'bg-bull/20 text-bull border border-bull/40' 
               : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
           }`}>
-            {isLiveNseMarket ? (isBeginner ? 'SAFETY SCORE ≥ 88%' : isIntermediate ? 'FILTER: SCORE ≥ 88%' : 'CONVICTION ALPHA ≥ 88%') : 'MCX COMMODITIES LIVE'}
+            {isLiveNseMarket ? 'LIVE NSE' : 'MCX COMMODITIES LIVE'}
           </span>
         </div>
 
@@ -396,15 +432,22 @@ export const HighlightSignalTicker: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Play/Pause Controls */}
-        <div className="flex items-center space-x-1 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2 rounded-lg border border-terminal-border/60 shadow-sm">
+        {/* Right System Time & Play/Pause Controls */}
+        <div className="flex items-center space-x-2 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg border border-terminal-border/60 shadow-sm">
+          <div className="flex items-center space-x-1 font-mono text-xs text-accent-cyan font-bold">
+            <Clock className="w-3.5 h-3.5 text-accent-cyan" />
+            <span>{istTimeString}</span>
+          </div>
+
+          <div className="h-3 w-[1px] bg-terminal-border mx-0.5" />
+
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
             className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer"
             title={isPaused ? "Resume ticker" : "Pause ticker"}
           >
-            {isPaused ? <Play className="w-3 h-3 text-bull" /> : <Pause className="w-3 h-3" />}
+            {isPaused ? <Play className="w-3.5 h-3.5 text-bull" /> : <Pause className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
