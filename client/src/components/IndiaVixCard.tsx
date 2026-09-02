@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import { Zap, TrendingUp, TrendingDown, Shield, AlertTriangle, Target, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── VIX Regime Engine ────────────────────────────────────────────────────────
@@ -295,6 +296,7 @@ const RiskBadge: React.FC<{ level: Strategy['riskLevel'] }> = ({ level }) => {
 
 export const IndiaVixCard: React.FC = () => {
   const { currentIndexState } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const indiaVix = currentIndexState?.indiaVix;
 
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -336,9 +338,19 @@ export const IndiaVixCard: React.FC = () => {
           </div>
           <div>
             <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,184,0,0.3)]">
-              INDIA VIX — FEAR GAUGE
+              {isBeginner 
+                ? '⚡ India VIX: Market Fear & Risk Meter' 
+                : isIntermediate 
+                ? '⚡ INDIA VIX — MARKET VOLATILITY GAUGE' 
+                : '🔬 INDIA VIX IMPLIED VOLATILITY & REGIME MATRIX'}
             </h2>
-            <span className="text-[9px] text-terminal-muted block">NSE Volatility Index • Options Strategies</span>
+            <span className="text-[9px] text-terminal-muted block">
+              {isBeginner 
+                ? 'Shows how wildly the market is expected to move (Higher = Riskier)' 
+                : isIntermediate 
+                ? 'NSE Volatility Index • Options Strategies & Hedging Guidance' 
+                : '30-Day Annualised Variance & Institutional Mean-Reversion Playbook'}
+            </span>
           </div>
         </div>
 

@@ -151,7 +151,11 @@ export const TradeGuidanceCard: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <h2 className="text-xs sm:text-sm font-bold text-terminal-text">
-                {isBeginner ? 'Beginner Guided Setup' : isIntermediate ? 'Trade Guidance & Strategic Regime' : 'Quantitative Greeks & Order Flow Matrix'}
+                {isBeginner 
+                  ? '🔰 Simple Step-by-Step Trade Guide' 
+                  : isIntermediate 
+                  ? '📊 Strategic Regime & Technical Playbook' 
+                  : '🔬 Quantitative Greeks Sensitivity & Dealer Flow Matrix'}
               </h2>
               {/* Dynamic Mode Badge */}
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${modeBadgeClass}`}>

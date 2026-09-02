@@ -1034,4 +1034,68 @@ export interface NtmClusterState {
   lastCalculatedAt: string;
 }
 
+export interface ActiveTradeTipData {
+  id?: string;
+  symbol: IndexSymbol;
+  title: string;
+  contractSymbol?: string;
+  strikePrice?: number;
+  optionType?: 'CE' | 'PE' | 'SPREAD';
+  action: string;
+  tierLabel?: string;
+  sessionName?: string;
+  confluenceScore?: number;
+  entryPrice?: number | string;
+  entryRange?: string;
+  currentLtp?: number;
+  stoplossPrice?: number | string;
+  stoplossPct?: number;
+  target1Price?: number | string;
+  target1Pct?: number;
+  target2Price?: number | string;
+  target2Pct?: number;
+  riskReward?: string;
+  givenTimeFormatted?: string;
+  elapsedTimeFormatted?: string;
+  actionGuidance?: string;
+  actionBadge?: string;
+  actionClass?: string;
+  status?: string;
+  buildup?: string;
+  iv?: number;
+  ivStatus?: string;
+  liquidityRating?: string;
+  spreadFormatted?: string;
+  oiChange1mFormatted?: string;
+  oiChangePct?: number;
+  currentOIFormatted?: string;
+  volumeFormatted?: string;
+  lotSize?: number;
+  maxLossRupees?: number;
+  maxProfitRupees?: number;
+  breakeven?: number;
+  strategyMatches?: {
+    faydaRadarConfluence?: boolean;
+    oiActivitySurge?: boolean;
+    faydaStrategy9Ema?: boolean;
+    multiTimeframeBreakout?: boolean;
+    multiLegSpreadConfirmed?: boolean;
+    gammaExplosionConfirmed?: boolean;
+  };
+  strategyTag?: string;
+  explanations?: {
+    beginner?: string;
+    intermediate?: string;
+    expert?: string;
+  };
+  legs?: Array<{
+    action: 'BUY' | 'SELL';
+    optionType: 'CE' | 'PE';
+    strikePrice: number;
+    premium: number;
+    lotRatio?: number;
+  }>;
+}
+
+
 

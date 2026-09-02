@@ -50,7 +50,7 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
   marketRegime
 }) => {
   const { currentIndexState } = useMarket();
-  const { isBeginner, isExpert } = useTerminalMode();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
   const [isPanelExpanded, setIsPanelExpanded] = useState<boolean>(true);
 
@@ -256,7 +256,11 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5 flex-wrap">
               <span className="font-mono font-black text-xs text-terminal-text tracking-wider truncate">
-                PRE-MARKET RADAR & MARKET INTELLIGENCE
+                {isBeginner 
+                  ? '🌅 Morning Market Plan & Key Levels' 
+                  : isIntermediate 
+                  ? '🌅 Pre-Market Radar & Pivot Range' 
+                  : '🔬 Pre-Market Quantitative Setup & Macro Gap Model'}
               </span>
               <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {symbol}

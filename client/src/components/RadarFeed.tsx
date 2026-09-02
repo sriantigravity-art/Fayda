@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import type { SurgeEvent, SurgeLevel, IndexSymbol, TradeAction } from '../types';
 import { calculateTargetHorizon } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
@@ -26,7 +27,8 @@ import {
 type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
 
 export const RadarFeed: React.FC = () => {
-  const { recentSurges, visibleIndices, indices, setSelectedIndex } = useMarket();
+  const { recentSurges, visibleIndices, indices, setSelectedIndex, openTradeTipModal } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
   const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
@@ -206,14 +208,22 @@ export const RadarFeed: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(255,59,105,0.3)]">
-                  LIVE OI ACTIVITY RADAR
+                  {isBeginner 
+                    ? '🟢 Live Big Player Inflow Radar' 
+                    : isIntermediate 
+                    ? '⚡ LIVE OI ACTIVITY RADAR & SIGNALS' 
+                    : '🔬 REAL-TIME ORDER FLOW SURGE RADAR'}
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
                   {filteredSurges.length} Active
                 </span>
               </div>
               <p className="text-[10px] text-terminal-muted font-mono mt-0.5">
-                Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner
+                {isBeginner 
+                  ? 'Instant alerts when massive orders and institutional money enter the market' 
+                  : isIntermediate 
+                  ? 'Real-time 1-Minute Open Interest Delta Surge & Absorption Scanner' 
+                  : 'High-frequency order flow absorption, delta rate of change & institutional surge detector'}
               </p>
             </div>
           </div>
@@ -235,7 +245,7 @@ export const RadarFeed: React.FC = () => {
               title="Click to Open Trade Journal & Date-Wise Predictions Report in a separate modal"
             >
               <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
-              <span>Trade Journal</span>
+              <span>{isBeginner ? 'Past Trade History' : 'Trade Journal'}</span>
               <ExternalLink className="w-3 h-3 text-purple-400 ml-0.5" />
             </button>
 
@@ -263,14 +273,14 @@ export const RadarFeed: React.FC = () => {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-mono font-black text-xs text-terminal-text">
-                    Predictions & Target Performance Journal
+                    {isBeginner ? '📒 Daily Past Trade History & Profit Results' : isIntermediate ? 'Predictions & Target Performance Journal' : 'Algorithmic Performance & Target Execution Audit Log'}
                   </span>
                   <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase">
                     AUDIT REPORT
                   </span>
                 </div>
                 <p className="text-[10px] text-terminal-muted font-mono truncate mt-0.5">
-                  Stored calls by time, entry, book profit/loss & near-target % across Options, Stocks & Commodities.
+                  {isBeginner ? 'All past recommendations with verified entry, targets hit & profit/loss audit.' : 'Stored calls by time, entry, book profit/loss & near-target % across Options, Stocks & Commodities.'}
                 </p>
               </div>
             </div>
@@ -473,7 +483,7 @@ export const RadarFeed: React.FC = () => {
                   <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
                     NSE & BSE MARKET CLOSED
                   </span>
-                  <p className="font-mono text-xs font-bold text-terminal-text">Intraday Suggested Strikes Suspended</p>
+                  <p className="font-mono text-xs font-bold text-terminal-text">Indian NSE and BSE Market Closed! Visit Next Trading Day!</p>
                   <p className="text-[10px] text-terminal-muted leading-relaxed font-sans">
                     Indian equity and index markets closed at 03:40 PM. Outdated tips are archived in the Journal to protect your capital.
                   </p>
@@ -586,10 +596,48 @@ export const RadarFeed: React.FC = () => {
               maxValidityMinutes: timing.validUntilMinutes
             });
 
+            const handleCardClick = () => {
+              openTradeTipModal({
+                id: surge.id,
+                symbol: surge.indexSymbol,
+                title: `${surge.indexSymbol} ${surge.strikePrice} ${surge.optionType}`,
+                contractSymbol: surge.suggestedContract?.symbol || `${surge.indexSymbol} ${surge.strikePrice} ${surge.optionType}`,
+                action: surge.tradeAction,
+                optionType: surge.optionType,
+                strikePrice: surge.strikePrice,
+                tierLabel: '🔥 LIVE OI SURGE SIGNAL',
+                confluenceScore: surge.surgeScore,
+                entryPrice: entryBase,
+                entryRange: surge.suggestedContract?.recommendedEntry || `₹${entryBase.toFixed(1)}`,
+                currentLtp: currentOptionLtp,
+                stoplossPrice: stoplossPrice,
+                target1Price: targetPrice,
+                riskReward: surge.suggestedContract?.riskReward || '1:2.0',
+                givenTimeFormatted: timing.givenTimeFormatted,
+                elapsedTimeFormatted: timing.elapsedFormatted,
+                actionGuidance: advice.explanation,
+                actionBadge: advice.badgeLabel,
+                actionClass: advice.badgeClass,
+                status: 'ACTIVE',
+                buildup: surge.buildup,
+                iv: surge.iv,
+                ivStatus: surge.ivStatus,
+                liquidityRating: surge.liquidityRating,
+                spreadFormatted: surge.spreadFormatted,
+                oiChange1mFormatted: surge.oiChange1mFormatted,
+                oiChangePct: surge.oiChangePct,
+                currentOIFormatted: surge.currentOIFormatted,
+                volumeFormatted: surge.volumeFormatted,
+                strategyTag: surge.actionTitle
+              });
+            };
+
             return (
               <div
                 key={surge.id}
-                className={`rounded-xl p-3 border transition-all duration-200 hover:border-accent-cyan/50 hover:bg-terminal-card ${cardBorder}`}
+                onClick={handleCardClick}
+                className={`rounded-xl p-3 border transition-all duration-200 hover:border-accent-cyan/50 hover:bg-terminal-card cursor-pointer hover:shadow-md ${cardBorder}`}
+                title="Click to view full signal breakdown in interactive modal"
               >
                 {/* 1. Top line of Card: Fixed Given Time, Live Elapsed Status, Strike & Buildup */}
                 <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">

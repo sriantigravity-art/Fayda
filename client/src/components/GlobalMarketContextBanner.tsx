@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import { 
   Globe, 
   TrendingUp, 
@@ -17,6 +18,7 @@ import {
 
 export const GlobalMarketContextBanner: React.FC = () => {
   const { globalMarketContext } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   if (!globalMarketContext) return null;
@@ -26,20 +28,24 @@ export const GlobalMarketContextBanner: React.FC = () => {
   const isSupportive = premarketSetup === 'SUPPORTIVE';
   const isRiskOff = premarketSetup === 'RISK_OFF';
 
+  const supportiveLabel = isBeginner ? '🟢 WORLD MARKETS: POSITIVE' : isIntermediate ? '🟢 GLOBAL SETUP: SUPPORTIVE' : '🟢 MACRO RISK-ON: EXPANSION';
+  const riskOffLabel = isBeginner ? '🔴 WORLD MARKETS: WEAK' : isIntermediate ? '🔴 GLOBAL SETUP: RISK-OFF' : '🔴 MACRO RISK-OFF: CONTRACTION';
+  const mixedLabel = isBeginner ? '🟡 WORLD MARKETS: BALANCED' : isIntermediate ? '🟡 GLOBAL SETUP: MIXED' : '🟡 MACRO RISK: CONVERGING';
+
   const setupBadge = isSupportive ? (
     <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bull/20 text-bull border border-bull/50 shadow-[0_0_12px_rgba(0,245,155,0.25)] flex items-center gap-1">
       <CheckCircle2 className="w-3 h-3" />
-      <span>🟢 GLOBAL SETUP: SUPPORTIVE</span>
+      <span>{supportiveLabel}</span>
     </span>
   ) : isRiskOff ? (
     <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bear/20 text-bear border border-bear/50 shadow-[0_0_12px_rgba(255,59,105,0.25)] flex items-center gap-1 animate-pulse">
       <AlertTriangle className="w-3 h-3" />
-      <span>🔴 GLOBAL SETUP: RISK-OFF</span>
+      <span>{riskOffLabel}</span>
     </span>
   ) : (
     <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-amber/20 text-amber border border-amber/50 flex items-center gap-1">
       <Activity className="w-3 h-3 text-amber" />
-      <span>🟡 GLOBAL SETUP: MIXED</span>
+      <span>{mixedLabel}</span>
     </span>
   );
 

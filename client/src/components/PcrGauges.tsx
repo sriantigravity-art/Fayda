@@ -46,7 +46,11 @@ export const PcrGauges: React.FC = () => {
           <div className="flex items-center space-x-2">
             <Gauge className="w-4 h-4 text-accent-cyan" />
             <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-terminal-text">
-              {isBeginner ? `${selectedIndex} Market Sentiment Meter` : `${selectedIndex} PCR MOMENTUM RADAR`}
+              {isBeginner 
+                ? `🟢 ${selectedIndex} Market Mood & Trend Meter` 
+                : isIntermediate 
+                ? `📊 ${selectedIndex} PCR Sentiment & Momentum Radar` 
+                : `🔬 ${selectedIndex} Quantitative PCR & Velocity Matrix`}
             </h3>
           </div>
           <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${sentInfo.color}`}>

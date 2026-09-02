@@ -46,7 +46,7 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
   cprData,
   virginCPRs = []
 }) => {
-  const { isBeginner, isExpert } = useTerminalMode();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [selectedBox, setSelectedBox] = useState<CPRBoxKey | null>(null);
   const [isPanelExpanded, setIsPanelExpanded] = useState<boolean>(true);
 
@@ -229,7 +229,11 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5 flex-wrap">
               <span className="font-mono font-black text-xs text-terminal-text tracking-wider truncate">
-                CENTRAL PIVOT RANGE (CPR) & FLOOR PIVOTS
+                {isBeginner 
+                  ? '🎯 Key Price Levels (Support Floor & Resistance Roof)' 
+                  : isIntermediate 
+                  ? '🎯 Central Pivot Range (CPR) & Floor Pivots' 
+                  : '🔬 CPR Floor Geometry & Value Range Pinning'}
               </span>
               <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {symbol}

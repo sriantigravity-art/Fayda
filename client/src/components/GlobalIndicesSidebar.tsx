@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import { 
   Globe, 
   ChevronRight, 
@@ -13,6 +14,7 @@ import {
 
 export const GlobalIndicesSidebar: React.FC = () => {
   const { globalIndices } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem('oi_radar_global_sidebar_open');
     return saved === 'true';
@@ -132,10 +134,10 @@ export const GlobalIndicesSidebar: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-mono font-black text-xs sm:text-sm uppercase tracking-wider text-terminal-text drop-shadow-[0_0_8px_rgba(0,229,255,0.3)]">
-                  GLOBAL MARKET RADAR
+                  {isBeginner ? '🌍 World Markets Watch' : isIntermediate ? '🌍 Global Market Radar' : '🔬 Global Macro & Intermarket Flow'}
                 </h2>
                 <span className="text-[9px] sm:text-[10px] text-terminal-muted block">
-                  Top International Indices & Sentiment
+                  {isBeginner ? 'US, Asian & European Market Trends' : isIntermediate ? 'Top International Indices & Sentiment' : 'Cross-Asset Liquidity, US Yields & Currencies'}
                 </span>
               </div>
             </div>

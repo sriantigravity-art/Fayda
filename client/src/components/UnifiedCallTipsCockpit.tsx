@@ -23,7 +23,7 @@ import {
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip } from '../types';
 
 export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
-  const { currentIndexState, selectedIndex, setSelectedIndex } = useMarket();
+  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal } = useMarket();
   const { isBeginner, isIntermediate, isExpert, setMode } = useTerminalMode();
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
@@ -57,6 +57,133 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     setIsRiskModalOpen(true);
   };
 
+  const handlePrimaryTradeClick = () => {
+    if (!pkg?.primaryTrade) return;
+    const t = pkg.primaryTrade;
+    openTradeTipModal({
+      symbol: t.symbol,
+      title: t.contractSymbol,
+      contractSymbol: t.contractSymbol,
+      action: t.action,
+      tierLabel: t.tierLabel,
+      sessionName: t.sessionName,
+      confluenceScore: t.confluenceScore,
+      entryPrice: t.entryPrice,
+      entryRange: t.entryRange,
+      currentLtp: t.currentLtp,
+      stoplossPrice: t.stoplossPrice,
+      stoplossPct: t.stoplossPct,
+      target1Price: t.target1Price,
+      target1Pct: t.target1Pct,
+      target2Price: t.target2Price,
+      target2Pct: t.target2Pct,
+      riskReward: t.riskReward,
+      givenTimeFormatted: t.entryTimeFormatted,
+      elapsedTimeFormatted: 'Live Session',
+      actionGuidance: 'ACTIVE PRIMARY MOMENTUM CALL',
+      status: t.status,
+      strategyTag: t.strategyTag,
+      lotSize,
+      explanations: t.explanations
+    });
+  };
+
+  const handleSpreadTradeClick = () => {
+    if (!pkg?.hedgedSpreadTrade) return;
+    const t = pkg.hedgedSpreadTrade;
+    openTradeTipModal({
+      symbol: t.symbol,
+      title: t.contractSymbol,
+      contractSymbol: t.contractSymbol,
+      action: t.action,
+      optionType: 'SPREAD',
+      tierLabel: t.tierLabel,
+      sessionName: t.sessionName,
+      confluenceScore: t.confluenceScore,
+      entryPrice: t.entryPrice,
+      entryRange: t.entryRange,
+      currentLtp: t.currentLtp,
+      stoplossPrice: t.stoplossPrice,
+      stoplossPct: t.stoplossPct,
+      target1Price: t.target1Price,
+      target1Pct: t.target1Pct,
+      target2Price: t.target2Price,
+      target2Pct: t.target2Pct,
+      riskReward: t.riskReward,
+      givenTimeFormatted: t.entryTimeFormatted,
+      elapsedTimeFormatted: 'Live Session',
+      actionGuidance: '100% CAPITAL-PROTECTED SPREAD',
+      status: t.status,
+      strategyTag: t.strategyTag,
+      lotSize,
+      maxLossRupees: t.spreadDetails?.maxLossRupees,
+      maxProfitRupees: t.spreadDetails?.maxProfitRupees,
+      breakeven: t.spreadDetails?.breakeven,
+      explanations: t.explanations
+    });
+  };
+
+  const handleGammaTradeClick = () => {
+    if (!pkg?.gammaTrade) return;
+    const t = pkg.gammaTrade;
+    openTradeTipModal({
+      symbol: t.symbol,
+      title: t.contractSymbol,
+      contractSymbol: t.contractSymbol,
+      action: t.action,
+      tierLabel: t.tierLabel,
+      sessionName: t.sessionName,
+      confluenceScore: t.confluenceScore,
+      entryPrice: t.entryPrice,
+      entryRange: t.entryRange,
+      currentLtp: t.currentLtp,
+      stoplossPrice: t.stoplossPrice,
+      stoplossPct: t.stoplossPct,
+      target1Price: t.target1Price,
+      target1Pct: t.target1Pct,
+      target2Price: t.target2Price,
+      target2Pct: t.target2Pct,
+      riskReward: t.riskReward,
+      givenTimeFormatted: t.entryTimeFormatted,
+      elapsedTimeFormatted: 'Live Session',
+      actionGuidance: '0DTE HIGH GAMMA MOMENTUM',
+      status: t.status,
+      strategyTag: t.strategyTag,
+      lotSize,
+      explanations: t.explanations
+    });
+  };
+
+  const handleCarriedTradeClick = (t: UnifiedSmartTip) => {
+    openTradeTipModal({
+      symbol: t.symbol,
+      title: t.contractSymbol,
+      contractSymbol: t.contractSymbol,
+      action: t.action,
+      optionType: t.optionType,
+      tierLabel: `🔄 CARRIED FORWARD (${t.sessionName})`,
+      sessionName: t.sessionName,
+      confluenceScore: t.confluenceScore,
+      entryPrice: t.entryPrice,
+      entryRange: t.entryRange,
+      currentLtp: t.currentLtp,
+      stoplossPrice: t.stoplossPrice,
+      stoplossPct: t.stoplossPct,
+      target1Price: t.target1Price,
+      target1Pct: t.target1Pct,
+      target2Price: t.target2Price,
+      target2Pct: t.target2Pct,
+      riskReward: t.riskReward,
+      givenTimeFormatted: t.entryTimeFormatted,
+      elapsedTimeFormatted: 'Carried Forward',
+      actionGuidance: t.status === 'TARGET1_HIT' ? 'TRAIL STOPLOSS TO COST' : 'POSITION ACTIVE',
+      status: t.status,
+      strategyTag: t.strategyTag,
+      lotSize,
+      explanations: t.explanations
+    });
+  };
+
   const getProgressPct = (entry: number, target: number, current: number) => {
     if (target === entry) return 0;
     const pct = ((current - entry) / (target - entry)) * 100;
@@ -74,11 +201,15 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             <Zap className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono font-black text-terminal-text uppercase tracking-wide">
-                Active Trading Session:
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+              <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
+                {isBeginner 
+                  ? '🟢 Simple Buy & Sell Signals' 
+                  : isIntermediate 
+                  ? '⚡ 3-in-1 Confluence Trade Cockpit' 
+                  : '🔬 Multi-Tier Algorithmic Alpha Engine'}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
                 {pkg?.currentSessionName || 'Live Market'}
               </span>
             </div>
@@ -86,7 +217,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               <Clock className="w-3 h-3 text-accent-cyan" />
               <span>{pkg?.sessionWindowTime || '09:15 - 15:30 IST'}</span>
               <span className="text-terminal-border">•</span>
-              <span className="text-accent-cyan font-bold">{pkg?.quotaDescription}</span>
+              <span className="text-accent-cyan font-bold">
+                {isBeginner ? 'Step-by-Step Capital Protection Rules' : pkg?.quotaDescription}
+              </span>
             </div>
           </div>
         </div>
@@ -186,7 +319,12 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
           </div>
 
           {pkg.carriedForwardTrades.map((cf) => (
-            <div key={cf.id} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 border border-amber-500/20 p-2.5 rounded-lg text-xs">
+            <div 
+              key={cf.id} 
+              onClick={() => handleCarriedTradeClick(cf)}
+              className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 hover:bg-terminal-card border border-amber-500/20 hover:border-amber-500/50 p-2.5 rounded-lg text-xs transition-all cursor-pointer hover:shadow-md"
+              title="Click to view full trade breakdown"
+            >
               <div className="col-span-2">
                 <span className="font-bold text-terminal-text">{cf.contractSymbol}</span>
                 <div className="text-[10px] text-terminal-muted">Entered at {cf.entryTimeFormatted} @ ₹{cf.entryPrice}</div>
@@ -203,7 +341,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <div className="text-[10px] text-terminal-muted">Target 1</div>
                 <div className="font-bold font-mono text-bull">₹{cf.target1Price}</div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex items-center justify-end gap-1.5">
                 <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded font-bold text-[11px]">
                   {cf.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail)' : '⚡ RUNNING'}
                 </span>
@@ -227,7 +365,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               </span>
             </div>
             <h3 className="text-lg font-black text-terminal-text tracking-tight">
-              {isCommodity ? 'MCX Commodity Market Closed' : 'NSE & BSE Intraday Trade Suggestions Suspended'}
+              {isCommodity ? 'MCX Commodity Market Closed! Visit Next Trading Day!' : 'Indian NSE and BSE Market Closed! Visit Next Trading Day!'}
             </h3>
             <p className="text-xs text-terminal-muted leading-relaxed font-sans">
               {isCommodity
@@ -267,7 +405,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
           {/* ── CARD 1: PRIMARY DIRECTIONAL MOMENTUM CALL ───────────────────── */}
           {pkg?.primaryTrade ? (
-            <div className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-bull/30 hover:border-bull/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group">
+            <div 
+              onClick={handlePrimaryTradeClick}
+              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-bull/30 hover:border-bull/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+              title="Click to view complete trade breakdown"
+            >
               <div className="absolute top-0 right-0 w-24 h-24 bg-bull/5 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex flex-col space-y-2.5">
@@ -275,7 +417,13 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <div className="flex items-center justify-between gap-1">
                   <span className="flex items-center gap-1.5 px-2 py-0.5 bg-bull/15 text-bull border border-bull/30 rounded font-black text-[11px] tracking-wide uppercase">
                     <Flame className="w-3.5 h-3.5" />
-                    <span>TIER 1: PRIMARY DIRECTIONAL CALL</span>
+                    <span>
+                      {isBeginner 
+                        ? '⭐ TOP PICK: DIRECT BUY SIGNAL' 
+                        : isIntermediate 
+                        ? 'TIER 1: PRIMARY DIRECTIONAL CALL' 
+                        : 'TIER 1: INSTITUTIONAL MOMENTUM ALPHA'}
+                    </span>
                   </span>
                   <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
                     <Clock className="w-3 h-3 text-accent-gold" />
@@ -352,7 +500,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
                 <button
-                  onClick={() => handleOpenCalc(pkg.primaryTrade!.entryPrice, pkg.primaryTrade!.stoplossPrice, pkg.primaryTrade!.target1Price)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenCalc(pkg.primaryTrade!.entryPrice, pkg.primaryTrade!.stoplossPrice, pkg.primaryTrade!.target1Price);
+                  }}
                   className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Calculator className="w-3.5 h-3.5 text-accent-gold" />
@@ -375,7 +527,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
           {/* ── CARD 2: CAPITAL-PROTECTED HEDGED SPREAD ─────────────────────── */}
           {pkg?.hedgedSpreadTrade ? (
-            <div className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-accent-sky/30 hover:border-accent-sky/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group">
+            <div 
+              onClick={handleSpreadTradeClick}
+              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-accent-sky/30 hover:border-accent-sky/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+              title="Click to view complete spread breakdown"
+            >
               <div className="absolute top-0 right-0 w-24 h-24 bg-accent-sky/5 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex flex-col space-y-2.5">
@@ -383,7 +539,13 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <div className="flex items-center justify-between gap-1">
                   <span className="flex items-center gap-1.5 px-2 py-0.5 bg-accent-sky/15 text-accent-sky border border-accent-sky/30 rounded font-black text-[11px] tracking-wide uppercase">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>TIER 2: HEDGED MULTI-LEG SPREAD</span>
+                    <span>
+                      {isBeginner 
+                        ? '🛡️ 100% SAFE TRADE (LIMITED LOSS)' 
+                        : isIntermediate 
+                        ? 'TIER 2: HEDGED MULTI-LEG SPREAD' 
+                        : 'TIER 2: DEFINED-RISK SPREAD / MARGIN BENEFIT'}
+                    </span>
                   </span>
                   <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
                     <Clock className="w-3 h-3 text-accent-gold" />
@@ -459,7 +621,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
                 <button
-                  onClick={() => handleOpenCalc(pkg.hedgedSpreadTrade!.entryPrice, pkg.hedgedSpreadTrade!.stoplossPrice, pkg.hedgedSpreadTrade!.target1Price)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenCalc(pkg.hedgedSpreadTrade!.entryPrice, pkg.hedgedSpreadTrade!.stoplossPrice, pkg.hedgedSpreadTrade!.target1Price);
+                  }}
                   className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Calculator className="w-3.5 h-3.5 text-accent-sky" />
@@ -482,7 +648,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
           {/* ── CARD 3: 0DTE GAMMA SNIPER / HERO-OR-ZERO ────────────────────── */}
           {pkg?.gammaTrade && pkg.gammaTrade.action !== 'STANDBY' ? (
-            <div className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-purple-500/40 hover:border-purple-500/70 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group">
+            <div 
+              onClick={handleGammaTradeClick}
+              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-purple-500/40 hover:border-purple-500/70 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+              title="Click to view complete 0DTE gamma breakdown"
+            >
               <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex flex-col space-y-2.5">
@@ -490,7 +660,13 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <div className="flex items-center justify-between gap-1">
                   <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/15 text-purple-400 border border-purple-500/30 rounded font-black text-[11px] tracking-wide uppercase">
                     <Zap className="w-3.5 h-3.5" />
-                    <span>TIER 3: 0DTE GAMMA SNIPER</span>
+                    <span>
+                      {isBeginner 
+                        ? '🚀 FAST PROFIT CHANCE (AFTERNOON ONLY)' 
+                        : isIntermediate 
+                        ? 'TIER 3: 0DTE GAMMA SNIPER' 
+                        : 'TIER 3: 0DTE GAMMA SQUEEZE VELOCITY'}
+                    </span>
                   </span>
                   <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
                     <Clock className="w-3 h-3 text-accent-gold" />
@@ -559,7 +735,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
                 <button
-                  onClick={() => handleOpenCalc(pkg.gammaTrade!.entryPrice, pkg.gammaTrade!.stoplossPrice, pkg.gammaTrade!.target1Price)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenCalc(pkg.gammaTrade!.entryPrice, pkg.gammaTrade!.stoplossPrice, pkg.gammaTrade!.target1Price);
+                  }}
                   className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Calculator className="w-3.5 h-3.5 text-purple-400" />
@@ -591,7 +771,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-accent-gold" />
             <span className="font-bold text-xs text-terminal-text">
-              🔬 Strategy Confluence Verification Drawer (7 Platform Engines Checklist)
+              {isBeginner 
+                ? '🔍 7-Point Safety Checklist (Why We Picked This Trade)' 
+                : isIntermediate 
+                ? '🔬 Strategy Confluence Verification Drawer (7 Platform Engines Checklist)' 
+                : '⚡ Multi-Factor Confluence & Quantitative Audit Matrix'}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-terminal-muted font-semibold">

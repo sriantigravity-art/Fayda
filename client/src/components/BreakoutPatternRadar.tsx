@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
+import { useTerminalMode } from '../context/TerminalModeContext';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -45,6 +46,7 @@ interface TimeframePatternInfo {
 
 export const BreakoutPatternRadar: React.FC = () => {
   const { currentIndexState, selectedIndex } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [selectedTf, setSelectedTf] = useState<TimeframeKey>('15m');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
@@ -275,7 +277,11 @@ export const BreakoutPatternRadar: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center space-x-2 flex-wrap">
               <h2 className="font-mono font-black text-xs sm:text-sm text-terminal-text tracking-wider truncate">
-                MULTI-TIMEFRAME BREAKOUT PATTERN RADAR
+                {isBeginner 
+                  ? '📈 Chart Pattern & Trend Direction' 
+                  : isIntermediate 
+                  ? '📈 Multi-Timeframe Breakout Pattern Radar' 
+                  : '🔬 Algorithmic Geometric Pattern & Probability Radar'}
               </h2>
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {selectedIndex}
@@ -287,7 +293,11 @@ export const BreakoutPatternRadar: React.FC = () => {
               </span>
             </div>
             <p className="text-[10px] text-terminal-muted font-mono truncate">
-              Algorithmic geometric chart pattern recognition & probability forecasting across 8 timeframes
+              {isBeginner 
+                ? 'Simple patterns showing which direction price is likely to break next.' 
+                : isIntermediate 
+                ? 'Algorithmic geometric chart pattern recognition & probability forecasting across 8 timeframes' 
+                : 'High-conviction harmonic & classical price structure forecasting with order flow validation'}
             </p>
           </div>
         </div>
