@@ -5,7 +5,8 @@ import type {
   JournalTradeCall, 
   JournalSummaryMetrics, 
   JournalReportResponse, 
-  AssetCategory 
+  AssetCategory,
+  IndexSymbol
 } from '../types';
 import { 
   Calendar, 
@@ -567,6 +568,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
 };
 
 export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClose }) => {
+  const { openTradeTipModal } = useMarket();
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [availableDates, setAvailableDates] = useState<string[]>([
     new Date().toISOString().split('T')[0],
@@ -588,6 +590,42 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const handleOpenTradeDetail = (call: JournalTradeCall) => {
+    if (!call) return;
+    const isSl = call.status === 'STOPLOSS_HIT';
+    const isTargetHit = call.status === 'TARGET_HIT';
+    const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
+
+    openTradeTipModal({
+      id: call.id,
+      symbol: (call.symbol || 'NIFTY') as IndexSymbol,
+      title: call.contractName,
+      contractSymbol: call.contractName,
+      strikePrice: call.strikePrice,
+      optionType: call.optionType,
+      action: call.action === 'BUY_CALL' ? 'BUY_CALL' : call.action === 'BUY_PUT' ? 'BUY_PUT' : (call.action as any),
+      tierLabel: '📖 POST-MARKET TRADE JOURNAL LEDGER',
+      sessionName: call.sessionPhase || 'Recorded Trade Call',
+      confluenceScore: isTargetHit ? 95 : isNearTarget ? 88 : 78,
+      entryPrice: call.entryPrice,
+      entryRange: call.entryRange || `₹${call.entryPrice.toFixed(2)} - ₹${(call.entryPrice * 1.02).toFixed(2)}`,
+      currentLtp: call.exitLtp || call.currentLtp || call.peakLtp,
+      stoplossPrice: `₹${call.stoplossPrice.toFixed(2)}`,
+      stoplossPct: call.entryPrice > 0 ? parseFloat((((call.entryPrice - call.stoplossPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
+      target1Price: `₹${call.target1Price.toFixed(2)}`,
+      target1Pct: call.entryPrice > 0 ? parseFloat((((call.target1Price - call.entryPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
+      target2Price: call.target2Price ? `₹${call.target2Price.toFixed(2)}` : undefined,
+      riskReward: call.riskReward || '1:2.5',
+      givenTimeFormatted: call.timeFormatted,
+      elapsedTimeFormatted: `${call.pointsPnl >= 0 ? '+' : ''}${call.pointsPnl.toFixed(2)} pts (${call.pnlPct.toFixed(2)}%)`,
+      actionGuidance: call.nearTargetDescription || (isTargetHit ? 'Target 1 hit successfully with solid profit booking.' : isSl ? 'Strict Stop Loss respected to protect capital.' : 'Trade achieved near-target price extension.'),
+      actionBadge: isTargetHit ? '🎯 TARGET HIT' : isSl ? '🛑 STOPLOSS HIT' : '⚡ NEAR TARGET',
+      actionClass: isTargetHit ? 'bg-bull/20 text-bull border border-bull/40' : isSl ? 'bg-bear/20 text-bear border border-bear/40' : 'bg-amber/20 text-amber border border-amber/40',
+      status: isSl ? 'SL_HIT' : isTargetHit ? 'TARGET_HIT' : 'ACTIVE',
+      strategyTag: `✓ ${call.signalSource || 'Confluence Breakout'}`
+    });
+  };
 
   // Keyboard escape listener and body scroll lock for modal
   useEffect(() => {
@@ -867,14 +905,21 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           </div>
 
           {/* Card 5: Best Trade of the Day (Hidden on tiny screens) */}
-          <div className="hidden lg:flex bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex-col justify-between col-span-2 lg:col-span-1">
+          <div 
+            onClick={() => {
+              const bestCall = report?.signals?.find(s => s.contractName === summary.bestTrade?.contractName) || report?.signals?.[0];
+              if (bestCall) handleOpenTradeDetail(bestCall);
+            }}
+            className="hidden lg:flex bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex-col justify-between col-span-2 lg:col-span-1 cursor-pointer hover:border-accent-cyan/60 hover:shadow-md transition group"
+            title="Click to view setup details for top performer"
+          >
             <div className="flex items-center justify-between text-terminal-muted text-[10px] font-mono uppercase font-bold">
               <span>Top Performer</span>
-              <Sparkles className="w-3.5 h-3.5 text-amber" />
+              <Sparkles className="w-3.5 h-3.5 text-amber group-hover:scale-110 transition-transform" />
             </div>
             {summary.bestTrade ? (
               <div className="mt-1">
-                <span className="text-xs font-bold font-mono text-terminal-text block truncate" title={summary.bestTrade.contractName}>
+                <span className="text-xs font-bold font-mono text-terminal-text block truncate group-hover:text-accent-cyan transition-colors" title={summary.bestTrade.contractName}>
                   {summary.bestTrade.contractName}
                 </span>
                 <span className="text-sm font-black font-mono text-bull block">
@@ -884,7 +929,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
             ) : (
               <span className="text-xs text-terminal-muted italic mt-2">No completed trades</span>
             )}
-            <div className="text-[9px] text-accent-cyan font-mono mt-1">Audit-verified target</div>
+            <div className="text-[9px] text-accent-cyan font-mono mt-1">Audit-verified target (Click to open)</div>
           </div>
         </div>
       )}
@@ -1016,7 +1061,9 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 return (
                   <tr 
                     key={call.id}
-                    className="hover:bg-slate-50 dark:hover:bg-terminal-panel/50 transition duration-150"
+                    onClick={() => handleOpenTradeDetail(call)}
+                    className="hover:bg-accent-sky/5 dark:hover:bg-terminal-panel/90 transition duration-150 cursor-pointer group select-none"
+                    title={`Click to open full trade setup modal for ${call.contractName}`}
                   >
                     {/* Time */}
                     <td className="py-3 px-3 whitespace-nowrap text-terminal-muted text-[11px]">

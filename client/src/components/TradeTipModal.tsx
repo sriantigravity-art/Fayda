@@ -97,11 +97,11 @@ Generated via Fayda Trading Terminal`;
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop with animated blur & fade */}
       <div
         onClick={handleClose}
-        className={`fixed inset-0 bg-slate-950/80 transition-all ${
+        className={`fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-all ${
           isClosing ? 'animate-modal-backdrop-exit' : 'animate-modal-backdrop-enter'
         }`}
       />
