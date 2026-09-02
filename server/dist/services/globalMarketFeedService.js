@@ -1,110 +1,158 @@
+import { globalIndicesService } from './globalIndicesService.js';
+import { usdInrService } from './usdInrService.js';
 export class GlobalMarketFeedService {
     currentContext;
     listeners = [];
     refreshInterval;
     constructor() {
-        this.currentContext = this.generateBaselineGlobalContext();
+        this.currentContext = this.buildContextFromLiveIndices();
         this.startLiveMonitoring();
     }
     getGlobalContext() {
-        return this.currentContext;
+        return this.buildContextFromLiveIndices();
     }
     onUpdate(callback) {
         this.listeners.push(callback);
     }
-    generateBaselineGlobalContext() {
+    buildContextFromLiveIndices() {
         const now = new Date().toISOString();
-        // Realistic live/current global market baseline
+        const indices = globalIndicesService.getIndices();
+        const findInd = (id, defVal, defPct) => {
+            const item = indices.find(i => i.id === id);
+            if (item && item.price > 0) {
+                return { value: item.price, changePct: item.pctChange };
+            }
+            return { value: defVal, changePct: defPct };
+        };
+        // Live USD/INR from usdInrService
+        const liveUsdInr = usdInrService.get();
+        const giftNifty = findInd('GIFT_NIFTY', 23920.00, 0.15);
+        const sp500 = findInd('SPX_500', 5880.50, 0.45);
+        const nasdaq = findInd('NASDAQ_100', 18540.20, 0.65);
+        const nikkei = findInd('NIKKEI_225', 38720.00, 0.85);
+        const hangSeng = findInd('HANG_SENG', 19680.10, -0.35);
+        const brentCrude = findInd('BRENT_CRUDE', 72.85, -1.25);
+        const gold = findInd('GOLD', 2685.40, 0.15);
+        const dxy = findInd('DXY_DOLLAR', 104.20, -0.18);
+        const us10y = findInd('US_10Y_YIELD', 4.18, -0.45);
         const indicators = {
-            sp500: { value: 5880.50, changePct: 0.45 },
-            nasdaq: { value: 18540.20, changePct: 0.65 },
-            nikkei: { value: 38720.00, changePct: 0.85 },
-            hangSeng: { value: 19680.10, changePct: -0.35 },
-            giftNifty: { value: 24580.00, changePct: 0.38 },
-            brentCrude: { value: 72.85, changePct: -1.25 }, // Softening crude is supportive for India
-            gold: { value: 2685.40, changePct: 0.15 },
-            dxy: { value: 104.20, changePct: -0.18 },
-            us10y: { value: 4.18, changePct: -0.45 },
-            usdInr: { value: 84.62, changePct: -0.05 },
-            fiiNetBuyCr: 1840,
-            diiNetBuyCr: 2150
+            sp500,
+            nasdaq,
+            nikkei,
+            hangSeng,
+            giftNifty,
+            brentCrude,
+            gold,
+            dxy,
+            us10y,
+            usdInr: { value: liveUsdInr > 0 ? liveUsdInr : 94.96, changePct: 0.05 },
+            fiiNetBuyCr: 1240,
+            diiNetBuyCr: 1850
         };
         const riskMode = this.computeGlobalRiskMode(indicators);
         const premarketSetup = this.computePremarketSetup(indicators, riskMode);
-        return {
+        // Dynamic Summary & Drivers based on actual live numbers
+        const drivers = [];
+        if (brentCrude.changePct < 0) {
+            drivers.push(`Softening Brent Crude ($${brentCrude.value.toFixed(2)}/bbl, ${brentCrude.changePct.toFixed(2)}%) contracting India import bill`);
+        }
+        else {
+            drivers.push(`Firming Brent Crude ($${brentCrude.value.toFixed(2)}/bbl, +${brentCrude.changePct.toFixed(2)}%) exerting cost pressure`);
+        }
+        if (us10y.changePct <= 0) {
+            drivers.push(`US 10Y yields easing to ${us10y.value.toFixed(2)}% expanding emerging market carry flows`);
+        }
+        else {
+            drivers.push(`US 10Y yields elevated at ${us10y.value.toFixed(2)}% tightening global liquidity`);
+        }
+        if (giftNifty.changePct >= 0) {
+            drivers.push(`GIFT Nifty positive (+${giftNifty.changePct.toFixed(2)}% at ₹${giftNifty.value.toFixed(0)}) signaling steady domestic opening`);
+        }
+        else {
+            drivers.push(`GIFT Nifty subdued (${giftNifty.changePct.toFixed(2)}% at ₹${giftNifty.value.toFixed(0)}) indicating cautious sentiment`);
+        }
+        if (dxy.changePct < 0) {
+            drivers.push(`US Dollar Index easing (${dxy.value.toFixed(2)}) supporting INR stability`);
+        }
+        else {
+            drivers.push(`Dollar Index firm (${dxy.value.toFixed(2)}) keeping pressure on emerging currencies`);
+        }
+        const summary = premarketSetup === 'SUPPORTIVE'
+            ? `Global market setup is broadly supportive for Indian equities with ${brentCrude.changePct < 0 ? 'softening crude' : 'steady crude'}, GIFT Nifty at ₹${giftNifty.value.toFixed(0)} (${giftNifty.changePct >= 0 ? '+' : ''}${giftNifty.changePct.toFixed(2)}%), and stable US macro cues.`
+            : premarketSetup === 'RISK_OFF'
+                ? `Global market setup reflects risk-off pressure with elevated bond yields, cautious global indices, and GIFT Nifty at ₹${giftNifty.value.toFixed(0)} (${giftNifty.changePct.toFixed(2)}%).`
+                : `Global market setup is mixed with divergence across global asset classes, GIFT Nifty at ₹${giftNifty.value.toFixed(0)} (${giftNifty.changePct >= 0 ? '+' : ''}${giftNifty.changePct.toFixed(2)}%), and crude at $${brentCrude.value.toFixed(2)}.`;
+        this.currentContext = {
             timestamp: now,
             globalRiskMode: riskMode,
             premarketSetup,
-            summary: 'Global market setup is broadly supportive for Indian equities with softening Brent crude ($72.85/bbl), stable US yields (4.18%), and steady institutional FII cash inflows.',
-            primaryDrivers: [
-                'Softening Brent Crude ($72.85/bbl) contracting India import bill',
-                'US 10Y yields easing to 4.18% expanding emerging market carry flows',
-                'FII net cash buying (+₹1,840 Cr) supporting large-cap valuation floors',
-                'Positive momentum in Asian benchmarks (Nikkei +0.85%, GIFT Nifty +0.38%)'
-            ],
+            summary,
+            primaryDrivers: drivers,
             indicators
         };
+        return this.currentContext;
     }
     computeGlobalRiskMode(ind) {
         let riskScore = 0;
-        // US markets & Nikkei positive
+        // Global Equities
+        if (ind.giftNifty.changePct > 0)
+            riskScore += 2;
+        else if (ind.giftNifty.changePct < -0.3)
+            riskScore -= 2;
         if (ind.sp500.changePct > 0)
             riskScore += 1;
+        else if (ind.sp500.changePct < -0.4)
+            riskScore -= 1;
         if (ind.nasdaq.changePct > 0)
             riskScore += 1;
+        else if (ind.nasdaq.changePct < -0.4)
+            riskScore -= 1;
         if (ind.nikkei.changePct > 0)
             riskScore += 1;
+        else if (ind.nikkei.changePct < -0.4)
+            riskScore -= 1;
         // DXY & US10Y falling = Risk On for Emerging Markets
         if (ind.dxy.changePct < 0)
             riskScore += 1;
+        else if (ind.dxy.changePct > 0.3)
+            riskScore -= 1;
         if (ind.us10y.changePct < 0)
             riskScore += 1;
+        else if (ind.us10y.changePct > 0.5)
+            riskScore -= 1;
         // Crude falling = Risk On for India
         if (ind.brentCrude.changePct < 0)
             riskScore += 1;
-        // FII inflows
-        if (ind.fiiNetBuyCr > 0)
-            riskScore += 1;
-        if (riskScore >= 5)
-            return 'RISK_ON';
+        else if (ind.brentCrude.changePct > 1.0)
+            riskScore -= 1;
         if (riskScore >= 3)
+            return 'RISK_ON';
+        if (riskScore >= 0)
             return 'NEUTRAL';
-        if (riskScore >= 1)
+        if (riskScore >= -3)
             return 'RISK_OFF';
         return 'EXTREME_RISK_OFF';
     }
     computePremarketSetup(ind, riskMode) {
+        if (ind.giftNifty.changePct < -0.4 || riskMode === 'EXTREME_RISK_OFF') {
+            return 'RISK_OFF';
+        }
         if (riskMode === 'RISK_ON' && ind.giftNifty.changePct >= 0) {
             return 'SUPPORTIVE';
         }
-        if (riskMode === 'RISK_OFF' || riskMode === 'EXTREME_RISK_OFF' || ind.giftNifty.changePct < -0.6) {
+        if (riskMode === 'RISK_OFF') {
             return 'RISK_OFF';
         }
         return 'MIXED';
     }
-    /**
-     * Periodically simulate micro fluctuations in global indices
-     */
     startLiveMonitoring() {
         this.refreshInterval = setInterval(() => {
-            const ind = this.currentContext.indicators;
-            // Gentle jitter
-            const jitter = (val, range) => {
-                const delta = (Math.random() - 0.48) * range;
-                return Number((val + delta).toFixed(2));
-            };
-            ind.brentCrude.value = jitter(ind.brentCrude.value, 0.15);
-            ind.gold.value = jitter(ind.gold.value, 0.80);
-            ind.dxy.value = jitter(ind.dxy.value, 0.04);
-            ind.giftNifty.value = jitter(ind.giftNifty.value, 4.0);
-            this.currentContext.timestamp = new Date().toISOString();
-            this.currentContext.globalRiskMode = this.computeGlobalRiskMode(ind);
-            this.currentContext.premarketSetup = this.computePremarketSetup(ind, this.currentContext.globalRiskMode);
+            this.buildContextFromLiveIndices();
             // Notify listeners
             for (const listener of this.listeners) {
                 listener(this.currentContext);
             }
-        }, 45000);
+        }, 15000);
     }
     destroy() {
         if (this.refreshInterval)

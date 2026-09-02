@@ -9,8 +9,10 @@ import { CPRStrip } from './components/CPRStrip';
 import { PreMarketRadarCard } from './components/PreMarketRadarCard';
 import { OptionChainHeatmap } from './components/OptionChainHeatmap';
 import { BreakoutPatternRadar } from './components/BreakoutPatternRadar';
-import { TradeGuidanceCard } from './components/TradeGuidanceCard';
+import { UnifiedCallTipsCockpit } from './components/UnifiedCallTipsCockpit';
+import { NtmClusterRadar } from './components/NtmClusterRadar';
 import { HeroZeroRadar } from './components/HeroZeroRadar';
+
 import { RightAnalyticsColumn } from './components/RightAnalyticsColumn';
 import { SurgeAlertBanner } from './components/SurgeAlertBanner';
 import { FlashNewsBanner } from './components/FlashNewsBanner';
@@ -106,34 +108,14 @@ const DashboardContent: React.FC = () => {
         <div className="hidden md:grid md:grid-cols-12 gap-3.5 flex-1 items-start">
           {/* Left Column (8 cols on xl, 7 cols on lg, 12 cols on md) */}
           <div className="md:col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col space-y-3.5">
-            {isBeginner ? (
-              <>
-                {/* Beginner Mode Layout: Guidance First -> Protected Spreads -> Simplified Chain -> Educational Journal */}
-                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
-                <MultiLegStrategyCard />
-                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
-                {panelVisibility.optionChain && <OptionChainHeatmap />}
-                <PostMarketTradeJournal isModal={false} />
-              </>
-            ) : isExpert ? (
-              <>
-                {/* Expert Mode Layout: High-density Chain Matrix -> Multi-Leg Spreads & Arb -> Confluence & Trap Detector -> 0DTE Gamma */}
-                {panelVisibility.optionChain && <OptionChainHeatmap />}
-                <MultiLegStrategyCard />
-                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
-                {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
-                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
-              </>
-            ) : (
-              <>
-                {/* Intermediate Mode Layout: Balanced Technical Flow & Multi-Leg Spreads */}
-                {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
-                <MultiLegStrategyCard />
-                {panelVisibility.optionChain && <OptionChainHeatmap />}
-                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
-                {panelVisibility.heroZeroRadar && <HeroZeroRadar />}
-              </>
-            )}
+            {/* Unified Smart Call Tips Under One Roof */}
+            {panelVisibility.tradeGuidance && <UnifiedCallTipsCockpit />}
+
+            {/* ATM ±3 Strike Cluster Radar & 09:15 Baseline OI Engine */}
+            <NtmClusterRadar />
+
+            {/* High-Density Live Options Matrix & Greeks Heatmap */}
+            {panelVisibility.optionChain && <OptionChainHeatmap />}
           </div>
 
           {/* Right Column (4 cols on xl, 5 cols on lg, 12 cols on md) */}
@@ -146,18 +128,22 @@ const DashboardContent: React.FC = () => {
         {/* MOBILE DEDICATED TABBED WORKSPACE (< 768px) */}
         {/* ========================================================================= */}
         <div className="md:hidden flex flex-col space-y-3">
-          {mobileTab === 'CHAIN' && panelVisibility.optionChain && <OptionChainHeatmap />}
+          {mobileTab === 'CHAIN' && panelVisibility.optionChain && (
+            <div className="flex flex-col space-y-3">
+              <NtmClusterRadar />
+              <OptionChainHeatmap />
+            </div>
+          )}
           {mobileTab === 'SIGNALS' && (
             <div className="flex flex-col space-y-3">
-              {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
-              <MultiLegStrategyCard />
+              {panelVisibility.tradeGuidance && <UnifiedCallTipsCockpit />}
+              <NtmClusterRadar />
             </div>
           )}
           {mobileTab === 'JOURNAL' && <PostMarketTradeJournal isModal={false} />}
           {mobileTab === 'ANALYTICS' && panelVisibility.rightAnalytics && <RightAnalyticsColumn />}
           {mobileTab === 'RADAR' && (
             <div className="flex flex-col space-y-3">
-              {/* Real-Time Flash Surge & Activity Radar Feed on Mobile */}
               <RadarFeed />
               {panelVisibility.patternRadar && <BreakoutPatternRadar />}
               {!isBeginner && panelVisibility.heroZeroRadar && <HeroZeroRadar />}

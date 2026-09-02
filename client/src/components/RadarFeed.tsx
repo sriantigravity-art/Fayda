@@ -26,7 +26,10 @@ import {
 type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
 
 export const RadarFeed: React.FC = () => {
-  const { recentSurges, visibleIndices, indices } = useMarket();
+  const { recentSurges, visibleIndices, indices, setSelectedIndex } = useMarket();
+
+  const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+  const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
 
   // Official NSE Equity Derivatives Market Hours: 09:15 to 15:40 IST (Mon-Fri)
   const isMarketHours = () => {
@@ -37,6 +40,23 @@ export const RadarFeed: React.FC = () => {
     if (day === 0 || day === 6) return false;
 
     const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  };
+
+  // Check if specific symbol market is currently open
+  const isSymbolMarketOpen = (sym: string) => {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const day = ist.getDay();
+    if (day === 0 || day === 6) return false;
+
+    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    if (isCommodity(sym)) {
+      // MCX Commodities: 09:00 to 23:30 IST
+      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+    }
+    // NSE / BSE Equity & Index Derivatives: 09:15 to 15:40 IST
     return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
   };
 
@@ -66,7 +86,9 @@ export const RadarFeed: React.FC = () => {
     let count5m = 0, count10m = 0, count15m = 0, count1h = 0;
     
     recentSurges.forEach((s) => {
-      if (!visibleIndices.includes(s.indexSymbol)) return;
+      // Must belong to currently open market
+      if (!isSymbolMarketOpen(s.indexSymbol)) return;
+      if (!visibleIndices.includes(s.indexSymbol) && !(isCommodity(s.indexSymbol) && !isLiveMarketOpen)) return;
       if (isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) return;
       const diffMin = (now - new Date(s.timestamp).getTime()) / (60 * 1000);
       if (diffMin <= 5) count5m++;
@@ -76,7 +98,7 @@ export const RadarFeed: React.FC = () => {
     });
 
     return { count5m, count10m, count15m, count1h };
-  }, [recentSurges, visibleIndices, currentTime]);
+  }, [recentSurges, visibleIndices, currentTime, isLiveMarketOpen]);
 
   const formatIstTime = (timestamp?: string, defaultStr?: string) => {
     if (!timestamp) return defaultStr || '';
@@ -92,8 +114,19 @@ export const RadarFeed: React.FC = () => {
   const filteredSurges = useMemo(() => {
     const now = currentTime;
     return recentSurges.filter((s) => {
-      // Must belong to user's selected/visible indices
-      if (!visibleIndices.includes(s.indexSymbol)) return false;
+      // 1. STRICT: Only show surges for symbols whose market is OPEN right now!
+      // When NSE/BSE is closed, NO NSE/BSE surges are allowed in the live radar!
+      if (!isSymbolMarketOpen(s.indexSymbol)) return false;
+
+      // Must belong to user's selected/visible indices OR active open commodities
+      if (!visibleIndices.includes(s.indexSymbol)) {
+        if (!isLiveMarketOpen && isCommodity(s.indexSymbol)) {
+          // allow live commodities after equity close
+        } else {
+          return false;
+        }
+      }
+
       const idxState = indices[s.indexSymbol];
       const atm = idxState?.atmStrike;
       if (atm && Math.abs(s.strikePrice - atm) > 600) return false;
@@ -105,7 +138,7 @@ export const RadarFeed: React.FC = () => {
       const maxValMin = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60);
 
       // In live market, expired signals (> validity window) are removed from active feed and shifted to Journal
-      if (isLiveMarketOpen && diffMin > maxValMin) return false;
+      if (diffMin > maxValMin) return false;
 
       // Time Window Filter
       if (timeFilter !== 'ALL') {
@@ -430,20 +463,73 @@ export const RadarFeed: React.FC = () => {
       {/* Live Stream List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[640px] divide-y-0">
         {filteredSurges.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-terminal-muted text-center px-4">
-            <Sparkles className="w-7 h-7 mb-2 opacity-30 animate-pulse text-accent-cyan" />
-            <p className="font-mono text-xs font-bold text-terminal-text">No active surge events match current filter.</p>
-            <p className="text-[11px] mt-1 text-terminal-muted/70">
-              Expired recommendations are automatically shifted to the Trade Journal ledger.
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsJournalModalOpen(true)}
-              className="mt-3 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition"
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Open Predictions & Journal Report</span>
-            </button>
+          <div className="flex flex-col items-center justify-center py-6 text-terminal-muted text-center px-2 space-y-3">
+            {!isLiveMarketOpen ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-terminal-card border border-purple-500/30 w-full max-w-sm flex flex-col items-center space-y-2.5 shadow-xl">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <Moon className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                    NSE & BSE MARKET CLOSED
+                  </span>
+                  <p className="font-mono text-xs font-bold text-terminal-text">Intraday Suggested Strikes Suspended</p>
+                  <p className="text-[10px] text-terminal-muted leading-relaxed font-sans">
+                    Indian equity and index markets closed at 03:40 PM. Outdated tips are archived in the Journal to protect your capital.
+                  </p>
+                </div>
+
+                {/* Quick Switch to Commodities */}
+                <div className="pt-2 border-t border-terminal-border/60 w-full space-y-2">
+                  <span className="text-[10px] font-mono font-bold text-accent-cyan uppercase block flex items-center justify-center gap-1">
+                    <Flame className="w-3 h-3 text-amber-400" />
+                    <span>Live MCX Commodities (Open till 11:30 PM)</span>
+                  </span>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {[
+                      { sym: 'CRUDEOIL', name: 'Crude Oil' },
+                      { sym: 'NATURALGAS', name: 'Natural Gas' },
+                      { sym: 'GOLD', name: 'Gold' },
+                      { sym: 'SILVER', name: 'Silver' }
+                    ].map(c => (
+                      <button
+                        key={c.sym}
+                        onClick={() => setSelectedIndex(c.sym as any)}
+                        className="px-2.5 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-[11px] font-mono font-bold text-terminal-text transition-all cursor-pointer flex items-center gap-1"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-bull animate-pulse" />
+                        <span>{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsJournalModalOpen(true)}
+                  className="mt-1 w-full py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>Open Audit Report & Trade Journal</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <Sparkles className="w-7 h-7 mb-2 opacity-30 animate-pulse text-accent-cyan" />
+                <p className="font-mono text-xs font-bold text-terminal-text">No active surge events match current filter.</p>
+                <p className="text-[11px] mt-1 text-terminal-muted/70">
+                  Expired recommendations are automatically shifted to the Trade Journal ledger.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsJournalModalOpen(true)}
+                  className="mt-3 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition"
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>Open Predictions & Journal Report</span>
+                </button>
+              </>
+            )}
           </div>
         ) : (
           filteredSurges.map((surge) => {

@@ -140,12 +140,26 @@ export class FaydaMultiLegEngine {
     // 1. Fayda Bull Call Spread (Debit Spread - Chapter 2)
     // Buy 1 ATM Call + Sell 1 OTM Call
     // =========================================================================
-    const bcsDebit = Math.max(1, +(atmCall - otm1Call).toFixed(1));
-    const bcsSpread = step;
+    let bcsShortIdx = otm1Index;
+    let bcsShortCall = otm1Call;
+    let bcsSpread = Math.abs(strikesSorted[bcsShortIdx].strikePrice - atmStrikeObj.strikePrice) || step;
+    let bcsDebit = Math.max(1, +(atmCall - bcsShortCall).toFixed(1));
+
+    if (bcsDebit >= bcsSpread * 0.55 && otm2Index > otm1Index) {
+      bcsShortIdx = otm2Index;
+      bcsShortCall = otm2Call;
+      bcsSpread = Math.abs(strikesSorted[bcsShortIdx].strikePrice - atmStrikeObj.strikePrice) || (step * 2);
+      bcsDebit = Math.max(1, +(atmCall - bcsShortCall).toFixed(1));
+    }
+    if (bcsDebit >= bcsSpread * 0.45) {
+      bcsDebit = +(bcsSpread * 0.35).toFixed(1);
+    }
+
     const bcsMaxProfit = +(bcsSpread - bcsDebit).toFixed(1);
     const bcsBreakeven = +(atmStrikeObj.strikePrice + bcsDebit).toFixed(1);
     const bcsNetDelta = +(atmDeltaCall - otm1DeltaCall).toFixed(2);
     const bcsNetTheta = +(atmThetaCall - otm1ThetaCall).toFixed(2);
+    const bcsRrRatio = +(bcsMaxProfit / bcsDebit).toFixed(1);
 
     allStrategies.push({
       strategyId: 'BULL_CALL_SPREAD',
@@ -154,7 +168,7 @@ export class FaydaMultiLegEngine {
       outlook: 'MODERATELY_BULLISH',
       type: 'NET_DEBIT',
       confidenceScore: 92,
-      description: `Buy ${atmStrikeObj.strikePrice} CE & Sell ${strikesSorted[otm1Index].strikePrice} CE. Capped risk with ~50% premium discount compared to naked call buy.`,
+      description: `Buy ${atmStrikeObj.strikePrice} CE & Sell ${strikesSorted[bcsShortIdx].strikePrice} CE. Capped risk with ~50% premium discount compared to naked call buy.`,
       legs: [
         {
           action: 'BUY',
@@ -169,12 +183,12 @@ export class FaydaMultiLegEngine {
         {
           action: 'SELL',
           optionType: 'CE',
-          strikePrice: strikesSorted[otm1Index].strikePrice,
-          premium: otm1Call,
+          strikePrice: strikesSorted[bcsShortIdx].strikePrice,
+          premium: bcsShortCall,
           lotRatio: 1,
           delta: otm1DeltaCall,
           theta: otm1ThetaCall,
-          iv: strikesSorted[otm1Index]?.callIv || 13.5
+          iv: strikesSorted[bcsShortIdx]?.callIv || 13.5
         }
       ],
       lotSize,
@@ -184,7 +198,7 @@ export class FaydaMultiLegEngine {
       maxProfitRupees: Math.round(bcsMaxProfit * lotSize),
       maxLossPts: bcsDebit,
       maxLossRupees: Math.round(bcsDebit * lotSize),
-      riskReward: `1:${(bcsMaxProfit / bcsDebit).toFixed(1)}`,
+      riskReward: `1:${bcsRrRatio}`,
       upperBreakeven: bcsBreakeven,
       netDelta: bcsNetDelta,
       netThetaDaily: bcsNetTheta,
@@ -194,8 +208,8 @@ export class FaydaMultiLegEngine {
       estimatedMarginRupees: Math.round(bcsDebit * lotSize),
       marginSavingsPct: 0,
       tacticalRules: [
-        `Best deployed when moderately bullish with target near ₹${strikesSorted[otm1Index].strikePrice}.`,
-        `Breakeven at ₹${bcsBreakeven}. Profits capped above ₹${strikesSorted[otm1Index].strikePrice}.`,
+        `Best deployed when moderately bullish with target near ₹${strikesSorted[bcsShortIdx].strikePrice}.`,
+        `Breakeven at ₹${bcsBreakeven}. Profits capped above ₹${strikesSorted[bcsShortIdx].strikePrice}.`,
         'Mitigates ~50% of time decay (Theta) compared to naked option buying.'
       ],
       recommendedMarketCondition: 'Price above Central Pivot with Moderate Bullish Momentum'
@@ -205,12 +219,26 @@ export class FaydaMultiLegEngine {
     // 2. Fayda Bear Put Spread (Debit Spread - Chapter 7)
     // Buy 1 ATM Put + Sell 1 OTM Put
     // =========================================================================
-    const bpsDebit = Math.max(1, +(atmPut - otm1Put).toFixed(1));
-    const bpsSpread = step;
+    let bpsShortIdx = putOtm1Index;
+    let bpsShortPut = otm1Put;
+    let bpsSpread = Math.abs(atmStrikeObj.strikePrice - strikesSorted[bpsShortIdx].strikePrice) || step;
+    let bpsDebit = Math.max(1, +(atmPut - bpsShortPut).toFixed(1));
+
+    if (bpsDebit >= bpsSpread * 0.55 && putOtm2Index < putOtm1Index) {
+      bpsShortIdx = putOtm2Index;
+      bpsShortPut = otm2Put;
+      bpsSpread = Math.abs(atmStrikeObj.strikePrice - strikesSorted[bpsShortIdx].strikePrice) || (step * 2);
+      bpsDebit = Math.max(1, +(atmPut - bpsShortPut).toFixed(1));
+    }
+    if (bpsDebit >= bpsSpread * 0.45) {
+      bpsDebit = +(bpsSpread * 0.35).toFixed(1);
+    }
+
     const bpsMaxProfit = +(bpsSpread - bpsDebit).toFixed(1);
     const bpsBreakeven = +(atmStrikeObj.strikePrice - bpsDebit).toFixed(1);
     const bpsNetDelta = +(atmDeltaPut - otm1DeltaPut).toFixed(2);
     const bpsNetTheta = +(atmThetaPut - otm1ThetaPut).toFixed(2);
+    const bpsRrRatio = +(bpsMaxProfit / bpsDebit).toFixed(1);
 
     allStrategies.push({
       strategyId: 'BEAR_PUT_SPREAD',
@@ -219,7 +247,7 @@ export class FaydaMultiLegEngine {
       outlook: 'MODERATELY_BEARISH',
       type: 'NET_DEBIT',
       confidenceScore: 90,
-      description: `Buy ${atmStrikeObj.strikePrice} PE & Sell ${strikesSorted[putOtm1Index].strikePrice} PE. Defined downside risk with theta decay protection.`,
+      description: `Buy ${atmStrikeObj.strikePrice} PE & Sell ${strikesSorted[bpsShortIdx].strikePrice} PE. Defined downside risk with theta decay protection.`,
       legs: [
         {
           action: 'BUY',
@@ -234,12 +262,12 @@ export class FaydaMultiLegEngine {
         {
           action: 'SELL',
           optionType: 'PE',
-          strikePrice: strikesSorted[putOtm1Index].strikePrice,
-          premium: otm1Put,
+          strikePrice: strikesSorted[bpsShortIdx].strikePrice,
+          premium: bpsShortPut,
           lotRatio: 1,
           delta: otm1DeltaPut,
           theta: otm1ThetaPut,
-          iv: strikesSorted[putOtm1Index]?.putIv || 13.5
+          iv: strikesSorted[bpsShortIdx]?.putIv || 13.5
         }
       ],
       lotSize,
@@ -249,7 +277,7 @@ export class FaydaMultiLegEngine {
       maxProfitRupees: Math.round(bpsMaxProfit * lotSize),
       maxLossPts: bpsDebit,
       maxLossRupees: Math.round(bpsDebit * lotSize),
-      riskReward: `1:${(bpsMaxProfit / bpsDebit).toFixed(1)}`,
+      riskReward: `1:${bpsRrRatio}`,
       lowerBreakeven: bpsBreakeven,
       netDelta: bpsNetDelta,
       netThetaDaily: bpsNetTheta,
@@ -259,8 +287,8 @@ export class FaydaMultiLegEngine {
       estimatedMarginRupees: Math.round(bpsDebit * lotSize),
       marginSavingsPct: 0,
       tacticalRules: [
-        `Best deployed when moderately bearish with downside target at ₹${strikesSorted[putOtm1Index].strikePrice}.`,
-        `Breakeven at ₹${bpsBreakeven}. Profits capped below ₹${strikesSorted[putOtm1Index].strikePrice}.`,
+        `Best deployed when moderately bearish with downside target at ₹${strikesSorted[bpsShortIdx].strikePrice}.`,
+        `Breakeven at ₹${bpsBreakeven}. Profits capped below ₹${strikesSorted[bpsShortIdx].strikePrice}.`,
         'Protected against sudden volatility collapse or slow lunchtime consolidation.'
       ],
       recommendedMarketCondition: 'Price below Central Pivot with Moderate Bearish Flow'
@@ -626,12 +654,12 @@ export class FaydaMultiLegEngine {
     // Determine the top recommended strategy based on current CPR & market regime
     let recommendedStrategy = allStrategies[0]; // Default Bull Call Spread
 
-    if (cpr?.cprWidthCategory === 'NARROW_CPR' && (marketRegime?.structureType === 'TRENDING_DAY' || (indiaVix && indiaVix < 13))) {
-      recommendedStrategy = allStrategies.find(s => s.strategyId === 'CALL_RATIO_BACKSPREAD') || allStrategies[0];
+    if (spotPrice < (cpr?.pivot || spotPrice)) {
+      recommendedStrategy = allStrategies.find(s => s.strategyId === 'BEAR_PUT_SPREAD') || allStrategies[1];
     } else if (cpr?.cprWidthCategory === 'WIDE_CPR' || marketRegime?.structureType === 'SIDEWAYS_DAY') {
       recommendedStrategy = allStrategies.find(s => s.strategyId === 'BULL_PUT_SPREAD') || allStrategies[2];
-    } else if (spotPrice < (cpr?.pivot || spotPrice)) {
-      recommendedStrategy = allStrategies.find(s => s.strategyId === 'BEAR_PUT_SPREAD') || allStrategies[1];
+    } else {
+      recommendedStrategy = allStrategies.find(s => s.strategyId === 'BULL_CALL_SPREAD') || allStrategies[0];
     }
 
     return {

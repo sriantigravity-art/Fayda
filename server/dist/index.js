@@ -150,6 +150,14 @@ const getSymbolConfig = (symbol) => {
         isIndex: false
     };
 };
+let activeSymbol = 'NIFTY';
+const clientActiveSymbols = new Map();
+let fastLaneTimer = null;
+let batchQuotesTimer = null;
+let bgPollTimer = null;
+let isFastLaneBusy = false;
+let isBatchQuotesBusy = false;
+let isBgPollBusy = false;
 // Fetch single symbol snapshot
 const fetchSymbolSnapshot = async (symConfig) => {
     try {
@@ -165,19 +173,19 @@ const fetchSymbolSnapshot = async (symConfig) => {
             usedSource = 'NSE_LIVE';
         }
         if (res && res.strikes.length > 0) {
-            // Always synchronize spot price, change, and pctChange with live Quotes feed (Fyers -> NSE -> Yahoo)
             let spotPrice = res.spotPrice;
             let spotChange = res.spotChange ?? 0;
             let spotPctChange = res.spotPctChange ?? 0;
-            const liveQuote = await globalIndicesService.getSpotForSymbol(symConfig.symbol);
-            if (liveQuote && liveQuote.spot > 0) {
-                spotPrice = liveQuote.spot;
-                spotChange = liveQuote.change;
-                spotPctChange = liveQuote.pctChange;
+            // Only query secondary quotes if Fyers/NSE returned an invalid/zero spot price
+            if (spotPrice <= 0) {
+                const liveQuote = await globalIndicesService.getSpotForSymbol(symConfig.symbol);
+                if (liveQuote && liveQuote.spot > 0) {
+                    spotPrice = liveQuote.spot;
+                    spotChange = liveQuote.change;
+                    spotPctChange = liveQuote.pctChange;
+                }
             }
-            // ✅ PERMANENT FIX: When market is closed, Yahoo Finance / NSE feeds return the
-            // PREVIOUS SESSION's change as "current" (e.g. +84.80 from a prior day).
-            // Zero out change values so clients never display yesterday's delta.
+            // Zero out change values if market is closed for this symbol
             const isOpen = isMarketOpenForSymbol(symConfig.symbol);
             if (!isOpen) {
                 spotChange = 0;
@@ -235,46 +243,143 @@ const fetchSymbolSnapshot = async (symConfig) => {
         console.warn(`[Poll] Error for ${symConfig.symbol}:`, err.message);
     }
 };
-// Live Fyers Fetch / Stream Worker
-const pollLiveFyers = async () => {
+// ── FAST-LANE WORKER (1.5s): Priority streaming for screen-active symbol(s) ───────
+const pollFastLane = async () => {
+    if (isFastLaneBusy)
+        return;
+    isFastLaneBusy = true;
+    try {
+        const targets = new Set();
+        if (activeClients.size > 0) {
+            for (const s of clientActiveSymbols.values()) {
+                if (s)
+                    targets.add(s);
+            }
+        }
+        if (targets.size === 0) {
+            targets.add(activeSymbol || 'NIFTY');
+        }
+        // Limit fast-lane concurrent symbols to at most 3 to protect broker rate limits
+        const priorityList = Array.from(targets).slice(0, 3);
+        for (const sym of priorityList) {
+            const config = getSymbolConfig(sym);
+            await fetchSymbolSnapshot(config);
+        }
+    }
+    catch (err) {
+        console.warn('[FastLane] Error:', err.message);
+    }
+    finally {
+        isFastLaneBusy = false;
+    }
+};
+// ── BATCH QUOTES WORKER (1.5s): Multi-symbol tick streaming across all watchlists ──
+const pollBatchQuotes = async () => {
+    if (isBatchQuotesBusy)
+        return;
     if (currentDataSource !== 'FYERS_LIVE')
         return;
-    const symbols = Array.from(watchedSymbols);
-    for (const sym of symbols) {
-        if (currentDataSource !== 'FYERS_LIVE')
-            break;
-        const config = getSymbolConfig(sym);
-        await fetchSymbolSnapshot(config);
-        await new Promise(r => setTimeout(r, 600));
+    isBatchQuotesBusy = true;
+    try {
+        const configs = Array.from(watchedSymbols).map(sym => getSymbolConfig(sym));
+        const quotesMap = await fyersService.fetchBatchQuotes(configs);
+        if (quotesMap.size > 0) {
+            const quotesList = Array.from(quotesMap.values());
+            broadcast({
+                type: 'QUOTES_UPDATE',
+                quotes: quotesList,
+                timestamp: new Date().toISOString()
+            });
+            // Update spot prices and timestamps in cached states
+            for (const q of quotesList) {
+                const cached = cachedIndexStates.get(q.symbol);
+                if (cached) {
+                    const isOpen = isMarketOpenForSymbol(q.symbol);
+                    cached.spotPrice = q.price;
+                    cached.change = isOpen ? q.change : 0;
+                    cached.pctChange = isOpen ? q.pctChange : 0;
+                    cached.updatedAtIso = new Date().toISOString();
+                }
+            }
+        }
     }
+    catch (err) {
+        console.warn('[BatchQuotes] Error:', err.message);
+    }
+    finally {
+        isBatchQuotesBusy = false;
+    }
+};
+// ── BACKGROUND WORKER (6-8s): Staggered round-robin for inactive symbols ─────────
+let bgSymbolCursor = 0;
+const pollBackgroundChains = async () => {
+    if (isBgPollBusy)
+        return;
+    isBgPollBusy = true;
+    try {
+        const allSyms = Array.from(watchedSymbols);
+        const activeSet = new Set(clientActiveSymbols.values());
+        activeSet.add(activeSymbol);
+        const bgSymbols = allSyms.filter(s => !activeSet.has(s));
+        if (bgSymbols.length === 0)
+            return;
+        // Pick 2 background symbols per cycle
+        const batchCount = Math.min(2, bgSymbols.length);
+        for (let i = 0; i < batchCount; i++) {
+            const idx = (bgSymbolCursor + i) % bgSymbols.length;
+            const sym = bgSymbols[idx];
+            const config = getSymbolConfig(sym);
+            await fetchSymbolSnapshot(config);
+            await new Promise(r => setTimeout(r, 350));
+        }
+        bgSymbolCursor = (bgSymbolCursor + batchCount) % bgSymbols.length;
+    }
+    catch (err) {
+        console.warn('[BgPoll] Error:', err.message);
+    }
+    finally {
+        isBgPollBusy = false;
+    }
+};
+const stopAllPolling = () => {
+    if (fastLaneTimer)
+        clearInterval(fastLaneTimer);
+    if (batchQuotesTimer)
+        clearInterval(batchQuotesTimer);
+    if (bgPollTimer)
+        clearInterval(bgPollTimer);
+    if (nsePollTimer)
+        clearInterval(nsePollTimer);
+    if (fyersPollTimer)
+        clearInterval(fyersPollTimer);
+    fastLaneTimer = null;
+    batchQuotesTimer = null;
+    bgPollTimer = null;
+    nsePollTimer = null;
+    fyersPollTimer = null;
 };
 const startFyersPolling = () => {
-    if (fyersPollTimer)
-        clearInterval(fyersPollTimer);
-    if (nsePollTimer)
-        clearInterval(nsePollTimer);
-    pollLiveFyers();
-    const interval = isNseMarketOpen() ? 5000 : 15000;
-    fyersPollTimer = setInterval(pollLiveFyers, interval);
-};
-// Live NSE Polling Worker
-const pollLiveNse = async () => {
-    if (currentDataSource !== 'NSE_LIVE')
-        return;
-    for (const sym of Array.from(watchedSymbols)) {
-        const config = getSymbolConfig(sym);
-        await fetchSymbolSnapshot(config);
-        await new Promise(r => setTimeout(r, 80));
-    }
+    stopAllPolling();
+    console.log('[Stream] ⚡ Starting High-Speed Dual-Tier Fyers Stream (2.0s Fast-Lane + Batch Quotes)...');
+    // Immediate initial run
+    pollFastLane();
+    pollBatchQuotes();
+    // 1. Fast-lane active symbol loop (2.0s during market, 5s off-market)
+    const fastInterval = isNseMarketOpen() ? 2000 : 5000;
+    fastLaneTimer = setInterval(pollFastLane, fastInterval);
+    // 2. High-speed batch quotes loop (2.0s during market, 6s off-market)
+    const quotesInterval = isNseMarketOpen() ? 2000 : 6000;
+    batchQuotesTimer = setInterval(pollBatchQuotes, quotesInterval);
+    // 3. Staggered background option chains (8s)
+    bgPollTimer = setInterval(pollBackgroundChains, 8000);
 };
 const startNsePolling = () => {
-    if (nsePollTimer)
-        clearInterval(nsePollTimer);
-    if (fyersPollTimer)
-        clearInterval(fyersPollTimer);
-    pollLiveNse();
-    const interval = isNseMarketOpen() ? 4000 : 8000;
-    nsePollTimer = setInterval(pollLiveNse, interval);
+    stopAllPolling();
+    console.log('[Stream] Starting NSE Polling (3.0s Active + 8s Background)...');
+    pollFastLane();
+    const fastInterval = isNseMarketOpen() ? 3000 : 7000;
+    fastLaneTimer = setInterval(pollFastLane, fastInterval);
+    bgPollTimer = setInterval(pollBackgroundChains, 8500);
 };
 // Start polling — use Fyers if configured, otherwise fall back to NSE
 const hasFyersConfig = !!fyersService.getConfig().appId && !!fyersService.getConfig().accessToken;
@@ -289,6 +394,7 @@ else {
 // WebSocket connection lifecycle
 wss.on('connection', async (ws) => {
     activeClients.add(ws);
+    clientActiveSymbols.set(ws, activeSymbol);
     console.log(`[WS] Client connected. Total active: ${activeClients.size}`);
     ws.send(JSON.stringify({
         type: 'INITIAL_STATE',
@@ -303,8 +409,6 @@ wss.on('connection', async (ws) => {
         timestamp: new Date().toISOString()
     }));
     // Only push cached states that are genuinely fresh (< 20s old).
-    // Stale cached values (e.g. +84.80 from a prior session) must NOT be sent to new clients
-    // because they'll display as "fresh" due to the client-side receive-timestamp check.
     const now = Date.now();
     for (const [symbol, indexState] of cachedIndexStates.entries()) {
         if (ws.readyState !== WebSocket.OPEN)
@@ -323,27 +427,41 @@ wss.on('connection', async (ws) => {
                 timestamp: new Date().toISOString()
             }));
         }
-        // Stale entries are intentionally skipped — the refresh below will push fresh ones.
     }
-    // Immediately refresh all watched symbols so the new client gets fresh data,
-    // not stale cache values. Run sequentially with small delays to avoid overloading NSE/Fyers.
-    (async () => {
-        const syms = Array.from(watchedSymbols);
-        for (const sym of syms) {
-            try {
-                await fetchSymbolSnapshot(getSymbolConfig(sym));
-                await new Promise(r => setTimeout(r, 120));
+    // Handle incoming messages from clients (active symbol subscription, ping, etc.)
+    ws.on('message', async (data) => {
+        try {
+            const msg = JSON.parse(data.toString());
+            if (msg.type === 'SET_ACTIVE_SYMBOL' || msg.type === 'SUBSCRIBE_SYMBOL') {
+                const sym = msg.symbol;
+                if (sym && typeof sym === 'string') {
+                    activeSymbol = sym;
+                    clientActiveSymbols.set(ws, sym);
+                    watchedSymbols.add(sym);
+                    // Instantly fetch and push snapshot for newly selected symbol
+                    const cfg = getSymbolConfig(sym);
+                    await fetchSymbolSnapshot(cfg);
+                }
             }
-            catch { }
         }
+        catch { }
+    });
+    // Immediately refresh active symbol for the new client
+    (async () => {
+        try {
+            await fetchSymbolSnapshot(getSymbolConfig(activeSymbol));
+        }
+        catch { }
     })();
     ws.on('close', () => {
         activeClients.delete(ws);
+        clientActiveSymbols.delete(ws);
         console.log(`[WS] Client disconnected. Total active: ${activeClients.size}`);
     });
     ws.on('error', (err) => {
         console.error('[WS] Error:', err);
         activeClients.delete(ws);
+        clientActiveSymbols.delete(ws);
     });
 });
 // REST Endpoints

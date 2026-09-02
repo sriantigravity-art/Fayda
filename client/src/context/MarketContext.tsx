@@ -51,32 +51,9 @@ interface MarketContextType {
   refreshIndexStates: () => Promise<void>;
 }
 
-const PROD_API_BASE = 'https://fayda-production-a914.up.railway.app';
-const PROD_WS_URL = 'wss://fayda-production-a914.up.railway.app/ws';
+import { getApiBase, getWsUrl } from '../utils/apiBase';
+export { getApiBase, getWsUrl };
 
-export const getApiBase = (): string => {
-  if (typeof window === 'undefined') return PROD_API_BASE;
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  const host = window.location.hostname || '';
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
-  if (isLocal) {
-    const isHttps = window.location.protocol === 'https:';
-    return `${isHttps ? 'https:' : 'http:'}//${host || 'localhost'}:3001`;
-  }
-  return PROD_API_BASE;
-};
-
-export const getWsUrl = (): string => {
-  if (typeof window === 'undefined') return PROD_WS_URL;
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
-  const host = window.location.hostname || '';
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.');
-  if (isLocal) {
-    const isHttps = window.location.protocol === 'https:';
-    return `${isHttps ? 'wss:' : 'ws:'}//${host || 'localhost'}:3001/ws`;
-  }
-  return PROD_WS_URL;
-};
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
@@ -282,6 +259,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ws.onopen = () => {
       console.log('[WS] Connected to Live OI & Flash News Engine');
       setIsConnected(true);
+      try {
+        ws.send(JSON.stringify({ type: 'SET_ACTIVE_SYMBOL', symbol: selectedIndex }));
+      } catch {}
     };
 
     ws.onmessage = (event) => {
@@ -306,6 +286,36 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.globalIndices) setGlobalIndices(msg.globalIndices);
         } else if (msg.type === 'GLOBAL_MARKET_CONTEXT_UPDATE') {
           if (msg.globalMarketContext) setGlobalMarketContext(msg.globalMarketContext);
+        } else if (msg.type === 'QUOTES_UPDATE') {
+          if (Array.isArray(msg.quotes)) {
+            const now = Date.now();
+            setIndices((prev) => {
+              let changed = false;
+              const next = { ...prev };
+              for (const q of msg.quotes) {
+                const cur = next[q.symbol];
+                if (cur) {
+                  if (cur.spotPrice !== q.price || cur.change !== q.change) {
+                    next[q.symbol] = {
+                      ...cur,
+                      spotPrice: q.price,
+                      change: q.change,
+                      pctChange: q.pctChange
+                    };
+                    changed = true;
+                  }
+                }
+              }
+              return changed ? next : prev;
+            });
+            setIndicesReceivedAt((prev) => {
+              const next = { ...prev };
+              for (const q of msg.quotes) {
+                next[q.symbol] = now;
+              }
+              return next;
+            });
+          }
         } else if (msg.type === 'INDEX_UPDATE') {
           const { symbol, indexState, newSurges } = msg;
           setIndices((prev) => ({ ...prev, [symbol]: indexState }));
@@ -551,8 +561,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [connectWs]);
 
-  // When selected symbol changes, fetch its individual state and notify backend
+  // When selected symbol changes, notify backend via WebSocket and REST
   useEffect(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'SET_ACTIVE_SYMBOL', symbol: selectedIndex }));
+      } catch {}
+    }
+
     fetch(`${getApiBase()}/api/index-state?symbol=${selectedIndex}`)
       .then((r) => r.json())
       .then((st) => {

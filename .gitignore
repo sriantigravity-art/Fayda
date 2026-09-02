@@ -41,4 +41,3 @@ Thumbs.db
 # Runtime server data (generated at startup, not for version control)
 server/globalQuotesCache.json
 server/fyersConfig.json
-server/server/data/signals_ledger.json

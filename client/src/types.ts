@@ -801,6 +801,8 @@ export interface MarketIndexState {
   allMultiLegStrategies?: MultiLegStrategySetup[];
   syntheticArbitrage?: SyntheticArbitrageItem[];
   indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
+  unifiedTipsPackage?: UnifiedSessionTipsPackage;
+  ntmCluster?: NtmClusterState;
 }
 
 export interface GlobalIndexItem {
@@ -890,4 +892,146 @@ export interface JournalReportResponse {
   summary: JournalSummaryMetrics;
   signals: JournalTradeCall[];
 }
+
+export type MarketSessionWindow =
+  | 'MORNING_POWER_OPEN'        // 09:15 - 10:00 IST
+  | 'MID_MORNING_TREND'         // 10:00 - 12:00 IST
+  | 'MIDDAY_EUROPE_SPREAD'      // 12:00 - 14:30 IST
+  | 'AFTERNOON_GAMMA_POWER_HOUR'// 14:30 - 15:40 IST
+  | 'COMMODITY_EU'              // 15:40 - 18:00 IST
+  | 'COMMODITY_US_OPEN'         // 18:00 - 20:00 IST
+  | 'COMMODITY_US_EOD'          // 20:00 - 23:30 IST
+  | 'OFF_MARKET';
+
+export interface UnifiedSmartTip {
+  id: string;
+  symbol: IndexSymbol;
+  tier: 'PRIMARY_MOMENTUM' | 'HEDGED_SPREAD' | 'GAMMA_0DTE' | 'STANDBY';
+  tierLabel: string;
+  session: MarketSessionWindow;
+  sessionName: string;
+  action: 'BUY_CALL' | 'BUY_PUT' | 'BULL_CALL_SPREAD' | 'BEAR_PUT_SPREAD' | 'WAIT' | 'STANDBY';
+  contractSymbol: string;
+  strikePrice: number;
+  optionType: 'CE' | 'PE' | 'SPREAD';
+  entryTime: string;
+  entryTimeFormatted: string;
+  entryPrice: number;
+  entryRange: string;
+  currentLtp: number;
+  stoplossPrice: number;
+  stoplossPct: number;
+  target1Price: number;
+  target1Pct: number;
+  target2Price: number;
+  target2Pct: number;
+  riskReward: string;
+  confluenceScore: number; // 0 - 100
+  status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED';
+  isCarriedForward?: boolean;
+  carriedFromSession?: string;
+  strategyMatches: {
+    faydaRadarConfluence: boolean;
+    oiActivitySurge: boolean;
+    faydaStrategy9Ema: boolean;
+    multiTimeframeBreakout: boolean;
+    multiLegSpreadConfirmed: boolean;
+    gammaExplosionConfirmed: boolean;
+  };
+  strategyTag: string;
+  explanations: {
+    beginner: string;
+    intermediate: string;
+    expert: string;
+  };
+  spreadDetails?: {
+    legsSummary: string;
+    maxProfitRupees: number;
+    maxLossRupees: number;
+    breakeven: number;
+    marginSavingsPct: number;
+  };
+  gammaDetails?: {
+    gammaScore: number;
+    multiplierTarget: string;
+  };
+}
+
+export interface UnifiedSessionTipsPackage {
+  currentSession: MarketSessionWindow;
+  currentSessionName: string;
+  sessionWindowTime: string;
+  quotaDescription: string;
+  primaryTrade: UnifiedSmartTip | null;
+  hedgedSpreadTrade: UnifiedSmartTip | null;
+  gammaTrade: UnifiedSmartTip | null;
+  carriedForwardTrades: UnifiedSmartTip[];
+  regimeWarning?: string;
+  isNoTradeZone?: boolean;
+  lastEvaluatedAt: string;
+}
+
+// =========================================================================
+// ATM ±3 STRIKE NTM CLUSTER & 09:15 BASELINE OI TYPES
+// =========================================================================
+
+export type NtmRegimeType = 'Long Buildup' | 'Short Buildup' | 'Short Covering' | 'Long Unwinding' | 'Neutral';
+export type NtmSentimentType = 'Bullish' | 'Bearish' | 'Strongly Bullish' | 'Strongly Bearish' | 'Sideways';
+
+export interface NtmStrikeOptionLeg {
+  ltp: number;
+  oi: number;
+  baselineOI: number;
+  oiChangePct: number;
+  priceChange: number;
+  volume: number;
+  regime: NtmRegimeType;
+  sentiment: NtmSentimentType;
+  visualEmoji: string;
+  actionDescription: string;
+}
+
+export interface NtmStrikeRegime {
+  strikePrice: number;
+  isAtm: boolean;
+  distanceFromAtm: number; // in strikes (e.g. 0, +1, -1, +2, -2, +3, -3)
+  call: NtmStrikeOptionLeg;
+  put: NtmStrikeOptionLeg;
+  pcr: number;
+}
+
+export interface NtmClusterState {
+  symbol: IndexSymbol;
+  spotPrice: number;
+  atmStrike: number;
+  strikeStep: number;
+  strikes: NtmStrikeRegime[]; // ATM-3 to ATM+3 (7 strikes)
+  bullishStrikesCount: number;
+  bearishStrikesCount: number;
+  neutralStrikesCount: number;
+  netBullishScorePct: number; // 0 to 100%
+  netBearishScorePct: number; // 0 to 100%
+  dominantRegime: NtmRegimeType;
+  consensusSignal: 'STRONG_BULLISH' | 'BULLISH' | 'STRONG_BEARISH' | 'BEARISH' | 'NEUTRAL';
+  consensusDescription: string;
+  resistanceWall: {
+    strike: number;
+    oi: number;
+    oiFormatted: string;
+    distancePoints: number;
+  };
+  supportWall: {
+    strike: number;
+    oi: number;
+    oiFormatted: string;
+    distancePoints: number;
+  };
+  clusterPcr: number;
+  clusterTotalCallOI: number;
+  clusterTotalPutOI: number;
+  clusterCallOIChangePct: number;
+  clusterPutOIChangePct: number;
+  lastCalculatedAt: string;
+}
+
 
