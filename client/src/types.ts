@@ -422,6 +422,10 @@ export interface FyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  pin?: string;
+  refreshToken?: string;
+  tokenRefreshedAt?: string;
+  refreshTokenExpiresAt?: string;
 }
 
 export interface HeroZeroSignal {
