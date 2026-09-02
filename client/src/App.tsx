@@ -83,9 +83,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
-        {/* Dual Market Intelligence & Pivot Range Ribbon (Side-by-Side) */}
+        {/* Dual Market Intelligence & Pivot Range Ribbon (Side-by-Side Aligned to Top) */}
         {currentIndexState && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
             <PreMarketRadarCard
               symbol={selectedIndex}
               preMarket={currentIndexState.preMarketChecklist}
@@ -111,6 +111,7 @@ const DashboardContent: React.FC = () => {
                 {/* Beginner Mode Layout: Guidance First -> Protected Spreads -> Simplified Chain -> Educational Journal */}
                 {panelVisibility.tradeGuidance && <TradeGuidanceCard />}
                 <MultiLegStrategyCard />
+                {panelVisibility.patternRadar && <BreakoutPatternRadar />}
                 {panelVisibility.optionChain && <OptionChainHeatmap />}
                 <PostMarketTradeJournal isModal={false} />
               </>

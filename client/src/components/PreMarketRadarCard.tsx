@@ -246,32 +246,29 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
   const activeMetricObj = selectedMetric ? metricsData.find(m => m.key === selectedMetric) : null;
 
   return (
-    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 shadow-subtle select-none transition-all duration-300 flex flex-col justify-between">
+    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-2.5 sm:p-3 shadow-subtle select-none transition-all duration-300 flex flex-col justify-start">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-terminal-border/80">
-        <div className="flex items-center space-x-2 min-w-0">
-          <div className="p-1.5 rounded-lg bg-accent-purple/15 text-accent-purple shrink-0">
-            <Clock className="w-4 h-4" />
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 mb-2 border-b border-terminal-border/70">
+        <div className="flex items-center space-x-1.5 min-w-0">
+          <div className="p-1 rounded-md bg-accent-purple/15 text-accent-purple shrink-0">
+            <Clock className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5 flex-wrap">
-              <span className="font-mono font-black text-xs sm:text-sm text-terminal-text tracking-wider truncate">
+              <span className="font-mono font-black text-xs text-terminal-text tracking-wider truncate">
                 PRE-MARKET RADAR & MARKET INTELLIGENCE
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {symbol}
               </span>
             </div>
-            <p className="text-[10px] text-terminal-muted font-mono truncate">
-              Click any box to expand detailed institutional metrics & trade rules
-            </p>
           </div>
         </div>
 
         <div className="flex items-center space-x-1.5 font-mono">
           {marketRegime && (
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center space-x-1 ${
+              className={`px-2 py-0.2 rounded-full text-[9px] font-bold border flex items-center space-x-1 ${
                 marketRegime.structureType === 'TRENDING_DAY'
                   ? 'bg-bull/15 border-bull/40 text-bull'
                   : marketRegime.structureType === 'REVERSAL_DAY'
@@ -287,19 +284,19 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
           <button
             type="button"
             onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="p-1 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
+            className="p-0.5 rounded text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
             title={isPanelExpanded ? 'Collapse Panel' : 'Expand Panel'}
           >
-            {isPanelExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isPanelExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
       {/* Collapsible Content */}
       {isPanelExpanded && (
-        <div className="space-y-2.5">
-          {/* 8 Compact Metric Boxes (2x4 on sm, 4x2 on md/lg) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+        <div className="space-y-2">
+          {/* 8 Compact Metric Boxes Aligned to Top */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono">
             {metricsData.map((m) => {
               const isSelected = selectedMetric === m.key;
 
@@ -308,14 +305,14 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
                   key={m.key}
                   type="button"
                   onClick={() => setSelectedMetric(isSelected ? null : m.key)}
-                  className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer group shadow-sm ${
+                  className={`pt-1.5 pb-1.5 px-2 rounded-lg border text-left flex flex-col justify-start items-stretch transition-all duration-150 cursor-pointer group shadow-sm ${
                     isSelected
-                      ? 'bg-accent-sky/20 border-accent-sky shadow-[0_0_12px_rgba(0,229,255,0.3)] ring-1 ring-accent-sky/50 scale-[1.02]'
+                      ? 'bg-accent-sky/20 border-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.3)] ring-1 ring-accent-sky scale-[1.02]'
                       : 'bg-terminal-panel/80 border-terminal-border hover:border-accent-sky/50 hover:bg-terminal-panel'
                   }`}
                 >
-                  {/* Box Title in Format "PCR : 0.71" */}
-                  <div className="flex items-center justify-between w-full text-[11px] font-black text-terminal-text tracking-wide mb-1">
+                  {/* Top-aligned Box Title (Format "PCR : 0.71") */}
+                  <div className="flex items-center justify-between w-full text-[11px] sm:text-xs font-black text-terminal-text tracking-tight leading-none mb-1">
                     <span className="truncate group-hover:text-accent-cyan transition-colors">
                       {m.headerTitle}
                     </span>
@@ -324,15 +321,15 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
                     </span>
                   </div>
 
-                  {/* Sub-value / Status Pill & Expand Chevron */}
-                  <div className="flex items-center justify-between w-full text-[9px] pt-1 border-t border-terminal-border/60">
+                  {/* Sub-value & Click-to-Expand Indicator */}
+                  <div className="flex items-center justify-between w-full text-[9px] pt-0.5 border-t border-terminal-border/50 leading-tight">
                     <span className={`font-bold truncate ${
                       m.sentiment === 'BULLISH' ? 'text-bull' : m.sentiment === 'BEARISH' ? 'text-bear' : m.sentiment === 'WARNING' ? 'text-amber' : 'text-terminal-muted'
                     }`}>
                       {m.badge.split(' ')[0]} {m.subValue}
                     </span>
-                    <span className={`text-[9px] font-bold ${isSelected ? 'text-accent-sky' : 'text-terminal-muted'}`}>
-                      {isSelected ? '▲ Hide' : '▼ Details'}
+                    <span className={`text-[8px] font-bold ${isSelected ? 'text-accent-sky' : 'text-terminal-muted'}`}>
+                      {isSelected ? '▲' : '▼'}
                     </span>
                   </div>
                 </button>

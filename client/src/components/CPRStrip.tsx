@@ -219,32 +219,29 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
   const activeBoxObj = selectedBox ? boxes.find(b => b.key === selectedBox) : null;
 
   return (
-    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-3 shadow-subtle select-none transition-all duration-300 flex flex-col justify-between">
+    <div className="w-full bg-terminal-card border border-terminal-border rounded-xl p-2.5 sm:p-3 shadow-subtle select-none transition-all duration-300 flex flex-col justify-start">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-terminal-border/80">
-        <div className="flex items-center space-x-2 min-w-0">
-          <div className="p-1.5 rounded-lg bg-accent-sky/15 text-accent-sky shrink-0">
-            <Compass className="w-4 h-4" />
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 mb-2 border-b border-terminal-border/70">
+        <div className="flex items-center space-x-1.5 min-w-0">
+          <div className="p-1 rounded-md bg-accent-sky/15 text-accent-sky shrink-0">
+            <Compass className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5 flex-wrap">
-              <span className="font-mono font-black text-xs sm:text-sm text-terminal-text tracking-wider truncate">
+              <span className="font-mono font-black text-xs text-terminal-text tracking-wider truncate">
                 CENTRAL PIVOT RANGE (CPR) & FLOOR PIVOTS
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-terminal-panel text-accent-cyan border border-terminal-border font-bold shrink-0">
                 {symbol}
               </span>
             </div>
-            <p className="text-[10px] text-terminal-muted font-mono truncate">
-              {cprData.cprWidthDescription}
-            </p>
           </div>
         </div>
 
         <div className="flex items-center space-x-1.5 font-mono">
           {/* CPR Width Badge */}
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center space-x-1 ${
+            className={`px-2 py-0.2 rounded-full text-[9px] font-bold border flex items-center space-x-1 ${
               cprData.cprWidthCategory === 'NARROW_CPR'
                 ? 'bg-bull/15 border-bull/40 text-bull animate-pulse'
                 : cprData.cprWidthCategory === 'WIDE_CPR'
@@ -260,25 +257,25 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
                 ? '🛡️ WIDE CPR'
                 : '📊 AVERAGE CPR'}
             </span>
-            <span className="text-[9px] opacity-80">({cprData.cprWidthPts} pts)</span>
+            <span className="text-[8px] opacity-80">({cprData.cprWidthPts} pts)</span>
           </span>
 
           <button
             type="button"
             onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-            className="p-1 rounded-lg text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
+            className="p-0.5 rounded text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel transition"
             title={isPanelExpanded ? 'Collapse Panel' : 'Expand Panel'}
           >
-            {isPanelExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isPanelExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
       {/* Collapsible Content */}
       {isPanelExpanded && (
-        <div className="space-y-2.5">
-          {/* Compact Level Boxes Grid (2x4 on sm, 4x2 on md/lg) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+        <div className="space-y-2">
+          {/* Compact Level Boxes Grid (Aligned to Top) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono">
             {boxes.map((b) => {
               const isSelected = selectedBox === b.key;
 
@@ -287,14 +284,14 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
                   key={b.key}
                   type="button"
                   onClick={() => setSelectedBox(isSelected ? null : b.key)}
-                  className={`p-2 rounded-xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer group shadow-sm ${
+                  className={`pt-1.5 pb-1.5 px-2 rounded-lg border text-left flex flex-col justify-start items-stretch transition-all duration-150 cursor-pointer group shadow-sm ${
                     isSelected
-                      ? 'bg-accent-sky/20 border-accent-sky shadow-[0_0_12px_rgba(0,229,255,0.3)] ring-1 ring-accent-sky/50 scale-[1.02]'
+                      ? 'bg-accent-sky/20 border-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.3)] ring-1 ring-accent-sky scale-[1.02]'
                       : 'bg-terminal-panel/80 border-terminal-border hover:border-accent-sky/50 hover:bg-terminal-panel'
                   }`}
                 >
-                  {/* Box Title in Format "PIVOT : ₹24,810" */}
-                  <div className="flex items-center justify-between w-full text-[11px] font-black text-terminal-text tracking-wide mb-1">
+                  {/* Top-aligned Box Title (Format "PIVOT : ₹24,810") */}
+                  <div className="flex items-center justify-between w-full text-[11px] sm:text-xs font-black text-terminal-text tracking-tight leading-none mb-1">
                     <span className="truncate group-hover:text-accent-cyan transition-colors">
                       {b.headerTitle}
                     </span>
@@ -303,15 +300,15 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
                     </span>
                   </div>
 
-                  {/* Sub-value & Expand Chevron */}
-                  <div className="flex items-center justify-between w-full text-[9px] pt-1 border-t border-terminal-border/60">
+                  {/* Sub-value & Click-to-Expand Indicator */}
+                  <div className="flex items-center justify-between w-full text-[9px] pt-0.5 border-t border-terminal-border/50 leading-tight">
                     <span className={`font-bold truncate ${
                       b.sentiment === 'BULLISH' ? 'text-bull' : b.sentiment === 'BEARISH' ? 'text-bear' : b.sentiment === 'WARNING' ? 'text-amber' : 'text-terminal-muted'
                     }`}>
                       {b.badge.split(' ')[0]} {b.subValue}
                     </span>
-                    <span className={`text-[9px] font-bold ${isSelected ? 'text-accent-sky' : 'text-terminal-muted'}`}>
-                      {isSelected ? '▲ Hide' : '▼ Details'}
+                    <span className={`text-[8px] font-bold ${isSelected ? 'text-accent-sky' : 'text-terminal-muted'}`}>
+                      {isSelected ? '▲' : '▼'}
                     </span>
                   </div>
                 </button>
