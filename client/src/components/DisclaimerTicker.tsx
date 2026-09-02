@@ -15,10 +15,9 @@ export const DisclaimerTicker: React.FC = () => {
       className="fixed bottom-14 md:bottom-0 left-0 right-0 w-full z-40 md:z-50 bg-terminal-panel/95 backdrop-blur-md border-t border-amber/40 shadow-md py-1.5 px-3 flex items-center select-none"
     >
       {/* Permanent Fixed Compliance Badge on Left */}
-      <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-amber/20 text-amber border border-amber/50 shrink-0 mr-3 font-mono font-black text-[10px] shadow-sm">
+      <div className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber/20 text-amber border border-amber/50 shrink-0 mr-2 sm:mr-3 font-mono font-black text-[10px] shadow-sm" title="SEBI Statutory Compliance: Educational & Analytical Observation Only">
         <ShieldAlert className="w-3.5 h-3.5 text-amber shrink-0 animate-pulse" />
-        <span className="hidden sm:inline">SEBI COMPLIANCE:</span>
-        <span>EDUCATIONAL ONLY</span>
+        <span className="hidden sm:inline">SEBI COMPLIANCE: EDUCATIONAL ONLY</span>
       </div>
 
       {/* Infinite Seamless Scrolling Disclaimer Stream */}
