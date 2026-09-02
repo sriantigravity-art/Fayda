@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { 
   TrendingUp, 
@@ -8,14 +8,24 @@ import {
   ChevronDown, 
   CheckCircle2,
   Activity,
-  Layers
+  Layers,
+  Clock,
+  Timer
 } from 'lucide-react';
 import type { TimeframeKey } from '../types';
+import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 
 export const BreakoutPatternRadar: React.FC = () => {
   const { currentIndexState, selectedIndex } = useMarket();
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [selectedTf, setSelectedTf] = useState<TimeframeKey>('15m');
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // 1-second live clock ticker
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const timeframes: { key: TimeframeKey; label: string; group: 'SCALP' | 'SWING' | 'MACRO' }[] = [
     { key: '1m', label: '1m', group: 'SCALP' },
@@ -118,45 +128,82 @@ export const BreakoutPatternRadar: React.FC = () => {
           </div>
 
           {/* Pattern Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
-            {/* Pattern Card */}
-            <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1.5 font-sans">
-              <span className="text-[10px] text-terminal-muted uppercase font-semibold block">Detected Pattern</span>
-              <div className="flex items-center space-x-2">
-                {patternData.isBull ? <TrendingUp className="w-4 h-4 text-bull" /> : <TrendingDown className="w-4 h-4 text-bear" />}
-                <span className="font-bold text-terminal-text text-sm">{patternData.name}</span>
-              </div>
-              <p className="text-[11px] text-terminal-muted leading-tight">
-                {patternData.description}
-              </p>
-            </div>
+          {(() => {
+            const timing = getSignalTimingData(currentIndexState?.lastUpdated || new Date().toISOString(), 30, currentTime);
+            const currentSpot = currentIndexState?.spotPrice || 24800;
+            const advice = getUserTradeAdvice({
+              currentLtp: currentSpot,
+              entryPrice: patternData.confirmation,
+              targetPrice: patternData.target,
+              stoplossPrice: patternData.invalidation,
+              elapsedMinutes: timing.elapsedMinutes,
+              maxValidityMinutes: timing.validUntilMinutes
+            });
 
-            {/* Breakout Coordinates */}
-            <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1 font-mono">
-              <span className="text-[10px] text-terminal-muted font-sans uppercase font-semibold block">Key Breakout Levels</span>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-terminal-muted">Neckline:</span>
-                <strong className="text-terminal-text font-bold">₹{patternData.neckline.toFixed(1)}</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-terminal-muted">Confirmation:</span>
-                <strong className="text-accent-sky font-bold">₹{patternData.confirmation.toFixed(1)}</strong>
-              </div>
-            </div>
+            return (
+              <>
+                {/* Timing Equation & Action Advice Strip */}
+                <div className="p-2 rounded-xl bg-terminal-panel/90 border border-terminal-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-accent-cyan font-bold flex items-center gap-1 text-[10px]">
+                      <Clock className="w-3 h-3 text-accent-cyan" />
+                      <span>GIVEN: {timing.givenTimeShort}</span>
+                    </span>
+                    <span className="text-terminal-muted text-[10px]">
+                      {timing.liveTimeFormatted} - {timing.givenTimeFormatted} = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
+                    </span>
+                  </div>
 
-            {/* Target Projection */}
-            <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1 font-mono">
-              <span className="text-[10px] text-terminal-muted font-sans uppercase font-semibold block">Projected Target & Invalidation</span>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-bull">Target (T1):</span>
-                <strong className="text-bull font-bold">₹{patternData.target.toFixed(1)} (+{patternData.expectedPoints.toFixed(0)} pts)</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-bear">Invalidation:</span>
-                <strong className="text-bear font-bold">₹{patternData.invalidation.toFixed(1)}</strong>
-              </div>
-            </div>
-          </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <span className={`px-2 py-0.5 rounded font-black text-[9px] uppercase shadow-sm ${advice.badgeClass}`}>
+                      {advice.badgeLabel}
+                    </span>
+                    <span className="text-[10px] text-terminal-muted">⏳ {timing.remainingMinutes}m valid</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
+                  {/* Pattern Card */}
+                  <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1.5 font-sans">
+                    <span className="text-[10px] text-terminal-muted uppercase font-semibold block">Detected Pattern</span>
+                    <div className="flex items-center space-x-2">
+                      {patternData.isBull ? <TrendingUp className="w-4 h-4 text-bull" /> : <TrendingDown className="w-4 h-4 text-bear" />}
+                      <span className="font-bold text-terminal-text text-sm">{patternData.name}</span>
+                    </div>
+                    <p className="text-[11px] text-terminal-muted leading-tight">
+                      {patternData.description}
+                    </p>
+                  </div>
+
+                  {/* Breakout Coordinates */}
+                  <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1 font-mono">
+                    <span className="text-[10px] text-terminal-muted font-sans uppercase font-semibold block">Key Breakout Levels</span>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-terminal-muted">Neckline:</span>
+                      <strong className="text-terminal-text font-bold">₹{patternData.neckline.toFixed(1)}</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-terminal-muted">Confirmation:</span>
+                      <strong className="text-accent-sky font-bold">₹{patternData.confirmation.toFixed(1)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Target Projection */}
+                  <div className="p-3 rounded-xl bg-terminal-panel/60 border border-terminal-border space-y-1 font-mono">
+                    <span className="text-[10px] text-terminal-muted font-sans uppercase font-semibold block">Projected Target & Invalidation</span>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-bull">Target (T1):</span>
+                      <strong className="text-bull font-bold">₹{patternData.target.toFixed(1)} (+{patternData.expectedPoints.toFixed(0)} pts)</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-bear">Invalidation:</span>
+                      <strong className="text-bear font-bold">₹{patternData.invalidation.toFixed(1)}</strong>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

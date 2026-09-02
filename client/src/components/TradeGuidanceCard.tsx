@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { calculateDynamicTarget } from '../utils/tradeHorizon';
+import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { 
   Zap, 
@@ -22,7 +23,9 @@ import {
   TrendingDown,
   Sparkles,
   BookOpen,
-  Compass
+  Compass,
+  Clock,
+  Timer
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 
@@ -31,11 +34,18 @@ export const TradeGuidanceCard: React.FC = () => {
   const { mode, isBeginner, isIntermediate, isExpert, modeTitle, modeDescription, modeBadgeClass } = useTerminalMode();
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [activeSetupForCalc, setActiveSetupForCalc] = useState<{ ltp: number; sl: number; target: number }>({
     ltp: 100,
     sl: 80,
     target: 140
   });
+
+  // 1-second live clock ticker
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!currentIndexState) return null;
 
@@ -108,6 +118,16 @@ export const TradeGuidanceCard: React.FC = () => {
 
   const activeSetup = primaryBias === 'BUY CALL' ? getEODReferenceSetup('BULLISH') : getEODReferenceSetup('BEARISH');
 
+  const timing = getSignalTimingData(currentIndexState.lastUpdated || new Date().toISOString(), 30, currentTime);
+  const advice = getUserTradeAdvice({
+    currentLtp: activeSetup.ltp,
+    entryPrice: typeof activeSetup.ltp === 'number' ? activeSetup.ltp : 100,
+    targetPrice: typeof activeSetup.targetPoints === 'number' ? activeSetup.ltp + activeSetup.targetPoints : activeSetup.ltp * 1.35,
+    stoplossPrice: typeof activeSetup.slPoints === 'number' ? activeSetup.ltp - activeSetup.slPoints : activeSetup.ltp * 0.85,
+    elapsedMinutes: timing.elapsedMinutes,
+    maxValidityMinutes: timing.validUntilMinutes
+  });
+
   const openRiskCalculatorForSetup = (setup: { ltp: number }) => {
     const dyn = calculateDynamicTarget(setup.ltp, atmStrike, atmStrike);
     setActiveSetupForCalc({
@@ -120,7 +140,7 @@ export const TradeGuidanceCard: React.FC = () => {
 
   return (
     <div className="bg-terminal-card border border-terminal-border rounded-xl shadow-subtle flex flex-col overflow-hidden font-sans select-none transition-all duration-300">
-      {/* Top Header Bar with Mode Lens Badge */}
+      {/* Top Header Bar with Mode Lens Badge & Live Clock */}
       <div className="px-3.5 sm:px-4 py-3 border-b border-terminal-border bg-terminal-panel/60 flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex items-center space-x-2.5">
           <div className={`p-1.5 rounded-lg ${
@@ -153,7 +173,14 @@ export const TradeGuidanceCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 font-mono">
+          {/* Running Live Clock */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-terminal-bg border border-terminal-border text-[11px] text-accent-cyan">
+            <Clock className="w-3 h-3 text-accent-cyan animate-pulse" />
+            <span className="text-terminal-muted text-[10px] hidden xs:inline">LIVE:</span>
+            <strong className="text-terminal-text">{formatIstClock(currentTime, true)}</strong>
+          </div>
+
           {/* Grade / Confidence Badge */}
           <div className="flex items-center px-2 py-1 rounded-lg bg-terminal-panel border border-terminal-border text-xs">
             <span className="text-terminal-muted mr-1.5 font-medium">{isBeginner ? 'Accuracy:' : 'Grade:'}</span>
@@ -172,6 +199,26 @@ export const TradeGuidanceCard: React.FC = () => {
 
       {isExpanded && (
         <div className="p-3.5 sm:p-4 space-y-3.5">
+          {/* Signal Timing Equation & Actionability Decision Strip */}
+          <div className="p-2.5 rounded-xl bg-terminal-panel/90 border border-terminal-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs font-mono">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-accent-cyan font-bold flex items-center gap-1">
+                <Clock className="w-3 h-3 text-accent-cyan" />
+                <span>GIVEN: {timing.givenTimeShort}</span>
+              </span>
+              <span className="text-terminal-muted text-[11px]">
+                {timing.liveTimeFormatted} - {timing.givenTimeFormatted} = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+              <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase shadow-sm ${advice.badgeClass}`}>
+                {advice.badgeLabel}
+              </span>
+              <span className="text-[10px] text-terminal-muted">⏳ {timing.remainingMinutes}m valid</span>
+            </div>
+          </div>
+
           {/* Day's Net Movement & Price Action Context Bar */}
           <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-terminal-panel/80 border border-terminal-border text-xs font-mono">
             <div className="flex items-center space-x-2">

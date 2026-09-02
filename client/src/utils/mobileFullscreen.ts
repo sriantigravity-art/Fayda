@@ -24,21 +24,15 @@ export function requestMobileFullscreen(): void {
   const docEl = document.documentElement as any;
   try {
     if (docEl.requestFullscreen) {
-      docEl.requestFullscreen().catch(() => {
-        document.body.classList.add('terminal-fullscreen-active');
-      });
+      docEl.requestFullscreen().catch(() => {});
     } else if (docEl.webkitRequestFullscreen) {
       docEl.webkitRequestFullscreen();
     } else if (docEl.mozRequestFullScreen) {
       docEl.mozRequestFullScreen();
     } else if (docEl.msRequestFullscreen) {
       docEl.msRequestFullscreen();
-    } else {
-      document.body.classList.add('terminal-fullscreen-active');
     }
-  } catch {
-    document.body.classList.add('terminal-fullscreen-active');
-  }
+  } catch {}
 }
 
 /**

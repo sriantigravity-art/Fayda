@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHorizon';
-import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles } from 'lucide-react';
+import { getSignalTimingData, getUserTradeAdvice } from '../utils/signalTimeHelper';
+import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer } from 'lucide-react';
 import type { IndexSymbol } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
@@ -12,6 +13,15 @@ export const HighlightSignalTicker: React.FC = () => {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [tickerSpeed, setTickerSpeed] = useState<'SLOW' | 'NORMAL' | 'FAST'>('SLOW');
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // Live 1-second ticker for real-time elapsed calculations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const speedSeconds = tickerSpeed === 'SLOW' ? 75 : tickerSpeed === 'NORMAL' ? 48 : 28;
   const isAnimationPaused = isPaused || isHovered;
@@ -77,6 +87,8 @@ export const HighlightSignalTicker: React.FC = () => {
         isIndex
       );
 
+      const rawTimestamp = pick.timestamp || lastUpdated || new Date().toISOString();
+
       return {
         symbol: sym,
         strike: pick.suggestedContract.symbol,
@@ -89,6 +101,7 @@ export const HighlightSignalTicker: React.FC = () => {
         target: pick.suggestedContract.target,
         riskReward: pick.suggestedContract.riskReward || '1:2.0',
         score: pick.surgeScore,
+        rawTimestamp,
         time: pick.timeFormatted || fallbackTime,
         isStoplossHit: isSlHit,
         horizon,
@@ -134,6 +147,8 @@ export const HighlightSignalTicker: React.FC = () => {
       isIndex
     );
 
+    const rawTimestamp = lastUpdated || new Date().toISOString();
+
     return {
       symbol: sym,
       strike: `${sym} ${targetStrike} ${optType}`,
@@ -146,6 +161,7 @@ export const HighlightSignalTicker: React.FC = () => {
       target: `₹${dyn.targetPrice.toFixed(1)} (+${dyn.targetPct}%)`,
       riskReward: dyn.riskReward,
       score: 88,
+      rawTimestamp,
       time: isLiveMarket ? '1-Min Ref' : 'EOD Settle',
       isStoplossHit: isSlHit,
       horizon,
@@ -168,6 +184,20 @@ export const HighlightSignalTicker: React.FC = () => {
     const hz = item.horizon;
     const multiLeg = item.multiLegAlternative;
 
+    const timing = getSignalTimingData(item.rawTimestamp, 30, currentTime);
+    const entryNum = parseFloat(String(item.entry || '').replace(/[^0-9.]/g, '')) || item.ltp;
+    const tgtNum = parseFloat(String(item.target || '').replace(/[^0-9.]/g, '')) || (item.ltp * 1.35);
+    const slNum = parseFloat(String(item.exitSL || '').replace(/[^0-9.]/g, '')) || (item.ltp * 0.85);
+
+    const advice = getUserTradeAdvice({
+      currentLtp: item.ltp,
+      entryPrice: entryNum,
+      targetPrice: tgtNum,
+      stoplossPrice: slNum,
+      elapsedMinutes: timing.elapsedMinutes,
+      maxValidityMinutes: timing.validUntilMinutes
+    });
+
     return (
       <div
         key={`${item.symbol}-${keySuffix}`}
@@ -179,7 +209,7 @@ export const HighlightSignalTicker: React.FC = () => {
             ? 'bg-terminal-card border-accent-cyan shadow-[0_0_18px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan/60'
             : 'bg-terminal-panel/90 border-terminal-border hover:border-accent-cyan/50 hover:bg-terminal-card'
         }`}
-        title={`${hz.categoryBadge} | ${item.breakoutStatus || ''} | ${item.faydaStrategyMatch || ''}`}
+        title={`${timing.formulaText} | ${advice.explanation} | ${hz.categoryBadge}`}
       >
         {/* EXPLICIT TRADE STATUS / CONVICTION BADGE */}
         <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg border text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
@@ -204,6 +234,17 @@ export const HighlightSignalTicker: React.FC = () => {
           </span>
         </div>
 
+        {/* Fixed Tip Given Time & Real-time Live Elapsed Duration */}
+        <div className="flex items-center space-x-1 font-mono text-[9px] shrink-0">
+          <span className="px-1.5 py-0.5 rounded bg-terminal-bg border border-terminal-border text-accent-cyan font-bold flex items-center gap-1" title={`Fixed Signal Time: ${timing.givenTimeFormatted}`}>
+            <Clock className="w-2.5 h-2.5 text-accent-cyan" />
+            <span>{timing.givenTimeShort}</span>
+          </span>
+          <span className={`px-1.5 py-0.5 rounded border font-bold ${timing.actionability.tagClass}`} title={timing.formulaText}>
+            ⏱️ {timing.elapsedFormatted}
+          </span>
+        </div>
+
         {/* Multi-Strategy & Breakout Verification Tags */}
         <div className="hidden lg:flex items-center space-x-1 shrink-0 font-mono text-[9px]">
           {item.breakoutStatus && (
@@ -217,16 +258,6 @@ export const HighlightSignalTicker: React.FC = () => {
             </span>
           )}
         </div>
-
-        {/* Multi-Leg Spread Alternative Badge */}
-        {multiLeg && (
-          <div className="hidden xl:flex items-center space-x-1 bg-bull/10 border border-bull/30 px-2 py-0.5 rounded-md text-[9px] text-bull shrink-0 font-mono">
-            <ShieldCheck className="w-3 h-3 text-bull" />
-            <span>
-              <strong>Spread:</strong> {multiLeg.spreadName.replace('Fayda ', '')} (Max Risk: ₹{multiLeg.maxRiskRupees})
-            </span>
-          </div>
-        )}
 
         {/* Entry / Square Off Zone */}
         <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] shrink-0 font-mono ${
@@ -271,19 +302,24 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Continuous Marquee Container */}
-        <div className="overflow-hidden flex-1 relative flex items-center">
+        <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center">
           <div 
-            className="flex items-center space-x-3 whitespace-nowrap will-change-transform"
+            className="flex items-center whitespace-nowrap will-change-transform"
             style={{
               animationName: 'marqueeTicker',
               animationDuration: `${speedSeconds}s`,
               animationTimingFunction: 'linear',
               animationIterationCount: 'infinite',
-              animationPlayState: isAnimationPaused ? 'paused' : 'running'
+              animationPlayState: isAnimationPaused ? 'paused' : 'running',
+              width: 'max-content'
             }}
           >
-            {activeSetups.map((item, idx) => renderSetupItem(item, `orig-${idx}`))}
-            {activeSetups.map((item, idx) => renderSetupItem(item, `dup-${idx}`))}
+            <div className="flex items-center space-x-3 shrink-0 pr-3">
+              {activeSetups.map((item, idx) => renderSetupItem(item, `orig-${idx}`))}
+            </div>
+            <div className="flex items-center space-x-3 shrink-0 pr-3" aria-hidden="true">
+              {activeSetups.map((item, idx) => renderSetupItem(item, `dup-${idx}`))}
+            </div>
           </div>
         </div>
 

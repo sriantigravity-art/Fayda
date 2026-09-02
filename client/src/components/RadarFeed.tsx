@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import type { SurgeEvent, SurgeLevel, IndexSymbol, TradeAction } from '../types';
 import { calculateTargetHorizon } from '../utils/tradeHorizon';
+import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 import { 
@@ -16,7 +17,10 @@ import {
   BookOpen,
   BarChart2,
   ExternalLink,
-  Target
+  Target,
+  Timer,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
@@ -46,10 +50,19 @@ export const RadarFeed: React.FC = () => {
   const [levelFilter, setLevelFilter] = useState<'ALL' | SurgeLevel>('ALL');
   const [indexFilter, setIndexFilter] = useState<'ALL' | IndexSymbol>('ALL');
   const [actionFilter, setActionFilter] = useState<'ALL' | TradeAction>('ALL');
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // 1-second live clock ticker for real-time elapsed calculations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Calculate live count of surges per time window
   const countsByTime = useMemo(() => {
-    const now = Date.now();
+    const now = currentTime;
     let count5m = 0, count10m = 0, count15m = 0, count1h = 0;
     
     recentSurges.forEach((s) => {
@@ -63,7 +76,7 @@ export const RadarFeed: React.FC = () => {
     });
 
     return { count5m, count10m, count15m, count1h };
-  }, [recentSurges, visibleIndices]);
+  }, [recentSurges, visibleIndices, currentTime]);
 
   const formatIstTime = (timestamp?: string, defaultStr?: string) => {
     if (!timestamp) return defaultStr || '';
@@ -77,6 +90,7 @@ export const RadarFeed: React.FC = () => {
   };
 
   const filteredSurges = useMemo(() => {
+    const now = currentTime;
     return recentSurges.filter((s) => {
       // Must belong to user's selected/visible indices
       if (!visibleIndices.includes(s.indexSymbol)) return false;
@@ -84,8 +98,14 @@ export const RadarFeed: React.FC = () => {
       const atm = idxState?.atmStrike;
       if (atm && Math.abs(s.strikePrice - atm) > 600) return false;
 
-      // Auto-Expire Signal after contract expiry date or intraday lifetime
+      // Auto-Expire Signal after contract expiry date
       if (isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes)) return false;
+
+      const diffMin = Math.max(0, (now - new Date(s.timestamp).getTime()) / (60 * 1000));
+      const maxValMin = s.validUntilMinutes || (s.surgeLevel === 'EXTREME' ? 20 : s.surgeLevel === 'STRONG' ? 45 : 60);
+
+      // In live market, expired signals (> validity window) are removed from active feed and shifted to Journal
+      if (isLiveMarketOpen && diffMin > maxValMin) return false;
 
       // Time Window Filter
       if (timeFilter !== 'ALL') {
@@ -100,7 +120,7 @@ export const RadarFeed: React.FC = () => {
       if (actionFilter !== 'ALL' && s.tradeAction !== actionFilter) return false;
       return true;
     });
-  }, [recentSurges, visibleIndices, indices, timeFilter, levelFilter, indexFilter, actionFilter]);
+  }, [recentSurges, visibleIndices, indices, timeFilter, levelFilter, indexFilter, actionFilter, currentTime, isLiveMarketOpen]);
 
   const getSurgeLevelBadge = (level: SurgeLevel) => {
     switch (level) {
@@ -142,7 +162,7 @@ export const RadarFeed: React.FC = () => {
 
   return (
     <div className="bg-terminal-card border border-terminal-border rounded-xl flex flex-col overflow-hidden shadow-xl transition-all duration-300">
-      {/* Feed Header */}
+      {/* Feed Header with Running Live Market Clock */}
       <div className="p-3 sm:p-3.5 bg-terminal-panel/80 border-b border-terminal-border">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center space-x-2.5">
@@ -156,7 +176,7 @@ export const RadarFeed: React.FC = () => {
                   LIVE OI ACTIVITY RADAR
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bear/15 text-bear font-black border border-bear/40 shadow-sm">
-                  {filteredSurges.length} Events
+                  {filteredSurges.length} Active
                 </span>
               </div>
               <p className="text-[10px] text-terminal-muted font-mono mt-0.5">
@@ -165,8 +185,15 @@ export const RadarFeed: React.FC = () => {
             </div>
           </div>
 
-          {/* Action Suite: Open Trade Journal Modal Button & Collapse */}
+          {/* Action Suite: Live Clock + Trade Journal Modal Button & Collapse */}
           <div className="flex items-center space-x-2 font-mono text-xs w-full sm:w-auto sm:ml-auto">
+            {/* Live Running Market Clock */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-terminal-bg border border-terminal-border text-[11px] text-accent-cyan shadow-sm">
+              <Clock className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
+              <span className="text-terminal-muted text-[10px] hidden xs:inline">LIVE:</span>
+              <strong className="text-terminal-text">{formatIstClock(currentTime, true)}</strong>
+            </div>
+
             {/* Direct Open Modal Action Button */}
             <button
               type="button"
@@ -405,27 +432,45 @@ export const RadarFeed: React.FC = () => {
         {filteredSurges.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-terminal-muted text-center px-4">
             <Sparkles className="w-7 h-7 mb-2 opacity-30 animate-pulse text-accent-cyan" />
-            <p className="font-mono text-xs font-bold text-terminal-text">No surge events match current filter.</p>
+            <p className="font-mono text-xs font-bold text-terminal-text">No active surge events match current filter.</p>
             <p className="text-[11px] mt-1 text-terminal-muted/70">
-              Switch timeframe or await the next 1-minute institutional OI spike.
+              Expired recommendations are automatically shifted to the Trade Journal ledger.
             </p>
+            <button
+              type="button"
+              onClick={() => setIsJournalModalOpen(true)}
+              className="mt-3 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Open Predictions & Journal Report</span>
+            </button>
           </div>
         ) : (
           filteredSurges.map((surge) => {
+            const isCall = surge.optionType === 'CE';
             const currentIdx = indices[surge.indexSymbol];
             const atm = currentIdx?.atmStrike || surge.strikePrice;
-            const targetLtp = parseFloat(String(surge.suggestedContract.target || '').replace(/[^0-9.]/g, '')) || (surge.ltp * 1.35);
+            const strikeObj = currentIdx?.strikes?.find((s) => s.strikePrice === surge.strikePrice);
+            const liveOptionLtp = strikeObj ? (isCall ? strikeObj.callLtp : strikeObj.putLtp) : surge.ltp;
+            const currentOptionLtp = (liveOptionLtp && liveOptionLtp > 0) ? liveOptionLtp : surge.ltp;
+
+            const entryBase = typeof surge.suggestedContract?.ltp === 'number' && surge.suggestedContract.ltp > 0
+              ? surge.suggestedContract.ltp
+              : surge.ltp;
+
+            const targetPrice = parseFloat(String(surge.suggestedContract?.target || '').replace(/[^0-9.]/g, '')) || (entryBase * 1.35);
+            const stoplossPrice = parseFloat(String(surge.suggestedContract?.stoploss || '').replace(/[^0-9.]/g, '')) || (entryBase * 0.82);
+
             const horizon = calculateTargetHorizon(
               surge.indexSymbol,
               surge.strikePrice,
               atm,
               surge.optionType,
-              surge.ltp,
-              targetLtp,
+              currentOptionLtp,
+              targetPrice,
               surge.surgeScore
             );
 
-            const isCall = surge.optionType === 'CE';
             const isExtreme = surge.surgeLevel === 'EXTREME';
             const isStrong = surge.surgeLevel === 'STRONG';
 
@@ -438,29 +483,46 @@ export const RadarFeed: React.FC = () => {
             const isCheap = surge.ivStatus === 'CHEAP';
             const isExpensive = surge.ivStatus === 'EXPENSIVE_CRUSH_RISK';
 
-            // Calculate relative time & expiration countdown
-            const diffMs = Math.max(0, Date.now() - new Date(surge.timestamp).getTime());
-            const diffMin = Math.floor(diffMs / (60 * 1000));
-            const relTimeStr = diffMin === 0 ? 'Just now' : `${diffMin}m ago`;
+            // Timing & Actionability Calculation
             const maxValMin = surge.validUntilMinutes || (surge.surgeLevel === 'EXTREME' ? 20 : surge.surgeLevel === 'STRONG' ? 45 : 60);
-            const remainingMin = Math.max(1, maxValMin - diffMin);
+            const timing = getSignalTimingData(
+              surge.givenTimestamp || surge.timestamp,
+              maxValMin,
+              currentTime
+            );
+
+            const advice = getUserTradeAdvice({
+              currentLtp: currentOptionLtp,
+              entryPrice: entryBase,
+              targetPrice,
+              stoplossPrice,
+              elapsedMinutes: timing.elapsedMinutes,
+              maxValidityMinutes: timing.validUntilMinutes
+            });
 
             return (
               <div
                 key={surge.id}
                 className={`rounded-xl p-3 border transition-all duration-200 hover:border-accent-cyan/50 hover:bg-terminal-card ${cardBorder}`}
               >
-                {/* Top line of Card */}
+                {/* 1. Top line of Card: Fixed Given Time, Live Elapsed Status, Strike & Buildup */}
                 <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="font-mono text-[10px] text-terminal-text bg-terminal-bg px-1.5 py-0.5 rounded border border-terminal-border font-bold flex items-center gap-1">
+                  <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    {/* Fixed Tip Given Time Badge */}
+                    <span 
+                      className="font-mono text-[10px] text-terminal-text bg-terminal-bg px-2 py-0.5 rounded border border-terminal-border font-bold flex items-center gap-1 shadow-sm"
+                      title={`Fixed Signal Trigger Time: ${timing.givenTimeFormatted} IST (Permanent)`}
+                    >
                       <Clock className="w-2.5 h-2.5 text-accent-cyan" />
-                      <span>{formatIstTime(surge.timestamp, surge.timeFormatted)}</span>
-                      <span className="text-[9px] text-terminal-muted">({relTimeStr})</span>
+                      <span className="text-terminal-muted text-[9px] uppercase">GIVEN:</span>
+                      <strong className="text-accent-cyan">{timing.givenTimeShort}</strong>
                     </span>
+
+                    {/* Live Remaining Time Badge */}
                     <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border text-amber font-bold">
-                      ⏳ {remainingMin}m left
+                      ⏳ {timing.remainingMinutes}m left
                     </span>
+
                     <span className="font-mono font-bold text-xs text-terminal-text">
                       {surge.indexSymbol} <span className={isCall ? 'text-bear' : 'text-bull'}>{surge.strikePrice} {surge.optionType}</span>
                     </span>
@@ -477,6 +539,50 @@ export const RadarFeed: React.FC = () => {
                       Score {surge.surgeScore}
                     </span>
                   </div>
+                </div>
+
+                {/* 2. Real-Time Math Equation & Action Feasibility Bar */}
+                <div className="bg-terminal-bg/85 p-2 rounded-lg border border-terminal-border/80 mb-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Timer className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
+                    <span className="text-terminal-muted font-bold text-[9px] uppercase shrink-0">TIMING:</span>
+                    <span className="text-terminal-text truncate">
+                      {timing.liveTimeFormatted} <span className="text-terminal-muted text-[9px]">(Live)</span> - {timing.givenTimeFormatted} <span className="text-terminal-muted text-[9px]">(Given)</span> = <strong className="text-accent-cyan font-bold">{timing.elapsedFormatted}</strong>
+                    </span>
+                  </div>
+
+                  <span className={`px-2 py-0.5 rounded font-bold text-[9px] border shrink-0 ${timing.actionability.tagClass}`}>
+                    {timing.actionability.badge}
+                  </span>
+                </div>
+
+                {/* 3. Explicit User Action Guidance Callout (ENTER / HOLD / BOOK PROFIT / TRAIL SL / EXIT) */}
+                <div className={`p-2 rounded-lg border mb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono ${
+                  advice.actionType === 'BOOK_PROFIT'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                    : advice.actionType === 'EXIT_SL'
+                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                    : advice.actionType === 'TRAIL_SL'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                    : advice.actionType === 'ENTER_NOW'
+                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200'
+                    : 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`px-2 py-0.5 rounded font-black text-[9px] uppercase shadow-sm shrink-0 ${advice.badgeClass}`}>
+                      {advice.badgeLabel}
+                    </span>
+                    <span className="text-[10px] text-terminal-text font-sans truncate">{advice.explanation}</span>
+                  </div>
+                  {advice.shouldArchiveToJournal && (
+                    <button
+                      type="button"
+                      onClick={() => setIsJournalModalOpen(true)}
+                      className="px-2 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-[10px] flex items-center gap-1 shrink-0 ml-auto"
+                    >
+                      <BookOpen className="w-3 h-3" /> Shift to Journal
+                    </button>
+                  )}
                 </div>
 
                 {/* Score Progress Bar */}
@@ -529,7 +635,7 @@ export const RadarFeed: React.FC = () => {
                   <div>
                     <span className="text-terminal-muted block text-[9px]">PREMIUM (LTP)</span>
                     <span className="font-bold text-terminal-text">
-                      ₹{surge.ltp.toFixed(2)}{' '}
+                      ₹{currentOptionLtp.toFixed(2)}{' '}
                       <span className={`text-[10px] ${surge.ltpChange >= 0 ? 'text-bull' : 'text-bear'}`}>
                         ({surge.ltpChange >= 0 ? '+' : ''}{surge.ltpPctChange}%)
                       </span>
@@ -585,7 +691,7 @@ export const RadarFeed: React.FC = () => {
                     </div>
                     <div className="bg-amber/15 p-1.5 rounded-md border border-amber/40 col-span-2 sm:col-span-1 shadow-sm">
                       <span className="text-amber block text-[8px] font-bold uppercase">CURRENT PREMIUM</span>
-                      <span className="font-black text-amber block">₹{surge.ltp.toFixed(2)}</span>
+                      <span className="font-black text-amber block">₹{currentOptionLtp.toFixed(2)}</span>
                     </div>
                   </div>
 
