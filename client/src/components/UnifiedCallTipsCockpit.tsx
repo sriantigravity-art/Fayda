@@ -298,7 +298,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             <div>
               <div className="text-[10px] text-terminal-muted uppercase font-bold">Invalidation Level</div>
               <div className="font-bold text-rose-400 font-mono text-xs">
-                ₹{mc.invalidationPrice} ({selectedIndex})
+                ₹{Number(mc.invalidationPrice).toFixed(2)} ({selectedIndex})
               </div>
             </div>
           </div>
@@ -318,36 +318,80 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             </span>
           </div>
 
-          {pkg.carriedForwardTrades.map((cf) => (
-            <div 
-              key={cf.id} 
-              onClick={() => handleCarriedTradeClick(cf)}
-              className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 hover:bg-terminal-card border border-amber-500/20 hover:border-amber-500/50 p-2.5 rounded-lg text-xs transition-all cursor-pointer hover:shadow-md"
-              title="Click to view full trade breakdown"
-            >
-              <div className="col-span-2">
-                <span className="font-bold text-terminal-text">{cf.contractSymbol}</span>
-                <div className="text-[10px] text-terminal-muted">Entered at {cf.entryTimeFormatted} @ ₹{cf.entryPrice}</div>
+          {pkg.carriedForwardTrades.map((cf) => {
+            const pnlPts = cf.pnlPoints !== undefined ? cf.pnlPoints : +(cf.currentLtp - cf.entryPrice).toFixed(2);
+            const pnlPercent = cf.pnlPct !== undefined ? cf.pnlPct : (cf.entryPrice > 0 ? +((pnlPts / cf.entryPrice) * 100).toFixed(2) : 0);
+            const isGain = pnlPts > 0;
+            const isLoss = pnlPts < 0;
+            const isIdentical = pnlPts === 0;
+
+            return (
+              <div 
+                key={cf.id} 
+                onClick={() => handleCarriedTradeClick(cf)}
+                className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 hover:bg-terminal-card border border-amber-500/20 hover:border-amber-500/50 p-2.5 rounded-lg text-xs transition-all cursor-pointer hover:shadow-md"
+                title="Click to view full trade breakdown"
+              >
+                <div className="col-span-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-terminal-text text-sm">{cf.contractSymbol}</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
+                      ACTIVE
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5">
+                    <span className="text-accent-gold font-medium">Call Given:</span>
+                    <span className="font-mono text-terminal-text font-bold">{cf.entryTimeFormatted}</span>
+                    <span className="text-terminal-muted">(Ref: ₹{Number(cf.entryPrice).toFixed(2)})</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-terminal-muted">Live Market LTP</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold font-mono text-terminal-text text-sm">₹{cf.currentLtp.toFixed(2)}</span>
+                    {isIdentical ? (
+                      <span className="text-[9px] text-cyan-400 font-bold font-mono">⚡ At Trigger</span>
+                    ) : isGain ? (
+                      <span className="text-[10px] text-bull font-bold font-mono">+{pnlPts.toFixed(2)} (+{pnlPercent.toFixed(2)}%)</span>
+                    ) : (
+                      <span className="text-[10px] text-bear font-bold font-mono">{pnlPts.toFixed(2)} ({pnlPercent.toFixed(2)}%)</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-terminal-muted">Suggested Dip Entry</div>
+                  <div className="font-bold font-mono text-accent-cyan">
+                    ₹{(cf.dipEntryMin || (cf.entryPrice * 0.98)).toFixed(2)} - ₹{(cf.dipEntryMax || cf.entryPrice).toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-terminal-muted">Stop Loss / Target 1</div>
+                  <div className="font-mono text-[11px]">
+                    <span className="font-bold text-bear">₹{Number(cf.stoplossPrice).toFixed(2)}</span>
+                    <span className="text-terminal-muted mx-1">/</span>
+                    <span className="font-bold text-bull">₹{Number(cf.target1Price).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="text-right flex items-center justify-end gap-1.5">
+                  <span className={`px-2 py-1 rounded font-bold text-[10px] border ${
+                    cf.status === 'TARGET1_HIT' 
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
+                      : cf.status === 'SL_HIT'
+                      ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                      : isGain
+                      ? 'bg-bull/15 text-bull border-bull/30'
+                      : 'bg-accent-sky/15 text-accent-sky border-accent-sky/30'
+                  }`}>
+                    {cf.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : isIdentical ? '⚡ AT TRIGGER PRICE' : isGain ? '🚀 IN PROFIT' : '🛡️ RUNNING'}
+                  </span>
+                </div>
               </div>
-              <div>
-                <div className="text-[10px] text-terminal-muted">Live LTP</div>
-                <div className="font-bold font-mono text-terminal-text">₹{cf.currentLtp.toFixed(1)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-terminal-muted">Stop Loss</div>
-                <div className="font-bold font-mono text-bear">₹{cf.stoplossPrice}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-terminal-muted">Target 1</div>
-                <div className="font-bold font-mono text-bull">₹{cf.target1Price}</div>
-              </div>
-              <div className="text-right flex items-center justify-end gap-1.5">
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded font-bold text-[11px]">
-                  {cf.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail)' : '⚡ RUNNING'}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -425,9 +469,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                         : 'TIER 1: INSTITUTIONAL MOMENTUM ALPHA'}
                     </span>
                   </span>
-                  <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
+                  <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1" title={`Call Given at ${pkg.primaryTrade.entryTimeFormatted} @ Ref ₹${pkg.primaryTrade.entryPrice.toFixed(2)}`}>
                     <Clock className="w-3 h-3 text-accent-gold" />
-                    <span>{pkg.primaryTrade.entryTimeFormatted}</span>
+                    <span>Given: {pkg.primaryTrade.entryTimeFormatted}</span>
                   </span>
                 </div>
 
@@ -442,26 +486,41 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-terminal-muted font-mono">Live LTP</div>
-                    <div className="text-lg font-black font-mono text-bull">
-                      ₹{pkg.primaryTrade.currentLtp.toFixed(2)}
+                    <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
+                    <div className="flex items-baseline justify-end gap-1">
+                      <span className="text-lg font-black font-mono text-bull">
+                        ₹{pkg.primaryTrade.currentLtp.toFixed(2)}
+                      </span>
+                      {pkg.primaryTrade.pnlPoints && pkg.primaryTrade.pnlPoints !== 0 ? (
+                        <span className={`text-[10px] font-mono font-bold ${pkg.primaryTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
+                          ({pkg.primaryTrade.pnlPoints > 0 ? '+' : ''}{pkg.primaryTrade.pnlPoints.toFixed(2)})
+                        </span>
+                      ) : null}
                     </div>
                   </div>
+                </div>
+
+                {/* Benchmark Given Price Bar */}
+                <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-terminal-muted">Signal Ref Trigger:</span>
+                  <span className="font-bold text-terminal-text">₹{pkg.primaryTrade.entryPrice.toFixed(2)}</span>
                 </div>
 
                 {/* Execution Metric Grid */}
                 <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                   <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Entry Zone</div>
-                    <div className="font-bold text-terminal-text font-mono">{pkg.primaryTrade.entryRange}</div>
+                    <div className="text-[10px] text-terminal-muted uppercase">Dip Entry Zone</div>
+                    <div className="font-bold text-terminal-text font-mono">
+                      ₹{(pkg.primaryTrade.dipEntryMin || (pkg.primaryTrade.entryPrice * 0.98)).toFixed(2)} - ₹{pkg.primaryTrade.entryPrice.toFixed(2)}
+                    </div>
                   </div>
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
-                    <div className="font-bold text-bear font-mono">₹{pkg.primaryTrade.stoplossPrice} (-20%)</div>
+                    <div className="font-bold text-bear font-mono">₹{Number(pkg.primaryTrade.stoplossPrice).toFixed(2)} (-20%)</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Target 1 (1:2)</div>
-                    <div className="font-bold text-bull font-mono">₹{pkg.primaryTrade.target1Price} (+30%)</div>
+                    <div className="font-bold text-bull font-mono">₹{Number(pkg.primaryTrade.target1Price).toFixed(2)} (+30%)</div>
                   </div>
                 </div>
 
@@ -566,7 +625,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="text-right">
                     <div className="text-xs text-terminal-muted font-mono">Net Debit</div>
                     <div className="text-lg font-black font-mono text-accent-sky">
-                      ₹{pkg.hedgedSpreadTrade.currentLtp.toFixed(1)} pts
+                      ₹{pkg.hedgedSpreadTrade.currentLtp.toFixed(2)} pts
                     </div>
                   </div>
                 </div>
@@ -588,7 +647,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Breakeven</div>
                     <div className="font-bold text-terminal-text font-mono">
-                      ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.breakeven.toFixed(0) : spotPrice}
+                      ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.breakeven.toFixed(2) : Number(spotPrice).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -687,7 +746,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="text-right">
                     <div className="text-xs text-terminal-muted font-mono">Sniper LTP</div>
                     <div className="text-lg font-black font-mono text-purple-400">
-                      ₹{pkg.gammaTrade.currentLtp.toFixed(1)}
+                      ₹{pkg.gammaTrade.currentLtp.toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -696,15 +755,15 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Risk (SL)</div>
-                    <div className="font-bold text-bear font-mono">₹{pkg.gammaTrade.stoplossPrice}</div>
+                    <div className="font-bold text-bear font-mono">₹{Number(pkg.gammaTrade.stoplossPrice).toFixed(2)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Target 1 (3x)</div>
-                    <div className="font-bold text-bull font-mono">₹{pkg.gammaTrade.target1Price}</div>
+                    <div className="font-bold text-bull font-mono">₹{Number(pkg.gammaTrade.target1Price).toFixed(2)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-terminal-muted uppercase">Target 2 (5x)</div>
-                    <div className="font-bold text-accent-gold font-mono">₹{pkg.gammaTrade.target2Price}</div>
+                    <div className="font-bold text-accent-gold font-mono">₹{Number(pkg.gammaTrade.target2Price).toFixed(2)}</div>
                   </div>
                 </div>
 

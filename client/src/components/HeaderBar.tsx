@@ -109,11 +109,12 @@ export const HeaderBar: React.FC = () => {
   useEffect(() => {
     const handleFullscreenChange = () => {
       const doc = document as any;
-      const isFs = !!(
+      const isFs = Boolean(
         doc.fullscreenElement ||
         doc.webkitFullscreenElement ||
         doc.mozFullScreenElement ||
-        doc.msFullscreenElement
+        doc.msFullscreenElement ||
+        document.body.classList.contains('terminal-fullscreen-active')
       );
       setIsFullscreen(isFs);
     };
@@ -138,50 +139,54 @@ export const HeaderBar: React.FC = () => {
     const doc = document as any;
     const docEl = document.documentElement as any;
 
-    const isFs = !!(
+    const isNativeFs = Boolean(
       doc.fullscreenElement ||
       doc.webkitFullscreenElement ||
       doc.mozFullScreenElement ||
-      doc.msFullscreenElement ||
-      document.body.classList.contains('terminal-fullscreen-active')
+      doc.msFullscreenElement
     );
+    const isCssFs = document.body.classList.contains('terminal-fullscreen-active');
 
-    if (!isFs) {
+    if (isNativeFs || isCssFs) {
       try {
-        if (docEl.requestFullscreen) {
-          docEl.requestFullscreen().catch(() => {
-            document.body.classList.add('terminal-fullscreen-active');
-            setIsFullscreen(true);
-          });
-        } else if (docEl.webkitRequestFullscreen) {
-          docEl.webkitRequestFullscreen();
-        } else if (docEl.mozRequestFullScreen) {
-          docEl.mozRequestFullScreen();
-        } else if (docEl.msRequestFullscreen) {
-          docEl.msRequestFullscreen();
-        } else {
-          document.body.classList.add('terminal-fullscreen-active');
-          setIsFullscreen(true);
-        }
-      } catch (err) {
-        document.body.classList.add('terminal-fullscreen-active');
-        setIsFullscreen(true);
-      }
-    } else {
-      try {
-        if (doc.exitFullscreen && doc.fullscreenElement) {
-          doc.exitFullscreen().catch(() => { });
-        } else if (doc.webkitExitFullscreen && doc.webkitFullscreenElement) {
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
           doc.webkitExitFullscreen();
-        } else if (doc.mozCancelFullScreen && doc.mozFullScreenElement) {
+        } else if (doc.mozCancelFullScreen) {
           doc.mozCancelFullScreen();
-        } else if (doc.msExitFullscreen && doc.msFullscreenElement) {
+        } else if (doc.msExitFullscreen) {
           doc.msExitFullscreen();
         }
       } catch (err) {
+        console.warn('[Fullscreen] Exit failed:', err);
       } finally {
         document.body.classList.remove('terminal-fullscreen-active');
         setIsFullscreen(false);
+      }
+    } else {
+      let requested = false;
+      try {
+        const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+        if (req) {
+          const res = req.call(docEl);
+          if (res && res.catch) {
+            res.catch((err: any) => {
+              console.warn('[Fullscreen] Native rejected, applying CSS full window:', err);
+              document.body.classList.add('terminal-fullscreen-active');
+              setIsFullscreen(true);
+            });
+          }
+          requested = true;
+          setIsFullscreen(true);
+        }
+      } catch (err) {
+        console.warn('[Fullscreen] Native error, applying CSS full window:', err);
+      }
+
+      if (!requested) {
+        document.body.classList.add('terminal-fullscreen-active');
+        setIsFullscreen(true);
       }
     }
   };
@@ -451,39 +456,40 @@ export const HeaderBar: React.FC = () => {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            className={`p-1.5 rounded-lg border transition cursor-pointer shrink-0 ${
+              isFullscreen
+                ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
+                : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
+            }`}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen (F11 / Full Window)'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* User Auth Profile Badge or Sign In */}
+          {/* User Auth Profile Badge (Icon/Avatar only) */}
           {isAuthenticated && user ? (
-            <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg px-2 py-1 gap-1.5 font-sans text-xs shrink-0">
+            <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg p-1 gap-1.5 font-sans text-xs shrink-0">
               <button
                 type="button"
                 onClick={() => setIsProfileEditOpen(true)}
-                className="flex items-center space-x-1.5 hover:text-accent-sky transition cursor-pointer text-left"
-                title="Click to view and edit profile"
+                className="hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+                title={`Profile: ${user.fullName} (${user.role}) - Click to edit profile`}
               >
-                <div className="w-5 h-5 rounded-full border border-accent-sky/40 bg-accent-sky/20 text-accent-sky font-bold text-[10px] flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-6 h-6 rounded-full border border-accent-sky/50 bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-sm hover:border-accent-sky">
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
                   ) : (
                     user.fullName.charAt(0).toUpperCase()
                   )}
                 </div>
-                <span className="text-terminal-text font-semibold max-w-[85px] truncate hidden sm:inline">
-                  {user.fullName}
-                </span>
               </button>
               <button
                 type="button"
                 onClick={logout}
-                className="p-0.5 text-terminal-muted hover:text-bear transition cursor-pointer"
+                className="p-1 text-terminal-muted hover:text-bear hover:bg-bear/10 rounded transition cursor-pointer"
                 title="Sign Out"
               >
-                <LogOut className="w-3 h-3" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (

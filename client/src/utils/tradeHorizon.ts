@@ -139,18 +139,18 @@ export function calculateDynamicTarget(
   // Stoploss percentage (Strict 1:2.0 to 1:3.0 Risk-to-Reward)
   let slPct = Math.round(Math.max(6, Math.min(22, targetPct * 0.45)));
 
-  let targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(1);
-  let slPoints = +(cleanLtp * (slPct / 100)).toFixed(1);
+  let targetPoints = +(cleanLtp * (targetPct / 100)).toFixed(2);
+  let slPoints = +(cleanLtp * (slPct / 100)).toFixed(2);
 
   // High premium absolute point adjustment
   if (cleanLtp > 350) {
-    targetPoints = +(cleanLtp * (Math.max(12, targetPct * 0.75) / 100)).toFixed(1);
-    slPoints = +(cleanLtp * (Math.max(5, slPct * 0.70) / 100)).toFixed(1);
+    targetPoints = +(cleanLtp * (Math.max(12, targetPct * 0.75) / 100)).toFixed(2);
+    slPoints = +(cleanLtp * (Math.max(5, slPct * 0.70) / 100)).toFixed(2);
   }
 
-  const slPrice = Math.max(1, +(cleanLtp - slPoints).toFixed(1));
-  const targetPrice = +(cleanLtp + targetPoints).toFixed(1);
-  const rrRatio = (targetPoints / Math.max(1, slPoints)).toFixed(1);
+  const slPrice = Math.max(1, +(cleanLtp - slPoints).toFixed(2));
+  const targetPrice = +(cleanLtp + targetPoints).toFixed(2);
+  const rrRatio = (targetPoints / Math.max(1, slPoints)).toFixed(2);
 
   return {
     slPoints,
@@ -208,7 +208,7 @@ export function calculateTargetHorizon(
   }
 
   // Spot Points move needed on the underlying index to hit option target
-  const requiredSpotMove = +(targetGainPoints / estimatedDelta).toFixed(1);
+  const requiredSpotMove = +(targetGainPoints / estimatedDelta).toFixed(2);
 
   let tradeCategory: TradeCategory = 'INTRADAY';
   let categoryBadge = '📈 FOR INTRADAY';

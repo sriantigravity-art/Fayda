@@ -69,16 +69,16 @@ export const StrikeDetailModal: React.FC<StrikeDetailModalProps> = ({
 
   // Straddle & Combined metrics
   const combinedPremium = +(strike.callLtp + strike.putLtp).toFixed(2);
-  const upperBreakeven = +(strikePrice + combinedPremium).toFixed(1);
-  const lowerBreakeven = +(strikePrice - combinedPremium).toFixed(1);
+  const upperBreakeven = +(strikePrice + combinedPremium).toFixed(2);
+  const lowerBreakeven = +(strikePrice - combinedPremium).toFixed(2);
   const combinedThetaDaily = +(strike.callTheta + strike.putTheta).toFixed(2);
   const strikePcr = strike.callOI > 0 ? +(strike.putOI / strike.callOI).toFixed(2) : 1.0;
 
   const handleCopy = () => {
     const text = `${symbol} ${strikePrice} | Expiry: ${selectedExpiry} | Spot: ${spotPrice.toFixed(2)}
-CALL CE: LTP ₹${strike.callLtp} (OI: ${(strike.callOI / 100000).toFixed(2)}L, IV: ${strike.callIv || strike.iv}%, Theta: ₹${strike.callTheta}/day)
-PUT PE: LTP ₹${strike.putLtp} (OI: ${(strike.putOI / 100000).toFixed(2)}L, IV: ${strike.putIv || strike.iv}%, Theta: ₹${strike.putTheta}/day)
-Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBreakeven}`;
+CALL CE: LTP ₹${strike.callLtp.toFixed(2)} (OI: ${(strike.callOI / 100000).toFixed(2)}L, IV: ${(strike.callIv || strike.iv).toFixed(2)}%, Theta: ₹${Number(strike.callTheta).toFixed(2)}/day)
+PUT PE: LTP ₹${strike.putLtp.toFixed(2)} (OI: ${(strike.putOI / 100000).toFixed(2)}L, IV: ${(strike.putIv || strike.iv).toFixed(2)}%, Theta: ₹${Number(strike.putTheta).toFixed(2)}/day)
+Combined Straddle: ₹${combinedPremium.toFixed(2)} | Range: ${lowerBreakeven.toFixed(2)} - ${upperBreakeven.toFixed(2)}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -141,7 +141,7 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                     distFromSpot > 0 ? 'bg-bear/15 text-bear border-bear/30' : 'bg-bull/15 text-bull border-bull/30'
                   }`}>
-                    {distFromSpot > 0 ? `+${distFromSpot.toFixed(1)} pts OTM` : `${distFromSpot.toFixed(1)} pts ITM`}
+                    {distFromSpot > 0 ? `+${distFromSpot.toFixed(2)} pts OTM` : `${distFromSpot.toFixed(2)} pts ITM`}
                   </span>
                 )}
                 <span className="text-[10px] px-2 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 font-bold">
@@ -184,7 +184,7 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
               <div>
                 <span className="text-[10px] text-terminal-muted font-bold block uppercase tracking-wider">Combined Straddle Premium</span>
                 <span className="text-base sm:text-lg font-black text-terminal-text">
-                  ₹{combinedPremium} <span className="text-[10px] text-terminal-muted font-normal">({((combinedPremium / spotPrice) * 100).toFixed(2)}% expected move)</span>
+                  ₹{combinedPremium.toFixed(2)} <span className="text-[10px] text-terminal-muted font-normal">({((combinedPremium / spotPrice) * 100).toFixed(2)}% expected move)</span>
                 </span>
               </div>
             </div>
@@ -192,17 +192,17 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
             <div className="flex items-center space-x-3 text-right">
               <div>
                 <span className="text-[10px] text-terminal-muted block">Lower Breakeven</span>
-                <span className="font-bold text-bear text-xs sm:text-sm">₹{lowerBreakeven}</span>
+                <span className="font-bold text-bear text-xs sm:text-sm">₹{lowerBreakeven.toFixed(2)}</span>
               </div>
               <div className="h-6 w-px bg-terminal-border" />
               <div>
                 <span className="text-[10px] text-terminal-muted block">Upper Breakeven</span>
-                <span className="font-bold text-bull text-xs sm:text-sm">₹{upperBreakeven}</span>
+                <span className="font-bold text-bull text-xs sm:text-sm">₹{upperBreakeven.toFixed(2)}</span>
               </div>
               <div className="h-6 w-px bg-terminal-border hidden xs:block" />
               <div className="hidden xs:block">
                 <span className="text-[10px] text-terminal-muted block">Combined Theta</span>
-                <span className="font-bold text-amber text-xs sm:text-sm">{combinedThetaDaily} ₹/day</span>
+                <span className="font-bold text-amber text-xs sm:text-sm">{combinedThetaDaily.toFixed(2)} ₹/day</span>
               </div>
             </div>
           </div>
@@ -261,8 +261,8 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                   <span className="font-bold text-terminal-text">Total Vol: {strike.callVolume.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-bull">Buyers: {strike.callBuyVolPct || 50}% ({(strike.callBuyVolume / 1000).toFixed(1)}k)</span>
-                  <span className="text-bear">Sellers: {100 - (strike.callBuyVolPct || 50)}% ({(strike.callSellVolume / 1000).toFixed(1)}k)</span>
+                  <span className="text-bull">Buyers: {Number(strike.callBuyVolPct || 50).toFixed(2)}% ({(strike.callBuyVolume / 1000).toFixed(2)}k)</span>
+                  <span className="text-bear">Sellers: {(100 - (strike.callBuyVolPct || 50)).toFixed(2)}% ({(strike.callSellVolume / 1000).toFixed(2)}k)</span>
                 </div>
                 <div className="w-full h-2 bg-bear rounded-full overflow-hidden flex border border-terminal-border/50">
                   <div className="bg-bull h-full transition-all duration-300" style={{ width: `${strike.callBuyVolPct || 50}%` }} />
@@ -274,13 +274,13 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                 <div className="p-2.5 rounded-xl bg-terminal-bg border border-terminal-border/60">
                   <span className="text-[10px] text-terminal-muted block">Implied Volatility (IV)</span>
                   <span className={`px-2 py-0.5 rounded-md border font-black text-xs inline-block mt-1 ${getIvColor(strike.callIv || strike.iv)}`}>
-                    {(strike.callIv || strike.iv).toFixed(1)}% {strike.callIvStatus}
+                    {(strike.callIv || strike.iv).toFixed(2)}% {strike.callIvStatus}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-terminal-bg border border-terminal-border/60">
                   <span className="text-[10px] text-terminal-muted block">Theta Decay (Time Value)</span>
-                  <span className="font-bold text-amber text-xs block mt-1">₹{strike.callTheta} / day</span>
-                  <span className="text-[9px] text-terminal-muted block">₹{strike.callThetaPerHour} / hour</span>
+                  <span className="font-bold text-amber text-xs block mt-1">₹{Number(strike.callTheta).toFixed(2)} / day</span>
+                  <span className="text-[9px] text-terminal-muted block">₹{Number(strike.callThetaPerHour).toFixed(2)} / hour</span>
                 </div>
               </div>
 
@@ -316,7 +316,7 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                 </div>
                 <div className="text-right">
                   <span className={`font-bold text-xs sm:text-sm tabular-nums block ${strike.putLtpChange >= 0 ? 'text-bull' : 'text-bear'}`}>
-                    {strike.putLtpChange >= 0 ? '+' : ''}{strike.putLtpChange.toFixed(2)} ({strike.putLtpPctChange >= 0 ? '+' : ''}{strike.putLtpPctChange}%)
+                    {strike.putLtpChange >= 0 ? '+' : ''}{strike.putLtpChange.toFixed(2)} ({strike.putLtpPctChange >= 0 ? '+' : ''}{Number(strike.putLtpPctChange).toFixed(2)}%)
                   </span>
                   <span className="text-[10px] text-terminal-muted">Day Net Change</span>
                 </div>
@@ -345,8 +345,8 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                   <span className="font-bold text-terminal-text">Total Vol: {strike.putVolume.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-bull">Buyers: {strike.putBuyVolPct || 50}% ({(strike.putBuyVolume / 1000).toFixed(1)}k)</span>
-                  <span className="text-bear">Sellers: {100 - (strike.putBuyVolPct || 50)}% ({(strike.putSellVolume / 1000).toFixed(1)}k)</span>
+                  <span className="text-bull">Buyers: {Number(strike.putBuyVolPct || 50).toFixed(2)}% ({(strike.putBuyVolume / 1000).toFixed(2)}k)</span>
+                  <span className="text-bear">Sellers: {(100 - (strike.putBuyVolPct || 50)).toFixed(2)}% ({(strike.putSellVolume / 1000).toFixed(2)}k)</span>
                 </div>
                 <div className="w-full h-2 bg-bear rounded-full overflow-hidden flex border border-terminal-border/50">
                   <div className="bg-bull h-full transition-all duration-300" style={{ width: `${strike.putBuyVolPct || 50}%` }} />
@@ -358,13 +358,13 @@ Combined Straddle: ₹${combinedPremium} | Range: ${lowerBreakeven} - ${upperBre
                 <div className="p-2.5 rounded-xl bg-terminal-bg border border-terminal-border/60">
                   <span className="text-[10px] text-terminal-muted block">Implied Volatility (IV)</span>
                   <span className={`px-2 py-0.5 rounded-md border font-black text-xs inline-block mt-1 ${getIvColor(strike.putIv || strike.iv)}`}>
-                    {(strike.putIv || strike.iv).toFixed(1)}% {strike.putIvStatus}
+                    {(strike.putIv || strike.iv).toFixed(2)}% {strike.putIvStatus}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-terminal-bg border border-terminal-border/60">
                   <span className="text-[10px] text-terminal-muted block">Theta Decay (Time Value)</span>
-                  <span className="font-bold text-amber text-xs block mt-1">₹{strike.putTheta} / day</span>
-                  <span className="text-[9px] text-terminal-muted block">₹{strike.putThetaPerHour} / hour</span>
+                  <span className="font-bold text-amber text-xs block mt-1">₹{Number(strike.putTheta).toFixed(2)} / day</span>
+                  <span className="text-[9px] text-terminal-muted block">₹{Number(strike.putThetaPerHour).toFixed(2)} / hour</span>
                 </div>
               </div>
 

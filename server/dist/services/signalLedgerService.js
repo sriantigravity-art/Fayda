@@ -50,16 +50,52 @@ class SignalLedgerService {
                 const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
                 const list = JSON.parse(raw);
                 if (Array.isArray(list)) {
-                    const seen = new Set();
+                    // Group by date
+                    const dateGroups = new Map();
                     list.forEach(c => {
-                        const dedupeKey = `${c.date}_${c.symbol}_${c.strikePrice}_${c.optionType}_${c.action}_${(c.timeFormatted || '').slice(0, 5)}`;
-                        if (!seen.has(dedupeKey)) {
-                            seen.add(dedupeKey);
-                            this.calls.set(c.id, c);
-                            this.datesSet.add(c.date);
-                        }
+                        const arr = dateGroups.get(c.date) || [];
+                        arr.push(c);
+                        dateGroups.set(c.date, arr);
                     });
-                    console.log(`[SignalLedgerService] Loaded ${this.calls.size} clean unique trade calls across ${this.datesSet.size} dates.`);
+                    this.calls.clear();
+                    this.datesSet.clear();
+                    dateGroups.forEach((items, dateStr) => {
+                        this.datesSet.add(dateStr);
+                        const seenContract = new Map();
+                        // Deduplicate by contract & action
+                        items.forEach(c => {
+                            const dedupeKey = `${c.symbol}_${c.strikePrice || 0}_${c.optionType}_${c.action}`;
+                            const existing = seenContract.get(dedupeKey);
+                            if (!existing) {
+                                seenContract.set(dedupeKey, c);
+                            }
+                            else {
+                                // If existing was active and this one hit target/SL, upgrade existing
+                                if (c.status === 'TARGET_HIT' && existing.status !== 'TARGET_HIT') {
+                                    seenContract.set(dedupeKey, c);
+                                }
+                                else if (c.pointsPnl > existing.pointsPnl) {
+                                    seenContract.set(dedupeKey, c);
+                                }
+                            }
+                        });
+                        // Sort by profitability / significance and cap at top 15 trades per day
+                        const sorted = Array.from(seenContract.values()).sort((a, b) => {
+                            if (a.status === 'TARGET_HIT' && b.status !== 'TARGET_HIT')
+                                return -1;
+                            if (b.status === 'TARGET_HIT' && a.status !== 'TARGET_HIT')
+                                return 1;
+                            return b.pointsPnl - a.pointsPnl;
+                        });
+                        const capped = sorted.slice(0, 16);
+                        capped.forEach(c => {
+                            this.calls.set(c.id, c);
+                        });
+                    });
+                    console.log(`[SignalLedgerService] Pruned and loaded ${this.calls.size} curated trade calls across ${this.datesSet.size} dates.`);
+                    // Immediately persist the clean dataset
+                    const cleanList = Array.from(this.calls.values());
+                    fs.writeFileSync(this.dataFilePath, JSON.stringify(cleanList, null, 2), 'utf-8');
                 }
             }
         }
@@ -89,18 +125,25 @@ class SignalLedgerService {
     recordSignal(signal) {
         const today = this.getTodayDateStr();
         const timeFormatted = this.getIstTimeFormatted();
-        // Deduplicate: If an active call exists for (today, symbol, strikePrice, optionType, action), return it
+        // Deduplicate strictly by (today, symbol, strikePrice, optionType, action)
         for (const existing of this.calls.values()) {
             if (existing.date === today &&
                 existing.symbol === signal.symbol &&
                 existing.strikePrice === signal.strikePrice &&
                 existing.optionType === signal.optionType &&
-                existing.action === signal.action &&
-                existing.status === 'ACTIVE') {
-                existing.currentLtp = +signal.entryPrice.toFixed(2);
-                existing.peakLtp = Math.max(existing.peakLtp, signal.entryPrice);
+                existing.action === signal.action) {
+                // Update live status if still active
+                if (existing.status === 'ACTIVE') {
+                    existing.currentLtp = +signal.entryPrice.toFixed(2);
+                    existing.peakLtp = Math.max(existing.peakLtp, signal.entryPrice);
+                }
                 return existing;
             }
+        }
+        // Quota check: max 4 trade calls per symbol per day to prevent overtrading
+        const todayCallsForSymbol = Array.from(this.calls.values()).filter(c => c.date === today && c.symbol === signal.symbol);
+        if (todayCallsForSymbol.length >= 4) {
+            return todayCallsForSymbol[0];
         }
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
         let category = 'OPTIONS';
@@ -111,7 +154,7 @@ class SignalLedgerService {
             category = 'STOCKS';
         }
         const contractName = `${signal.symbol} ${signal.strikePrice > 0 ? signal.strikePrice : ''} ${signal.optionType}`.trim();
-        const id = `sig_${today}_${signal.symbol}_${signal.strikePrice}_${signal.optionType}_${Date.now()}`;
+        const id = `call_${today}_${signal.symbol}_${signal.strikePrice}_${signal.optionType}_${signal.action}`;
         const rr = signal.riskReward || '1:2.0';
         const entryRange = `₹${signal.entryPrice.toFixed(2)} - ₹${(signal.entryPrice * 1.02).toFixed(2)}`;
         const newCall = {

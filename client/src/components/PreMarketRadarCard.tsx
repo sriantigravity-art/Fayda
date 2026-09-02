@@ -80,17 +80,17 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
 
   // 5. Implied Volatility (IV)
   const atmStrikeObj = strikes ? strikes.find(s => s.isAtm) : null;
-  const avgIv = atmStrikeObj ? +(((atmStrikeObj.callIv || 13.5) + (atmStrikeObj.putIv || 13.5)) / 2).toFixed(1) : 13.8;
+  const avgIv = atmStrikeObj ? +(((atmStrikeObj.callIv || 13.5) + (atmStrikeObj.putIv || 13.5)) / 2).toFixed(2) : 13.80;
 
   // 6. Theta Time Decay
-  const dailyTheta = straddleRange?.atmTotalThetaDaily || -8.5;
+  const dailyTheta = straddleRange?.atmTotalThetaDaily || -8.50;
   const hourlyTheta = straddleRange?.atmTotalThetaHourly || +(dailyTheta / 6.4).toFixed(2);
 
   // 7. Volume
   const totalVol = strikes ? strikes.reduce((acc, s) => acc + (s.callVolume || 0) + (s.putVolume || 0), 0) : 0;
   const volFormatted = totalVol >= 10000000
     ? `${(totalVol / 10000000).toFixed(2)} Cr`
-    : `${(totalVol / 100000).toFixed(1)} L`;
+    : `${(totalVol / 100000).toFixed(2)} L`;
 
   // 8. Key Support & Resistance
   const majorRes = resistanceLevels && resistanceLevels.length > 0 ? resistanceLevels[0].strikePrice : Math.round(spotPrice + 150);
@@ -159,24 +159,24 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
       shortLabel: 'Max Pain',
       icon: <Target className="w-3.5 h-3.5 text-bull" />,
       value: `₹${maxPainStrike.toLocaleString('en-IN')}`,
-      subValue: distToMaxPain >= 0 ? `+${distToMaxPain} pts` : `${distToMaxPain} pts`,
+      subValue: distToMaxPain >= 0 ? `+${distToMaxPain.toFixed(2)} pts` : `${distToMaxPain.toFixed(2)} pts`,
       sentiment: Math.abs(distToMaxPain) <= 50 ? 'BULLISH' : 'NEUTRAL',
       badge: '🎯 Expiry Magnet',
       summary: 'Strike price where maximum options expire worthless, acting as an expiry-day price magnet.',
       bulletPoints: [
         'Option writers defend this level to minimize payouts at expiry settlement.',
-        `For ${symbol}, Max Pain is ₹${maxPainStrike.toLocaleString('en-IN')} (${distToMaxPain >= 0 ? `+${distToMaxPain}` : distToMaxPain} pts from spot).`,
+        `For ${symbol}, Max Pain is ₹${maxPainStrike.toLocaleString('en-IN')} (${distToMaxPain >= 0 ? `+${distToMaxPain.toFixed(2)}` : distToMaxPain.toFixed(2)} pts from spot).`,
         'Expect strong gravitational pull toward this strike as expiry approaches.'
       ],
       actionTakeaway: `Expect mean-reversion pull towards ₹${maxPainStrike} during afternoon sessions.`
     },
     {
       key: 'IV',
-      headerTitle: `ATM IV : ${avgIv}%`,
+      headerTitle: `ATM IV : ${avgIv.toFixed(2)}%`,
       label: 'Implied Volatility (IV)',
       shortLabel: 'ATM IV',
       icon: <Zap className="w-3.5 h-3.5 text-accent-cyan" />,
-      value: `${avgIv}%`,
+      value: `${avgIv.toFixed(2)}%`,
       subValue: avgIv < 13 ? 'Cheap' : avgIv > 18 ? 'Expensive' : 'Fair',
       sentiment: avgIv > 18 ? 'WARNING' : 'BULLISH',
       badge: avgIv < 13 ? '🟢 Cheap Vol' : avgIv > 18 ? '🚨 Crush Risk' : '📊 Fair Value',
@@ -184,24 +184,24 @@ export const PreMarketRadarCard: React.FC<PreMarketRadarCardProps> = ({
       bulletPoints: [
         'High IV (> 18%) inflates premiums; buyers risk rapid IV crush post-event.',
         'Low IV (< 13%) offers low-cost premium buying opportunities.',
-        `Average ATM Implied Volatility is ${avgIv}%.`
+        `Average ATM Implied Volatility is ${avgIv.toFixed(2)}%.`
       ],
       actionTakeaway: avgIv > 18 ? 'Avoid buying far OTMs; use multi-leg spreads.' : 'Clean conditions for directional option buys.'
     },
     {
       key: 'THETA',
-      headerTitle: `THETA : ${dailyTheta.toFixed(1)} pts`,
+      headerTitle: `THETA : ${dailyTheta.toFixed(2)} pts`,
       label: 'Time Decay (Theta)',
       shortLabel: 'Theta Decay',
       icon: <Clock className="w-3.5 h-3.5 text-bear" />,
-      value: `${dailyTheta.toFixed(1)} pts`,
-      subValue: `${hourlyTheta} pts/hr`,
+      value: `${dailyTheta.toFixed(2)} pts`,
+      subValue: `${hourlyTheta.toFixed(2)} pts/hr`,
       sentiment: 'BEARISH',
       badge: '⏳ Daily Erosion',
       summary: 'Rate of premium erosion over time per contract.',
       bulletPoints: [
         'Long options continuously shed extrinsic value into expiry.',
-        `ATM Straddle is shedding ~${Math.abs(dailyTheta).toFixed(1)} pts/day (~${Math.abs(hourlyTheta)} pts/hr).`,
+        `ATM Straddle is shedding ~${Math.abs(dailyTheta).toFixed(2)} pts/day (~${Math.abs(hourlyTheta).toFixed(2)} pts/hr).`,
         'Decay accelerates heavily during 0DTE sessions.'
       ],
       actionTakeaway: 'Book momentum scalps swiftly; avoid holding long options in sideways markets.'

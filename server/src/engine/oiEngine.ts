@@ -881,17 +881,24 @@ export class OIEngine {
           prevTrades
         );
 
-        // Update active session trades for carry-forward
+        // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
         const activeToKeep: UnifiedSmartTip[] = [];
-        if (tipsPackage.primaryTrade && tipsPackage.primaryTrade.status === 'ACTIVE') {
+        const seenContractSymbols = new Set<string>();
+
+        if (tipsPackage.primaryTrade && (tipsPackage.primaryTrade.status === 'ACTIVE' || tipsPackage.primaryTrade.status === 'TARGET1_HIT')) {
           activeToKeep.push(tipsPackage.primaryTrade);
+          seenContractSymbols.add(tipsPackage.primaryTrade.contractSymbol);
         }
-        if (tipsPackage.hedgedSpreadTrade && tipsPackage.hedgedSpreadTrade.status === 'ACTIVE') {
-          activeToKeep.push(tipsPackage.hedgedSpreadTrade);
+        if (tipsPackage.hedgedSpreadTrade && (tipsPackage.hedgedSpreadTrade.status === 'ACTIVE' || tipsPackage.hedgedSpreadTrade.status === 'TARGET1_HIT')) {
+          if (!seenContractSymbols.has(tipsPackage.hedgedSpreadTrade.contractSymbol)) {
+            activeToKeep.push(tipsPackage.hedgedSpreadTrade);
+            seenContractSymbols.add(tipsPackage.hedgedSpreadTrade.contractSymbol);
+          }
         }
         for (const cf of tipsPackage.carriedForwardTrades) {
-          if (!activeToKeep.some(t => t.id === cf.id)) {
+          if (!seenContractSymbols.has(cf.contractSymbol)) {
             activeToKeep.push(cf);
+            seenContractSymbols.add(cf.contractSymbol);
           }
         }
         this.sessionTradesHistory.set(symbol, activeToKeep.slice(0, 10));

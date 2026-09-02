@@ -136,13 +136,13 @@ export const MultiLegStrategyCard: React.FC = () => {
                 {syntheticArbitrage.map((arb) => (
                   <tr key={arb.strikePrice} className="hover:bg-terminal-panel/50">
                     <td className="p-2.5 font-bold text-terminal-text">{arb.strikePrice}</td>
-                    <td className="p-2.5 text-right text-bull">₹{arb.callPrice.toFixed(1)}</td>
-                    <td className="p-2.5 text-right text-bear">₹{arb.putPrice.toFixed(1)}</td>
-                    <td className="p-2.5 text-right font-bold text-terminal-text">₹{arb.syntheticPrice.toFixed(1)}</td>
+                    <td className="p-2.5 text-right text-bull">₹{arb.callPrice.toFixed(2)}</td>
+                    <td className="p-2.5 text-right text-bear">₹{arb.putPrice.toFixed(2)}</td>
+                    <td className="p-2.5 text-right font-bold text-terminal-text">₹{arb.syntheticPrice.toFixed(2)}</td>
                     <td className={`p-2.5 text-right font-bold ${
                       Math.abs(arb.deviationPts) > 10 ? 'text-amber' : 'text-terminal-muted'
                     }`}>
-                      {arb.deviationPts >= 0 ? `+${arb.deviationPts}` : arb.deviationPts}
+                      {arb.deviationPts >= 0 ? `+${arb.deviationPts.toFixed(2)}` : arb.deviationPts.toFixed(2)}
                     </td>
                     <td className="p-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -245,7 +245,7 @@ export const MultiLegStrategyCard: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 text-terminal-muted text-[11px]">
-                        <span>LTP: <strong className="text-terminal-text">₹{leg.premium.toFixed(1)}</strong></span>
+                        <span>LTP: <strong className="text-terminal-text">₹{leg.premium.toFixed(2)}</strong></span>
                         <span>•</span>
                         <span>Δ {leg.delta.toFixed(2)}</span>
                       </div>
@@ -262,10 +262,10 @@ export const MultiLegStrategyCard: React.FC = () => {
                     {activeStrategy.netDebitCreditPts >= 0 ? 'Net Credit Received' : 'Net Debit Outlay'}
                   </span>
                   <span className="text-sm font-black text-terminal-text mt-0.5">
-                    {activeStrategy.netDebitCreditPts >= 0 ? '+' : ''}{activeStrategy.netDebitCreditPts} pts
+                    {activeStrategy.netDebitCreditPts >= 0 ? '+' : ''}{Number(activeStrategy.netDebitCreditPts).toFixed(2)} pts
                   </span>
                   <span className="text-[10px] text-accent-sky font-bold">
-                    ₹{Math.abs(activeStrategy.netDebitCreditRupees).toLocaleString('en-IN')} (1 Lot)
+                    ₹{Math.abs(activeStrategy.netDebitCreditRupees).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (1 Lot)
                   </span>
                 </div>
 
@@ -273,10 +273,10 @@ export const MultiLegStrategyCard: React.FC = () => {
                 <div className="p-2.5 rounded-lg bg-terminal-panel border border-bull/30 flex flex-col justify-between">
                   <span className="text-[10px] text-bull uppercase font-sans">Max Profit Potential</span>
                   <span className="text-sm font-black text-bull mt-0.5 truncate">
-                    {typeof activeStrategy.maxProfitPts === 'number' ? `+${activeStrategy.maxProfitPts} pts` : activeStrategy.maxProfitPts}
+                    {typeof activeStrategy.maxProfitPts === 'number' ? `+${activeStrategy.maxProfitPts.toFixed(2)} pts` : activeStrategy.maxProfitPts}
                   </span>
                   <span className="text-[10px] text-bull font-bold truncate">
-                    {typeof activeStrategy.maxProfitRupees === 'number' ? `+₹${activeStrategy.maxProfitRupees.toLocaleString('en-IN')}` : activeStrategy.maxProfitRupees}
+                    {typeof activeStrategy.maxProfitRupees === 'number' ? `+₹${activeStrategy.maxProfitRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : activeStrategy.maxProfitRupees}
                   </span>
                 </div>
 
@@ -284,10 +284,10 @@ export const MultiLegStrategyCard: React.FC = () => {
                 <div className="p-2.5 rounded-lg bg-terminal-panel border border-bear/30 flex flex-col justify-between">
                   <span className="text-[10px] text-bear uppercase font-sans">Maximum Risk Cap</span>
                   <span className="text-sm font-black text-bear mt-0.5 truncate">
-                    {typeof activeStrategy.maxLossPts === 'number' ? `-${activeStrategy.maxLossPts} pts` : activeStrategy.maxLossPts}
+                    {typeof activeStrategy.maxLossPts === 'number' ? `-${activeStrategy.maxLossPts.toFixed(2)} pts` : activeStrategy.maxLossPts}
                   </span>
                   <span className="text-[10px] text-bear font-bold truncate">
-                    {typeof activeStrategy.maxLossRupees === 'number' ? `-₹${activeStrategy.maxLossRupees.toLocaleString('en-IN')}` : activeStrategy.maxLossRupees}
+                    {typeof activeStrategy.maxLossRupees === 'number' ? `-₹${activeStrategy.maxLossRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : activeStrategy.maxLossRupees}
                   </span>
                 </div>
 
@@ -295,8 +295,8 @@ export const MultiLegStrategyCard: React.FC = () => {
                 <div className="p-2.5 rounded-lg bg-terminal-panel border border-accent-sky/30 flex flex-col justify-between">
                   <span className="text-[10px] text-accent-sky uppercase font-sans">Breakeven Levels</span>
                   <div className="text-xs font-bold text-terminal-text mt-0.5 truncate">
-                    {activeStrategy.upperBreakeven && <div>Upper: ₹{activeStrategy.upperBreakeven}</div>}
-                    {activeStrategy.lowerBreakeven && <div>Lower: ₹{activeStrategy.lowerBreakeven}</div>}
+                    {activeStrategy.upperBreakeven && <div>Upper: ₹{Number(activeStrategy.upperBreakeven).toFixed(2)}</div>}
+                    {activeStrategy.lowerBreakeven && <div>Lower: ₹{Number(activeStrategy.lowerBreakeven).toFixed(2)}</div>}
                   </div>
                   <span className="text-[9px] text-terminal-muted">Expiry Zero-Loss Price</span>
                 </div>
@@ -305,11 +305,11 @@ export const MultiLegStrategyCard: React.FC = () => {
               {/* Net Greeks & Hedge Margin Savings */}
               <div className="p-2.5 rounded-lg bg-terminal-panel/80 border border-terminal-border/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
                 <div className="flex items-center space-x-3 text-terminal-muted">
-                  <span>Net Delta: <strong className="text-accent-cyan">{activeStrategy.netDelta > 0 ? `+${activeStrategy.netDelta}` : activeStrategy.netDelta}</strong></span>
+                  <span>Net Delta: <strong className="text-accent-cyan">{activeStrategy.netDelta > 0 ? `+${Number(activeStrategy.netDelta).toFixed(2)}` : Number(activeStrategy.netDelta).toFixed(2)}</strong></span>
                   <span>•</span>
-                  <span>Net Theta: <strong className={activeStrategy.netThetaDaily >= 0 ? 'text-bull' : 'text-bear'}>{activeStrategy.netThetaDaily >= 0 ? `+${activeStrategy.netThetaDaily}` : activeStrategy.netThetaDaily} pts/d</strong></span>
+                  <span>Net Theta: <strong className={activeStrategy.netThetaDaily >= 0 ? 'text-bull' : 'text-bear'}>{activeStrategy.netThetaDaily >= 0 ? `+${Number(activeStrategy.netThetaDaily).toFixed(2)}` : Number(activeStrategy.netThetaDaily).toFixed(2)} pts/d</strong></span>
                   <span>•</span>
-                  <span>Net Vega: <strong className="text-accent-purple">{activeStrategy.netVega}</strong></span>
+                  <span>Net Vega: <strong className="text-accent-purple">{Number(activeStrategy.netVega).toFixed(2)}</strong></span>
                 </div>
 
                 <div className="flex items-center space-x-2 text-bull">

@@ -88,8 +88,8 @@ export const BreakoutPatternRadar: React.FC = () => {
         patternType: isBull ? 'BULLISH' : 'BEARISH',
         probability: isBull ? 88 : 84,
         description: isBull
-          ? `Rapid 1-min order flow absorption at ₹${(spot - 12).toFixed(1)}. Sellers trapped by aggressive limit buyers.`
-          : `Rapid 1-min supply cascade at ₹${(spot + 12).toFixed(1)}. Buyers failing to absorb offer pressure.`,
+          ? `Rapid 1-min order flow absorption at ₹${(spot - 12).toFixed(2)}. Sellers trapped by aggressive limit buyers.`
+          : `Rapid 1-min supply cascade at ₹${(spot + 12).toFixed(2)}. Buyers failing to absorb offer pressure.`,
         necklinePrice: isBull ? spot + 8 : spot - 8,
         confirmationPrice: isBull ? spot + 12 : spot - 12,
         target1Price: isBull ? spot + 28 : spot - 28,
@@ -110,8 +110,8 @@ export const BreakoutPatternRadar: React.FC = () => {
         patternType: isBull ? 'BULLISH' : 'BEARISH',
         probability: isBull ? 86 : 82,
         description: isBull
-          ? `Higher swing lows tightening against local resistance ₹${(spot + 20).toFixed(1)}. Breakout imminent.`
-          : `Lower swing highs pressing against local floor ₹${(spot - 20).toFixed(1)}. Breakdown cascade imminent.`,
+          ? `Higher swing lows tightening against local resistance ₹${(spot + 20).toFixed(2)}. Breakout imminent.`
+          : `Lower swing highs pressing against local floor ₹${(spot - 20).toFixed(2)}. Breakdown cascade imminent.`,
         necklinePrice: isBull ? spot + 18 : spot - 18,
         confirmationPrice: isBull ? spot + 24 : spot - 24,
         target1Price: isBull ? spot + 48 : spot - 48,
@@ -132,8 +132,8 @@ export const BreakoutPatternRadar: React.FC = () => {
         patternType: isBull ? 'BULLISH' : 'BEARISH',
         probability: isBull ? 89 : 85,
         description: isBull
-          ? `Clean right shoulder formed above baseline ₹${(spot - 25).toFixed(1)}. Volume expansion confirms neckline test.`
-          : `Right shoulder failing below resistance ₹${(spot + 25).toFixed(1)}. Distribution pattern verified.`,
+          ? `Clean right shoulder formed above baseline ₹${(spot - 25).toFixed(2)}. Volume expansion confirms neckline test.`
+          : `Right shoulder failing below resistance ₹${(spot + 25).toFixed(2)}. Distribution pattern verified.`,
         necklinePrice: isBull ? spot + 30 : spot - 30,
         confirmationPrice: isBull ? spot + 38 : spot - 38,
         target1Price: isBull ? spot + 75 : spot - 75,
@@ -220,7 +220,7 @@ export const BreakoutPatternRadar: React.FC = () => {
         patternType: isBull ? 'BULLISH' : 'BEARISH',
         probability: isBull ? 88 : 85,
         description: isBull
-          ? `Classic macro cup & handle completed at ₹${(spot - 150).toFixed(0)}. Breakout above rim projects large rally.`
+          ? `Classic macro cup & handle completed at ₹${(spot - 150).toFixed(2)}. Breakout above rim projects large rally.`
           : `Multi-week rounded top topping pattern. Loss of neckline confirms macro trend reversal.`,
         necklinePrice: isBull ? spot + 220 : spot - 220,
         confirmationPrice: isBull ? spot + 260 : spot - 260,
@@ -413,15 +413,15 @@ export const BreakoutPatternRadar: React.FC = () => {
                 <div className="space-y-1.5 mt-2 text-[11px]">
                   <div className="flex justify-between">
                     <span className="text-terminal-muted">Pattern Neckline:</span>
-                    <strong className="text-terminal-text font-bold">₹{activePattern.necklinePrice.toFixed(1)}</strong>
+                    <strong className="text-terminal-text font-bold">₹{activePattern.necklinePrice.toFixed(2)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-accent-sky">Trigger Confirmation:</span>
-                    <strong className="text-accent-sky font-bold">₹{activePattern.confirmationPrice.toFixed(1)}</strong>
+                    <strong className="text-accent-sky font-bold">₹{activePattern.confirmationPrice.toFixed(2)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-bear">Hard Invalidation (SL):</span>
-                    <strong className="text-bear font-bold">₹{activePattern.invalidationPrice.toFixed(1)}</strong>
+                    <strong className="text-bear font-bold">₹{activePattern.invalidationPrice.toFixed(2)}</strong>
                   </div>
                 </div>
               </div>
@@ -439,11 +439,11 @@ export const BreakoutPatternRadar: React.FC = () => {
                 <div className="space-y-1.5 mt-2 text-[11px]">
                   <div className="flex justify-between">
                     <span className="text-bull font-bold">Target 1 (1:2 R:R):</span>
-                    <strong className="text-bull font-bold">₹{activePattern.target1Price.toFixed(1)} (+{activePattern.expectedPoints} pts)</strong>
+                    <strong className="text-bull font-bold">₹{activePattern.target1Price.toFixed(2)} (+{Number(activePattern.expectedPoints).toFixed(2)} pts)</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-accent-cyan">Target 2 (Runner):</span>
-                    <strong className="text-accent-cyan font-bold">₹{activePattern.target2Price.toFixed(1)}</strong>
+                    <strong className="text-accent-cyan font-bold">₹{activePattern.target2Price.toFixed(2)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-terminal-muted">Expected Move:</span>

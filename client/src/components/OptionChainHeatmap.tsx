@@ -50,18 +50,18 @@ export const OptionChainHeatmap: React.FC = () => {
   };
 
   const getIvPill = (iv?: number) => {
-    const ivVal = +(iv || 13.5).toFixed(1);
-    if (ivVal < 12.5) return <span className="text-bull font-mono text-[11px] font-medium" title="Cheap option premium">{ivVal}%</span>;
-    if (ivVal > 18.0) return <span className="text-bear font-mono text-[11px] font-medium" title="Expensive option premium">{ivVal}%</span>;
-    return <span className="text-terminal-muted font-mono text-[11px]" title="Fair Value">{ivVal}%</span>;
+    const ivVal = +(iv || 13.5).toFixed(2);
+    if (ivVal < 12.5) return <span className="text-bull font-mono text-[11px] font-medium" title="Cheap option premium">{ivVal.toFixed(2)}%</span>;
+    if (ivVal > 18.0) return <span className="text-bear font-mono text-[11px] font-medium" title="Expensive option premium">{ivVal.toFixed(2)}%</span>;
+    return <span className="text-terminal-muted font-mono text-[11px]" title="Fair Value">{ivVal.toFixed(2)}%</span>;
   };
 
   const getThetaPill = (theta?: number) => {
     const th = theta || 0;
-    if (!highlightTheta) return <span className="font-mono text-terminal-muted">{th.toFixed(1)}</span>;
-    if (Math.abs(th) > 20) return <span className="text-bear font-mono font-bold text-[11px]" title="Extreme Theta Decay Rate">{th.toFixed(1)}</span>;
-    if (Math.abs(th) > 10) return <span className="text-amber font-mono font-medium text-[11px]" title="Accelerated Decay Rate">{th.toFixed(1)}</span>;
-    return <span className="font-mono text-terminal-muted text-[11px]">{th.toFixed(1)}</span>;
+    if (!highlightTheta) return <span className="font-mono text-terminal-muted">{th.toFixed(2)}</span>;
+    if (Math.abs(th) > 20) return <span className="text-bear font-mono font-bold text-[11px]" title="Extreme Theta Decay Rate">{th.toFixed(2)}</span>;
+    if (Math.abs(th) > 10) return <span className="text-amber font-mono font-medium text-[11px]" title="Accelerated Decay Rate">{th.toFixed(2)}</span>;
+    return <span className="font-mono text-terminal-muted text-[11px]">{th.toFixed(2)}</span>;
   };
 
   return (
@@ -235,7 +235,7 @@ export const OptionChainHeatmap: React.FC = () => {
         <div className="flex items-center space-x-2">
           <span>ATM: <strong className="font-mono text-terminal-text">{atmStrike}</strong></span>
           <span>•</span>
-          <span>Spot Distance: <strong className="font-mono text-terminal-text">{(spotPrice - atmStrike).toFixed(1)} pts</strong></span>
+          <span>Spot Distance: <strong className="font-mono text-terminal-text">{(spotPrice - atmStrike).toFixed(2)} pts</strong></span>
         </div>
         <div className="flex items-center space-x-2">
           <span>Click any strike row for deep order book & Greek radar</span>

@@ -76,7 +76,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
     // Strict 250 KB limit check (250 * 1024 bytes = 256,000 bytes)
     const MAX_BYTES = 250 * 1024;
     if (file.size > MAX_BYTES) {
-      const sizeKb = (file.size / 1024).toFixed(1);
+      const sizeKb = (file.size / 1024).toFixed(2);
       setPhotoError(`Photo size is ${sizeKb} KB, which exceeds the strict 250 KB limit. Please choose a photo under 250 KB.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;

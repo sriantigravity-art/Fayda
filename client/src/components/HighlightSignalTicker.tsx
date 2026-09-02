@@ -198,9 +198,9 @@ export const HighlightSignalTicker: React.FC = () => {
         isBull,
         isLiveSignal: false,
         ltp: cleanLtp,
-        entry: `₹${cleanLtp.toFixed(1)} - ₹${(cleanLtp * 1.02).toFixed(1)}`,
-        exitSL: `₹${dyn.slPrice.toFixed(1)} (-${dyn.slPct}%)`,
-        target: `₹${dyn.targetPrice.toFixed(1)} (+${dyn.targetPct}%)`,
+        entry: `₹${cleanLtp.toFixed(2)} - ₹${(cleanLtp * 1.02).toFixed(2)}`,
+        exitSL: `₹${dyn.slPrice.toFixed(2)} (-${dyn.slPct.toFixed(2)}%)`,
+        target: `₹${dyn.targetPrice.toFixed(2)} (+${dyn.targetPct.toFixed(2)}%)`,
         riskReward: dyn.riskReward,
         score: 88,
         rawTimestamp,
@@ -333,7 +333,7 @@ export const HighlightSignalTicker: React.FC = () => {
           isSl ? 'bg-bear/25 border-bear text-white' : 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan'
         }`}>
           <span className="font-bold">{isSl ? 'EXIT:' : 'ENTRY:'}</span>
-          <span className="font-bold whitespace-nowrap">{isSl ? `₹${item.ltp}` : item.entry}</span>
+          <span className="font-bold whitespace-nowrap">{isSl ? `₹${(item.ltp || 0).toFixed(2)}` : item.entry}</span>
         </div>
 
         {/* Target & R:R Ratio */}

@@ -59,10 +59,10 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
   const boxes: CPRBoxConfig[] = [
     {
       key: 'PIVOT',
-      headerTitle: `PIVOT : ₹${cprData.pivot}`,
+      headerTitle: `PIVOT : ₹${Number(cprData.pivot).toFixed(2)}`,
       label: 'Central Pivot (P)',
-      value: `₹${cprData.pivot}`,
-      subValue: isAbovePivot ? `+${distToPivot.toFixed(1)} pts` : `${distToPivot.toFixed(1)} pts`,
+      value: `₹${Number(cprData.pivot).toFixed(2)}`,
+      subValue: isAbovePivot ? `+${distToPivot.toFixed(2)} pts` : `${distToPivot.toFixed(2)} pts`,
       sentiment: isAbovePivot ? 'BULLISH' : 'BEARISH',
       badge: isAbovePivot ? '🟢 Above Fair Value' : '🔴 Below Fair Value',
       icon: <Target className="w-3.5 h-3.5 text-accent-sky" />,
@@ -70,7 +70,7 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
       bulletPoints: [
         'Trading above Pivot indicates buyer dominance and upward momentum toward R1/R2.',
         'Trading below Pivot signals institutional selling pressure and pullback toward S1/S2.',
-        `Current Spot is ₹${spotPrice.toFixed(1)} (${isAbovePivot ? `+${distToPivot.toFixed(1)} pts above` : `${distToPivot.toFixed(1)} pts below`} Central Pivot).`
+        `Current Spot is ₹${spotPrice.toFixed(2)} (${isAbovePivot ? `+${distToPivot.toFixed(2)} pts above` : `${distToPivot.toFixed(2)} pts below`} Central Pivot).`
       ],
       actionTakeaway: isAbovePivot ? 'Look for bullish continuation above Pivot; treat Pivot as strong support floor.' : 'Look for short setups below Pivot; treat Pivot as primary resistance ceiling.'
     },
@@ -261,7 +261,7 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
                 ? '🛡️ WIDE CPR'
                 : '📊 AVERAGE CPR'}
             </span>
-            <span className="text-[8px] opacity-80">({cprData.cprWidthPts} pts)</span>
+            <span className="text-[8px] opacity-80">({Number(cprData.cprWidthPts).toFixed(2)} pts)</span>
           </span>
 
           <button

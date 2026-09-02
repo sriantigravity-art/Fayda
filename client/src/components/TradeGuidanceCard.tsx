@@ -96,8 +96,8 @@ export const TradeGuidanceCard: React.FC = () => {
       recommendedEntry: `₹${cleanLtp.toFixed(2)} - ₹${(cleanLtp * 1.02).toFixed(2)}`,
       stoploss: `₹${dyn.slPrice.toFixed(2)} (-${dyn.slPct}%)`,
       target: `₹${dyn.targetPrice.toFixed(2)} (+${dyn.targetPct}%)`,
-      slPoints: +(cleanLtp - dyn.slPrice).toFixed(1),
-      targetPoints: +(dyn.targetPrice - cleanLtp).toFixed(1),
+      slPoints: +(cleanLtp - dyn.slPrice).toFixed(2),
+      targetPoints: +(dyn.targetPrice - cleanLtp).toFixed(2),
       slPct: dyn.slPct,
       targetPct: dyn.targetPct,
       riskReward: dyn.riskReward,
@@ -107,8 +107,8 @@ export const TradeGuidanceCard: React.FC = () => {
       theta: typeof rawTheta === 'number' && !isNaN(rawTheta) ? rawTheta : -8.5,
       actionTitle: isBull ? `Call Wall Resistance: ${targetStrikePrice} CE` : `Put Floor Support: ${targetStrikePrice} PE`,
       actionDescription: isBull
-        ? `Major resistance at ${targetStrikePrice} with ${r1 ? r1.oiFormatted : 'heavy'} Calls. Upside target on breakout above ₹${cleanLtp.toFixed(1)}.`
-        : `Strong institutional support floor at ${targetStrikePrice} with ${s1 ? s1.oiFormatted : 'heavy'} Puts. Downside trigger on breakdown below ₹${cleanLtp.toFixed(1)}.`
+        ? `Major resistance at ${targetStrikePrice} with ${r1 ? r1.oiFormatted : 'heavy'} Calls. Upside target on breakout above ₹${cleanLtp.toFixed(2)}.`
+        : `Strong institutional support floor at ${targetStrikePrice} with ${s1 ? s1.oiFormatted : 'heavy'} Puts. Downside trigger on breakdown below ₹${cleanLtp.toFixed(2)}.`
     };
   };
 
@@ -287,7 +287,7 @@ export const TradeGuidanceCard: React.FC = () => {
                       <span>Chart Breakout: {currentIndexState.patternBreakout.activePattern?.patternName || 'Breakout'} ({currentIndexState.patternBreakout.activeTimeframe || '15m'})</span>
                     </span>
                     <span className="text-terminal-text font-mono font-bold">
-                      Trigger: ₹{currentIndexState.patternBreakout.predictedBreakout.triggerPrice?.toFixed(1) || '—'} → TGT: ₹{currentIndexState.patternBreakout.predictedBreakout.target1?.toFixed(1) || '—'}
+                      Trigger: ₹{currentIndexState.patternBreakout.predictedBreakout.triggerPrice?.toFixed(2) || '—'} → TGT: ₹{currentIndexState.patternBreakout.predictedBreakout.target1?.toFixed(2) || '—'}
                     </span>
                   </div>
                 )}
@@ -575,13 +575,13 @@ export const TradeGuidanceCard: React.FC = () => {
 
                   <div className="p-3 bg-terminal-panel rounded-xl border border-terminal-border">
                     <span className="text-[10px] text-bear uppercase block font-bold">Theta (Θ) Decay / Day</span>
-                    <span className="text-base font-black text-bear mt-0.5 block">{(activeSetup.theta ?? -8.5).toFixed(1)} pts</span>
+                    <span className="text-base font-black text-bear mt-0.5 block">{(activeSetup.theta ?? -8.5).toFixed(2)} pts</span>
                     <span className="text-[9px] text-terminal-muted">Daily time erosion</span>
                   </div>
 
                   <div className="p-3 bg-terminal-panel rounded-xl border border-terminal-border">
                     <span className="text-[10px] text-amber uppercase block font-bold">IV Skew & Vega (ν)</span>
-                    <span className="text-base font-black text-amber mt-0.5 block">{(activeSetup.iv ?? 13.5).toFixed(1)}% IV</span>
+                    <span className="text-base font-black text-amber mt-0.5 block">{(activeSetup.iv ?? 13.5).toFixed(2)}% IV</span>
                     <span className="text-[9px] text-terminal-muted">Vol expansion sensitivity</span>
                   </div>
                 </div>
@@ -614,8 +614,8 @@ export const TradeGuidanceCard: React.FC = () => {
                         <td className="py-1.5 px-2 text-right font-bold">₹{activeSetup.ltp.toFixed(2)}</td>
                         <td className="py-1.5 px-2 text-right text-accent-cyan font-bold">{(activeSetup.delta ?? 0.50).toFixed(2)}</td>
                         <td className="py-1.5 px-2 text-right text-accent-purple font-bold">{(activeSetup.gamma ?? 0.0028).toFixed(4)}</td>
-                        <td className="py-1.5 px-2 text-right text-bear font-bold">{(activeSetup.theta ?? -8.5).toFixed(1)}</td>
-                        <td className="py-1.5 px-2 text-right text-amber font-bold">{(activeSetup.iv ?? 13.5).toFixed(1)}%</td>
+                        <td className="py-1.5 px-2 text-right text-bear font-bold">{(activeSetup.theta ?? -8.5).toFixed(2)}</td>
+                        <td className="py-1.5 px-2 text-right text-amber font-bold">{(activeSetup.iv ?? 13.5).toFixed(2)}%</td>
                         <td className="py-1.5 px-2 text-right text-bull font-bold">Entry {activeSetup.recommendedEntry}</td>
                       </tr>
                     </tbody>

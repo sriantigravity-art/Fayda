@@ -61,10 +61,10 @@ export const HeroZeroRadar: React.FC = () => {
     const cLtp = Math.max(8, cObj?.callLtp || 18.5);
     const pLtp = Math.max(8, pObj?.putLtp || 16.0);
 
-    const cEntryLow = Math.max(1, +(cLtp * 0.88).toFixed(1));
-    const cEntryHigh = +(cLtp * 1.03).toFixed(1);
-    const pEntryLow = Math.max(1, +(pLtp * 0.88).toFixed(1));
-    const pEntryHigh = +(pLtp * 1.03).toFixed(1);
+    const cEntryLow = Math.max(1, +(cLtp * 0.88).toFixed(2));
+    const cEntryHigh = +(cLtp * 1.03).toFixed(2);
+    const pEntryLow = Math.max(1, +(pLtp * 0.88).toFixed(2));
+    const pEntryHigh = +(pLtp * 1.03).toFixed(2);
 
     fallbackList.push({
       id: `${selectedIndex}-${callStrike}-CE-fb`,
@@ -73,12 +73,12 @@ export const HeroZeroRadar: React.FC = () => {
       strike: callStrike,
       optionType: 'CE',
       ltp: cLtp,
-      entryZone: `₹${cEntryLow} - ₹${cEntryHigh}`,
-      stoploss: +(cLtp * 0.5).toFixed(1),
+      entryZone: `₹${cEntryLow.toFixed(2)} - ₹${cEntryHigh.toFixed(2)}`,
+      stoploss: +(cLtp * 0.5).toFixed(2),
       stoplossPct: 50,
-      target1x: +(cLtp * 2.0).toFixed(1),
-      target3x: +(cLtp * 3.5).toFixed(1),
-      target5x: +(cLtp * 5.0).toFixed(1),
+      target1x: +(cLtp * 2.0).toFixed(2),
+      target3x: +(cLtp * 3.5).toFixed(2),
+      target5x: +(cLtp * 5.0).toFixed(2),
       gamma: 0.042,
       gammaScore: 88,
       volume: 450000,
@@ -95,12 +95,12 @@ export const HeroZeroRadar: React.FC = () => {
       strike: putStrike,
       optionType: 'PE',
       ltp: pLtp,
-      entryZone: `₹${pEntryLow} - ₹${pEntryHigh}`,
-      stoploss: +(pLtp * 0.5).toFixed(1),
+      entryZone: `₹${pEntryLow.toFixed(2)} - ₹${pEntryHigh.toFixed(2)}`,
+      stoploss: +(pLtp * 0.5).toFixed(2),
       stoplossPct: 50,
-      target1x: +(pLtp * 2.0).toFixed(1),
-      target3x: +(pLtp * 3.5).toFixed(1),
-      target5x: +(pLtp * 5.0).toFixed(1),
+      target1x: +(pLtp * 2.0).toFixed(2),
+      target3x: +(pLtp * 3.5).toFixed(2),
+      target5x: +(pLtp * 5.0).toFixed(2),
       gamma: 0.038,
       gammaScore: 82,
       volume: 380000,
@@ -178,11 +178,11 @@ export const HeroZeroRadar: React.FC = () => {
               const displayLtp = (liveLtp && liveLtp > 0) ? liveLtp : (item.ltp > 0 ? item.ltp : 15.0);
 
               // Dynamically calibrate optimal entry zone (Dip Floor: -12%, Trigger Ceiling: +3%)
-              const entryLow = Math.max(1, +(displayLtp * 0.88).toFixed(1));
-              const entryHigh = +(displayLtp * 1.03).toFixed(1);
-              const displayEntryZone = `₹${entryLow} - ₹${entryHigh}`;
-              const displaySl = item.stoploss || +(displayLtp * 0.50).toFixed(1);
-              const displayTarget = item.target1x || +(displayLtp * 2.0).toFixed(1);
+              const entryLow = Math.max(1, +(displayLtp * 0.88).toFixed(2));
+              const entryHigh = +(displayLtp * 1.03).toFixed(2);
+              const displayEntryZone = `₹${entryLow.toFixed(2)} - ₹${entryHigh.toFixed(2)}`;
+              const displaySl = item.stoploss || +(displayLtp * 0.50).toFixed(2);
+              const displayTarget = item.target1x || +(displayLtp * 2.0).toFixed(2);
 
               const timing = getSignalTimingData(item.detectedAt, 20, currentTime);
               const advice = getUserTradeAdvice({
