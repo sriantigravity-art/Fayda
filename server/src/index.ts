@@ -69,6 +69,8 @@ const watchedSymbols: Set<string> = new Set([
 
 // Cache of the latest / last-closing index state for each symbol
 const cachedIndexStates: Map<IndexSymbol, MarketIndexState> = new Map();
+// Cache of already flashed high-probability trade IDs to avoid duplicate flash popups
+const flashedHighProbTipIds = new Set<string>();
 
 // Check market hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
 export const isMarketOpenForSymbol = (symbol: string): boolean => {
@@ -292,6 +294,37 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
             stoplossPrice: utp.gammaTrade.stoplossPrice,
             riskReward: utp.gammaTrade.riskReward,
             notes: utp.gammaTrade.strategyTag
+          });
+        }
+        // Broadcast dedicated High-Probability Flash when new Top Call / Put triggers
+        if (isOpen && utp.topCallTrade && utp.topCallTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topCallTrade.id)) {
+          flashedHighProbTipIds.add(utp.topCallTrade.id);
+          broadcast({
+            type: 'HIGH_PROB_FLASH',
+            highProbFlash: {
+              id: utp.topCallTrade.id,
+              symbol: symConfig.symbol,
+              tip: utp.topCallTrade,
+              direction: 'CALL',
+              timestamp: new Date().toISOString()
+            },
+            isMarketOpen: isNseMarketOpen(),
+            timestamp: new Date().toISOString()
+          });
+        }
+        if (isOpen && utp.topPutTrade && utp.topPutTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topPutTrade.id)) {
+          flashedHighProbTipIds.add(utp.topPutTrade.id);
+          broadcast({
+            type: 'HIGH_PROB_FLASH',
+            highProbFlash: {
+              id: utp.topPutTrade.id,
+              symbol: symConfig.symbol,
+              tip: utp.topPutTrade,
+              direction: 'PUT',
+              timestamp: new Date().toISOString()
+            },
+            isMarketOpen: isNseMarketOpen(),
+            timestamp: new Date().toISOString()
           });
         }
       }

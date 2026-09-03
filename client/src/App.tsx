@@ -18,6 +18,7 @@ import { SurgeAlertBanner } from './components/SurgeAlertBanner';
 import { FlashNewsBanner } from './components/FlashNewsBanner';
 import { TargetHitFlashModal } from './components/TargetHitFlashModal';
 import { HeroZeroFlashModal } from './components/HeroZeroFlashModal';
+import { PrimeHighProbabilityFlashModal } from './components/PrimeHighProbabilityFlashModal';
 import { SquareOffAlertBanner } from './components/SquareOffAlertBanner';
 import { HighlightSignalTicker } from './components/HighlightSignalTicker';
 import { DisclaimerTicker } from './components/DisclaimerTicker';
@@ -71,6 +72,9 @@ const DashboardContent: React.FC = () => {
 
       {/* 0DTE Hero-or-Zero Multiplier Flash Alert Modal */}
       <HeroZeroFlashModal />
+
+      {/* Dedicated High-Probability Call/Put Flash Alert Modal */}
+      <PrimeHighProbabilityFlashModal />
 
       {/* 10-Second Floating Breaking Flash News Banner */}
       {panelVisibility.newsBanner && <FlashNewsBanner />}

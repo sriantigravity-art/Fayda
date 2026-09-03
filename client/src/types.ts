@@ -968,12 +968,24 @@ export interface UnifiedSmartTip {
   };
 }
 
+export interface HighProbabilityFlashEvent {
+  id: string;
+  symbol: IndexSymbol;
+  tip: UnifiedSmartTip;
+  direction: 'CALL' | 'PUT';
+  timestamp: string;
+}
+
 export interface UnifiedSessionTipsPackage {
   currentSession: MarketSessionWindow;
   currentSessionName: string;
   sessionWindowTime: string;
   quotaDescription: string;
   primaryTrade: UnifiedSmartTip | null;
+  topCallTrade: UnifiedSmartTip | null;
+  topPutTrade: UnifiedSmartTip | null;
+  hourlySlotId?: string;
+  hourlyQuotaRemaining?: { calls: number; puts: number };
   hedgedSpreadTrade: UnifiedSmartTip | null;
   gammaTrade: UnifiedSmartTip | null;
   carriedForwardTrades: UnifiedSmartTip[];

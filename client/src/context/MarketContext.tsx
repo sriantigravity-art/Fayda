@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData } from '../types';
+import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
@@ -38,6 +38,10 @@ interface MarketContextType {
   latestTargetHit: TargetHitEvent | null;
   dismissTargetHit: () => void;
   triggerTestTargetHit: () => void;
+  // High-Probability Call/Put Flash Engine
+  latestHighProbFlash: HighProbabilityFlashEvent | null;
+  dismissHighProbFlash: () => void;
+  triggerTestHighProbFlash: (flash?: HighProbabilityFlashEvent) => void;
   // 0DTE Hero-or-Zero Flash Alert Engine
   latestHeroZeroFlash: HeroZeroSignal | null;
   dismissHeroZeroFlash: () => void;
@@ -63,8 +67,8 @@ interface MarketContextType {
   closeOptionsDataModal: () => void;
 }
 
-import { getApiBase, getWsUrl } from '../utils/apiBase';
-export { getApiBase, getWsUrl };
+import { getApiBase, getWsUrl, PROD_API_BASE, PROD_WS_URL } from '../utils/apiBase';
+export { getApiBase, getWsUrl, PROD_API_BASE, PROD_WS_URL };
 
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
@@ -122,6 +126,69 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Target Hit Flash Engine State
   const [latestTargetHit, setLatestTargetHit] = useState<TargetHitEvent | null>(null);
   const hitTargetsSetRef = useRef<Set<string>>(new Set());
+
+  // High-Probability Prime Call/Put Flash Engine State
+  const [latestHighProbFlash, setLatestHighProbFlash] = useState<HighProbabilityFlashEvent | null>(null);
+  const dismissHighProbFlash = useCallback(() => {
+    setLatestHighProbFlash(null);
+  }, []);
+  const triggerTestHighProbFlash = useCallback((flash?: HighProbabilityFlashEvent) => {
+    if (flash) {
+      setLatestHighProbFlash(flash);
+    } else {
+      setLatestHighProbFlash({
+        id: `test-highprob-${Date.now()}`,
+        symbol: 'NIFTY',
+        direction: 'CALL',
+        timestamp: new Date().toISOString(),
+        tip: {
+          id: `test-tip-${Date.now()}`,
+          symbol: 'NIFTY',
+          tier: 'PRIMARY_MOMENTUM',
+          tierLabel: '🟢 Prime High-Probability CALL',
+          session: 'MID_MORNING_TREND',
+          sessionName: 'Mid-Morning Trend Session',
+          action: 'BUY_CALL',
+          contractSymbol: 'NIFTY 24200 CE',
+          strikePrice: 24200,
+          optionType: 'CE',
+          entryTime: new Date().toISOString(),
+          entryTimeFormatted: '11:15 AM IST',
+          entryPrice: 124.50,
+          entryRange: '₹122.00 - ₹124.50',
+          currentLtp: 124.50,
+          stoplossPrice: 102.00,
+          stoplossPct: 18,
+          target1Price: 159.00,
+          target1Pct: 28,
+          target2Price: 193.00,
+          target2Pct: 55,
+          riskReward: '1:2.5',
+          confluenceScore: 92,
+          status: 'ACTIVE',
+          strategyMatches: {
+            faydaRadarConfluence: true,
+            oiActivitySurge: true,
+            faydaStrategy9Ema: true,
+            multiTimeframeBreakout: true,
+            multiLegSpreadConfirmed: false,
+            gammaExplosionConfirmed: false
+          },
+          strategyTag: 'Institutional Call Covering & Bullish Pivot',
+          explanations: {
+            beginner: 'High Probability CALL: Buy 1 Lot of 24200 CE near ₹124.50. SL ₹102.00. T1 ₹159.00.',
+            intermediate: 'Confluence 92%: Heavy Call covering with positive 1-min delta order flow.',
+            expert: 'Delta +0.52, Gamma 0.045, R:R 1:2.5 supported by institutional VWAP anchor.'
+          }
+        }
+      });
+    }
+    soundManager.playExtremeAlert();
+  }, []);
+
+  useEffect(() => {
+    (window as any).__triggerTestHighProbFlash = triggerTestHighProbFlash;
+  }, [triggerTestHighProbFlash]);
 
   // Square Off Emergency Alert Engine State
   const [latestSquareOffAlert, setLatestSquareOffAlert] = useState<SquareOffEvent | null>(null);
@@ -505,6 +572,13 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
 
+        } else if (msg.type === 'HIGH_PROB_FLASH') {
+          if (msg.highProbFlash) {
+            setLatestHighProbFlash(msg.highProbFlash);
+            if (!isMuted) {
+              soundManager.playExtremeAlert();
+            }
+          }
         } else if (msg.type === 'MARKET_OPEN') {
           // 9:15 AM IST — server cleared all caches. Force full UI refresh.
           console.log('[Market] 🔔 Market opened — refreshing all data...');
@@ -793,6 +867,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         latestTargetHit,
         dismissTargetHit,
         triggerTestTargetHit,
+        latestHighProbFlash,
+        dismissHighProbFlash,
+        triggerTestHighProbFlash,
         latestHeroZeroFlash,
         dismissHeroZeroFlash,
         triggerTestHeroZeroFlash,

@@ -51,6 +51,8 @@ const watchedSymbols = new Set([
 ]);
 // Cache of the latest / last-closing index state for each symbol
 const cachedIndexStates = new Map();
+// Cache of already flashed high-probability trade IDs to avoid duplicate flash popups
+const flashedHighProbTipIds = new Set();
 // Check market hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
 export const isMarketOpenForSymbol = (symbol) => {
     const now = new Date();
@@ -233,6 +235,37 @@ const fetchSymbolSnapshot = async (symConfig) => {
                         stoplossPrice: utp.gammaTrade.stoplossPrice,
                         riskReward: utp.gammaTrade.riskReward,
                         notes: utp.gammaTrade.strategyTag
+                    });
+                }
+                // Broadcast dedicated High-Probability Flash when new Top Call / Put triggers
+                if (isOpen && utp.topCallTrade && utp.topCallTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topCallTrade.id)) {
+                    flashedHighProbTipIds.add(utp.topCallTrade.id);
+                    broadcast({
+                        type: 'HIGH_PROB_FLASH',
+                        highProbFlash: {
+                            id: utp.topCallTrade.id,
+                            symbol: symConfig.symbol,
+                            tip: utp.topCallTrade,
+                            direction: 'CALL',
+                            timestamp: new Date().toISOString()
+                        },
+                        isMarketOpen: isNseMarketOpen(),
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                if (isOpen && utp.topPutTrade && utp.topPutTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topPutTrade.id)) {
+                    flashedHighProbTipIds.add(utp.topPutTrade.id);
+                    broadcast({
+                        type: 'HIGH_PROB_FLASH',
+                        highProbFlash: {
+                            id: utp.topPutTrade.id,
+                            symbol: symConfig.symbol,
+                            tip: utp.topPutTrade,
+                            direction: 'PUT',
+                            timestamp: new Date().toISOString()
+                        },
+                        isMarketOpen: isNseMarketOpen(),
+                        timestamp: new Date().toISOString()
                     });
                 }
             }
@@ -744,6 +777,23 @@ app.post('/api/fyers/exchange-authcode', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Missing appId, secretKey, or authCode' });
     }
     const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
+    if (result.success) {
+        currentDataSource = 'FYERS_LIVE';
+        startFyersPolling();
+        broadcast({
+            type: 'FYERS_STATUS',
+            fyersConfig: fyersService.getConfig(),
+            dataSource: currentDataSource,
+            isMarketOpen: isNseMarketOpen(),
+            timestamp: new Date().toISOString()
+        });
+    }
+    res.json(result);
+});
+// Fyers Refresh Token Trigger / Renewal Endpoint
+app.post('/api/fyers/refresh-token', async (req, res) => {
+    const { pin } = req.body || {};
+    const result = await fyersService.refreshAccessToken(pin);
     if (result.success) {
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
