@@ -18,7 +18,9 @@ import {
   Info, 
   Repeat, 
   ShieldAlert,
-  Moon
+  Moon,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip } from '../types';
 
@@ -48,6 +50,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   } = currentIndexState;
 
   const pkg = unifiedTipsPackage;
+  const topCallTrade = pkg?.topCallTrade;
+  const topPutTrade = pkg?.topPutTrade;
   const mc = masterConfluence;
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const lotSize = cfg?.lot || 50;
@@ -81,6 +85,37 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       givenTimeFormatted: t.entryTimeFormatted,
       elapsedTimeFormatted: 'Live Session',
       actionGuidance: 'ACTIVE PRIMARY MOMENTUM CALL',
+      status: t.status,
+      strategyTag: t.strategyTag,
+      lotSize,
+      explanations: t.explanations
+    });
+  };
+
+  const handleTradeClick = (t: UnifiedSmartTip | null, defaultGuidance: string) => {
+    if (!t) return;
+    openTradeTipModal({
+      symbol: t.symbol,
+      title: t.contractSymbol,
+      contractSymbol: t.contractSymbol,
+      action: t.action,
+      optionType: t.optionType,
+      tierLabel: t.tierLabel,
+      sessionName: t.sessionName,
+      confluenceScore: t.confluenceScore,
+      entryPrice: t.entryPrice,
+      entryRange: t.entryRange,
+      currentLtp: t.currentLtp,
+      stoplossPrice: t.stoplossPrice,
+      stoplossPct: t.stoplossPct,
+      target1Price: t.target1Price,
+      target1Pct: t.target1Pct,
+      target2Price: t.target2Price,
+      target2Pct: t.target2Pct,
+      riskReward: t.riskReward,
+      givenTimeFormatted: t.entryTimeFormatted,
+      elapsedTimeFormatted: 'Hourly Slot',
+      actionGuidance: defaultGuidance,
       status: t.status,
       strategyTag: t.strategyTag,
       lotSize,
@@ -446,378 +481,508 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
-          {/* ── CARD 1: PRIMARY DIRECTIONAL MOMENTUM CALL ───────────────────── */}
-          {pkg?.primaryTrade ? (
-            <div 
-              onClick={handlePrimaryTradeClick}
-              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-bull/30 hover:border-bull/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
-              title="Click to view complete trade breakdown"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-bull/5 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex flex-col space-y-4">
+          {/* ── 4A. DEDICATED HIGH-PROBABILITY HOURLY SNIPER TRADES (SEPARATE TOP CALL & TOP PUT) ── */}
+          <div className="flex flex-col space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2 px-1">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-accent-gold/20 text-accent-gold border border-accent-gold/30 shadow-sm">
+                  <Zap className="w-3.5 h-3.5" />
+                </span>
+                <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wider">
+                  🎯 Prime High-Probability Signals (Top CALL & Top PUT)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-accent-cyan" />
+                  <span>Max 1-2 Trades/Hour</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-accent-gold/15 text-accent-gold border border-accent-gold/30 font-black">
+                  ≥ 85% Confluence
+                </span>
+              </div>
+            </div>
 
-              <div className="flex flex-col space-y-2.5">
-                {/* Card Header Badge */}
-                <div className="flex items-center justify-between gap-1">
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-bull/15 text-bull border border-bull/30 rounded font-black text-[11px] tracking-wide uppercase">
-                    <Flame className="w-3.5 h-3.5" />
-                    <span>
-                      {isBeginner 
-                        ? '⭐ TOP PICK: DIRECT BUY SIGNAL' 
-                        : isIntermediate 
-                        ? 'TIER 1: PRIMARY DIRECTIONAL CALL' 
-                        : 'TIER 1: INSTITUTIONAL MOMENTUM ALPHA'}
-                    </span>
-                  </span>
-                  <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1" title={`Call Given at ${pkg.primaryTrade.entryTimeFormatted} @ Ref ₹${pkg.primaryTrade.entryPrice.toFixed(2)}`}>
-                    <Clock className="w-3 h-3 text-accent-gold" />
-                    <span>Given: {pkg.primaryTrade.entryTimeFormatted}</span>
-                  </span>
-                </div>
+            {/* 2-Card Split Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+              {/* 🟢 TOP HIGH-PROBABILITY CALL (BULLISH SNIPER) */}
+              {pkg?.topCallTrade ? (
+                <div 
+                  onClick={() => handleTradeClick(pkg.topCallTrade, 'HIGH-PROBABILITY HOURLY CALL SETUP')}
+                  className="flex flex-col justify-between bg-gradient-to-b from-[#061e14]/40 via-terminal-card to-terminal-bg/95 border border-emerald-500/40 hover:border-emerald-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                  title="Click to view complete Call trade breakdown"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
-                {/* Contract Name & Live LTP */}
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-bull transition-colors">
-                      {pkg.primaryTrade.contractSymbol}
-                    </h3>
-                    <div className="text-[11px] text-accent-gold font-medium">
-                      ⚡ {pkg.primaryTrade.strategyTag}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
-                    <div className="flex items-baseline justify-end gap-1">
-                      <span className="text-lg font-black font-mono text-bull">
-                        ₹{pkg.primaryTrade.currentLtp.toFixed(2)}
+                  <div className="flex flex-col space-y-2.5">
+                    {/* Badge */}
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black text-[11px] tracking-wide uppercase">
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span>🟢 TOP CALL (BULLISH SNIPER)</span>
                       </span>
-                      {pkg.primaryTrade.pnlPoints && pkg.primaryTrade.pnlPoints !== 0 ? (
-                        <span className={`text-[10px] font-mono font-bold ${pkg.primaryTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
-                          ({pkg.primaryTrade.pnlPoints > 0 ? '+' : ''}{pkg.primaryTrade.pnlPoints.toFixed(2)})
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                          🎯 {pkg.topCallTrade.confluenceScore}% PROBABILITY
                         </span>
-                      ) : null}
+                        <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
+                          {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.calls}/2 this hr` : '1/2'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Contract & LTP */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div>
+                        <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-emerald-400 transition-colors">
+                          {pkg.topCallTrade.contractSymbol}
+                        </h3>
+                        <div className="text-[11px] text-accent-gold font-medium">
+                          ⚡ {pkg.topCallTrade.strategyTag}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
+                        <div className="flex items-baseline justify-end gap-1">
+                          <span className="text-lg font-black font-mono text-emerald-400">
+                            ₹{pkg.topCallTrade.currentLtp.toFixed(2)}
+                          </span>
+                          {pkg.topCallTrade.pnlPoints && pkg.topCallTrade.pnlPoints !== 0 ? (
+                            <span className={`text-[10px] font-mono font-bold ${pkg.topCallTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
+                              ({pkg.topCallTrade.pnlPoints > 0 ? '+' : ''}{pkg.topCallTrade.pnlPoints.toFixed(2)})
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Given Trigger */}
+                    <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-terminal-muted">Given Trigger ({pkg.topCallTrade.entryTimeFormatted}):</span>
+                      <span className="font-bold text-terminal-text">₹{pkg.topCallTrade.entryPrice.toFixed(2)}</span>
+                    </div>
+
+                    {/* Levels */}
+                    <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                        <div className="font-bold text-terminal-text font-mono text-[11px]">
+                          {pkg.topCallTrade.entryRange}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                        <div className="font-bold text-bear font-mono">₹{pkg.topCallTrade.stoplossPrice.toFixed(2)} (-{pkg.topCallTrade.stoplossPct}%)</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                        <div className="font-bold text-bull font-mono text-[11px]">
+                          ₹{pkg.topCallTrade.target1Price.toFixed(2)} / ₹{pkg.topCallTrade.target2Price.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
+                        <span>SL: ₹{pkg.topCallTrade.stoplossPrice.toFixed(2)}</span>
+                        <span className="text-accent-cyan font-bold">R:R {pkg.topCallTrade.riskReward}</span>
+                        <span>T1: ₹{pkg.topCallTrade.target1Price.toFixed(2)}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
+                          style={{ width: `${getProgressPct(pkg.topCallTrade.entryPrice, pkg.topCallTrade.target1Price, pkg.topCallTrade.currentLtp)}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Benchmark Given Price Bar */}
-                <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-terminal-muted">Signal Ref Trigger:</span>
-                  <span className="font-bold text-terminal-text">₹{pkg.primaryTrade.entryPrice.toFixed(2)}</span>
-                </div>
-
-                {/* Execution Metric Grid */}
-                <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Dip Entry Zone</div>
-                    <div className="font-bold text-terminal-text font-mono">
-                      ₹{(pkg.primaryTrade.dipEntryMin || (pkg.primaryTrade.entryPrice * 0.98)).toFixed(2)} - ₹{pkg.primaryTrade.entryPrice.toFixed(2)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
-                    <div className="font-bold text-bear font-mono">₹{Number(pkg.primaryTrade.stoplossPrice).toFixed(2)} (-20%)</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Target 1 (1:2)</div>
-                    <div className="font-bold text-bull font-mono">₹{Number(pkg.primaryTrade.target1Price).toFixed(2)} (+30%)</div>
-                  </div>
-                </div>
-
-                {/* Live Target Achievement Progress Bar */}
-                <div className="flex flex-col space-y-1 bg-terminal-bg/50 p-2 rounded border border-terminal-border/50">
-                  <div className="flex justify-between text-[10px] text-terminal-muted">
-                    <span>Target 1 Progress</span>
-                    <span className="text-bull font-bold font-mono">
-                      {getProgressPct(pkg.primaryTrade.entryPrice, pkg.primaryTrade.target1Price, pkg.primaryTrade.currentLtp)}% Achieved
+                  {/* Footer */}
+                  <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      pkg.topCallTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                      pkg.topCallTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                      pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                    }`}>
+                      {pkg.topCallTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                       pkg.topCallTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                       pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                       '⚡ AT TRIGGER PRICE'}
                     </span>
-                  </div>
-                  <div className="w-full bg-terminal-border h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${getProgressPct(pkg.primaryTrade.entryPrice, pkg.primaryTrade.target1Price, pkg.primaryTrade.currentLtp)}%` }}
-                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCalc(pkg.topCallTrade!.entryPrice, pkg.topCallTrade!.stoplossPrice, pkg.topCallTrade!.target1Price);
+                      }}
+                      className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Calculator className="w-3 h-3 text-accent-gold" />
+                      <span>Calc</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Mode-Adaptive Explanation Box */}
-                <div className="bg-terminal-bg/80 border border-terminal-border/80 p-2.5 rounded-lg text-[11px] leading-relaxed text-terminal-muted">
-                  <div className="font-bold text-terminal-text text-[10px] uppercase mb-1 flex items-center gap-1 text-accent-gold">
-                    <Info className="w-3 h-3" />
-                    <span>
-                      {isBeginner ? '🟢 Beginner Guidance' : isIntermediate ? '🟡 Technical Analysis' : '🔴 Quantitative Rationale'}
-                    </span>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-emerald-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
+                  <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <TrendingUp className="w-6 h-6 animate-pulse" />
                   </div>
-                  <p>
-                    {isBeginner && pkg.primaryTrade.explanations.beginner}
-                    {isIntermediate && pkg.primaryTrade.explanations.intermediate}
-                    {isExpert && pkg.primaryTrade.explanations.expert}
+                  <div>
+                    <div className="font-bold text-sm text-terminal-text">🟢 Top CALL: Scanning Market</div>
+                    <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
+                  </div>
+                  <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
+                    Algorithm is actively monitoring for Call short-covering and pivot breakout. No low-conviction or choppy calls are forced.
                   </p>
                 </div>
-              </div>
+              )}
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenCalc(pkg.primaryTrade!.entryPrice, pkg.primaryTrade!.stoplossPrice, pkg.primaryTrade!.target1Price);
-                  }}
-                  className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              {/* 🔴 TOP HIGH-PROBABILITY PUT (BEARISH SNIPER) */}
+              {pkg?.topPutTrade ? (
+                <div 
+                  onClick={() => handleTradeClick(pkg.topPutTrade, 'HIGH-PROBABILITY HOURLY PUT SETUP')}
+                  className="flex flex-col justify-between bg-gradient-to-b from-[#240a12]/40 via-terminal-card to-terminal-bg/95 border border-rose-500/40 hover:border-rose-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                  title="Click to view complete Put trade breakdown"
                 >
-                  <Calculator className="w-3.5 h-3.5 text-accent-gold" />
-                  <span>Calculate Trade Risk</span>
-                </button>
-                <span className="text-[10px] font-mono font-bold text-bull px-2 py-1 bg-bull/10 rounded border border-bull/20">
-                  R:R {pkg.primaryTrade.riskReward}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-6 bg-terminal-card border border-terminal-border rounded-xl text-center space-y-2">
-              <Compass className="w-8 h-8 text-terminal-muted/40 animate-pulse" />
-              <div className="font-bold text-sm text-terminal-text">Primary Momentum Call: Standby</div>
-              <p className="text-xs text-terminal-muted max-w-xs">
-                Market setup is currently non-directional. Preserving capital until high-confluence institutional breakout triggers.
-              </p>
-            </div>
-          )}
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
 
-          {/* ── CARD 2: CAPITAL-PROTECTED HEDGED SPREAD ─────────────────────── */}
-          {pkg?.hedgedSpreadTrade ? (
-            <div 
-              onClick={handleSpreadTradeClick}
-              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-accent-sky/30 hover:border-accent-sky/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
-              title="Click to view complete spread breakdown"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-accent-sky/5 rounded-full blur-2xl pointer-events-none" />
+                  <div className="flex flex-col space-y-2.5">
+                    {/* Badge */}
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded font-black text-[11px] tracking-wide uppercase">
+                        <TrendingDown className="w-3.5 h-3.5" />
+                        <span>🔴 TOP PUT (BEARISH SNIPER)</span>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                          🎯 {pkg.topPutTrade.confluenceScore}% PROBABILITY
+                        </span>
+                        <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
+                          {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.puts}/2 this hr` : '1/2'}
+                        </span>
+                      </div>
+                    </div>
 
-              <div className="flex flex-col space-y-2.5">
-                {/* Card Header Badge */}
-                <div className="flex items-center justify-between gap-1">
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-accent-sky/15 text-accent-sky border border-accent-sky/30 rounded font-black text-[11px] tracking-wide uppercase">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>
-                      {isBeginner 
-                        ? '🛡️ 100% SAFE TRADE (LIMITED LOSS)' 
-                        : isIntermediate 
-                        ? 'TIER 2: HEDGED MULTI-LEG SPREAD' 
-                        : 'TIER 2: DEFINED-RISK SPREAD / MARGIN BENEFIT'}
+                    {/* Contract & LTP */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div>
+                        <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-rose-400 transition-colors">
+                          {pkg.topPutTrade.contractSymbol}
+                        </h3>
+                        <div className="text-[11px] text-accent-gold font-medium">
+                          ⚡ {pkg.topPutTrade.strategyTag}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
+                        <div className="flex items-baseline justify-end gap-1">
+                          <span className="text-lg font-black font-mono text-rose-400">
+                            ₹{pkg.topPutTrade.currentLtp.toFixed(2)}
+                          </span>
+                          {pkg.topPutTrade.pnlPoints && pkg.topPutTrade.pnlPoints !== 0 ? (
+                            <span className={`text-[10px] font-mono font-bold ${pkg.topPutTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
+                              ({pkg.topPutTrade.pnlPoints > 0 ? '+' : ''}{pkg.topPutTrade.pnlPoints.toFixed(2)})
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Given Trigger */}
+                    <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-terminal-muted">Given Trigger ({pkg.topPutTrade.entryTimeFormatted}):</span>
+                      <span className="font-bold text-terminal-text">₹{pkg.topPutTrade.entryPrice.toFixed(2)}</span>
+                    </div>
+
+                    {/* Levels */}
+                    <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                        <div className="font-bold text-terminal-text font-mono text-[11px]">
+                          {pkg.topPutTrade.entryRange}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                        <div className="font-bold text-bear font-mono">₹{pkg.topPutTrade.stoplossPrice.toFixed(2)} (-{pkg.topPutTrade.stoplossPct}%)</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                        <div className="font-bold text-bull font-mono text-[11px]">
+                          ₹{pkg.topPutTrade.target1Price.toFixed(2)} / ₹{pkg.topPutTrade.target2Price.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
+                        <span>SL: ₹{topPutTrade.stoplossPrice.toFixed(2)}</span>
+                        <span className="text-accent-cyan font-bold">R:R {pkg.topPutTrade.riskReward}</span>
+                        <span>T1: ₹{pkg.topPutTrade.target1Price.toFixed(2)}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-300"
+                          style={{ width: `${getProgressPct(pkg.topPutTrade.entryPrice, pkg.topPutTrade.target1Price, pkg.topPutTrade.currentLtp)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      pkg.topPutTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                      pkg.topPutTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                      pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                    }`}>
+                      {pkg.topPutTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                       pkg.topPutTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                       pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                       '⚡ AT TRIGGER PRICE'}
                     </span>
-                  </span>
-                  <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-accent-gold" />
-                    <span>{pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
-                  </span>
-                </div>
-
-                {/* Strategy Name & Structure */}
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-accent-sky transition-colors">
-                      {pkg.hedgedSpreadTrade.contractSymbol}
-                    </h3>
-                    <div className="text-[11px] text-accent-sky font-medium">
-                      🛡️ {pkg.hedgedSpreadTrade.strategyTag}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-terminal-muted font-mono">Net Debit</div>
-                    <div className="text-lg font-black font-mono text-accent-sky">
-                      ₹{pkg.hedgedSpreadTrade.currentLtp.toFixed(2)} pts
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCalc(pkg.topPutTrade!.entryPrice, pkg.topPutTrade!.stoplossPrice, pkg.topPutTrade!.target1Price);
+                      }}
+                      className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Calculator className="w-3 h-3 text-accent-gold" />
+                      <span>Calc</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Spread Metrics Grid */}
-                <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Max Loss (₹)</div>
-                    <div className="font-bold text-bear font-mono">
-                      ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.maxLossRupees.toLocaleString('en-IN') : '2,200'}
-                    </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-rose-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
+                  <div className="p-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                    <TrendingDown className="w-6 h-6 animate-pulse" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Max Profit (₹)</div>
-                    <div className="font-bold text-bull font-mono">
-                      ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.maxProfitRupees.toLocaleString('en-IN') : '5,300'}
-                    </div>
+                    <div className="font-bold text-sm text-terminal-text">🔴 Top PUT: Scanning Market</div>
+                    <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Breakeven</div>
-                    <div className="font-bold text-terminal-text font-mono">
-                      ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.breakeven.toFixed(2) : Number(spotPrice).toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Margin Reduction Badge */}
-                <div className="flex items-center justify-between p-2 bg-accent-sky/10 border border-accent-sky/20 rounded text-xs">
-                  <span className="text-accent-sky font-bold text-[11px] flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>72% Exchange Margin Reduction</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-terminal-muted">Defined Risk Hedge</span>
-                </div>
-
-                {/* Mode-Adaptive Explanation Box */}
-                <div className="bg-terminal-bg/80 border border-terminal-border/80 p-2.5 rounded-lg text-[11px] leading-relaxed text-terminal-muted">
-                  <div className="font-bold text-terminal-text text-[10px] uppercase mb-1 flex items-center gap-1 text-accent-sky">
-                    <Info className="w-3 h-3" />
-                    <span>
-                      {isBeginner ? '🟢 Beginner Guidance' : isIntermediate ? '🟡 Technical Analysis' : '🔴 Quantitative Spread'}
-                    </span>
-                  </div>
-                  <p>
-                    {isBeginner && pkg.hedgedSpreadTrade.explanations.beginner}
-                    {isIntermediate && pkg.hedgedSpreadTrade.explanations.intermediate}
-                    {isExpert && pkg.hedgedSpreadTrade.explanations.expert}
+                  <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
+                    Algorithm is actively monitoring for Put unwinding and breakdown under resistance roof. Capital safely preserved during neutral consolidations.
                   </p>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenCalc(pkg.hedgedSpreadTrade!.entryPrice, pkg.hedgedSpreadTrade!.stoplossPrice, pkg.hedgedSpreadTrade!.target1Price);
-                  }}
-                  className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Calculator className="w-3.5 h-3.5 text-accent-sky" />
-                  <span>Analyze Spread Payoff</span>
-                </button>
-                <span className="text-[10px] font-mono font-bold text-accent-sky px-2 py-1 bg-accent-sky/10 rounded border border-accent-sky/20">
-                  R:R {pkg.hedgedSpreadTrade.riskReward}
-                </span>
-              </div>
+              )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-6 bg-terminal-card border border-terminal-border rounded-xl text-center space-y-2">
-              <ShieldCheck className="w-8 h-8 text-terminal-muted/40 animate-pulse" />
-              <div className="font-bold text-sm text-terminal-text">Hedged Spread: Standby</div>
-              <p className="text-xs text-terminal-muted max-w-xs">
-                Implied volatility spread skew is within normal limits. Spreads deployed when directional delta exceeds 70%.
-              </p>
-            </div>
-          )}
+          </div>
 
-          {/* ── CARD 3: 0DTE GAMMA SNIPER / HERO-OR-ZERO ────────────────────── */}
-          {pkg?.gammaTrade && pkg.gammaTrade.action !== 'STANDBY' ? (
-            <div 
-              onClick={handleGammaTradeClick}
-              className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-purple-500/40 hover:border-purple-500/70 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
-              title="Click to view complete 0DTE gamma breakdown"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
+          {/* ── 4B. SECONDARY ROW: HEDGED SPREAD & 0DTE GAMMA SNIPER ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch pt-2 border-t border-terminal-border/60">
+            {/* Card 2: Hedged Spread */}
+            {pkg?.hedgedSpreadTrade ? (
+              <div 
+                onClick={handleSpreadTradeClick}
+                className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-accent-sky/30 hover:border-accent-sky/60 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                title="Click to view complete spread breakdown"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-accent-sky/5 rounded-full blur-2xl pointer-events-none" />
 
-              <div className="flex flex-col space-y-2.5">
-                {/* Card Header Badge */}
-                <div className="flex items-center justify-between gap-1">
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/15 text-purple-400 border border-purple-500/30 rounded font-black text-[11px] tracking-wide uppercase">
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>
-                      {isBeginner 
-                        ? '🚀 FAST PROFIT CHANCE (AFTERNOON ONLY)' 
-                        : isIntermediate 
-                        ? 'TIER 3: 0DTE GAMMA SNIPER' 
-                        : 'TIER 3: 0DTE GAMMA SQUEEZE VELOCITY'}
+                <div className="flex flex-col space-y-2.5">
+                  {/* Card Header Badge */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-accent-sky/15 text-accent-sky border border-accent-sky/30 rounded font-black text-[11px] tracking-wide uppercase">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>
+                        {isBeginner 
+                          ? '🛡️ 100% SAFE TRADE (LIMITED LOSS)' 
+                          : isIntermediate 
+                          ? 'TIER 2: HEDGED MULTI-LEG SPREAD' 
+                          : 'TIER 2: DEFINED-RISK SPREAD'}
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-accent-gold" />
-                    <span>{pkg.gammaTrade.entryTimeFormatted}</span>
-                  </span>
-                </div>
-
-                {/* Contract Name & Multiplier */}
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-purple-400 transition-colors">
-                      {pkg.gammaTrade.contractSymbol}
-                    </h3>
-                    <div className="text-[11px] text-purple-400 font-medium">
-                      🚀 {pkg.gammaTrade.strategyTag}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-terminal-muted font-mono">Sniper LTP</div>
-                    <div className="text-lg font-black font-mono text-purple-400">
-                      ₹{pkg.gammaTrade.currentLtp.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Execution Metric Grid */}
-                <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Risk (SL)</div>
-                    <div className="font-bold text-bear font-mono">₹{Number(pkg.gammaTrade.stoplossPrice).toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Target 1 (3x)</div>
-                    <div className="font-bold text-bull font-mono">₹{Number(pkg.gammaTrade.target1Price).toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-terminal-muted uppercase">Target 2 (5x)</div>
-                    <div className="font-bold text-accent-gold font-mono">₹{Number(pkg.gammaTrade.target2Price).toFixed(2)}</div>
-                  </div>
-                </div>
-
-                {/* Multiplier Badge */}
-                <div className="p-2 bg-purple-500/10 border border-purple-500/20 rounded flex items-center justify-between text-xs">
-                  <span className="text-purple-300 font-bold flex items-center gap-1">
-                    <span>3.5x to 5.0x Multiplier Target</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-terminal-muted">Short Squeeze</span>
-                </div>
-
-                {/* Mode-Adaptive Explanation Box */}
-                <div className="bg-terminal-bg/80 border border-terminal-border/80 p-2.5 rounded-lg text-[11px] leading-relaxed text-terminal-muted">
-                  <div className="font-bold text-terminal-text text-[10px] uppercase mb-1 flex items-center gap-1 text-purple-400">
-                    <Info className="w-3 h-3" />
-                    <span>
-                      {isBeginner ? '🟢 Beginner Guidance' : isIntermediate ? '🟡 Technical Squeeze' : '🔴 Gamma Velocity'}
+                    <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-accent-gold" />
+                      <span>{pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
                     </span>
                   </div>
-                  <p>
-                    {isBeginner && pkg.gammaTrade.explanations.beginner}
-                    {isIntermediate && pkg.gammaTrade.explanations.intermediate}
-                    {isExpert && pkg.gammaTrade.explanations.expert}
-                  </p>
+
+                  {/* Strategy Name & Structure */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-accent-sky transition-colors">
+                        {pkg.hedgedSpreadTrade.contractSymbol}
+                      </h3>
+                      <div className="text-[11px] text-accent-sky font-medium">
+                        🛡️ {pkg.hedgedSpreadTrade.strategyTag}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-terminal-muted font-mono">Net Debit</div>
+                      <div className="text-lg font-black font-mono text-accent-sky">
+                        ₹{pkg.hedgedSpreadTrade.currentLtp.toFixed(2)} pts
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Spread Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Max Loss (₹)</div>
+                      <div className="font-bold text-bear font-mono">
+                        ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.maxLossRupees.toLocaleString('en-IN') : '2,200'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Max Profit (₹)</div>
+                      <div className="font-bold text-bull font-mono">
+                        ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.maxProfitRupees.toLocaleString('en-IN') : '5,300'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Breakeven</div>
+                      <div className="font-bold text-terminal-text font-mono">
+                        ₹{pkg.hedgedSpreadTrade.spreadDetails ? pkg.hedgedSpreadTrade.spreadDetails.breakeven.toFixed(2) : Number(spotPrice).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Margin Reduction Badge */}
+                  <div className="flex items-center justify-between p-2 bg-accent-sky/10 border border-accent-sky/20 rounded text-xs">
+                    <span className="text-accent-sky font-bold text-[11px] flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>72% Margin Reduction</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-terminal-muted">Defined Risk Hedge</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenCalc(pkg.hedgedSpreadTrade!.entryPrice, pkg.hedgedSpreadTrade!.stoplossPrice, pkg.hedgedSpreadTrade!.target1Price);
+                    }}
+                    className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Calculator className="w-3.5 h-3.5 text-accent-sky" />
+                    <span>Analyze Payoff</span>
+                  </button>
+                  <span className="text-[10px] font-mono font-bold text-accent-sky px-2 py-1 bg-accent-sky/10 rounded border border-accent-sky/20">
+                    R:R {pkg.hedgedSpreadTrade.riskReward}
+                  </span>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenCalc(pkg.gammaTrade!.entryPrice, pkg.gammaTrade!.stoplossPrice, pkg.gammaTrade!.target1Price);
-                  }}
-                  className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Calculator className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Calculate Sniper Risk</span>
-                </button>
-                <span className="text-[10px] font-mono font-bold text-purple-300 px-2 py-1 bg-purple-500/10 rounded border border-purple-500/20">
-                  High Multiplier
-                </span>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 bg-terminal-card border border-terminal-border rounded-xl text-center space-y-2">
+                <ShieldCheck className="w-8 h-8 text-terminal-muted/40 animate-pulse" />
+                <div className="font-bold text-sm text-terminal-text">Hedged Spread: Standby</div>
+                <p className="text-xs text-terminal-muted max-w-xs">
+                  Spread deployed when directional delta exceeds 70%.
+                </p>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-6 bg-terminal-card border border-terminal-border rounded-xl text-center space-y-2">
-              <Timer className="w-8 h-8 text-terminal-muted/40 animate-pulse" />
-              <div className="font-bold text-sm text-terminal-text">0DTE Gamma Sniper: Standby</div>
-              <p className="text-xs text-terminal-muted max-w-xs">
-                Gamma velocity is normal. Capital is preserved until true institutional 0DTE short-covering squeezes trigger in afternoon hours.
-              </p>
-            </div>
-          )}
+            )}
+
+            {/* Card 3: 0DTE Gamma Sniper */}
+            {pkg?.gammaTrade && pkg.gammaTrade.action !== 'STANDBY' ? (
+              <div 
+                onClick={handleGammaTradeClick}
+                className="flex flex-col justify-between bg-gradient-to-b from-terminal-card to-terminal-bg/95 border border-purple-500/40 hover:border-purple-500/70 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                title="Click to view complete 0DTE gamma breakdown"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex flex-col space-y-2.5">
+                  {/* Card Header Badge */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-500/15 text-purple-400 border border-purple-500/30 rounded font-black text-[11px] tracking-wide uppercase">
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>
+                        {isBeginner 
+                          ? '🚀 FAST PROFIT CHANCE (AFTERNOON ONLY)' 
+                          : isIntermediate 
+                          ? 'TIER 3: 0DTE GAMMA SNIPER' 
+                          : 'TIER 3: 0DTE GAMMA SQUEEZE'}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-terminal-muted font-mono flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-accent-gold" />
+                      <span>{pkg.gammaTrade.entryTimeFormatted}</span>
+                    </span>
+                  </div>
+
+                  {/* Contract Name & Multiplier */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-purple-400 transition-colors">
+                        {pkg.gammaTrade.contractSymbol}
+                      </h3>
+                      <div className="text-[11px] text-purple-400 font-medium">
+                        🚀 {pkg.gammaTrade.strategyTag}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-terminal-muted font-mono">Sniper LTP</div>
+                      <div className="text-lg font-black font-mono text-purple-400">
+                        ₹{pkg.gammaTrade.currentLtp.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Execution Metric Grid */}
+                  <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Risk (SL)</div>
+                      <div className="font-bold text-bear font-mono">₹{Number(pkg.gammaTrade.stoplossPrice).toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Target 1 (3x)</div>
+                      <div className="font-bold text-bull font-mono">₹{Number(pkg.gammaTrade.target1Price).toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Target 2 (5x)</div>
+                      <div className="font-bold text-accent-gold font-mono">₹{Number(pkg.gammaTrade.target2Price).toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  {/* Multiplier Badge */}
+                  <div className="p-2 bg-purple-500/10 border border-purple-500/20 rounded flex items-center justify-between text-xs">
+                    <span className="text-purple-300 font-bold flex items-center gap-1">
+                      <span>3.5x to 5.0x Target Multiplier</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-terminal-muted">Short Squeeze</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenCalc(pkg.gammaTrade!.entryPrice, pkg.gammaTrade!.stoplossPrice, pkg.gammaTrade!.target1Price);
+                    }}
+                    className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Calculator className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Calculate Risk</span>
+                  </button>
+                  <span className="text-[10px] font-mono font-bold text-purple-300 px-2 py-1 bg-purple-500/10 rounded border border-purple-500/20">
+                    High Multiplier
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 bg-terminal-card border border-terminal-border rounded-xl text-center space-y-2">
+                <Timer className="w-8 h-8 text-terminal-muted/40 animate-pulse" />
+                <div className="font-bold text-sm text-terminal-text">0DTE Gamma Sniper: Standby</div>
+                <p className="text-xs text-terminal-muted max-w-xs">
+                  Gamma velocity is normal. Capital is preserved until true institutional 0DTE short-covering squeezes trigger in afternoon hours.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

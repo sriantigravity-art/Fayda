@@ -50,7 +50,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenAdminDrawer,
   onOpenFyersModal
 }) => {
-  const { selectedIndex, setSelectedIndex } = useMarket();
+  const { selectedIndex, setSelectedIndex, triggerTestHighProbFlash } = useMarket();
   const { mode, setMode } = useTerminalMode();
   const { density, setDensity } = useDensity();
   const { theme, toggleTheme } = useTheme();
@@ -174,6 +174,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       action: () => {
         onClose();
         onOpenFyersModal?.();
+      }
+    },
+    {
+      id: 'tool-test-high-prob-flash',
+      category: 'TOOLS & SETTINGS' as const,
+      title: '⚡ Test Prime High-Probability Flash Alert',
+      subtitle: 'Simulate instant high-confluence Call/Put trade alert with audio chime',
+      icon: Zap,
+      action: () => {
+        onClose();
+        triggerTestHighProbFlash();
       }
     },
     {

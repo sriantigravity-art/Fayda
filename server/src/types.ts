@@ -798,7 +798,7 @@ export interface GlobalIndexItem {
 }
 
 export interface WebSocketMessage {
-  type: 'INITIAL_STATE' | 'INDEX_UPDATE' | 'NEW_SURGE' | 'BULK_SURGES' | 'DATA_SOURCE_UPDATE' | 'FYERS_STATUS' | 'FLASH_NEWS' | 'GLOBAL_INDICES_UPDATE';
+  type: 'INITIAL_STATE' | 'INDEX_UPDATE' | 'NEW_SURGE' | 'BULK_SURGES' | 'DATA_SOURCE_UPDATE' | 'FYERS_STATUS' | 'FLASH_NEWS' | 'GLOBAL_INDICES_UPDATE' | 'HIGH_PROB_FLASH';
   data?: any;
   symbol?: IndexSymbol;
   indexState?: MarketIndexState;
@@ -806,6 +806,7 @@ export interface WebSocketMessage {
   newsItem?: NewsItem;
   recentNews?: NewsItem[];
   globalIndices?: GlobalIndexItem[];
+  highProbFlash?: HighProbabilityFlashEvent;
   dataSource?: DataSourceMode;
   fyersConfig?: FyersConfig;
   isMarketOpen: boolean;
@@ -956,12 +957,24 @@ export interface UnifiedSmartTip {
   };
 }
 
+export interface HighProbabilityFlashEvent {
+  id: string;
+  symbol: IndexSymbol;
+  tip: UnifiedSmartTip;
+  direction: 'CALL' | 'PUT';
+  timestamp: string;
+}
+
 export interface UnifiedSessionTipsPackage {
   currentSession: MarketSessionWindow;
   currentSessionName: string;
   sessionWindowTime: string;
   quotaDescription: string;
   primaryTrade: UnifiedSmartTip | null;
+  topCallTrade: UnifiedSmartTip | null;
+  topPutTrade: UnifiedSmartTip | null;
+  hourlySlotId?: string;
+  hourlyQuotaRemaining?: { calls: number; puts: number };
   hedgedSpreadTrade: UnifiedSmartTip | null;
   gammaTrade: UnifiedSmartTip | null;
   carriedForwardTrades: UnifiedSmartTip[];

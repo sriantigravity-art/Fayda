@@ -1,5 +1,5 @@
-const PROD_API_BASE = 'https://fayda-production-a914.up.railway.app';
-const PROD_WS_URL = 'wss://fayda-production-a914.up.railway.app/ws';
+export const PROD_API_BASE = 'https://fayda-production-a914.up.railway.app';
+export const PROD_WS_URL = 'wss://fayda-production-a914.up.railway.app/ws';
 
 export const getApiBase = (): string => {
   if (typeof window === 'undefined') return PROD_API_BASE;
