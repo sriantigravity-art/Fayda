@@ -84,16 +84,34 @@ export const NewsWireTab: React.FC = () => {
     });
   }, [newsList, sourceFilter, categoryFilter, stampFilter, searchQuery]);
 
+const getRelativeTime = (isoString: string): string => {
+  if (!isoString) return '';
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  if (diffMs < 0) return 'just now';
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
   const getSourceBadge = (source: NewsSource) => {
     switch (source) {
       case 'BLOOMBERG':
         return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#1D2B53] text-white border border-[#2A3E75]">BLOOMBERG</span>;
-      case 'MONEYCONTROL':
-        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#0D3B66] text-[#64DFDF] border border-[#64DFDF]/40">MONEYCONTROL</span>;
-      case 'CNBC_TV18':
-        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#3E1F47] text-[#FF9E00] border border-[#FF9E00]/40">CNBC-TV18</span>;
       case 'REUTERS':
         return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#472D1F] text-[#FFB703] border border-[#FFB703]/40">REUTERS</span>;
+      case 'ECONOMIC_TIMES':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#5C1D24] text-[#FFAAA6] border border-[#FFAAA6]/40">ECONOMIC TIMES</span>;
+      case 'LIVEMINT':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#4A3000] text-[#FFB703] border border-[#FFB703]/40">LIVEMINT</span>;
+      case 'BUSINESS_STANDARD':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#1B2A4A] text-[#70C1B3] border border-[#70C1B3]/40">BUSINESS STANDARD</span>;
+      case 'CNBC_TV18':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#3E1F47] text-[#FF9E00] border border-[#FF9E00]/40">CNBC-TV18</span>;
+      case 'MONEYCONTROL':
+        return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-[#0D3B66] text-[#64DFDF] border border-[#64DFDF]/40">MONEYCONTROL</span>;
       default:
         return <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-terminal-panel text-accent-cyan border border-terminal-border">MARKET WIRE</span>;
     }
@@ -193,6 +211,27 @@ export const NewsWireTab: React.FC = () => {
               ))}
             </div>
 
+            {/* Source Filter Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-terminal-muted text-[10px] font-mono uppercase font-bold mr-1">
+                Source:
+              </span>
+              {(['ALL', 'ECONOMIC_TIMES', 'LIVEMINT', 'BUSINESS_STANDARD', 'CNBC_TV18', 'REUTERS', 'BLOOMBERG'] as const).map((src) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setSourceFilter(src)}
+                  className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                    sourceFilter === src
+                      ? 'bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/50 shadow-sm'
+                      : 'bg-terminal-bg text-terminal-muted hover:text-terminal-text border border-terminal-border'
+                  }`}
+                >
+                  {src === 'ALL' ? 'All Sources' : src.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+
             {/* Impact Stamp Filter */}
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
               <span className="text-terminal-muted text-[10px] font-mono uppercase font-bold mr-1">
@@ -267,6 +306,7 @@ export const NewsWireTab: React.FC = () => {
                     <span className="text-[10px] text-terminal-muted flex items-center gap-1 font-mono">
                       <Clock className="w-3 h-3 text-terminal-muted" />
                       <span>{formatISTTime(item.timestamp, { showSeconds: false })}</span>
+                      <span className="text-terminal-muted/70 text-[9px]">({getRelativeTime(item.timestamp)})</span>
                     </span>
                   </div>
 

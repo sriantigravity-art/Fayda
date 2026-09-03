@@ -108,7 +108,7 @@ export type ThetaIntensity = 'EXTREME' | 'HIGH' | 'MODERATE' | 'LOW';
 export type IvStatus = 'CHEAP' | 'FAIR' | 'EXPENSIVE_CRUSH_RISK';
 export type LiquidityRating = 'HIGH_LIQUIDITY' | 'MODERATE' | 'LOW_SLIPPAGE_RISK';
 
-export type NewsSource = 'MONEYCONTROL' | 'CNBC_TV18' | 'BLOOMBERG' | 'REUTERS' | 'NSE_INDIA' | 'GLOBAL_MACRO';
+export type NewsSource = 'MONEYCONTROL' | 'CNBC_TV18' | 'BLOOMBERG' | 'REUTERS' | 'ECONOMIC_TIMES' | 'LIVEMINT' | 'BUSINESS_STANDARD' | 'NSE_INDIA' | 'GLOBAL_MACRO';
 export type NewsImpact = 'HIGH_IMPACT' | 'MODERATE' | 'GLOBAL_CUE';
 export type NewsSentiment = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 export type NewsImpactStamp = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
