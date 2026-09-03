@@ -20,7 +20,8 @@ import {
   ShieldAlert,
   Moon,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Target
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip } from '../types';
 
@@ -228,417 +229,404 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(selectedIndex);
 
   return (
-    <div className="flex flex-col space-y-3.5 bg-terminal-card border border-terminal-border/80 rounded-2xl p-3.5 sm:p-4 shadow-xl select-none font-sans text-terminal-text transition-all duration-200">
-      {/* ── 1. ACTIVE SESSION BANNER & TIME WINDOW ───────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-terminal-border/80">
-        <div className="flex items-center space-x-2.5">
-          <div className="p-2 rounded-xl bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shadow-sm">
-            <Zap className="w-5 h-5 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-              <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
-                {isBeginner 
-                  ? '🟢 Simple Buy & Sell Signals' 
-                  : isIntermediate 
-                  ? '⚡ 3-in-1 Confluence Trade Cockpit' 
-                  : '🔬 Multi-Tier Algorithmic Alpha Engine'}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
-                {pkg?.currentSessionName || 'Live Market'}
-              </span>
+    <div className="flex flex-col space-y-4">
+      {/* ========================================================================= */}
+      {/* ── PANEL 1: PRIME HIGH-PROBABILITY SIGNALS (TOP CALL & TOP PUT) ───────── */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col space-y-3.5 bg-gradient-to-b from-[#091220] via-terminal-card to-terminal-card border border-accent-gold/40 rounded-2xl p-3.5 sm:p-4 shadow-[0_0_30px_rgba(255,184,0,0.08)] select-none font-sans text-terminal-text transition-all duration-200">
+        {/* Panel 1 Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-terminal-border/80">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-accent-gold/15 text-accent-gold border border-accent-gold/30 shadow-sm">
+              <Target className="w-5 h-5 animate-pulse text-accent-gold" />
             </div>
-            <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
-              <Clock className="w-3 h-3 text-accent-cyan" />
-              <span>{pkg?.sessionWindowTime || '09:15 - 15:30 IST'}</span>
-              <span className="text-terminal-border">•</span>
-              <span className="text-accent-cyan font-bold">
-                {isBeginner ? 'Step-by-Step Capital Protection Rules' : pkg?.quotaDescription}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Mode Selector */}
-        <div className="flex items-center bg-terminal-bg border border-terminal-border/80 p-1 rounded-lg">
-          <button
-            onClick={() => setMode('BEGINNER')}
-            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-              isBeginner 
-                ? 'bg-emerald-500 text-terminal-bg shadow-sm' 
-                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
-            }`}
-          >
-            🟢 Beginner
-          </button>
-          <button
-            onClick={() => setMode('INTERMEDIATE')}
-            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-              isIntermediate 
-                ? 'bg-amber-500 text-terminal-bg shadow-sm' 
-                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
-            }`}
-          >
-            🟡 Technical
-          </button>
-          <button
-            onClick={() => setMode('EXPERT')}
-            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-              isExpert 
-                ? 'bg-purple-500 text-white shadow-sm' 
-                : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
-            }`}
-          >
-            🔴 Derivatives
-          </button>
-        </div>
-      </div>
-
-      {/* ── 2. MARKET CLOSED STATE OR PRIME HIGH-PROBABILITY SIGNALS AT TOP ── */}
-      {pkg?.currentSession === 'OFF_MARKET' ? (
-        <div className="bg-gradient-to-br from-slate-900 via-terminal-card to-slate-950 border border-purple-500/30 rounded-2xl p-6 text-center shadow-2xl relative overflow-hidden flex flex-col items-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-inner">
-            <Moon className="w-7 h-7" />
-          </div>
-          
-          <div className="max-w-xl space-y-1.5">
-            <div className="flex items-center justify-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                MARKET CLOSED (15:40 - 09:15 IST)
-              </span>
-            </div>
-            <h3 className="text-lg font-black text-terminal-text tracking-tight">
-              {isCommodity ? 'MCX Commodity Market Closed! Visit Next Trading Day!' : 'Indian NSE and BSE Market Closed! Visit Next Trading Day!'}
-            </h3>
-            <p className="text-xs text-terminal-muted leading-relaxed font-sans">
-              {isCommodity
-                ? 'MCX commodity derivatives are closed. Live commodity trading will resume tomorrow at 09:00 AM IST.'
-                : 'Indian equity and index derivatives markets closed at 03:40 PM. All intraday algorithms and live call tips are in standby to protect trader capital. Fresh trade signals will resume automatically tomorrow at 09:15 AM IST.'}
-            </p>
-          </div>
-
-          {/* Quick-Switch to Live Commodities if Equity is selected */}
-          {!isCommodity && (
-            <div className="pt-3 border-t border-terminal-border/60 w-full max-w-lg">
-              <div className="text-[11px] font-mono font-bold text-accent-cyan uppercase mb-2 flex items-center justify-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-400" />
-                <span>MCX Commodities Live Trading Open (Until 11:30 PM IST)</span>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {[
-                  { sym: 'CRUDEOIL', name: 'Crude Oil' },
-                  { sym: 'NATURALGAS', name: 'Natural Gas' },
-                  { sym: 'GOLD', name: 'Gold' },
-                  { sym: 'SILVER', name: 'Silver' }
-                ].map(c => (
-                  <button
-                    key={c.sym}
-                    onClick={() => setSelectedIndex(c.sym as any)}
-                    className="px-3 py-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border/80 border border-terminal-border text-xs font-mono font-bold text-terminal-text transition-all hover:scale-105 cursor-pointer flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-bull animate-pulse" />
-                    <span>{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col space-y-4">
-          {/* ── 2A. PRIME HIGH-PROBABILITY HOURLY SNIPER TRADES (SEPARATE TOP CALL & TOP PUT) ── */}
-          <div className="flex flex-col space-y-2.5">
-            <div className="flex items-center justify-between flex-wrap gap-2 px-1">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-accent-gold/20 text-accent-gold border border-accent-gold/30 shadow-sm">
-                  <Zap className="w-3.5 h-3.5" />
-                </span>
-                <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wider">
+            <div>
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
                   🎯 Prime High-Probability Signals (Top CALL & Top PUT)
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-accent-cyan" />
-                  <span>Max 1-2 Trades/Hour</span>
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-accent-gold/15 text-accent-gold border border-accent-gold/30 font-black">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
                   ≥ 85% Confluence
                 </span>
               </div>
-            </div>
-
-            {/* 2-Card Split Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
-              {/* 🟢 TOP HIGH-PROBABILITY CALL (BULLISH SNIPER) */}
-              {pkg?.topCallTrade ? (
-                <div 
-                  onClick={() => handleTradeClick(pkg.topCallTrade, 'HIGH-PROBABILITY HOURLY CALL SETUP')}
-                  className="flex flex-col justify-between bg-gradient-to-b from-[#061e14]/40 via-terminal-card to-terminal-bg/95 border border-emerald-500/40 hover:border-emerald-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
-                  title="Click to view complete Call trade breakdown"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
-                  <div className="flex flex-col space-y-2.5">
-                    {/* Badge */}
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black text-[11px] tracking-wide uppercase">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        <span>🟢 TOP CALL (BULLISH SNIPER)</span>
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
-                          🎯 {pkg.topCallTrade.confluenceScore}% PROBABILITY
-                        </span>
-                        <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
-                          {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.calls}/2 this hr` : '1/2'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Contract & LTP */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div>
-                        <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-emerald-400 transition-colors">
-                          {pkg.topCallTrade.contractSymbol}
-                        </h3>
-                        <div className="text-[11px] text-accent-gold font-medium">
-                          ⚡ {pkg.topCallTrade.strategyTag}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
-                        <div className="flex items-baseline justify-end gap-1">
-                          <span className="text-lg font-black font-mono text-emerald-400">
-                            ₹{pkg.topCallTrade.currentLtp.toFixed(2)}
-                          </span>
-                          {pkg.topCallTrade.pnlPoints && pkg.topCallTrade.pnlPoints !== 0 ? (
-                            <span className={`text-[10px] font-mono font-bold ${pkg.topCallTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
-                              ({pkg.topCallTrade.pnlPoints > 0 ? '+' : ''}{pkg.topCallTrade.pnlPoints.toFixed(2)})
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Given Trigger */}
-                    <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-terminal-muted">Given Trigger ({pkg.topCallTrade.entryTimeFormatted}):</span>
-                      <span className="font-bold text-terminal-text">₹{pkg.topCallTrade.entryPrice.toFixed(2)}</span>
-                    </div>
-
-                    {/* Levels */}
-                    <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
-                        <div className="font-bold text-terminal-text font-mono text-[11px]">
-                          {pkg.topCallTrade.entryRange}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
-                        <div className="font-bold text-bear font-mono">₹{pkg.topCallTrade.stoplossPrice.toFixed(2)} (-{pkg.topCallTrade.stoplossPct}%)</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
-                        <div className="font-bold text-bull font-mono text-[11px]">
-                          ₹{pkg.topCallTrade.target1Price.toFixed(2)} / ₹{pkg.topCallTrade.target2Price.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
-                        <span>SL: ₹{pkg.topCallTrade.stoplossPrice.toFixed(2)}</span>
-                        <span className="text-accent-cyan font-bold">R:R {pkg.topCallTrade.riskReward}</span>
-                        <span>T1: ₹{pkg.topCallTrade.target1Price.toFixed(2)}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
-                          style={{ width: `${getProgressPct(pkg.topCallTrade.entryPrice, pkg.topCallTrade.target1Price, pkg.topCallTrade.currentLtp)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                      pkg.topCallTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
-                      pkg.topCallTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
-                      pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
-                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
-                    }`}>
-                      {pkg.topCallTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
-                       pkg.topCallTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
-                       pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
-                       '⚡ AT TRIGGER PRICE'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenCalc(pkg.topCallTrade!.entryPrice, pkg.topCallTrade!.stoplossPrice, pkg.topCallTrade!.target1Price);
-                      }}
-                      className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
-                    >
-                      <Calculator className="w-3 h-3 text-accent-gold" />
-                      <span>Calc</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-emerald-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
-                  <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <TrendingUp className="w-6 h-6 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-terminal-text">🟢 Top CALL: Scanning Market</div>
-                    <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
-                  </div>
-                  <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
-                    Algorithm is actively monitoring for Call short-covering and pivot breakout. No low-conviction or choppy calls are forced.
-                  </p>
-                </div>
-              )}
-
-              {/* 🔴 TOP HIGH-PROBABILITY PUT (BEARISH SNIPER) */}
-              {pkg?.topPutTrade ? (
-                <div 
-                  onClick={() => handleTradeClick(pkg.topPutTrade, 'HIGH-PROBABILITY HOURLY PUT SETUP')}
-                  className="flex flex-col justify-between bg-gradient-to-b from-[#240a12]/40 via-terminal-card to-terminal-bg/95 border border-rose-500/40 hover:border-rose-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
-                  title="Click to view complete Put trade breakdown"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
-
-                  <div className="flex flex-col space-y-2.5">
-                    {/* Badge */}
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded font-black text-[11px] tracking-wide uppercase">
-                        <TrendingDown className="w-3.5 h-3.5" />
-                        <span>🔴 TOP PUT (BEARISH SNIPER)</span>
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
-                          🎯 {pkg.topPutTrade.confluenceScore}% PROBABILITY
-                        </span>
-                        <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
-                          {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.puts}/2 this hr` : '1/2'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Contract & LTP */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div>
-                        <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-rose-400 transition-colors">
-                          {pkg.topPutTrade.contractSymbol}
-                        </h3>
-                        <div className="text-[11px] text-accent-gold font-medium">
-                          ⚡ {pkg.topPutTrade.strategyTag}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
-                        <div className="flex items-baseline justify-end gap-1">
-                          <span className="text-lg font-black font-mono text-rose-400">
-                            ₹{pkg.topPutTrade.currentLtp.toFixed(2)}
-                          </span>
-                          {pkg.topPutTrade.pnlPoints && pkg.topPutTrade.pnlPoints !== 0 ? (
-                            <span className={`text-[10px] font-mono font-bold ${pkg.topPutTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
-                              ({pkg.topPutTrade.pnlPoints > 0 ? '+' : ''}{pkg.topPutTrade.pnlPoints.toFixed(2)})
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Given Trigger */}
-                    <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-terminal-muted">Given Trigger ({pkg.topPutTrade.entryTimeFormatted}):</span>
-                      <span className="font-bold text-terminal-text">₹{pkg.topPutTrade.entryPrice.toFixed(2)}</span>
-                    </div>
-
-                    {/* Levels */}
-                    <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
-                        <div className="font-bold text-terminal-text font-mono text-[11px]">
-                          {pkg.topPutTrade.entryRange}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
-                        <div className="font-bold text-bear font-mono">₹{pkg.topPutTrade.stoplossPrice.toFixed(2)} (-{pkg.topPutTrade.stoplossPct}%)</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
-                        <div className="font-bold text-bull font-mono text-[11px]">
-                          ₹{pkg.topPutTrade.target1Price.toFixed(2)} / ₹{pkg.topPutTrade.target2Price.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
-                        <span>SL: ₹{topPutTrade.stoplossPrice.toFixed(2)}</span>
-                        <span className="text-accent-cyan font-bold">R:R {pkg.topPutTrade.riskReward}</span>
-                        <span>T1: ₹{pkg.topPutTrade.target1Price.toFixed(2)}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-300"
-                          style={{ width: `${getProgressPct(pkg.topPutTrade.entryPrice, pkg.topPutTrade.target1Price, pkg.topPutTrade.currentLtp)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                      pkg.topPutTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
-                      pkg.topPutTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
-                      pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
-                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
-                    }`}>
-                      {pkg.topPutTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
-                       pkg.topPutTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
-                       pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
-                       '⚡ AT TRIGGER PRICE'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenCalc(pkg.topPutTrade!.entryPrice, pkg.topPutTrade!.stoplossPrice, pkg.topPutTrade!.target1Price);
-                      }}
-                      className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
-                    >
-                      <Calculator className="w-3 h-3 text-accent-gold" />
-                      <span>Calc</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-rose-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
-                  <div className="p-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                    <TrendingDown className="w-6 h-6 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-terminal-text">🔴 Top PUT: Scanning Market</div>
-                    <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
-                  </div>
-                  <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
-                    Algorithm is actively monitoring for Put unwinding and breakdown under resistance roof. Capital safely preserved during neutral consolidations.
-                  </p>
-                </div>
-              )}
+              <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
+                <Clock className="w-3 h-3 text-accent-cyan" />
+                <span>Max 1-2 High-Conviction Calls/Puts per Hour</span>
+                <span className="text-terminal-border">•</span>
+                <span className="text-accent-cyan font-bold">
+                  Institutional Hourly Slot Lock
+                </span>
+              </div>
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-terminal-bg border border-terminal-border text-terminal-muted flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>Live Scanning</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Panel 1 Body */}
+        {pkg?.currentSession === 'OFF_MARKET' ? (
+          <div className="bg-gradient-to-br from-slate-900 via-terminal-card to-slate-950 border border-purple-500/30 rounded-xl p-5 text-center shadow-lg relative overflow-hidden flex flex-col items-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-inner">
+              <Moon className="w-6 h-6" />
+            </div>
+            <div className="max-w-md space-y-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                MARKET CLOSED (15:40 - 09:15 IST)
+              </span>
+              <h4 className="text-sm font-black text-terminal-text">
+                {isCommodity ? 'MCX Commodity Market Closed' : 'NSE/BSE Indian Market Closed'}
+              </h4>
+              <p className="text-xs text-terminal-muted">
+                Fresh institutional high-probability signals resume next trading session at 09:15 AM IST.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+            {/* 🟢 TOP HIGH-PROBABILITY CALL (BULLISH SNIPER) */}
+            {pkg?.topCallTrade ? (
+              <div 
+                onClick={() => handleTradeClick(pkg.topCallTrade, 'HIGH-PROBABILITY HOURLY CALL SETUP')}
+                className="flex flex-col justify-between bg-gradient-to-b from-[#061e14]/40 via-terminal-card to-terminal-bg/95 border border-emerald-500/40 hover:border-emerald-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                title="Click to view complete Call trade breakdown"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex flex-col space-y-2.5">
+                  {/* Badge */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black text-[11px] tracking-wide uppercase">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      <span>🟢 TOP CALL (BULLISH SNIPER)</span>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                        🎯 {pkg.topCallTrade.confluenceScore}% PROBABILITY
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
+                        {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.calls}/2 this hr` : '1/2'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contract & LTP */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-emerald-400 transition-colors">
+                        {pkg.topCallTrade.contractSymbol}
+                      </h3>
+                      <div className="text-[11px] text-accent-gold font-medium">
+                        ⚡ {pkg.topCallTrade.strategyTag}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
+                      <div className="flex items-baseline justify-end gap-1">
+                        <span className="text-lg font-black font-mono text-emerald-400">
+                          ₹{pkg.topCallTrade.currentLtp.toFixed(2)}
+                        </span>
+                        {pkg.topCallTrade.pnlPoints && pkg.topCallTrade.pnlPoints !== 0 ? (
+                          <span className={`text-[10px] font-mono font-bold ${pkg.topCallTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
+                            ({pkg.topCallTrade.pnlPoints > 0 ? '+' : ''}{pkg.topCallTrade.pnlPoints.toFixed(2)})
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Given Trigger */}
+                  <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-terminal-muted">Given Trigger ({pkg.topCallTrade.entryTimeFormatted}):</span>
+                    <span className="font-bold text-terminal-text">₹{pkg.topCallTrade.entryPrice.toFixed(2)}</span>
+                  </div>
+
+                  {/* Levels */}
+                  <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                      <div className="font-bold text-terminal-text font-mono text-[11px]">
+                        {pkg.topCallTrade.entryRange}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                      <div className="font-bold text-bear font-mono">₹{pkg.topCallTrade.stoplossPrice.toFixed(2)} (-{pkg.topCallTrade.stoplossPct}%)</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                      <div className="font-bold text-bull font-mono text-[11px]">
+                        ₹{pkg.topCallTrade.target1Price.toFixed(2)} / ₹{pkg.topCallTrade.target2Price.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
+                      <span>SL: ₹{pkg.topCallTrade.stoplossPrice.toFixed(2)}</span>
+                      <span className="text-accent-cyan font-bold">R:R {pkg.topCallTrade.riskReward}</span>
+                      <span>T1: ₹{pkg.topCallTrade.target1Price.toFixed(2)}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
+                        style={{ width: `${getProgressPct(pkg.topCallTrade.entryPrice, pkg.topCallTrade.target1Price, pkg.topCallTrade.currentLtp)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                    pkg.topCallTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                    pkg.topCallTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                    pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                    'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                  }`}>
+                    {pkg.topCallTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                     pkg.topCallTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                     pkg.topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                     '⚡ AT TRIGGER PRICE'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenCalc(pkg.topCallTrade!.entryPrice, pkg.topCallTrade!.stoplossPrice, pkg.topCallTrade!.target1Price);
+                    }}
+                    className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Calculator className="w-3 h-3 text-accent-gold" />
+                    <span>Calc</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-emerald-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
+                <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <TrendingUp className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-terminal-text">🟢 Top CALL: Scanning Market</div>
+                  <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
+                </div>
+                <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
+                  Algorithm is actively monitoring for Call short-covering and pivot breakout. No low-conviction or choppy calls are forced.
+                </p>
+              </div>
+            )}
+
+            {/* 🔴 TOP HIGH-PROBABILITY PUT (BEARISH SNIPER) */}
+            {pkg?.topPutTrade ? (
+              <div 
+                onClick={() => handleTradeClick(pkg.topPutTrade, 'HIGH-PROBABILITY HOURLY PUT SETUP')}
+                className="flex flex-col justify-between bg-gradient-to-b from-[#240a12]/40 via-terminal-card to-terminal-bg/95 border border-rose-500/40 hover:border-rose-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                title="Click to view complete Put trade breakdown"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex flex-col space-y-2.5">
+                  {/* Badge */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded font-black text-[11px] tracking-wide uppercase">
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      <span>🔴 TOP PUT (BEARISH SNIPER)</span>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                        🎯 {pkg.topPutTrade.confluenceScore}% PROBABILITY
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
+                        {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.puts}/2 this hr` : '1/2'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contract & LTP */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <h3 className="text-base font-black text-terminal-text tracking-tight group-hover:text-rose-400 transition-colors">
+                        {pkg.topPutTrade.contractSymbol}
+                      </h3>
+                      <div className="text-[11px] text-accent-gold font-medium">
+                        ⚡ {pkg.topPutTrade.strategyTag}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-terminal-muted font-mono">Live Market LTP</div>
+                      <div className="flex items-baseline justify-end gap-1">
+                        <span className="text-lg font-black font-mono text-rose-400">
+                          ₹{pkg.topPutTrade.currentLtp.toFixed(2)}
+                        </span>
+                        {pkg.topPutTrade.pnlPoints && pkg.topPutTrade.pnlPoints !== 0 ? (
+                          <span className={`text-[10px] font-mono font-bold ${pkg.topPutTrade.pnlPoints > 0 ? 'text-bull' : 'text-bear'}`}>
+                            ({pkg.topPutTrade.pnlPoints > 0 ? '+' : ''}{pkg.topPutTrade.pnlPoints.toFixed(2)})
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Given Trigger */}
+                  <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-terminal-muted">Given Trigger ({pkg.topPutTrade.entryTimeFormatted}):</span>
+                    <span className="font-bold text-terminal-text">₹{pkg.topPutTrade.entryPrice.toFixed(2)}</span>
+                  </div>
+
+                  {/* Levels */}
+                  <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                      <div className="font-bold text-terminal-text font-mono text-[11px]">
+                        {pkg.topPutTrade.entryRange}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                      <div className="font-bold text-bear font-mono">₹{pkg.topPutTrade.stoplossPrice.toFixed(2)} (-{pkg.topPutTrade.stoplossPct}%)</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                      <div className="font-bold text-bull font-mono text-[11px]">
+                        ₹{pkg.topPutTrade.target1Price.toFixed(2)} / ₹{pkg.topPutTrade.target2Price.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-terminal-muted">
+                      <span>SL: ₹{topPutTrade.stoplossPrice.toFixed(2)}</span>
+                      <span className="text-accent-cyan font-bold">R:R {pkg.topPutTrade.riskReward}</span>
+                      <span>T1: ₹{pkg.topPutTrade.target1Price.toFixed(2)}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-terminal-border rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-300"
+                        style={{ width: `${getProgressPct(pkg.topPutTrade.entryPrice, pkg.topPutTrade.target1Price, pkg.topPutTrade.currentLtp)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                    pkg.topPutTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                    pkg.topPutTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                    pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                    'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                  }`}>
+                    {pkg.topPutTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                     pkg.topPutTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                     pkg.topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                     '⚡ AT TRIGGER PRICE'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenCalc(pkg.topPutTrade!.entryPrice, pkg.topPutTrade!.stoplossPrice, pkg.topPutTrade!.target1Price);
+                    }}
+                    className="py-1 px-2.5 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Calculator className="w-3 h-3 text-accent-gold" />
+                    <span>Calc</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 bg-terminal-card/80 border border-rose-500/20 rounded-xl text-center space-y-2.5 min-h-[220px]">
+                <div className="p-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                  <TrendingDown className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-terminal-text">🔴 Top PUT: Scanning Market</div>
+                  <div className="text-[11px] text-accent-gold font-mono mt-0.5">Awaiting ≥ 85% Confluence Filter</div>
+                </div>
+                <p className="text-xs text-terminal-muted max-w-xs leading-relaxed">
+                  Algorithm is actively monitoring for Put unwinding and breakdown under resistance roof. Capital safely preserved during neutral consolidations.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ── PANEL 2: SIMPLE BUY & SELL SIGNALS (INTRADAY MULTI-TIER COCKPIT) ───── */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col space-y-3.5 bg-terminal-card border border-terminal-border/80 rounded-2xl p-3.5 sm:p-4 shadow-xl select-none font-sans text-terminal-text transition-all duration-200">
+        {/* Panel 2 Header: Active Session Title & Mode Selector */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-terminal-border/80">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shadow-sm">
+              <Zap className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
+                  {isBeginner 
+                    ? '🟢 Simple Buy & Sell Signals' 
+                    : isIntermediate 
+                    ? '⚡ 3-in-1 Confluence Trade Cockpit' 
+                    : '🔬 Multi-Tier Algorithmic Alpha Engine'}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
+                  {pkg?.currentSessionName || 'Live Market'}
+                </span>
+              </div>
+              <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
+                <Clock className="w-3 h-3 text-accent-cyan" />
+                <span>{pkg?.sessionWindowTime || '09:15 - 15:30 IST'}</span>
+                <span className="text-terminal-border">•</span>
+                <span className="text-accent-cyan font-bold">
+                  {isBeginner ? 'Step-by-Step Capital Protection Rules' : pkg?.quotaDescription}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mode Selector */}
+          <div className="flex items-center bg-terminal-bg border border-terminal-border/80 p-1 rounded-lg">
+            <button
+              onClick={() => setMode('BEGINNER')}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                isBeginner 
+                  ? 'bg-emerald-500 text-terminal-bg shadow-sm' 
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
+              }`}
+            >
+              🟢 Beginner
+            </button>
+            <button
+              onClick={() => setMode('INTERMEDIATE')}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                isIntermediate 
+                  ? 'bg-amber-500 text-terminal-bg shadow-sm' 
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
+              }`}
+            >
+              🟡 Technical
+            </button>
+            <button
+              onClick={() => setMode('EXPERT')}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                isExpert 
+                  ? 'bg-purple-500 text-white shadow-sm' 
+                  : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-border/30'
+              }`}
+            >
+              🔴 Derivatives
+            </button>
+          </div>
+        </div>
 
           {/* ── 2B. LIVE REGIME & CONFLUENCE BANNER ── */}
           {mc && (
@@ -983,8 +971,6 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               </div>
             )}
           </div>
-        </div>
-      )}
 
       {/* ── 5. INTERACTIVE STRATEGY CONFLUENCE MATRIX DRAWER ──────────────── */}
       <div className="border border-terminal-border rounded-xl overflow-hidden bg-terminal-bg/40">
@@ -1083,6 +1069,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
           </div>
         )}
       </div>
+    </div>
 
       {/* ── 6. POPUP MODALS ──────────────────────────────────────────────── */}
       {isRiskModalOpen && (
