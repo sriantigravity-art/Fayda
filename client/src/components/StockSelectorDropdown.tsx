@@ -12,6 +12,8 @@ import {
   X
 } from 'lucide-react';
 
+import { sanitizeSpotData } from '../utils/lastClosedData';
+
 async function checkMcxOpen(): Promise<boolean> {
   try {
     const res = await fetch(`${getApiBase()}/api/mcx-status`, { signal: AbortSignal.timeout(2500) });
@@ -133,30 +135,25 @@ export const StockSelectorDropdown: React.FC = () => {
   };
 
   // Get spot data for a symbol:
-  // 1. Prefer the fresh allStates REST snapshot (polled every 3s)
-  // 2. Fall back to context WS data ONLY after allStates has been loaded at least once.
-  //    Before that, suppress change/pct to prevent stale WS-pushed deltas (+84.80) from flashing.
-  const getSpotData = (symbol: string): SpotData | null => {
+  // Uses live feed when genuine, or falls back to authentic last-closed data
+  // if backend sends the legacy 24175.65 placeholder or cloned +84.80 deltas.
+  const getSpotData = (symbol: string): SpotData => {
+    let candidate: SpotData | null = null;
+
     if (allStates[symbol] && allStates[symbol].spotPrice > 0) {
-      return allStates[symbol];
-    }
-    const ctx = indices[symbol];
-    if (ctx && ctx.spotPrice > 0) {
-      if (!allStatesReady) {
-        // REST poll hasn't returned yet — show spot price but suppress change/pct
-        // to avoid showing stale WS-pushed delta values (e.g. +84.80 from prior session)
-        return { spotPrice: ctx.spotPrice, change: 0, pctChange: 0 };
+      candidate = allStates[symbol];
+    } else {
+      const ctx = indices[symbol];
+      if (ctx && ctx.spotPrice > 0) {
+        candidate = {
+          spotPrice: ctx.spotPrice,
+          change: ctx.change ?? 0,
+          pctChange: ctx.pctChange ?? 0
+        };
       }
-      // Use indicesReceivedAt (client-side stamp) — more reliable than server updatedAtIso
-      const receivedAt = indicesReceivedAt[symbol] ?? 0;
-      const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;
-      return {
-        spotPrice: ctx.spotPrice,
-        change: isFresh ? ctx.change : 0,
-        pctChange: isFresh ? ctx.pctChange : 0
-      };
     }
-    return null;
+
+    return sanitizeSpotData(symbol, candidate);
   };
 
   const currentState = getSpotData(selectedIndex);

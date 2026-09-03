@@ -5,6 +5,7 @@ import { useDensity, type TerminalDensity } from '../context/DensityContext';
 import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
+import { sanitizeSpotData } from '../utils/lastClosedData';
 import {
   Volume2,
   VolumeX,
@@ -245,14 +246,13 @@ export const HeaderBar: React.FC = () => {
   const expiryDates = currentIndexState?.expiryDates || [];
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
   const daysToExpiry = currentIndexState?.daysToExpiry ?? 4;
-  const spotPrice = currentIndexState?.spotPrice || 0;
-  // Client-side freshness guard — indicesReceivedAt is stamped the moment data arrives in the browser.
-  // This prevents stale server-cached deltas (e.g. +84.80) from showing on page refresh,
-  // even if the server hasn't yet sent updatedAtIso in the old cached state.
+  
+  const sanitizedCurrent = sanitizeSpotData(selectedIndex, currentIndexState);
   const selectedReceivedAt = indicesReceivedAt[selectedIndex] ?? 0;
   const isStateFresh = selectedReceivedAt > 0 && (Date.now() - selectedReceivedAt) <= 60000;
-  const netChange = isStateFresh ? (currentIndexState?.change || 0) : 0;
-  const pctChange = isStateFresh ? (currentIndexState?.pctChange || 0) : 0;
+  const spotPrice = sanitizedCurrent.spotPrice;
+  const netChange = isStateFresh ? sanitizedCurrent.change : 0;
+  const pctChange = isStateFresh ? sanitizedCurrent.pctChange : 0;
   const isPositive = netChange >= 0;
 
   const activePcr = currentIndexState?.pcr?.atmPlusMinus5Pcr ?? 1.0;
@@ -598,18 +598,16 @@ export const HeaderBar: React.FC = () => {
         <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
           {visibleIndices.map((sym: string) => {
             const isSelected = selectedIndex === sym;
-            const state = sym === selectedIndex ? currentIndexState : indices[sym];
+            const rawState = sym === selectedIndex ? currentIndexState : indices[sym];
+            const sanitized = sanitizeSpotData(sym, rawState);
 
-            // Client-side freshness check using indicesReceivedAt:
-            // shows '…' until the browser receives a fresh update for this symbol.
-            // Prevents +84.80 stale flash regardless of server timestamp presence.
             const receivedAt = sym === selectedIndex
               ? (indicesReceivedAt[selectedIndex] ?? 0)
               : (indicesReceivedAt[sym] ?? 0);
             const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;
 
-            const pts = isFresh ? (state?.change ?? 0) : null;
-            const pct = isFresh ? (state?.pctChange ?? 0) : null;
+            const pts = isFresh ? sanitized.change : null;
+            const pct = isFresh ? sanitized.pctChange : null;
             const isPos = (pts ?? 0) >= 0;
 
             return (
@@ -631,7 +629,7 @@ export const HeaderBar: React.FC = () => {
                 </div>
                 <div className="flex items-baseline space-x-1 font-mono text-[10px] sm:text-[11px]">
                   <span className="text-terminal-text font-bold tabular-nums">
-                    ₹{state && state.spotPrice > 0 ? state.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    ₹{sanitized.spotPrice > 0 ? sanitized.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                   </span>
                   {pct !== null ? (
                     <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
