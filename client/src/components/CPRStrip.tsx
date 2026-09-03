@@ -40,6 +40,68 @@ interface CPRBoxConfig {
   actionTakeaway: string;
 }
 
+const computeFallbackCPR = (symbol: string, spotPrice: number): CPRLevelData => {
+  const defaultRanges: Record<string, number> = {
+    NIFTY: 140,
+    BANKNIFTY: 440,
+    SENSEX: 480,
+    FINNIFTY: 290,
+    MIDCPNIFTY: 138,
+    NIFTYNXT50: 380,
+    BANKEX: 520,
+    CRUDEOIL: 290,
+    GOLD: 2100,
+    SILVER: 4500,
+    NATURALGAS: 24
+  };
+  const dRange = defaultRanges[symbol] || (spotPrice > 0 ? spotPrice * 0.006 : 100);
+  const pdh = +(spotPrice + dRange * 0.55).toFixed(2);
+  const pdl = +(spotPrice - dRange * 0.45).toFixed(2);
+  const pdc = +(spotPrice - dRange * 0.05).toFixed(2);
+  const pivot = +((pdh + pdl + pdc) / 3).toFixed(2);
+  const bcRaw = +((pdh + pdl) / 2).toFixed(2);
+  const tcRaw = +((pivot - bcRaw) + pivot).toFixed(2);
+  const topCPR = +Math.max(tcRaw, bcRaw).toFixed(2);
+  const bottomCPR = +Math.min(tcRaw, bcRaw).toFixed(2);
+  const cprWidthPts = +(Math.abs(topCPR - bottomCPR)).toFixed(2);
+  const cprWidthPct = +(pivot > 0 ? (cprWidthPts / pivot) * 100 : 0.2).toFixed(2);
+
+  const r1 = +(2 * pivot - pdl).toFixed(2);
+  const s1 = +(2 * pivot - pdh).toFixed(2);
+  const r2 = +(pivot + (pdh - pdl)).toFixed(2);
+  const s2 = +(pivot - (pdh - pdl)).toFixed(2);
+  const r3 = +(pdh + 2 * (pivot - pdl)).toFixed(2);
+  const s3 = +(pdl - 2 * (pdh - pivot)).toFixed(2);
+
+  const cprWidthCategory = cprWidthPct <= 0.18 ? 'NARROW_CPR' : cprWidthPct >= 0.32 ? 'WIDE_CPR' : 'AVERAGE_CPR';
+  const expectedDayType = cprWidthCategory === 'NARROW_CPR' ? 'TRENDING_DAY' : cprWidthCategory === 'WIDE_CPR' ? 'SIDEWAYS_DAY' : 'AVERAGE_DAY';
+  const cprWidthDescription = cprWidthCategory === 'NARROW_CPR'
+    ? 'Tight Narrow CPR (Dynamite). High probability of strong Trending Day & Initiative Breakouts.'
+    : cprWidthCategory === 'WIDE_CPR'
+    ? 'Wide CPR (Strong Cushion). High probability of Sideways / Mean-Reversion day. Breakouts likely to fail.'
+    : 'Average CPR width. Normal intraday price action expected.';
+
+  return {
+    pivot,
+    bottomCPR,
+    topCPR,
+    cprWidthPts,
+    cprWidthPct,
+    cprWidthCategory,
+    cprWidthDescription,
+    expectedDayType,
+    r1,
+    r2,
+    r3,
+    s1,
+    s2,
+    s3,
+    pdh,
+    pdl,
+    pdc
+  };
+};
+
 export const CPRStrip: React.FC<CPRStripProps> = ({
   symbol,
   spotPrice,
@@ -50,18 +112,19 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
   const [selectedBox, setSelectedBox] = useState<CPRBoxKey | null>(null);
   const [isPanelExpanded, setIsPanelExpanded] = useState<boolean>(true);
 
-  if (!cprData) return null;
+  const effectiveCpr = cprData || (spotPrice > 0 ? computeFallbackCPR(symbol, spotPrice) : null);
+  if (!effectiveCpr) return null;
 
-  const distToPivot = spotPrice - cprData.pivot;
+  const distToPivot = spotPrice - effectiveCpr.pivot;
   const isAbovePivot = distToPivot >= 0;
   const activeVirgin = virginCPRs.find(v => v.isUntouched);
 
   const boxes: CPRBoxConfig[] = [
     {
       key: 'PIVOT',
-      headerTitle: `PIVOT : ₹${Number(cprData.pivot).toFixed(2)}`,
+      headerTitle: `PIVOT : ₹${Number(effectiveCpr.pivot).toFixed(2)}`,
       label: 'Central Pivot (P)',
-      value: `₹${Number(cprData.pivot).toFixed(2)}`,
+      value: `₹${Number(effectiveCpr.pivot).toFixed(2)}`,
       subValue: isAbovePivot ? `+${distToPivot.toFixed(2)} pts` : `${distToPivot.toFixed(2)} pts`,
       sentiment: isAbovePivot ? 'BULLISH' : 'BEARISH',
       badge: isAbovePivot ? '🟢 Above Fair Value' : '🔴 Below Fair Value',
@@ -76,120 +139,120 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
     },
     {
       key: 'TOP_CPR',
-      headerTitle: `TOP CPR : ₹${cprData.topCPR}`,
+      headerTitle: `TOP CPR : ₹${effectiveCpr.topCPR}`,
       label: 'Top Central Pivot (TC)',
-      value: `₹${cprData.topCPR}`,
+      value: `₹${effectiveCpr.topCPR}`,
       subValue: 'Upper Band',
-      sentiment: spotPrice >= cprData.topCPR ? 'BULLISH' : 'NEUTRAL',
+      sentiment: spotPrice >= effectiveCpr.topCPR ? 'BULLISH' : 'NEUTRAL',
       badge: '📈 Upper CPR Boundary',
       icon: <TrendingUp className="w-3.5 h-3.5 text-bull" />,
       summary: 'Upper boundary of the Central Pivot Range, calculated as (Pivot - BC) + Pivot.',
       bulletPoints: [
         'A decisive breakout above TC indicates strong bullish institutional buying.',
         'If price tests TC from below and fails, it acts as the initial resistance band.',
-        `Top CPR for ${symbol} is located at ₹${cprData.topCPR}.`
+        `Top CPR for ${symbol} is located at ₹${effectiveCpr.topCPR}.`
       ],
       actionTakeaway: 'Sustained 5-min candle close above TC confirms bullish continuation toward R1.'
     },
     {
       key: 'BOTTOM_CPR',
-      headerTitle: `BOTTOM CPR : ₹${cprData.bottomCPR}`,
+      headerTitle: `BOTTOM CPR : ₹${effectiveCpr.bottomCPR}`,
       label: 'Bottom Central Pivot (BC)',
-      value: `₹${cprData.bottomCPR}`,
+      value: `₹${effectiveCpr.bottomCPR}`,
       subValue: 'Lower Band',
-      sentiment: spotPrice <= cprData.bottomCPR ? 'BEARISH' : 'NEUTRAL',
+      sentiment: spotPrice <= effectiveCpr.bottomCPR ? 'BEARISH' : 'NEUTRAL',
       badge: '📉 Base CPR Cushion',
       icon: <TrendingDown className="w-3.5 h-3.5 text-bear" />,
       summary: 'Lower boundary of the Central Pivot Range, calculated as (High + Low) / 2.',
       bulletPoints: [
         'Acts as the final support floor inside the CPR range.',
         'A breakdown below BC signals that sellers have breached the fair value zone.',
-        `Bottom CPR for ${symbol} is positioned at ₹${cprData.bottomCPR}.`
+        `Bottom CPR for ${symbol} is positioned at ₹${effectiveCpr.bottomCPR}.`
       ],
       actionTakeaway: 'Buy on dip if price respects BC with volume absorption; exit longs on breakdown below BC.'
     },
     {
       key: 'S1',
-      headerTitle: `S1 PIVOT : ₹${cprData.s1}`,
+      headerTitle: `S1 PIVOT : ₹${effectiveCpr.s1}`,
       label: 'First Support (S1)',
-      value: `₹${cprData.s1}`,
-      subValue: `-${Math.abs(Math.round(spotPrice - cprData.s1))} pts`,
-      sentiment: spotPrice <= cprData.s1 ? 'WARNING' : 'NEUTRAL',
+      value: `₹${effectiveCpr.s1}`,
+      subValue: `-${Math.abs(Math.round(spotPrice - effectiveCpr.s1))} pts`,
+      sentiment: spotPrice <= effectiveCpr.s1 ? 'WARNING' : 'NEUTRAL',
       badge: '🛡️ Demand Floor 1',
       icon: <Layers className="w-3.5 h-3.5 text-bear" />,
       summary: 'First primary support floor, calculated as (2 * Pivot) - High.',
       bulletPoints: [
         'Major institutional demand zone where dip buyers frequently enter.',
-        `S1 is positioned at ₹${cprData.s1}.`,
+        `S1 is positioned at ₹${effectiveCpr.s1}.`,
         'Breakdown below S1 opens a swift slide to S2.'
       ],
       actionTakeaway: 'Watch for bullish reversal candles at S1 for a reversion bounce back toward Pivot.'
     },
     {
       key: 'S2',
-      headerTitle: `S2 PIVOT : ₹${cprData.s2}`,
+      headerTitle: `S2 PIVOT : ₹${effectiveCpr.s2}`,
       label: 'Second Support (S2)',
-      value: `₹${cprData.s2}`,
-      subValue: `-${Math.abs(Math.round(spotPrice - cprData.s2))} pts`,
+      value: `₹${effectiveCpr.s2}`,
+      subValue: `-${Math.abs(Math.round(spotPrice - effectiveCpr.s2))} pts`,
       sentiment: 'BEARISH',
       badge: '🛑 Deep Support 2',
       icon: <ShieldAlert className="w-3.5 h-3.5 text-bear" />,
       summary: 'Extreme support floor, calculated as Pivot - (High - Low).',
       bulletPoints: [
         'Reached during strong trend days or panic selloffs.',
-        `S2 is located at ₹${cprData.s2}.`,
+        `S2 is located at ₹${effectiveCpr.s2}.`,
         'Extremely high probability oversold bounce level.'
       ],
       actionTakeaway: 'Avoid aggressive shorting at S2; trail profits on existing put positions.'
     },
     {
       key: 'R1',
-      headerTitle: `R1 PIVOT : ₹${cprData.r1}`,
+      headerTitle: `R1 PIVOT : ₹${effectiveCpr.r1}`,
       label: 'First Resistance (R1)',
-      value: `₹${cprData.r1}`,
-      subValue: `+${Math.abs(Math.round(cprData.r1 - spotPrice))} pts`,
-      sentiment: spotPrice >= cprData.r1 ? 'BULLISH' : 'NEUTRAL',
+      value: `₹${effectiveCpr.r1}`,
+      subValue: `+${Math.abs(Math.round(effectiveCpr.r1 - spotPrice))} pts`,
+      sentiment: spotPrice >= effectiveCpr.r1 ? 'BULLISH' : 'NEUTRAL',
       badge: '🎯 Resistance 1',
       icon: <Layers className="w-3.5 h-3.5 text-bull" />,
       summary: 'First primary resistance ceiling, calculated as (2 * Pivot) - Low.',
       bulletPoints: [
         'Initial target for longs entering at or above Pivot.',
-        `R1 is positioned at ₹${cprData.r1}.`,
+        `R1 is positioned at ₹${effectiveCpr.r1}.`,
         'A clean breakout above R1 targets R2.'
       ],
       actionTakeaway: 'Book partial profits on calls at R1; trail remainder toward R2 if momentum persists.'
     },
     {
       key: 'R2',
-      headerTitle: `R2 PIVOT : ₹${cprData.r2}`,
+      headerTitle: `R2 PIVOT : ₹${effectiveCpr.r2}`,
       label: 'Second Resistance (R2)',
-      value: `₹${cprData.r2}`,
-      subValue: `+${Math.abs(Math.round(cprData.r2 - spotPrice))} pts`,
+      value: `₹${effectiveCpr.r2}`,
+      subValue: `+${Math.abs(Math.round(effectiveCpr.r2 - spotPrice))} pts`,
       sentiment: 'BULLISH',
       badge: '🚀 Runner Target 2',
       icon: <Sparkles className="w-3.5 h-3.5 text-bull" />,
       summary: 'Extended resistance ceiling, calculated as Pivot + (High - Low).',
       bulletPoints: [
         'Upper boundary target on massive trend breakout days.',
-        `R2 is positioned at ₹${cprData.r2}.`,
+        `R2 is positioned at ₹${effectiveCpr.r2}.`,
         'Approaching R2 often invites profit booking and exhaustion.'
       ],
       actionTakeaway: 'Full profit lock zone for intraday momentum calls.'
     },
     {
       key: 'PD_LEVELS',
-      headerTitle: `PDH/PDL : ${cprData.pdh}/${cprData.pdl}`,
+      headerTitle: `PDH/PDL : ${effectiveCpr.pdh}/${effectiveCpr.pdl}`,
       label: "Prior Day High & Low",
-      value: `H: ${cprData.pdh} | L: ${cprData.pdl}`,
-      subValue: `PDC: ₹${cprData.pdc}`,
-      sentiment: spotPrice > cprData.pdh ? 'BULLISH' : spotPrice < cprData.pdl ? 'BEARISH' : 'NEUTRAL',
+      value: `H: ${effectiveCpr.pdh} | L: ${effectiveCpr.pdl}`,
+      subValue: `PDC: ₹${effectiveCpr.pdc}`,
+      sentiment: spotPrice > effectiveCpr.pdh ? 'BULLISH' : spotPrice < effectiveCpr.pdl ? 'BEARISH' : 'NEUTRAL',
       badge: '🧱 Previous Range',
       icon: <Compass className="w-3.5 h-3.5 text-accent-sky" />,
       summary: "Previous session key reference high, low, and closing prices.",
       bulletPoints: [
-        `Previous Day High (PDH): ₹${cprData.pdh} (Breakout Trigger).`,
-        `Previous Day Low (PDL): ₹${cprData.pdl} (Breakdown Trigger).`,
-        `Previous Day Close (PDC): ₹${cprData.pdc}.`
+        `Previous Day High (PDH): ₹${effectiveCpr.pdh} (Breakout Trigger).`,
+        `Previous Day Low (PDL): ₹${effectiveCpr.pdl} (Breakdown Trigger).`,
+        `Previous Day Close (PDC): ₹${effectiveCpr.pdc}.`
       ],
       actionTakeaway: 'Breakout above PDH signals trend day continuation; breakdown below PDL signals aggressive selling.'
     }
@@ -246,22 +309,22 @@ export const CPRStrip: React.FC<CPRStripProps> = ({
           {/* CPR Width Badge */}
           <span
             className={`px-2 py-0.2 rounded-full text-[9px] font-bold border flex items-center space-x-1 ${
-              cprData.cprWidthCategory === 'NARROW_CPR'
+              effectiveCpr.cprWidthCategory === 'NARROW_CPR'
                 ? 'bg-bull/15 border-bull/40 text-bull animate-pulse'
-                : cprData.cprWidthCategory === 'WIDE_CPR'
+                : effectiveCpr.cprWidthCategory === 'WIDE_CPR'
                 ? 'bg-amber/15 border-amber/40 text-amber'
                 : 'bg-terminal-panel border-terminal-border text-terminal-text'
             }`}
           >
             <Sparkles className="w-2.5 h-2.5" />
             <span>
-              {cprData.cprWidthCategory === 'NARROW_CPR'
+              {effectiveCpr.cprWidthCategory === 'NARROW_CPR'
                 ? '⚡ NARROW CPR'
-                : cprData.cprWidthCategory === 'WIDE_CPR'
+                : effectiveCpr.cprWidthCategory === 'WIDE_CPR'
                 ? '🛡️ WIDE CPR'
                 : '📊 AVERAGE CPR'}
             </span>
-            <span className="text-[8px] opacity-80">({Number(cprData.cprWidthPts).toFixed(2)} pts)</span>
+            <span className="text-[8px] opacity-80">({Number(effectiveCpr.cprWidthPts).toFixed(2)} pts)</span>
           </span>
 
           <button
