@@ -21,7 +21,8 @@ import {
   Trophy,
   Sparkles,
   Pause,
-  Play
+  Play,
+  Info
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
@@ -336,6 +337,14 @@ export const SurgeAlertBanner: React.FC = () => {
                     <X className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* Flow Validator Clarification Banner */}
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-accent-cyan/10 border border-accent-cyan/20 text-[10px] sm:text-[11px] text-terminal-muted">
+                <Info className="w-4 h-4 text-accent-cyan shrink-0" />
+                <span>
+                  <strong className="text-accent-cyan">⚡ Institutional Flow Tracker:</strong> These events represent real-time 1-minute volume/OI build-up. Use them to <em>confirm</em> institutional conviction behind your Prime Call/Put setups.
+                </span>
               </div>
 
               {/* 1. SCORE & TARGET WIN CATEGORY TABS */}

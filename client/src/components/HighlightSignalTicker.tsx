@@ -96,6 +96,36 @@ export const HighlightSignalTicker: React.FC = () => {
         multiLegStrategy
       } = idxState || { atmStrike: 100, strikes: [], recommendedTrades: {} as any };
 
+      const primeCall = idxState?.sessionTips?.topCallTrade;
+      const primePut = idxState?.sessionTips?.topPutTrade;
+      const primePick = primeCall || primePut;
+      const fallbackTime = formatISTTime(lastUpdated || new Date());
+
+      // 1. Absolute Priority: Mirror the Prime High-Probability Tip so there is ONE single source of truth
+      if (primePick) {
+        const isBull = primePick.contractSymbol.includes('CE');
+        return {
+          symbol: sym,
+          strike: primePick.contractSymbol,
+          action: isBull ? 'BUY CALL' : 'BUY PUT',
+          isBull,
+          isLiveSignal: true,
+          ltp: primePick.currentLtp,
+          entry: primePick.entryRange || `₹${primePick.entryPrice.toFixed(2)}`,
+          exitSL: `₹${primePick.stoplossPrice.toFixed(2)}`,
+          target: `₹${primePick.target1Price.toFixed(2)}`,
+          riskReward: primePick.riskReward || '1:2.5',
+          score: primePick.confluenceScore,
+          rawTimestamp: primePick.entryTimeFormatted || lastUpdated || new Date().toISOString(),
+          time: primePick.entryTimeFormatted || fallbackTime,
+          isStoplossHit: primePick.status === 'SL_HIT',
+          horizon: undefined,
+          breakoutStatus: primePick.strategyTag,
+          faydaStrategyMatch: `🎯 ${primePick.confluenceScore}% Confluence Prime`,
+          multiLegAlternative: undefined
+        };
+      }
+
       const bullishPick = recommendedTrades?.bullishPick;
       const bearishPick = recommendedTrades?.bearishPick;
 
@@ -104,13 +134,11 @@ export const HighlightSignalTicker: React.FC = () => {
         return isContractOrSignalExpired(p.expiryDate, p.timestamp, p.validUntilMinutes);
       };
 
-      // 1. First priority: Genuine live high-conviction surge pick (Score >= 88%)
+      // 2. Secondary fallback: High-conviction surge pick (Score >= 88%)
       let pick = (bullishPick && !isPickExpired(bullishPick) && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
       if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
         pick = bearishPick;
       }
-
-      const fallbackTime = formatISTTime(lastUpdated || new Date());
 
       // 2. If live pick is active & unexpired:
       if (pick) {
@@ -341,7 +369,7 @@ export const HighlightSignalTicker: React.FC = () => {
               <Zap className="w-3.5 h-3.5 animate-pulse" />
             </div>
             <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
-              {isBeginner ? 'FAYDA RADAR' : isExpert ? 'FAYDA RADAR (ALPHA)' : 'FAYDA RADAR'}
+              {isBeginner ? '🧭 MARKET COMPASS' : isExpert ? '🔬 QUANT RADAR' : '🧭 FAYDA RADAR'}
             </span>
             <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
               isLiveNseMarket 
@@ -407,7 +435,7 @@ export const HighlightSignalTicker: React.FC = () => {
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
           <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
           <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
-            {isBeginner ? 'TOP SAFE PICKS' : isIntermediate ? 'FAYDA RADAR' : 'HIGH-ALPHA SIGNALS'}
+            {isBeginner ? '🧭 MARKET COMPASS' : isIntermediate ? '🧭 FAYDA RADAR' : '🔬 QUANT COMPASS'}
           </span>
           <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
             isLiveNseMarket 

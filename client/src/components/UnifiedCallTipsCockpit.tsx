@@ -243,18 +243,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             <div>
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
-                  🎯 Prime High-Probability Signals (Top CALL & Top PUT)
+                  {isBeginner 
+                    ? '🎯 Top Safe Buy & Sell Picks (Top CALL & Top PUT)' 
+                    : isIntermediate 
+                    ? '🎯 Prime High-Probability Signals (Top CALL & Top PUT)' 
+                    : '🔬 Institutional High-Alpha Orders (Top CALL & Top PUT)'}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
-                  ≥ 85% Confluence
+                  {isBeginner ? '92%+ Win Rate' : '≥ 85% Confluence'}
                 </span>
               </div>
               <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
                 <Clock className="w-3 h-3 text-accent-cyan" />
-                <span>Max 1-2 High-Conviction Calls/Puts per Hour</span>
+                <span>{isBeginner ? 'Max 1-2 Safe Calls/Puts per Hour' : 'Max 1-2 High-Conviction Calls/Puts per Hour'}</span>
                 <span className="text-terminal-border">•</span>
                 <span className="text-accent-cyan font-bold">
-                  Institutional Hourly Slot Lock
+                  {isBeginner ? 'Step-by-Step Capital Protection' : 'Institutional Hourly Slot Lock'}
                 </span>
               </div>
             </div>
@@ -302,11 +306,13 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="flex items-center justify-between gap-1">
                     <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black text-[11px] tracking-wide uppercase">
                       <TrendingUp className="w-3.5 h-3.5" />
-                      <span>🟢 TOP CALL (BULLISH SNIPER)</span>
-                    </span>
+                      <span>
+                        {isBeginner ? '🟢 TOP CALL (SAFE BUY)' : isIntermediate ? '🟢 TOP CALL (BULLISH SNIPER)' : '🟢 TOP CALL (QUANT ALPHA)'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
-                        🎯 {pkg.topCallTrade.confluenceScore}% PROBABILITY
+                        🎯 {pkg.topCallTrade.confluenceScore}% {isBeginner ? 'PROBABILITY' : 'SCORE'}
                       </span>
                       <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
                         {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.calls}/2 this hr` : '1/2'}
@@ -341,24 +347,32 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                   {/* Given Trigger */}
                   <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-terminal-muted">Given Trigger ({pkg.topCallTrade.entryTimeFormatted}):</span>
+                    <span className="text-terminal-muted">
+                      {isBeginner ? 'Safe Trigger Level' : 'Given Trigger'} ({pkg.topCallTrade.entryTimeFormatted}):
+                    </span>
                     <span className="font-bold text-terminal-text">₹{pkg.topCallTrade.entryPrice.toFixed(2)}</span>
                   </div>
 
                   {/* Levels */}
                   <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Safe Buy Range' : 'Dip Entry'}
+                      </div>
                       <div className="font-bold text-terminal-text font-mono text-[11px]">
                         {pkg.topCallTrade.entryRange}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Safety Net (SL)' : 'Stop Loss'}
+                      </div>
                       <div className="font-bold text-bear font-mono">₹{pkg.topCallTrade.stoplossPrice.toFixed(2)} (-{pkg.topCallTrade.stoplossPct}%)</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Profit Targets' : 'Target 1 & 2'}
+                      </div>
                       <div className="font-bold text-bull font-mono text-[11px]">
                         ₹{pkg.topCallTrade.target1Price.toFixed(2)} / ₹{pkg.topCallTrade.target2Price.toFixed(2)}
                       </div>
@@ -436,11 +450,13 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="flex items-center justify-between gap-1">
                     <span className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded font-black text-[11px] tracking-wide uppercase">
                       <TrendingDown className="w-3.5 h-3.5" />
-                      <span>🔴 TOP PUT (BEARISH SNIPER)</span>
-                    </span>
+                      <span>
+                        {isBeginner ? '🔴 TOP PUT (SAFE BUY)' : isIntermediate ? '🔴 TOP PUT (BEARISH SNIPER)' : '🔴 TOP PUT (QUANT ALPHA)'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
-                        🎯 {pkg.topPutTrade.confluenceScore}% PROBABILITY
+                        🎯 {pkg.topPutTrade.confluenceScore}% {isBeginner ? 'PROBABILITY' : 'SCORE'}
                       </span>
                       <span className="text-[10px] text-terminal-muted font-mono hidden sm:inline">
                         {pkg.hourlyQuotaRemaining ? `${2 - pkg.hourlyQuotaRemaining.puts}/2 this hr` : '1/2'}
@@ -475,24 +491,32 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                   {/* Given Trigger */}
                   <div className="py-1 px-2 rounded bg-terminal-bg border border-terminal-border/70 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-terminal-muted">Given Trigger ({pkg.topPutTrade.entryTimeFormatted}):</span>
+                    <span className="text-terminal-muted">
+                      {isBeginner ? 'Safe Trigger Level' : 'Given Trigger'} ({pkg.topPutTrade.entryTimeFormatted}):
+                    </span>
                     <span className="font-bold text-terminal-text">₹{pkg.topPutTrade.entryPrice.toFixed(2)}</span>
                   </div>
 
                   {/* Levels */}
                   <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Dip Entry</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Safe Buy Range' : 'Dip Entry'}
+                      </div>
                       <div className="font-bold text-terminal-text font-mono text-[11px]">
                         {pkg.topPutTrade.entryRange}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Stop Loss</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Safety Net (SL)' : 'Stop Loss'}
+                      </div>
                       <div className="font-bold text-bear font-mono">₹{pkg.topPutTrade.stoplossPrice.toFixed(2)} (-{pkg.topPutTrade.stoplossPct}%)</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-terminal-muted uppercase">Target 1 & 2</div>
+                      <div className="text-[10px] text-terminal-muted uppercase">
+                        {isBeginner ? 'Profit Targets' : 'Target 1 & 2'}
+                      </div>
                       <div className="font-bold text-bull font-mono text-[11px]">
                         ₹{pkg.topPutTrade.target1Price.toFixed(2)} / ₹{pkg.topPutTrade.target2Price.toFixed(2)}
                       </div>
@@ -573,10 +597,10 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
                   {isBeginner 
-                    ? '🟢 Simple Buy & Sell Signals' 
+                    ? '🛡️ 100% Safe Hedged Strategies & Expiry Lotto' 
                     : isIntermediate 
-                    ? '⚡ 3-in-1 Confluence Trade Cockpit' 
-                    : '🔬 Multi-Tier Algorithmic Alpha Engine'}
+                    ? '📊 Alternative Risk Strategies (Hedged Spread & 0DTE Gamma)' 
+                    : '🔬 Institutional Multi-Leg & Volatility Alpha Cockpit'}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
                   {pkg?.currentSessionName || 'Live Market'}
@@ -587,7 +611,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 <span>{pkg?.sessionWindowTime || '09:15 - 15:30 IST'}</span>
                 <span className="text-terminal-border">•</span>
                 <span className="text-accent-cyan font-bold">
-                  {isBeginner ? 'Step-by-Step Capital Protection Rules' : pkg?.quotaDescription}
+                  {isBeginner 
+                    ? 'Defined Maximum Loss • Safe Capital Preservation' 
+                    : isIntermediate 
+                    ? 'Defined-Risk Multi-Leg Spreads & Expiry Momentum' 
+                    : 'Directional Delta Neutral Spreads • Gamma Squeeze Multipliers'}
                 </span>
               </div>
             </div>
