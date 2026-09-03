@@ -77,10 +77,27 @@ export const LAST_CLOSED_DATA: Record<string, SymbolClosedData> = {
   TATACONSUM: { spotPrice: 1124.00, change: 0, pctChange: 0 }
 };
 
+export function isMarketOpenForSymbol(symbol: string): boolean {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + (3600000 * 5.5));
+  const day = ist.getDay(); // 0 = Sun, 6 = Sat
+  if (day === 0 || day === 6) return false;
+
+  const currentMin = ist.getHours() * 60 + ist.getMinutes();
+  const isCommodity = symbol === 'CRUDEOIL' || symbol === 'NATURALGAS' || symbol === 'GOLD' || symbol === 'SILVER' || symbol === 'COPPER' || symbol === 'ZINC';
+
+  if (isCommodity) {
+    return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+  }
+
+  return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+}
+
 /**
  * Validates and sanitizes a spot data candidate.
  * Returns authentic last-closed data if the incoming data is corrupted,
- * contains the legacy 24175.65 placeholder, or has cloned deltas.
+ * contains the legacy 24175.65 placeholder, or has cloned/stale deltas.
  */
 export function sanitizeSpotData(
   symbol: string,
@@ -92,19 +109,26 @@ export function sanitizeSpotData(
     return fallback;
   }
 
+  const isOpen = isMarketOpenForSymbol(symbol);
+
   // 1. Detect legacy placeholder: 24,175.65 was an old server fallback assigned to all symbols
   const isLegacyPlaceholder = Math.abs(candidate.spotPrice - 24175.65) < 0.01 && symbol !== 'NIFTY';
-  if (isLegacyPlaceholder) {
-    return fallback;
+  const effectiveSpot = isLegacyPlaceholder ? fallback.spotPrice : candidate.spotPrice;
+
+  // 2. If market is closed for this asset (e.g. NSE equity after 15:40 IST), suppress stale intraday delta
+  if (!isOpen) {
+    return {
+      spotPrice: effectiveSpot,
+      change: 0,
+      pctChange: 0
+    };
   }
 
-  // 2. Detect cloned delta: 84.80 (+0.35%) was an old server bug where Nifty's delta was duplicated onto all rows
-  const isClonedDelta = typeof candidate.change === 'number' &&
-    Math.abs(candidate.change - 84.80) < 0.05 &&
-    symbol !== 'NIFTY';
+  // 3. Detect cloned/stale delta: 84.80 (+0.35%) was an old server artifact
+  const isClonedDelta = typeof candidate.change === 'number' && Math.abs(candidate.change - 84.80) < 0.05 && symbol !== 'NIFTY';
 
   return {
-    spotPrice: candidate.spotPrice,
+    spotPrice: effectiveSpot,
     change: isClonedDelta ? fallback.change : (candidate.change ?? 0),
     pctChange: isClonedDelta ? fallback.pctChange : (candidate.pctChange ?? 0)
   };
