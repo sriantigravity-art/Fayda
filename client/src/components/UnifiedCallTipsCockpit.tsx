@@ -233,31 +233,31 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       {/* ========================================================================= */}
       {/* ── PANEL 1: PRIME HIGH-PROBABILITY SIGNALS (TOP CALL & TOP PUT) ───────── */}
       {/* ========================================================================= */}
-      <div className="flex flex-col space-y-3.5 bg-gradient-to-b from-[#091220] via-terminal-card to-terminal-card border border-accent-gold/40 rounded-2xl p-3.5 sm:p-4 shadow-[0_0_30px_rgba(255,184,0,0.08)] select-none font-sans text-terminal-text transition-all duration-200">
+      <div className="flex flex-col space-y-3.5 bg-white dark:bg-gradient-to-b dark:from-[#091220] dark:via-terminal-card dark:to-terminal-card border border-amber-300/80 dark:border-accent-gold/40 rounded-2xl p-3.5 sm:p-4 shadow-sm dark:shadow-[0_0_30px_rgba(255,184,0,0.08)] select-none font-sans text-slate-900 dark:text-terminal-text transition-all duration-200">
         {/* Panel 1 Header */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-terminal-border/80">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-terminal-border/80">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-accent-gold/15 text-accent-gold border border-accent-gold/30 shadow-sm">
-              <Target className="w-5 h-5 animate-pulse text-accent-gold" />
+            <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-400/30 shadow-sm">
+              <Target className="w-5 h-5 animate-pulse text-amber-500 dark:text-accent-gold" />
             </div>
             <div>
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <span className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wide">
+                <span className="text-xs sm:text-sm font-mono font-black text-slate-900 dark:text-terminal-text uppercase tracking-wide">
                   {isBeginner 
                     ? '🎯 Top Safe Buy & Sell Picks (Top CALL & Top PUT)' 
                     : isIntermediate 
                     ? '🎯 Prime High-Probability Signals (Top CALL & Top PUT)' 
                     : '🔬 Institutional High-Alpha Orders (Top CALL & Top PUT)'}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(255,184,0,0.25)]">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-amber-100 dark:bg-accent-gold/20 text-amber-800 dark:text-accent-gold border border-amber-300 dark:border-accent-gold/40 shadow-sm dark:shadow-[0_0_10px_rgba(255,184,0,0.25)]">
                   {isBeginner ? '92%+ Win Rate' : '≥ 85% Confluence'}
                 </span>
               </div>
-              <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
-                <Clock className="w-3 h-3 text-accent-cyan" />
+              <div className="text-[11px] text-slate-500 dark:text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
+                <Clock className="w-3 h-3 text-sky-600 dark:text-accent-cyan" />
                 <span>{isBeginner ? 'Max 1-2 Safe Calls/Puts per Hour' : 'Max 1-2 High-Conviction Calls/Puts per Hour'}</span>
-                <span className="text-terminal-border">•</span>
-                <span className="text-accent-cyan font-bold">
+                <span className="text-slate-300 dark:text-terminal-border">•</span>
+                <span className="text-sky-700 dark:text-accent-cyan font-bold">
                   {isBeginner ? 'Step-by-Step Capital Protection' : 'Institutional Hourly Slot Lock'}
                 </span>
               </div>
@@ -265,8 +265,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-terminal-bg border border-terminal-border text-terminal-muted flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-terminal-bg border border-slate-200 dark:border-terminal-border text-slate-600 dark:text-terminal-muted flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping" />
               <span>Live Scanning</span>
             </span>
           </div>
@@ -274,18 +274,18 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
         {/* Panel 1 Body */}
         {pkg?.currentSession === 'OFF_MARKET' ? (
-          <div className="bg-gradient-to-br from-slate-900 via-terminal-card to-slate-950 border border-purple-500/30 rounded-xl p-5 text-center shadow-lg relative overflow-hidden flex flex-col items-center space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-inner">
+          <div className="bg-gradient-to-br from-purple-50/80 via-white to-slate-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-terminal-card dark:to-slate-950 border border-purple-200 dark:border-purple-500/30 rounded-xl p-5 text-center shadow-sm dark:shadow-lg relative overflow-hidden flex flex-col items-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:border-purple-500/30 dark:text-purple-400 flex items-center justify-center shadow-inner">
               <Moon className="w-6 h-6" />
             </div>
-            <div className="max-w-md space-y-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+            <div className="max-w-md space-y-1.5">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/40">
                 MARKET CLOSED (15:40 - 09:15 IST)
               </span>
-              <h4 className="text-sm font-black text-terminal-text">
+              <h4 className="text-sm font-black text-slate-900 dark:text-terminal-text">
                 {isCommodity ? 'MCX Commodity Market Closed' : 'NSE/BSE Indian Market Closed'}
               </h4>
-              <p className="text-xs text-terminal-muted">
+              <p className="text-xs text-slate-600 dark:text-terminal-muted">
                 Fresh institutional high-probability signals resume next trading session at 09:15 AM IST.
               </p>
             </div>
@@ -296,7 +296,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             {pkg?.topCallTrade ? (
               <div 
                 onClick={() => handleTradeClick(pkg.topCallTrade, 'HIGH-PROBABILITY HOURLY CALL SETUP')}
-                className="flex flex-col justify-between bg-gradient-to-b from-[#061e14]/40 via-terminal-card to-terminal-bg/95 border border-emerald-500/40 hover:border-emerald-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                className="flex flex-col justify-between bg-emerald-50/40 dark:bg-gradient-to-b dark:from-[#061e14]/40 dark:via-terminal-card dark:to-terminal-bg/95 border border-emerald-300 dark:border-emerald-500/40 hover:border-emerald-500 dark:hover:border-emerald-500/80 rounded-xl p-3.5 shadow-sm dark:shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
                 title="Click to view complete Call trade breakdown"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -440,7 +440,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             {pkg?.topPutTrade ? (
               <div 
                 onClick={() => handleTradeClick(pkg.topPutTrade, 'HIGH-PROBABILITY HOURLY PUT SETUP')}
-                className="flex flex-col justify-between bg-gradient-to-b from-[#240a12]/40 via-terminal-card to-terminal-bg/95 border border-rose-500/40 hover:border-rose-500/80 rounded-xl p-3.5 shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
+                className="flex flex-col justify-between bg-rose-50/40 dark:bg-gradient-to-b dark:from-[#240a12]/40 dark:via-terminal-card dark:to-terminal-bg/95 border border-rose-300 dark:border-rose-500/40 hover:border-rose-500 dark:hover:border-rose-500/80 rounded-xl p-3.5 shadow-sm dark:shadow-lg transition-all relative overflow-hidden group cursor-pointer hover:scale-[1.01]"
                 title="Click to view complete Put trade breakdown"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />

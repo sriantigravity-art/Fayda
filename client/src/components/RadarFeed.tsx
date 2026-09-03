@@ -475,16 +475,16 @@ export const RadarFeed: React.FC = () => {
         {filteredSurges.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-terminal-muted text-center px-2 space-y-3">
             {!isLiveMarketOpen ? (
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-terminal-card border border-purple-500/30 w-full max-w-sm flex flex-col items-center space-y-2.5 shadow-xl">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 via-white to-slate-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-terminal-card border border-purple-200 dark:border-purple-500/30 w-full max-w-sm flex flex-col items-center space-y-2.5 shadow-sm dark:shadow-xl">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:border-purple-500/30 dark:text-purple-400 flex items-center justify-center">
                   <Moon className="w-5 h-5 animate-pulse" />
                 </div>
-                <div className="space-y-1">
-                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                <div className="space-y-1 text-center">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/40">
                     NSE & BSE MARKET CLOSED
                   </span>
-                  <p className="font-mono text-xs font-bold text-terminal-text">Indian NSE and BSE Market Closed! Visit Next Trading Day!</p>
-                  <p className="text-[10px] text-terminal-muted leading-relaxed font-sans">
+                  <p className="font-mono text-xs font-bold text-slate-900 dark:text-terminal-text">Indian NSE and BSE Market Closed! Visit Next Trading Day!</p>
+                  <p className="text-[10px] text-slate-600 dark:text-terminal-muted leading-relaxed font-sans">
                     Indian equity and index markets closed at 03:40 PM. Outdated tips are archived in the Journal to protect your capital.
                   </p>
                 </div>
