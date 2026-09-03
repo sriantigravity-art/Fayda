@@ -4,11 +4,43 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme="dark"],
+[data-theme="dark"][data-dark-preset="OBSIDIAN_PRO"] {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
 
-  /* Modern Institutional Dark Palette (Default) */
+  /* Obsidian Onyx Institutional Pro Palette (Default Dark) */
+  --color-terminal-bg: 9 10 15;            /* #090A0F True Obsidian */
+  --color-terminal-card: 17 19 26;         /* #11131A Frosted Surface Layer 1 */
+  --color-terminal-panel: 24 27 36;        /* #181B24 Surface Layer 2 */
+  --color-terminal-elevated: 32 37 49;     /* #202531 Elevated Elements */
+  --color-terminal-border: 35 39 51;       /* #232733 Subtle Hairline Borders */
+  --color-terminal-border-subtle: 26 29 38;/* #1A1D26 Micro Borders */
+  --color-terminal-hover: 30 35 46;        /* #1E232E Interactive Hover */
+  --color-terminal-text: 248 250 252;      /* #F8FAFC Primary text */
+  --color-terminal-muted: 148 163 184;     /* #94A3B8 Secondary text */
+  
+  /* Semantic Trading Signals (Jewel Tone Clarity) */
+  --color-bull: 16 185 129;                /* #10B981 Mint Emerald */
+  --color-bull-subtle: 16 185 129 / 0.12;
+  --color-bull-border: 16 185 129 / 0.35;
+  
+  --color-bear: 244 63 94;                 /* #F43F5E Coral Crimson */
+  --color-bear-subtle: 244 63 94 / 0.12;
+  --color-bear-border: 244 63 94 / 0.35;
+  
+  --color-amber: 245 158 11;               /* #F59E0B Champagne Gold */
+  --color-amber-subtle: 245 158 11 / 0.12;
+  --color-amber-border: 245 158 11 / 0.35;
+  
+  --color-accent-cyan: 56 189 248;         /* #38BDF8 Sky Cyan */
+  --color-accent-sky: 99 102 241;          /* #6366F1 Electric Indigo */
+  --color-accent-purple: 168 85 247;       /* #A855F7 Radiant Violet */
+}
+
+/* Classic Terminal Dark Preset */
+[data-theme="dark"][data-dark-preset="CLASSIC_DARK"] {
   --color-terminal-bg: 8 11 16;            /* #080B10 Base canvas */
   --color-terminal-card: 13 19 28;         /* #0D131C Surface Layer 1 */
   --color-terminal-panel: 20 28 40;        /* #141C28 Surface Layer 2 */
@@ -19,7 +51,6 @@
   --color-terminal-text: 241 245 249;      /* #F1F5F9 Primary text */
   --color-terminal-muted: 100 116 139;     /* #64748B Secondary text */
   
-  /* Semantic Trading Signals (Calm & High Contrast) */
   --color-bull: 34 197 94;                 /* #22C55E Emerald */
   --color-bull-subtle: 34 197 94 / 0.12;
   --color-bull-border: 34 197 94 / 0.35;
@@ -37,10 +68,43 @@
   --color-accent-purple: 139 92 246;       /* #8B5CF6 Violet */
 }
 
-[data-theme="light"], .light {
+/* Alabaster Pro Light Palette (Default Light) */
+[data-theme="light"],
+.light,
+[data-theme="light"][data-light-preset="ALABASTER_PRO"] {
   color-scheme: light;
 
-  /* Modern Institutional Light Palette */
+  --color-terminal-bg: 244 246 249;        /* #F4F6F9 Nordic Alabaster Canvas */
+  --color-terminal-card: 255 255 255;      /* #FFFFFF Pure Floating White */
+  --color-terminal-panel: 241 245 249;     /* #F1F5F9 Soft Layer */
+  --color-terminal-elevated: 226 232 240;  /* #E2E8F0 Elevated Controls */
+  --color-terminal-border: 226 232 240;    /* #E2E8F0 Subtle Hairline */
+  --color-terminal-border-subtle: 238 242 246;
+  --color-terminal-hover: 238 242 246;     /* #EEF2F6 Hover */
+  --color-terminal-text: 17 24 39;         /* #111827 Deep Charcoal Black */
+  --color-terminal-muted: 100 116 139;     /* #64748B Clear Slate */
+  
+  --color-bull: 21 128 61;                 /* #15803D Forest Emerald */
+  --color-bull-subtle: 21 128 61 / 0.1;
+  --color-bull-border: 21 128 61 / 0.3;
+  
+  --color-bear: 220 38 38;                 /* #DC2626 Deep Ruby Red */
+  --color-bear-subtle: 220 38 38 / 0.1;
+  --color-bear-border: 220 38 38 / 0.3;
+  
+  --color-amber: 180 83 9;                 /* #B45309 Amber Bronze */
+  --color-amber-subtle: 180 83 9 / 0.1;
+  --color-amber-border: 180 83 9 / 0.3;
+  
+  --color-accent-cyan: 37 99 235;          /* #2563EB Royal Sapphire */
+  --color-accent-sky: 79 70 229;           /* #4F46E5 Deep Indigo */
+  --color-accent-purple: 109 40 217;       /* #6D28D9 Royal Violet */
+}
+
+/* Classic Light Preset */
+[data-theme="light"][data-light-preset="CLASSIC_LIGHT"] {
+  color-scheme: light;
+
   --color-terminal-bg: 248 250 252;        /* #F8FAFC Clean off-white background */
   --color-terminal-card: 255 255 255;      /* #FFFFFF Pure white card surfaces */
   --color-terminal-panel: 241 245 249;     /* #F1F5F9 Secondary light surface */

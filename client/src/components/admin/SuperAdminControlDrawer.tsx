@@ -17,8 +17,14 @@ import {
   Lock, 
   AlertTriangle,
   Globe,
-  Radio
+  Radio,
+  Palette,
+  Sun,
+  Moon,
+  Sparkles,
+  Check
 } from 'lucide-react';
+import { useTheme, type DarkPreset, type LightPreset } from '../../context/ThemeContext';
 
 interface SuperAdminControlDrawerProps {
   isOpen: boolean;
@@ -39,7 +45,9 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
     consentAuditLogs 
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'PANELS' | 'AUDIT_LOGS' | 'LEGAL_DOCS'>('PANELS');
+  const { theme, toggleTheme, darkPreset, setDarkPreset, lightPreset, setLightPreset } = useTheme();
+
+  const [activeTab, setActiveTab] = useState<'PANELS' | 'THEMES' | 'AUDIT_LOGS' | 'LEGAL_DOCS'>('PANELS');
 
   if (!isOpen) return null;
 
@@ -165,7 +173,20 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Element & Panel Visibility Matrix</span>
+            <span>Element Visibility</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('THEMES')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'THEMES'
+                ? 'bg-purple-500/20 border border-purple-500/50 text-purple-400 shadow-sm'
+                : 'text-terminal-muted hover:text-terminal-text'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5 text-accent-purple" />
+            <span>Theme Studio & Presets</span>
           </button>
 
           <button
@@ -283,6 +304,250 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: THEME STUDIO & PRESET CONTROLS (SUPERADMIN ONLY) */}
+          {activeTab === 'THEMES' && (
+            <div className="space-y-6">
+              {/* Header Box */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/15 via-accent-sky/10 to-transparent border border-purple-500/30">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 rounded-lg bg-accent-purple/20 text-accent-purple border border-accent-purple/40">
+                      <Palette className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-terminal-text flex items-center gap-1.5">
+                        <span>Institutional Design System & Palette Control</span>
+                        <Sparkles className="w-4 h-4 text-accent-gold" />
+                      </h3>
+                      <p className="text-xs text-terminal-muted leading-relaxed mt-0.5">
+                        Only SuperUsers can configure the platform's color presets. Regular users will experience these curated colors automatically when toggling between light and dark themes.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Live Theme Preview Switch */}
+                  <div className="flex items-center gap-2 bg-terminal-panel/80 p-1.5 rounded-xl border border-terminal-border">
+                    <span className="text-xs font-mono font-bold text-terminal-text flex items-center gap-1.5 pl-2">
+                      {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-purple" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                      <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="px-3 py-1 text-xs font-mono font-bold rounded-lg bg-accent-purple/20 hover:bg-accent-purple/30 text-accent-purple border border-accent-purple/40 transition cursor-pointer"
+                    >
+                      Toggle Mode
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 1. DARK THEME PRESETS ── */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-terminal-border pb-2">
+                  <div className="flex items-center space-x-2">
+                    <Moon className="w-4 h-4 text-accent-purple" />
+                    <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-terminal-text">
+                      Dark Theme Preset (For All Dark Mode Users)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono text-terminal-muted">
+                    Active: <strong className="text-accent-purple">{darkPreset === 'OBSIDIAN_PRO' ? 'Obsidian Onyx Pro' : 'Classic Terminal'}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {/* Preset 1: Obsidian Onyx (Recommended) */}
+                  <div
+                    onClick={() => setDarkPreset('OBSIDIAN_PRO')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-3 ${
+                      darkPreset === 'OBSIDIAN_PRO'
+                        ? 'bg-purple-500/10 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                        : 'bg-terminal-panel/50 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Obsidian Onyx
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                            INSTITUTIONAL PRO
+                          </span>
+                        </div>
+                        {darkPreset === 'OBSIDIAN_PRO' && (
+                          <div className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-terminal-muted leading-relaxed">
+                        Pitch-black luxury obsidian canvas (#090A0F) with frosted glassmorphism, jewel-tone mint emerald (#10B981) calls, coral crimson (#F43F5E) puts, and radiant violet accents. Designed for zero glare.
+                      </p>
+                    </div>
+
+                    {/* Color Swatch Bar */}
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Palette:</span>
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#090A0F]" title="Canvas: #090A0F" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#11131A]" title="Card: #11131A" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#10B981]" title="Bull: #10B981 (Mint Emerald)" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#F43F5E]" title="Bear: #F43F5E (Coral Crimson)" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#F59E0B]" title="Accent: #F59E0B (Champagne Gold)" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#6366F1]" title="Accent: #6366F1 (Electric Indigo)" />
+                    </div>
+                  </div>
+
+                  {/* Preset 2: Classic Terminal */}
+                  <div
+                    onClick={() => setDarkPreset('CLASSIC_DARK')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-3 ${
+                      darkPreset === 'CLASSIC_DARK'
+                        ? 'bg-purple-500/10 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                        : 'bg-terminal-panel/50 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Classic Terminal
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-terminal-panel border border-terminal-border text-terminal-muted">
+                            LEGACY
+                          </span>
+                        </div>
+                        {darkPreset === 'CLASSIC_DARK' && (
+                          <div className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-terminal-muted leading-relaxed">
+                        Traditional deep navy-slate terminal canvas (#080B10) with standard emerald green (#22C55E), rose red (#F43F5E), and bright cyan (#00E5FF) highlights.
+                      </p>
+                    </div>
+
+                    {/* Color Swatch Bar */}
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Palette:</span>
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#080B10]" title="Canvas: #080B10" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#0D131C]" title="Card: #0D131C" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#22C55E]" title="Bull: #22C55E" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#F43F5E]" title="Bear: #F43F5E" />
+                      <span className="w-5 h-5 rounded-md border border-white/20 bg-[#00E5FF]" title="Accent: #00E5FF (Cyan)" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 2. LIGHT THEME PRESETS ── */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-terminal-border pb-2">
+                  <div className="flex items-center space-x-2">
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-terminal-text">
+                      Light Theme Preset (For All Light Mode Users)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono text-terminal-muted">
+                    Active: <strong className="text-amber-500">{lightPreset === 'ALABASTER_PRO' ? 'Alabaster Pro' : 'Classic Light'}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {/* Preset 1: Alabaster Pro (Recommended) */}
+                  <div
+                    onClick={() => setLightPreset('ALABASTER_PRO')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-3 ${
+                      lightPreset === 'ALABASTER_PRO'
+                        ? 'bg-amber-500/10 border-amber-500 shadow-md ring-1 ring-amber-500/50'
+                        : 'bg-terminal-panel/50 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Alabaster Pro
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40">
+                            NORDIC SLATE
+                          </span>
+                        </div>
+                        {lightPreset === 'ALABASTER_PRO' && (
+                          <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-terminal-muted leading-relaxed">
+                        Nordic Alabaster canvas (#F4F6F9) with floating pure white cards (#FFFFFF), deep ink charcoal typography (#111827), forest emerald (#15803D), ruby red (#DC2626), and royal sapphire blue (#2563EB).
+                      </p>
+                    </div>
+
+                    {/* Color Swatch Bar */}
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Palette:</span>
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#F4F6F9]" title="Canvas: #F4F6F9" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#FFFFFF]" title="Card: #FFFFFF" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#111827]" title="Text: #111827" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#15803D]" title="Bull: #15803D" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#DC2626]" title="Bear: #DC2626" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#2563EB]" title="Accent: #2563EB" />
+                    </div>
+                  </div>
+
+                  {/* Preset 2: Classic Light */}
+                  <div
+                    onClick={() => setLightPreset('CLASSIC_LIGHT')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-3 ${
+                      lightPreset === 'CLASSIC_LIGHT'
+                        ? 'bg-amber-500/10 border-amber-500 shadow-md ring-1 ring-amber-500/50'
+                        : 'bg-terminal-panel/50 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Classic Light
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-terminal-panel border border-terminal-border text-terminal-muted">
+                            LEGACY
+                          </span>
+                        </div>
+                        {lightPreset === 'CLASSIC_LIGHT' && (
+                          <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-terminal-muted leading-relaxed">
+                        Clinical off-white background (#F8FAFC) with pure white surfaces, deep slate typography (#0F172A), and standard green/rose markers.
+                      </p>
+                    </div>
+
+                    {/* Color Swatch Bar */}
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Palette:</span>
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#F8FAFC]" title="Canvas: #F8FAFC" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#FFFFFF]" title="Card: #FFFFFF" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#0F172A]" title="Text: #0F172A" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#16A34A]" title="Bull: #16A34A" />
+                      <span className="w-5 h-5 rounded-md border border-slate-300 bg-[#E11D48]" title="Bear: #E11D48" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
