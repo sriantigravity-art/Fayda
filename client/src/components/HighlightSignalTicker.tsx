@@ -364,14 +364,14 @@ export const HighlightSignalTicker: React.FC = () => {
       <div className="flex flex-col sm:hidden py-1 px-2.5 space-y-1">
         {/* LINE 1: FAYDA RADAR BRAND (LEFT) + SYSTEM TIME & CONTROLS (RIGHT) */}
         <div className="flex items-center justify-between gap-2 pt-0.5">
-          <div className="flex items-center space-x-1.5">
-            <div className="p-1 rounded-md bg-accent-cyan/15 border border-accent-cyan/40 text-accent-cyan">
-              <Zap className="w-3.5 h-3.5 animate-pulse" />
+          <div className="flex items-center space-x-1.5 min-w-0">
+            <div className="p-1 rounded-md bg-accent-cyan/15 border border-accent-cyan/40 text-accent-cyan shrink-0">
+              <Zap className="w-3 h-3 animate-pulse" />
             </div>
-            <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
+            <span className="text-[10px] font-bold tracking-tight uppercase text-terminal-text truncate">
               {isBeginner ? '🧭 MARKET COMPASS' : isExpert ? '🔬 QUANT RADAR' : '🧭 FAYDA RADAR'}
             </span>
-            <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+            <span className={`text-[8.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0 ${
               isLiveNseMarket 
                 ? 'bg-bull/20 text-bull border border-bull/40' 
                 : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
