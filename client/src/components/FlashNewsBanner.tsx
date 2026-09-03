@@ -73,12 +73,18 @@ export const FlashNewsBanner: React.FC = () => {
     switch (source) {
       case 'BLOOMBERG':
         return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1D2B53] text-white border border-[#2A3E75]">BLOOMBERG</span>;
-      case 'MONEYCONTROL':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#0D3B66] text-[#64DFDF] border border-[#64DFDF]/40">MONEYCONTROL</span>;
-      case 'CNBC_TV18':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#3E1F47] text-[#FF9E00] border border-[#FF9E00]/40">CNBC-TV18</span>;
       case 'REUTERS':
         return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#472D1F] text-[#FFB703] border border-[#FFB703]/40">REUTERS</span>;
+      case 'ECONOMIC_TIMES':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#5C1D24] text-[#FFAAA6] border border-[#FFAAA6]/40">ECONOMIC TIMES</span>;
+      case 'LIVEMINT':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#4A3000] text-[#FFB703] border border-[#FFB703]/40">LIVEMINT</span>;
+      case 'BUSINESS_STANDARD':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1B2A4A] text-[#70C1B3] border border-[#70C1B3]/40">BUSINESS STANDARD</span>;
+      case 'CNBC_TV18':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#3E1F47] text-[#FF9E00] border border-[#FF9E00]/40">CNBC-TV18</span>;
+      case 'MONEYCONTROL':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#0D3B66] text-[#64DFDF] border border-[#64DFDF]/40">MONEYCONTROL</span>;
       default:
         return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-terminal-panel text-accent-cyan border border-terminal-border">MARKET WIRE</span>;
     }
