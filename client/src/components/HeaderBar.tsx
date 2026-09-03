@@ -620,7 +620,7 @@ export const HeaderBar: React.FC = () => {
                     setSelectedIndex(sym as any);
                   }
                 }}
-                className={`flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${isSelected
+                className={`group flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${isSelected
                     ? 'bg-accent-sky/15 border-accent-sky/50 shadow-subtle'
                     : 'bg-terminal-panel/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
                   }`}
@@ -641,6 +641,22 @@ export const HeaderBar: React.FC = () => {
                     <span className="text-[9px] sm:text-[10px] text-terminal-muted tabular-nums animate-pulse">…</span>
                   )}
                 </div>
+
+                {/* Close / Unpin Asset Button */}
+                {visibleIndices.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleIndexVisibility(sym as any);
+                    }}
+                    className="p-0.5 -mr-0.5 rounded-full text-terminal-muted hover:text-rose-400 hover:bg-rose-500/15 transition-all opacity-70 hover:opacity-100 cursor-pointer"
+                    title={`Close ${sym} from bar`}
+                    aria-label={`Close ${sym}`}
+                  >
+                    <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  </button>
+                )}
               </div>
             );
           })}

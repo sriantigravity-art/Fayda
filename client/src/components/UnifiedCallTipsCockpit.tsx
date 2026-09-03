@@ -309,7 +309,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       <span>
                         {isBeginner ? '🟢 TOP CALL (SAFE BUY)' : isIntermediate ? '🟢 TOP CALL (BULLISH SNIPER)' : '🟢 TOP CALL (QUANT ALPHA)'}
                       </span>
-                    </div>
+                    </span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
                         🎯 {pkg.topCallTrade.confluenceScore}% {isBeginner ? 'PROBABILITY' : 'SCORE'}
@@ -453,7 +453,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       <span>
                         {isBeginner ? '🔴 TOP PUT (SAFE BUY)' : isIntermediate ? '🔴 TOP PUT (BEARISH SNIPER)' : '🔴 TOP PUT (QUANT ALPHA)'}
                       </span>
-                    </div>
+                    </span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
                         🎯 {pkg.topPutTrade.confluenceScore}% {isBeginner ? 'PROBABILITY' : 'SCORE'}
