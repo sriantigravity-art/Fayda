@@ -294,143 +294,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* ── 2. LIVE REGIME & CONFLUENCE BANNER ─────────────────────────────── */}
-      {mc && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-terminal-bg/80 border border-terminal-border/70 p-2.5 rounded-lg text-xs">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-accent-gold shrink-0" />
-            <div>
-              <div className="text-[10px] text-terminal-muted uppercase font-bold">Master Signal</div>
-              <div className={`font-black text-sm ${mc.overallSignal.includes('BUY_CALL') ? 'text-bull' : mc.overallSignal.includes('BUY_PUT') ? 'text-bear' : 'text-terminal-muted'}`}>
-                {mc.overallSignal.replace(/_/g, ' ')}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-accent-sky shrink-0" />
-            <div>
-              <div className="text-[10px] text-terminal-muted uppercase font-bold">Strategy Confluence</div>
-              <div className="font-bold text-terminal-text text-sm flex items-center gap-1">
-                <span>{mc.overallScore}% Score</span>
-                <span className="text-[10px] text-accent-gold font-normal">({mc.convictionLevel})</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-accent-purple shrink-0" />
-            <div>
-              <div className="text-[10px] text-terminal-muted uppercase font-bold">Market Regime</div>
-              <div className="font-bold text-terminal-text text-xs truncate max-w-[160px]" title={mc.regimeLabel}>
-                {mc.regimeLabel}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-            <div>
-              <div className="text-[10px] text-terminal-muted uppercase font-bold">Invalidation Level</div>
-              <div className="font-bold text-rose-400 font-mono text-xs">
-                ₹{Number(mc.invalidationPrice).toFixed(2)} ({selectedIndex})
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── 3. CARRIED FORWARD ACTIVE TRADES ───────────────────────────────── */}
-      {pkg?.carriedForwardTrades && pkg.carriedForwardTrades.length > 0 && (
-        <div className="flex flex-col space-y-2 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-3 rounded-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs tracking-wide">
-              <Repeat className="w-4 h-4 animate-spin" style={{ animationDuration: '10s' }} />
-              <span>CARRIED FORWARD ACTIVE TRADE — TREND CONTINUATION</span>
-            </div>
-            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded">
-              Original Session: {pkg.carriedForwardTrades[0].carriedFromSession || 'Prior Session'}
-            </span>
-          </div>
-
-          {pkg.carriedForwardTrades.map((cf) => {
-            const pnlPts = cf.pnlPoints !== undefined ? cf.pnlPoints : +(cf.currentLtp - cf.entryPrice).toFixed(2);
-            const pnlPercent = cf.pnlPct !== undefined ? cf.pnlPct : (cf.entryPrice > 0 ? +((pnlPts / cf.entryPrice) * 100).toFixed(2) : 0);
-            const isGain = pnlPts > 0;
-            const isLoss = pnlPts < 0;
-            const isIdentical = pnlPts === 0;
-
-            return (
-              <div 
-                key={cf.id} 
-                onClick={() => handleCarriedTradeClick(cf)}
-                className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 hover:bg-terminal-card border border-amber-500/20 hover:border-amber-500/50 p-2.5 rounded-lg text-xs transition-all cursor-pointer hover:shadow-md"
-                title="Click to view full trade breakdown"
-              >
-                <div className="col-span-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-terminal-text text-sm">{cf.contractSymbol}</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
-                      ACTIVE
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5">
-                    <span className="text-accent-gold font-medium">Call Given:</span>
-                    <span className="font-mono text-terminal-text font-bold">{cf.entryTimeFormatted}</span>
-                    <span className="text-terminal-muted">(Ref: ₹{Number(cf.entryPrice).toFixed(2)})</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] text-terminal-muted">Live Market LTP</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-bold font-mono text-terminal-text text-sm">₹{cf.currentLtp.toFixed(2)}</span>
-                    {isIdentical ? (
-                      <span className="text-[9px] text-cyan-400 font-bold font-mono">⚡ At Trigger</span>
-                    ) : isGain ? (
-                      <span className="text-[10px] text-bull font-bold font-mono">+{pnlPts.toFixed(2)} (+{pnlPercent.toFixed(2)}%)</span>
-                    ) : (
-                      <span className="text-[10px] text-bear font-bold font-mono">{pnlPts.toFixed(2)} ({pnlPercent.toFixed(2)}%)</span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] text-terminal-muted">Suggested Dip Entry</div>
-                  <div className="font-bold font-mono text-accent-cyan">
-                    ₹{(cf.dipEntryMin || (cf.entryPrice * 0.98)).toFixed(2)} - ₹{(cf.dipEntryMax || cf.entryPrice).toFixed(2)}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] text-terminal-muted">Stop Loss / Target 1</div>
-                  <div className="font-mono text-[11px]">
-                    <span className="font-bold text-bear">₹{Number(cf.stoplossPrice).toFixed(2)}</span>
-                    <span className="text-terminal-muted mx-1">/</span>
-                    <span className="font-bold text-bull">₹{Number(cf.target1Price).toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="text-right flex items-center justify-end gap-1.5">
-                  <span className={`px-2 py-1 rounded font-bold text-[10px] border ${
-                    cf.status === 'TARGET1_HIT' 
-                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                      : cf.status === 'SL_HIT'
-                      ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                      : isGain
-                      ? 'bg-bull/15 text-bull border-bull/30'
-                      : 'bg-accent-sky/15 text-accent-sky border-accent-sky/30'
-                  }`}>
-                    {cf.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : isIdentical ? '⚡ AT TRIGGER PRICE' : isGain ? '🚀 IN PROFIT' : '🛡️ RUNNING'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── 4. THE 3 SMART CALL TIPS UNDER ONE ROOF / MARKET CLOSED STATE ── */}
+      {/* ── 2. MARKET CLOSED STATE OR PRIME HIGH-PROBABILITY SIGNALS AT TOP ── */}
       {pkg?.currentSession === 'OFF_MARKET' ? (
         <div className="bg-gradient-to-br from-slate-900 via-terminal-card to-slate-950 border border-purple-500/30 rounded-2xl p-6 text-center shadow-2xl relative overflow-hidden flex flex-col items-center space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-inner">
@@ -482,7 +346,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
         </div>
       ) : (
         <div className="flex flex-col space-y-4">
-          {/* ── 4A. DEDICATED HIGH-PROBABILITY HOURLY SNIPER TRADES (SEPARATE TOP CALL & TOP PUT) ── */}
+          {/* ── 2A. PRIME HIGH-PROBABILITY HOURLY SNIPER TRADES (SEPARATE TOP CALL & TOP PUT) ── */}
           <div className="flex flex-col space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2 px-1">
               <div className="flex items-center gap-2">
@@ -776,7 +640,143 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
             </div>
           </div>
 
-          {/* ── 4B. SECONDARY ROW: HEDGED SPREAD & 0DTE GAMMA SNIPER ── */}
+          {/* ── 2B. LIVE REGIME & CONFLUENCE BANNER ── */}
+          {mc && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-terminal-bg/80 border border-terminal-border/70 p-2.5 rounded-lg text-xs">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-accent-gold shrink-0" />
+                <div>
+                  <div className="text-[10px] text-terminal-muted uppercase font-bold">Master Signal</div>
+                  <div className={`font-black text-sm ${mc.overallSignal.includes('BUY_CALL') ? 'text-bull' : mc.overallSignal.includes('BUY_PUT') ? 'text-bear' : 'text-terminal-muted'}`}>
+                    {mc.overallSignal.replace(/_/g, ' ')}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-accent-sky shrink-0" />
+                <div>
+                  <div className="text-[10px] text-terminal-muted uppercase font-bold">Strategy Confluence</div>
+                  <div className="font-bold text-terminal-text text-sm flex items-center gap-1">
+                    <span>{mc.overallScore}% Score</span>
+                    <span className="text-[10px] text-accent-gold font-normal">({mc.convictionLevel})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-accent-purple shrink-0" />
+                <div>
+                  <div className="text-[10px] text-terminal-muted uppercase font-bold">Market Regime</div>
+                  <div className="font-bold text-terminal-text text-xs truncate max-w-[160px]" title={mc.regimeLabel}>
+                    {mc.regimeLabel}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+                <div>
+                  <div className="text-[10px] text-terminal-muted uppercase font-bold">Invalidation Level</div>
+                  <div className="font-bold text-rose-400 font-mono text-xs">
+                    ₹{Number(mc.invalidationPrice).toFixed(2)} ({selectedIndex})
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 2C. CARRIED FORWARD ACTIVE TRADES ── */}
+          {pkg?.carriedForwardTrades && pkg.carriedForwardTrades.length > 0 && (
+            <div className="flex flex-col space-y-2 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-3 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs tracking-wide">
+                  <Repeat className="w-4 h-4 animate-spin" style={{ animationDuration: '10s' }} />
+                  <span>CARRIED FORWARD ACTIVE TRADE — TREND CONTINUATION</span>
+                </div>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded">
+                  Original Session: {pkg.carriedForwardTrades[0].carriedFromSession || 'Prior Session'}
+                </span>
+              </div>
+
+              {pkg.carriedForwardTrades.map((cf) => {
+                const pnlPts = cf.pnlPoints !== undefined ? cf.pnlPoints : +(cf.currentLtp - cf.entryPrice).toFixed(2);
+                const pnlPercent = cf.pnlPct !== undefined ? cf.pnlPct : (cf.entryPrice > 0 ? +((pnlPts / cf.entryPrice) * 100).toFixed(2) : 0);
+                const isGain = pnlPts > 0;
+                const isLoss = pnlPts < 0;
+                const isIdentical = pnlPts === 0;
+
+                return (
+                  <div 
+                    key={cf.id} 
+                    onClick={() => handleCarriedTradeClick(cf)}
+                    className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-center bg-terminal-card/90 hover:bg-terminal-card border border-amber-500/20 hover:border-amber-500/50 p-2.5 rounded-lg text-xs transition-all cursor-pointer hover:shadow-md"
+                    title="Click to view full trade breakdown"
+                  >
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-terminal-text text-sm">{cf.contractSymbol}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
+                          ACTIVE
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5">
+                        <span className="text-accent-gold font-medium">Call Given:</span>
+                        <span className="font-mono text-terminal-text font-bold">{cf.entryTimeFormatted}</span>
+                        <span className="text-terminal-muted">(Ref: ₹{Number(cf.entryPrice).toFixed(2)})</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] text-terminal-muted">Live Market LTP</div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-bold font-mono text-terminal-text text-sm">₹{cf.currentLtp.toFixed(2)}</span>
+                        {isIdentical ? (
+                          <span className="text-[9px] text-cyan-400 font-bold font-mono">⚡ At Trigger</span>
+                        ) : isGain ? (
+                          <span className="text-[10px] text-bull font-bold font-mono">+{pnlPts.toFixed(2)} (+{pnlPercent.toFixed(2)}%)</span>
+                        ) : (
+                          <span className="text-[10px] text-bear font-bold font-mono">{pnlPts.toFixed(2)} ({pnlPercent.toFixed(2)}%)</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] text-terminal-muted">Suggested Dip Entry</div>
+                      <div className="font-bold font-mono text-accent-cyan">
+                        ₹{(cf.dipEntryMin || (cf.entryPrice * 0.98)).toFixed(2)} - ₹{(cf.dipEntryMax || cf.entryPrice).toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] text-terminal-muted">Stop Loss / Target 1</div>
+                      <div className="font-mono text-[11px]">
+                        <span className="font-bold text-bear">₹{Number(cf.stoplossPrice).toFixed(2)}</span>
+                        <span className="text-terminal-muted mx-1">/</span>
+                        <span className="font-bold text-bull">₹{Number(cf.target1Price).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex items-center justify-end gap-1.5">
+                      <span className={`px-2 py-1 rounded font-bold text-[10px] border ${
+                        cf.status === 'TARGET1_HIT' 
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
+                          : cf.status === 'SL_HIT'
+                          ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                          : isGain
+                          ? 'bg-bull/15 text-bull border-bull/30'
+                          : 'bg-accent-sky/15 text-accent-sky border-accent-sky/30'
+                      }`}>
+                        {cf.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : isIdentical ? '⚡ AT TRIGGER PRICE' : isGain ? '🚀 IN PROFIT' : '🛡️ RUNNING'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── 2D. SECONDARY ROW: HEDGED SPREAD & 0DTE GAMMA SNIPER ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch pt-2 border-t border-terminal-border/60">
             {/* Card 2: Hedged Spread */}
             {pkg?.hedgedSpreadTrade ? (
