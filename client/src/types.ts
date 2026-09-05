@@ -176,6 +176,8 @@ export interface GlobalMarketContextData {
     nasdaq: { value: number; changePct: number };
     nikkei: { value: number; changePct: number };
     hangSeng: { value: number; changePct: number };
+    ftse?: { value: number; changePct: number };
+    dax?: { value: number; changePct: number };
     giftNifty: { value: number; changePct: number };
     brentCrude: { value: number; changePct: number };
     gold: { value: number; changePct: number };
@@ -214,6 +216,7 @@ export interface OptionStrikeData {
   strikePrice: number;
   callOI: number;
   callOIChange1m: number;
+  callOIChange5m?: number;
   callOIChangeTotal: number;
   callLtp: number;
   callLtpChange: number;
@@ -236,6 +239,7 @@ export interface OptionStrikeData {
   
   putOI: number;
   putOIChange1m: number;
+  putOIChange5m?: number;
   putOIChangeTotal: number;
   putLtp: number;
   putLtpChange: number;
@@ -777,6 +781,77 @@ export interface SyntheticArbitrageItem {
   opportunityNote: string;
 }
 
+export interface TechnicalIndicatorsData {
+  symbol: IndexSymbol;
+  spotPrice: number;
+  timestamp: string;
+  ema: {
+    ema9: number;
+    ema20: number;
+    ema50: number;
+    ema200: number;
+    trend: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH';
+    crossSignal: string;
+    distance9Pct: number;
+    distance20Pct: number;
+  };
+  rsi: {
+    value: number; // 0-100
+    condition: 'OVERBOUGHT' | 'BULLISH_MOMENTUM' | 'NEUTRAL' | 'BEARISH_MOMENTUM' | 'OVERSOLD';
+    description: string;
+  };
+  bollingerBands: {
+    upper: number;
+    middle: number;
+    lower: number;
+    bandwidthPct: number;
+    status: 'SQUEEZE_BREAKOUT_PENDING' | 'EXPANSION_TRENDING' | 'NORMAL_VOLATILITY';
+    position: 'ABOVE_UPPER' | 'UPPER_HALF' | 'LOWER_HALF' | 'BELOW_LOWER';
+  };
+  imi: {
+    value: number; // 0-100 Intraday Momentum Index
+    condition: 'OVERBOUGHT' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'OVERSOLD';
+    description: string;
+  };
+  vwap: {
+    value: number;
+    distancePoints: number;
+    distancePct: number;
+    position: 'ABOVE_VWAP' | 'AT_VWAP' | 'BELOW_VWAP';
+    bias: 'BULLISH_SUPPORT' | 'NEUTRAL_PIVOT' | 'BEARISH_RESISTANCE';
+  };
+  pcr: {
+    overall: number;
+    ntmCluster: number;
+    pcr5mChange: number;
+    sentiment: string;
+  };
+  oiSummary: {
+    totalCallOI: number;
+    totalPutOI: number;
+    netOIFlow: number; // positive = put dominance / bullish, negative = call writing
+    callOIChange5m: number;
+    putOIChange5m: number;
+    dominant5mFlow: 'CALL_WRITING' | 'PUT_WRITING' | 'CALL_UNWINDING' | 'PUT_UNWINDING' | 'BALANCED';
+  };
+  maxPain: {
+    strikePrice: number;
+    differenceFromSpot: number;
+    magneticPull: 'PULL_UP' | 'PINNED' | 'PULL_DOWN';
+  };
+  indiaVix: {
+    value: number;
+    changePct: number;
+    regime: 'LOW_VOLATILITY' | 'MODERATE' | 'ELEVATED' | 'EXTREME_VOLATILITY';
+    impactOnOptions: string;
+  };
+  fiiDiiFlow?: {
+    fiiNetCr: number;
+    diiNetCr: number;
+    bias: 'INSTITUTIONAL_ACCUMULATION' | 'BALANCED' | 'INSTITUTIONAL_DISTRIBUTION';
+  };
+}
+
 export interface MarketIndexState {
   symbol: IndexSymbol;
   spotPrice: number;
@@ -818,6 +893,7 @@ export interface MarketIndexState {
   indiaVix?: number;   // India VIX — live volatility index (NSE / Yahoo Finance)
   unifiedTipsPackage?: UnifiedSessionTipsPackage;
   ntmCluster?: NtmClusterState;
+  technicalIndicators?: TechnicalIndicatorsData;
 }
 
 export interface GlobalIndexItem {

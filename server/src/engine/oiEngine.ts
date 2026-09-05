@@ -22,6 +22,7 @@ import { MarketRegimeEngine } from './marketRegimeEngine.js';
 import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
 import { FaydaMultiLegEngine } from './faydaMultiLegEngine.js';
 import { ntmClusterEngine } from './ntmClusterEngine.js';
+import { technicalIndicatorsEngine } from './technicalIndicatorsEngine.js';
 import { isContractOrSignalExpired } from '../utils/expiryHelper.js';
 
 
@@ -144,6 +145,8 @@ export class OIEngine {
     let totalPutOI = 0;
     let totalCallOIChange1m = 0;
     let totalPutOIChange1m = 0;
+    let totalCallOIChange5m = 0;
+    let totalPutOIChange5m = 0;
 
     const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
     const isMarketOpenForSymbol = (() => {
@@ -193,6 +196,14 @@ export class OIEngine {
         ? realCallDelta 
         : (raw.callOIChangeTotal ? Math.round(raw.callOIChangeTotal / 60) : 0);
 
+      const prevStrike5m = prevEntry5m?.strikes.get(strike);
+      const prevCallOI5m = prevStrike5m ? prevStrike5m.callOI : raw.callOI;
+      const realCallDelta5m = raw.callOI - prevCallOI5m;
+      const callOIChange5m = realCallDelta5m !== 0
+        ? realCallDelta5m
+        : (raw.callOIChangeTotal ? Math.round(raw.callOIChangeTotal / 12) : 0);
+      totalCallOIChange5m += callOIChange5m;
+
       const callLtpChange = +(raw.callLtp - prevCallLtp).toFixed(2);
       const callLtpPctChange = prevCallLtp > 0 ? +((callLtpChange / prevCallLtp) * 100).toFixed(2) : 0;
       const callBuildup = classifyBuildup(callOIChange1m, callLtpChange);
@@ -225,6 +236,13 @@ export class OIEngine {
       const putOIChange1m = realPutDelta !== 0 
         ? realPutDelta 
         : (raw.putOIChangeTotal ? Math.round(raw.putOIChangeTotal / 60) : 0);
+
+      const prevPutOI5m = prevStrike5m ? prevStrike5m.putOI : raw.putOI;
+      const realPutDelta5m = raw.putOI - prevPutOI5m;
+      const putOIChange5m = realPutDelta5m !== 0
+        ? realPutDelta5m
+        : (raw.putOIChangeTotal ? Math.round(raw.putOIChangeTotal / 12) : 0);
+      totalPutOIChange5m += putOIChange5m;
 
       const putLtpChange = +(raw.putLtp - prevPutLtp).toFixed(2);
       const putLtpPctChange = prevPutLtp > 0 ? +((putLtpChange / prevPutLtp) * 100).toFixed(2) : 0;
@@ -317,6 +335,7 @@ export class OIEngine {
         strikePrice: strike,
         callOI: raw.callOI,
         callOIChange1m,
+        callOIChange5m,
         callOIChangeTotal: raw.callOIChangeTotal !== undefined ? raw.callOIChangeTotal : (callOIChange1m * 5),
         callLtp: raw.callLtp,
         callLtpChange,
@@ -337,6 +356,7 @@ export class OIEngine {
 
         putOI: raw.putOI,
         putOIChange1m,
+        putOIChange5m,
         putOIChangeTotal: raw.putOIChangeTotal !== undefined ? raw.putOIChangeTotal : (putOIChange1m * 5),
         putLtp: raw.putLtp,
         putLtpChange,
@@ -911,7 +931,21 @@ export class OIEngine {
         strikeStep,
         strikesRaw,
         spotChange
-      )
+      ),
+      technicalIndicators: technicalIndicatorsEngine.compute({
+        symbol,
+        spotPrice,
+        spotChange,
+        spotPctChange,
+        cprData,
+        pcr,
+        maxPain,
+        strikes: strikesData,
+        indiaVix,
+        clusterPcr: pcr.overallPcr,
+        totalCallOIChange5m,
+        totalPutOIChange5m
+      })
     };
 
     return {

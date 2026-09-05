@@ -31,6 +31,8 @@ export class GlobalMarketFeedService {
         const nasdaq = findInd('NASDAQ_100', 18540.20, 0.65);
         const nikkei = findInd('NIKKEI_225', 38720.00, 0.85);
         const hangSeng = findInd('HANG_SENG', 19680.10, -0.35);
+        const ftse = findInd('FTSE_100', 8240.20, 0.25);
+        const dax = findInd('DAX_40', 18650.00, 0.35);
         const brentCrude = findInd('BRENT_CRUDE', 72.85, -1.25);
         const gold = findInd('GOLD', 2685.40, 0.15);
         const dxy = findInd('DXY_DOLLAR', 104.20, -0.18);
@@ -40,6 +42,8 @@ export class GlobalMarketFeedService {
             nasdaq,
             nikkei,
             hangSeng,
+            ftse,
+            dax,
             giftNifty,
             brentCrude,
             gold,
