@@ -222,8 +222,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanUser = emailOrMobile.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    // 1. Direct Super Admin Master Login (Username: srikantsr, Password: Aryan@007#)
-    if (cleanUser === 'srikantsr') {
+    // 1. Direct Super Admin Master Login (Username: srikantsr or official admin email, Password: Aryan@007#)
+    const isSuperAdminIdentity = cleanUser === 'srikantsr' || cleanUser === 'admin@vertexinfo.co.in' || cleanUser === 'srikantsr@vertexinfo.co.in';
+
+    if (isSuperAdminIdentity || forceRole === 'SUPERADMIN') {
       if (cleanPass === 'Aryan@007#') {
         const superAdminUser: UserProfile = {
           id: 'ADM-SRIKANT-007',
@@ -260,17 +262,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setHasCompletedFirstLoginConsent(true);
         return { success: true };
       } else {
-        return { success: false, error: 'Invalid SuperAdmin password. Please enter correct credentials.' };
+        return { success: false, error: 'Invalid credentials for administrative access. Access denied.' };
       }
     }
 
-    // 2. Standard User Authentication (Subject to OTP or valid standard password)
-    const isSuperAdminEmail = emailOrMobile.toLowerCase().includes('admin') || forceRole === 'SUPERADMIN';
-    const assignedRole: UserRole = isSuperAdminEmail ? 'SUPERADMIN' : (forceRole || 'USER');
+    // 2. Standard User Authentication (Strictly assigns USER role, prevents privilege escalation)
+    const assignedRole: UserRole = 'USER';
 
     const loggedUser: UserProfile = {
-      id: isSuperAdminEmail ? 'ADM-001' : `USR-${Math.floor(100000 + Math.random() * 900000)}`,
-      fullName: isSuperAdminEmail ? 'SuperAdmin (Fayda Desk)' : (user?.fullName || 'Arun Kumar'),
+      id: `USR-${Math.floor(100000 + Math.random() * 900000)}`,
+      fullName: user?.fullName || 'Trader',
       email: emailOrMobile.includes('@') ? emailOrMobile : `${emailOrMobile}@vertexinfo.co.in`,
       mobile: emailOrMobile.replace(/[^0-9]/g, '') || (user?.mobile || '+91 98765 43210'),
       role: assignedRole,
@@ -285,7 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isVerified: true,
       createdAt: user?.createdAt || new Date().toISOString(),
       consentRecord: {
-        userId: isSuperAdminEmail ? 'ADM-001' : 'USR-CURRENT',
+        userId: 'USR-CURRENT',
         userEmail: emailOrMobile,
         riskDisclosureAccepted: true,
         noGuaranteedProfitAccepted: true,

@@ -76,6 +76,15 @@ export class DhanService {
     getConfig() {
         return { ...this.config };
     }
+    getPublicConfig() {
+        return {
+            clientId: this.config.clientId ? `${this.config.clientId.slice(0, 3)}***` : '',
+            isConnected: this.config.isConnected,
+            userName: this.config.userName,
+            lastConnected: this.config.lastConnected,
+            tokenExpiresAt: this.config.tokenExpiresAt
+        };
+    }
     setConfig(clientId, accessToken) {
         this.config = {
             clientId: clientId.trim(),

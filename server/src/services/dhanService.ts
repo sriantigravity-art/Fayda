@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { IndexSymbol, DhanConfig, ALL_SYMBOLS_CONFIG } from '../types.js';
+import { IndexSymbol, DhanConfig, PublicDhanConfig, ALL_SYMBOLS_CONFIG } from '../types.js';
 import { NseExpiryService } from './nseExpiryService.js';
 import type { FyersOptionChainResult } from './fyersService.js';
 
@@ -91,6 +91,16 @@ export class DhanService {
 
   public getConfig(): DhanConfig {
     return { ...this.config };
+  }
+
+  public getPublicConfig(): PublicDhanConfig {
+    return {
+      clientId: this.config.clientId ? `${this.config.clientId.slice(0, 3)}***` : '',
+      isConnected: this.config.isConnected,
+      userName: this.config.userName,
+      lastConnected: this.config.lastConnected,
+      tokenExpiresAt: this.config.tokenExpiresAt
+    };
   }
 
   public setConfig(clientId: string, accessToken: string) {

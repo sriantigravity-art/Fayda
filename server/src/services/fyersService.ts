@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { IndexSymbol, FyersConfig, ALL_SYMBOLS_CONFIG } from '../types.js';
+import { IndexSymbol, FyersConfig, PublicFyersConfig, ALL_SYMBOLS_CONFIG } from '../types.js';
 import { NseExpiryService } from './nseExpiryService.js';
 
 const findConfigPath = (): string => {
@@ -307,6 +307,17 @@ export class FyersService {
 
   public getConfig(): FyersConfig {
     return this.config;
+  }
+
+  public getPublicConfig(): PublicFyersConfig {
+    return {
+      appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
+      isConnected: this.config.isConnected,
+      userName: this.config.userName,
+      lastConnected: this.config.lastConnected,
+      tokenRefreshedAt: this.config.tokenRefreshedAt,
+      refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
+    };
   }
 
   public async exchangeAuthCode(

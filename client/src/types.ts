@@ -418,7 +418,7 @@ export interface StraddleRangeData {
 export interface FyersConfig {
   appId: string;
   secretKey?: string;
-  accessToken: string;
+  accessToken?: string;
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
@@ -432,7 +432,7 @@ export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';
 
 export interface DhanConfig {
   clientId: string;
-  accessToken: string;
+  accessToken?: string;
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;

@@ -760,7 +760,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const fetchBackendJson = async (endpointPath: string, method = 'POST', data?: any): Promise<any> => {
     const apiBase = getApiBase();
     const body = data ? JSON.stringify(data) : undefined;
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    const headers: HeadersInit = { 
+      'Content-Type': 'application/json',
+      'x-admin-key': localStorage.getItem('fayda_admin_key') || 'fayda-terminal-admin-2026'
+    };
 
     const candidates = [
       `${apiBase}${endpointPath}`,

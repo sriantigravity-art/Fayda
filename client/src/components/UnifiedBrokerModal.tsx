@@ -50,9 +50,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   const [dhanClientId, setDhanClientId] = useState<string>(() => {
     return dhanConfig.clientId || localStorage.getItem('dhan_client_id') || '';
   });
-  const [dhanAccessToken, setDhanAccessToken] = useState<string>(() => {
-    return dhanConfig.accessToken || localStorage.getItem('dhan_access_token') || '';
-  });
+  const [dhanAccessToken, setDhanAccessToken] = useState<string>('');
   const [showDhanToken, setShowDhanToken] = useState(false);
   const [dhanLoading, setDhanLoading] = useState(false);
   const [dhanStatusMsg, setDhanStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
@@ -61,17 +59,22 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   const [fyersAppId, setFyersAppId] = useState<string>(() => {
     return fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
   });
-  const [fyersSecretKey, setFyersSecretKey] = useState<string>(() => {
-    return fyersConfig.secretKey || localStorage.getItem('fyers_secret_key') || '';
-  });
+  const [fyersSecretKey, setFyersSecretKey] = useState<string>('');
   const [fyersAuthCode, setFyersAuthCode] = useState<string>('');
-  const [fyersAccessToken, setFyersAccessToken] = useState<string>(() => {
-    return fyersConfig.accessToken || localStorage.getItem('fyers_access_token') || '';
-  });
+  const [fyersAccessToken, setFyersAccessToken] = useState<string>('');
   const [showFyersSecret, setShowFyersSecret] = useState(false);
   const [fyersLoading, setFyersLoading] = useState(false);
   const [fyersStatusMsg, setFyersStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [fyersSubTab, setFyersSubTab] = useState<'AUTH_CODE' | 'DIRECT_TOKEN'>('AUTH_CODE');
+
+  // SEC-06 Remediation: Purge any legacy secrets accidentally stored in localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('fyers_secret_key');
+      localStorage.removeItem('fyers_access_token');
+      localStorage.removeItem('dhan_access_token');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (defaultBroker) {
@@ -81,13 +84,10 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
   useEffect(() => {
     if (dhanConfig.clientId) setDhanClientId(dhanConfig.clientId);
-    if (dhanConfig.accessToken) setDhanAccessToken(dhanConfig.accessToken);
   }, [dhanConfig]);
 
   useEffect(() => {
     if (fyersConfig.appId) setFyersAppId(fyersConfig.appId);
-    if (fyersConfig.secretKey) setFyersSecretKey(fyersConfig.secretKey);
-    if (fyersConfig.accessToken) setFyersAccessToken(fyersConfig.accessToken);
   }, [fyersConfig]);
 
   if (!isOpen) return null;
@@ -105,7 +105,6 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
     try {
       localStorage.setItem('dhan_client_id', dhanClientId.trim());
-      localStorage.setItem('dhan_access_token', dhanAccessToken.trim());
 
       const res = await connectDhan(dhanClientId.trim(), dhanAccessToken.trim());
       setDhanLoading(false);
@@ -142,8 +141,6 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
     const cleanAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : `${fyersAppId.trim()}-100`;
     localStorage.setItem('fyers_app_id', cleanAppId);
-    localStorage.setItem('fyers_secret_key', fyersSecretKey.trim());
-    localStorage.setItem('fyers_access_token', fyersAccessToken.trim());
 
     const res = await connectFyers(cleanAppId, fyersAccessToken.trim(), fyersSecretKey.trim());
     setFyersLoading(false);

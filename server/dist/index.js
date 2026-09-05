@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import { OIEngine } from './engine/oiEngine.js';
@@ -16,15 +18,73 @@ import { bseService } from './services/bseService.js';
 import { ALL_SYMBOLS_CONFIG } from './types.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
+// Admin authentication key for mutating configuration and broker management
+const ADMIN_KEY = process.env.ADMIN_SECRET_KEY || 'fayda-terminal-admin-2026';
+const requireAdminAuth = (req, res, next) => {
+    const providedKey = req.headers['x-admin-key'];
+    // Strict check if running in production with explicit secret configured
+    if (process.env.NODE_ENV === 'production' && process.env.ADMIN_SECRET_KEY) {
+        if (providedKey !== process.env.ADMIN_SECRET_KEY) {
+            return res.status(401).json({ success: false, error: 'Unauthorized: Invalid administrative authorization key.' });
+        }
+        return next();
+    }
+    // Allow if valid admin key is supplied
+    if (providedKey === ADMIN_KEY) {
+        return next();
+    }
+    // In local development / intranet, allow requests from localhost
+    const origin = (req.headers.origin || req.headers.host || '');
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return next();
+    }
+    return res.status(401).json({ success: false, error: 'Unauthorized: Administrative operations require an authorization key.' });
+};
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-    : ['http://localhost:5173', 'http://localhost:3000'];
+    : ['http://localhost:5173', 'http://localhost:3000', 'https://fayda-alpha.vercel.app'];
+// Security Headers via Helmet
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+}));
+// Whitelist CORS configuration
 app.use(cors({
-    origin: true,
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 ||
+            origin.startsWith('http://localhost:') ||
+            origin.startsWith('http://127.0.0.1:') ||
+            origin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+        return callback(new Error('CORS policy: Origin not allowed.'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'x-admin-key']
 }));
+// Rate limiting: General API endpoints
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests from this client, please slow down.' }
+});
+app.use('/api/', apiLimiter);
+// Sensitive endpoints limiter (broker auth, switches)
+const brokerAuthLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many broker requests. Please wait a minute.' }
+});
+app.use('/api/fyers/', brokerAuthLimiter);
+app.use('/api/dhan/', brokerAuthLimiter);
+app.use('/api/broker/', brokerAuthLimiter);
 app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -106,11 +166,11 @@ globalMarketFeedService.onUpdate((globalMarketContext) => {
     });
 });
 // Hook FyersService auto-renewal callback — broadcast new token state to all clients
-fyersService.onTokenRenewed = (newConfig) => {
+fyersService.onTokenRenewed = () => {
     console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
     broadcast({
         type: 'FYERS_STATUS',
-        fyersConfig: newConfig,
+        fyersConfig: fyersService.getPublicConfig(),
         dataSource: currentDataSource,
         isMarketOpen: isNseMarketOpen(),
         timestamp: new Date().toISOString()
@@ -133,7 +193,7 @@ globalIndicesService.onMarketOpen = () => {
     // 4. Also push a fresh FYERS_STATUS so header bar updates immediately
     broadcast({
         type: 'FYERS_STATUS',
-        fyersConfig: fyersService.getConfig(),
+        fyersConfig: fyersService.getPublicConfig(),
         dataSource: currentDataSource,
         isMarketOpen: true,
         timestamp: new Date().toISOString()
@@ -458,8 +518,8 @@ wss.on('connection', async (ws) => {
         globalIndices: globalIndicesService.getIndices(),
         globalMarketContext: globalMarketFeedService.getGlobalContext(),
         dataSource: currentDataSource,
-        fyersConfig: fyersService.getConfig(),
-        dhanConfig: dhanService.getConfig(),
+        fyersConfig: fyersService.getPublicConfig(),
+        dhanConfig: dhanService.getPublicConfig(),
         activeBroker: brokerManager.getActiveBroker(),
         effectiveBroker: brokerManager.getEffectiveLiveBroker(),
         isMarketOpen: isNseMarketOpen(),
@@ -660,7 +720,7 @@ setInterval(() => {
         });
     }
 }, 4000);
-app.post('/api/datasource', (req, res) => {
+app.post('/api/datasource', requireAdminAuth, (req, res) => {
     const { mode } = req.body;
     if (mode === 'NSE_LIVE' || mode === 'FYERS_LIVE') {
         currentDataSource = mode;
@@ -684,7 +744,7 @@ app.post('/api/datasource', (req, res) => {
     }
 });
 // ── DHAN API ENDPOINTS ───────────────────────────────────────────────────────
-app.post('/api/dhan/connect', async (req, res) => {
+app.post('/api/dhan/connect', requireAdminAuth, async (req, res) => {
     const { clientId, accessToken } = req.body;
     if (!clientId || !accessToken) {
         return res.status(400).json({ success: false, message: 'Dhan Client ID and Access Token are required' });
@@ -697,31 +757,31 @@ app.post('/api/dhan/connect', async (req, res) => {
     }
     broadcast({
         type: 'BROKER_UPDATE',
-        dhanConfig: dhanService.getConfig(),
-        fyersConfig: fyersService.getConfig(),
+        dhanConfig: dhanService.getPublicConfig(),
+        fyersConfig: fyersService.getPublicConfig(),
         activeBroker: brokerManager.getActiveBroker(),
         effectiveBroker: brokerManager.getEffectiveLiveBroker(),
         dataSource: currentDataSource,
         timestamp: new Date().toISOString()
     });
-    res.json({ success: result.success, message: result.message, config: dhanService.getConfig() });
+    res.json({ success: result.success, message: result.message, config: dhanService.getPublicConfig() });
 });
 app.get('/api/dhan/status', (req, res) => {
     res.json({
-        config: dhanService.getConfig(),
+        config: dhanService.getPublicConfig(),
         activeBroker: brokerManager.getActiveBroker(),
         effectiveBroker: brokerManager.getEffectiveLiveBroker()
     });
 });
-app.post('/api/dhan/disconnect', (req, res) => {
+app.post('/api/dhan/disconnect', requireAdminAuth, (req, res) => {
     dhanService.clearConfig();
     if (brokerManager.getActiveBroker() === 'DHAN') {
         brokerManager.setActiveBroker(fyersService.getConfig().isConnected ? 'FYERS' : 'SIMULATOR');
     }
     broadcast({
         type: 'BROKER_UPDATE',
-        dhanConfig: dhanService.getConfig(),
-        fyersConfig: fyersService.getConfig(),
+        dhanConfig: dhanService.getPublicConfig(),
+        fyersConfig: fyersService.getPublicConfig(),
         activeBroker: brokerManager.getActiveBroker(),
         effectiveBroker: brokerManager.getEffectiveLiveBroker(),
         dataSource: currentDataSource,
@@ -730,7 +790,7 @@ app.post('/api/dhan/disconnect', (req, res) => {
     res.json({ success: true, message: 'Disconnected from Dhan' });
 });
 // ── UNIFIED BROKER SWITCHER ENDPOINTS ─────────────────────────────────────────
-app.post('/api/broker/select', (req, res) => {
+app.post('/api/broker/select', requireAdminAuth, (req, res) => {
     const { broker } = req.body;
     if (broker === 'DHAN' || broker === 'FYERS' || broker === 'SIMULATOR') {
         brokerManager.setActiveBroker(broker);
@@ -745,8 +805,8 @@ app.post('/api/broker/select', (req, res) => {
         }
         broadcast({
             type: 'BROKER_UPDATE',
-            dhanConfig: dhanService.getConfig(),
-            fyersConfig: fyersService.getConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            fyersConfig: fyersService.getPublicConfig(),
             activeBroker: brokerManager.getActiveBroker(),
             effectiveBroker: brokerManager.getEffectiveLiveBroker(),
             dataSource: currentDataSource,
@@ -760,12 +820,12 @@ app.get('/api/broker/status', (req, res) => {
     res.json({
         activeBroker: brokerManager.getActiveBroker(),
         effectiveBroker: brokerManager.getEffectiveLiveBroker(),
-        dhan: dhanService.getConfig(),
-        fyers: fyersService.getConfig()
+        dhan: dhanService.getPublicConfig(),
+        fyers: fyersService.getPublicConfig()
     });
 });
 // Fyers Connection Endpoint
-app.post('/api/fyers/connect', async (req, res) => {
+app.post('/api/fyers/connect', requireAdminAuth, async (req, res) => {
     const { appId, accessToken, secretKey } = req.body;
     if (!appId || !accessToken) {
         return res.status(400).json({ error: 'Missing appId or accessToken' });
@@ -777,13 +837,13 @@ app.post('/api/fyers/connect', async (req, res) => {
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService.getConfig(),
+            fyersConfig: fyersService.getPublicConfig(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }
-    res.json(result);
+    res.json({ success: result.success, message: result.message, config: fyersService.getPublicConfig() });
 });
 // Fyers 1-Click OAuth Callback Endpoint (Auto-Capture & Exchange)
 app.get('/api/fyers/callback', async (req, res) => {
@@ -805,7 +865,6 @@ app.get('/api/fyers/callback', async (req, res) => {
     `);
     }
     if (!secretKey) {
-        // If secret key is not in server memory, redirect to frontend with auth_code query param so modal can auto-fill
         return res.redirect(`/?fyers_auth_code=${encodeURIComponent(authCode)}`);
     }
     const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
@@ -814,7 +873,7 @@ app.get('/api/fyers/callback', async (req, res) => {
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService.getConfig(),
+            fyersConfig: fyersService.getPublicConfig(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
@@ -849,25 +908,8 @@ app.get('/api/fyers/callback', async (req, res) => {
     `);
     }
 });
-// Manual Fyers Token Refresh Endpoint (uses stored refresh_token — no browser login needed)
-app.post('/api/fyers/refresh-token', async (req, res) => {
-    const result = await fyersService.refreshAccessToken();
-    if (result.success) {
-        currentDataSource = 'FYERS_LIVE';
-        startFyersPolling();
-        fyersService.scheduleNextDailyRenewal();
-        broadcast({
-            type: 'FYERS_STATUS',
-            fyersConfig: fyersService.getConfig(),
-            dataSource: currentDataSource,
-            isMarketOpen: isNseMarketOpen(),
-            timestamp: new Date().toISOString()
-        });
-    }
-    res.json(result);
-});
 // Fyers Auth Code Exchanger Endpoint
-app.post('/api/fyers/exchange-authcode', async (req, res) => {
+app.post('/api/fyers/exchange-authcode', requireAdminAuth, async (req, res) => {
     const { appId, secretKey, authCode } = req.body;
     if (!appId || !secretKey || !authCode) {
         return res.status(400).json({ success: false, message: 'Missing appId, secretKey, or authCode' });
@@ -878,30 +920,31 @@ app.post('/api/fyers/exchange-authcode', async (req, res) => {
         startFyersPolling();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService.getConfig(),
+            fyersConfig: fyersService.getPublicConfig(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }
-    res.json(result);
+    res.json({ success: result.success, message: result.message, config: fyersService.getPublicConfig() });
 });
-// Fyers Refresh Token Trigger / Renewal Endpoint
-app.post('/api/fyers/refresh-token', async (req, res) => {
+// Unified Fyers Refresh Token Trigger / Renewal Endpoint
+app.post('/api/fyers/refresh-token', requireAdminAuth, async (req, res) => {
     const { pin } = req.body || {};
     const result = await fyersService.refreshAccessToken(pin);
     if (result.success) {
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
+        fyersService.scheduleNextDailyRenewal();
         broadcast({
             type: 'FYERS_STATUS',
-            fyersConfig: fyersService.getConfig(),
+            fyersConfig: fyersService.getPublicConfig(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
         });
     }
-    res.json(result);
+    res.json({ success: result.success, message: result.message, config: fyersService.getPublicConfig() });
 });
 app.post('/api/expiry', (req, res) => {
     const { symbol, expiry } = req.body;
@@ -914,6 +957,14 @@ app.post('/api/expiry', (req, res) => {
     else {
         res.status(400).json({ error: 'Missing symbol or expiry' });
     }
+});
+// Centralized Express error handler
+app.use((err, _req, res, _next) => {
+    if (err.message && err.message.includes('CORS policy')) {
+        return res.status(403).json({ error: 'Forbidden: CORS policy restriction' });
+    }
+    console.error('[API Error]:', err.message || err);
+    return res.status(500).json({ error: 'Internal Server Error' });
 });
 server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT} (0.0.0.0)`);

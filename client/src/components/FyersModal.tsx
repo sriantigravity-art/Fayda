@@ -29,17 +29,22 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
   const [appId, setAppId] = useState<string>(() => {
     return fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
   });
-  const [secretKey, setSecretKey] = useState<string>(() => {
-    return fyersConfig.secretKey || localStorage.getItem('fyers_secret_key') || '';
-  });
+  const [secretKey, setSecretKey] = useState<string>('');
   const [authCode, setAuthCode] = useState<string>('');
-  const [accessToken, setAccessToken] = useState<string>(() => {
-    return fyersConfig.accessToken || localStorage.getItem('fyers_access_token') || '';
-  });
+  const [accessToken, setAccessToken] = useState<string>('');
 
   const [showSecret, setShowSecret] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
+
+  // SEC-06 Remediation: purge legacy credentials from localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('fyers_secret_key');
+      localStorage.removeItem('fyers_access_token');
+      localStorage.removeItem('dhan_access_token');
+    } catch {}
+  }, []);
 
   // Auto-detect URL auth code or success message on load
   useEffect(() => {
@@ -47,20 +52,12 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
     const code = params.get('fyers_auth_code') || params.get('auth_code');
     if (code) {
       setAuthCode(code);
-      const savedAppId = fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
-      const savedSecret = fyersConfig.secretKey || localStorage.getItem('fyers_secret_key') || '';
-      if (savedAppId && savedSecret) {
-        // Auto trigger exchange
-        doExchange(savedAppId, savedSecret, code);
-      }
     }
   }, []);
 
   // Sync state when config changes
   useEffect(() => {
     if (fyersConfig.appId) setAppId(fyersConfig.appId);
-    if (fyersConfig.secretKey) setSecretKey(fyersConfig.secretKey);
-    if (fyersConfig.accessToken) setAccessToken(fyersConfig.accessToken);
   }, [fyersConfig]);
 
   if (!isOpen) return null;
@@ -100,9 +97,7 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
 
     if (res.success) {
       localStorage.setItem('fyers_app_id', cleanAppId);
-      localStorage.setItem('fyers_secret_key', secretToUse.trim());
       if (res.accessToken) {
-        localStorage.setItem('fyers_access_token', res.accessToken);
         setAccessToken(res.accessToken);
       }
       setStatusMsg({ success: true, text: res.message || 'Connected to Fyers successfully!' });
@@ -179,8 +174,6 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
 
     if (res.success) {
       localStorage.setItem('fyers_app_id', cleanAppId);
-      localStorage.setItem('fyers_access_token', accessToken.trim());
-      if (secretKey.trim()) localStorage.setItem('fyers_secret_key', secretKey.trim());
       setStatusMsg({ success: true, text: res.message || 'Connected to Fyers successfully!' });
       await setDataSource('FYERS_LIVE');
       setTimeout(() => {

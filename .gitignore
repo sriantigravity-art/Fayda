@@ -38,6 +38,9 @@ Thumbs.db
 # Vercel
 .vercel
 
-# Runtime server data (generated at startup, not for version control)
+# Runtime server data & secrets (credentials, tokens, session configs)
+*fyersConfig.json
+*dhanConfig.json
+*brokerPreference.json
+*.local.json
 server/globalQuotesCache.json
-server/fyersConfig.json

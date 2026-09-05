@@ -271,6 +271,16 @@ export class FyersService {
     getConfig() {
         return this.config;
     }
+    getPublicConfig() {
+        return {
+            appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
+            isConnected: this.config.isConnected,
+            userName: this.config.userName,
+            lastConnected: this.config.lastConnected,
+            tokenRefreshedAt: this.config.tokenRefreshedAt,
+            refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
+        };
+    }
     async exchangeAuthCode(appId, secretKey, authCode) {
         let cleanAppId = appId.trim();
         if (cleanAppId && !cleanAppId.includes('-')) {
