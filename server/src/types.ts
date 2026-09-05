@@ -400,11 +400,28 @@ export interface FyersConfig {
   refreshTokenExpiresAt?: string;
 }
 
+export interface PublicFyersConfig {
+  appId: string;
+  isConnected: boolean;
+  userName?: string;
+  lastConnected?: string;
+  tokenRefreshedAt?: string;
+  refreshTokenExpiresAt?: string;
+}
+
 export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';
 
 export interface DhanConfig {
   clientId: string;
   accessToken: string;
+  isConnected: boolean;
+  userName?: string;
+  lastConnected?: string;
+  tokenExpiresAt?: string;
+}
+
+export interface PublicDhanConfig {
+  clientId: string;
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
