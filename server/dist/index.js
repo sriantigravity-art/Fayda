@@ -5,6 +5,8 @@ import http from 'http';
 import { OIEngine } from './engine/oiEngine.js';
 import { nseService } from './services/nseService.js';
 import { fyersService } from './services/fyersService.js';
+import { dhanService } from './services/dhanService.js';
+import { brokerManager } from './services/brokerManager.js';
 import { newsService } from './services/newsService.js';
 import { globalIndicesService } from './services/globalIndicesService.js';
 import { globalMarketFeedService } from './services/globalMarketFeedService.js';
@@ -166,10 +168,20 @@ const fetchSymbolSnapshot = async (symConfig) => {
         const chosenExp = selectedExpiries.get(symConfig.symbol);
         let res = null;
         let usedSource = currentDataSource;
-        if (currentDataSource === 'FYERS_LIVE') {
-            res = await fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
+        const effective = brokerManager.getEffectiveLiveBroker();
+        if (effective === 'DHAN') {
+            res = await dhanService.fetchOptionChain(symConfig.symbol, chosenExp);
+            if (res && res.strikes && res.strikes.length > 0) {
+                usedSource = 'DHAN_LIVE';
+            }
         }
-        // Seamless fallback to Official Exchange data if Fyers is not logged in or offline
+        else if (effective === 'FYERS' || currentDataSource === 'FYERS_LIVE') {
+            res = await fyersService.fetchOptionChain(symConfig.symbol, chosenExp);
+            if (res && res.strikes && res.strikes.length > 0) {
+                usedSource = 'FYERS_LIVE';
+            }
+        }
+        // Seamless fallback to Official Exchange data if active broker returned no strikes
         if (!res || !res.strikes || res.strikes.length === 0) {
             res = await nseService.fetchOptionChain(symConfig.symbol, chosenExp);
             usedSource = 'NSE_LIVE';
@@ -447,6 +459,9 @@ wss.on('connection', async (ws) => {
         globalMarketContext: globalMarketFeedService.getGlobalContext(),
         dataSource: currentDataSource,
         fyersConfig: fyersService.getConfig(),
+        dhanConfig: dhanService.getConfig(),
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker(),
         isMarketOpen: isNseMarketOpen(),
         allSymbolsConfig: ALL_SYMBOLS_CONFIG,
         timestamp: new Date().toISOString()
@@ -667,6 +682,87 @@ app.post('/api/datasource', (req, res) => {
     else {
         res.status(400).json({ error: 'Invalid mode. Use NSE_LIVE or FYERS_LIVE' });
     }
+});
+// ── DHAN API ENDPOINTS ───────────────────────────────────────────────────────
+app.post('/api/dhan/connect', async (req, res) => {
+    const { clientId, accessToken } = req.body;
+    if (!clientId || !accessToken) {
+        return res.status(400).json({ success: false, message: 'Dhan Client ID and Access Token are required' });
+    }
+    dhanService.setConfig(clientId, accessToken);
+    const result = await dhanService.validateConnection();
+    if (result.success) {
+        brokerManager.setActiveBroker('DHAN');
+        currentDataSource = 'DHAN_LIVE';
+    }
+    broadcast({
+        type: 'BROKER_UPDATE',
+        dhanConfig: dhanService.getConfig(),
+        fyersConfig: fyersService.getConfig(),
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+        dataSource: currentDataSource,
+        timestamp: new Date().toISOString()
+    });
+    res.json({ success: result.success, message: result.message, config: dhanService.getConfig() });
+});
+app.get('/api/dhan/status', (req, res) => {
+    res.json({
+        config: dhanService.getConfig(),
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker()
+    });
+});
+app.post('/api/dhan/disconnect', (req, res) => {
+    dhanService.clearConfig();
+    if (brokerManager.getActiveBroker() === 'DHAN') {
+        brokerManager.setActiveBroker(fyersService.getConfig().isConnected ? 'FYERS' : 'SIMULATOR');
+    }
+    broadcast({
+        type: 'BROKER_UPDATE',
+        dhanConfig: dhanService.getConfig(),
+        fyersConfig: fyersService.getConfig(),
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+        dataSource: currentDataSource,
+        timestamp: new Date().toISOString()
+    });
+    res.json({ success: true, message: 'Disconnected from Dhan' });
+});
+// ── UNIFIED BROKER SWITCHER ENDPOINTS ─────────────────────────────────────────
+app.post('/api/broker/select', (req, res) => {
+    const { broker } = req.body;
+    if (broker === 'DHAN' || broker === 'FYERS' || broker === 'SIMULATOR') {
+        brokerManager.setActiveBroker(broker);
+        if (broker === 'DHAN' && dhanService.getConfig().isConnected) {
+            currentDataSource = 'DHAN_LIVE';
+        }
+        else if (broker === 'FYERS' && fyersService.getConfig().isConnected) {
+            currentDataSource = 'FYERS_LIVE';
+        }
+        else {
+            currentDataSource = 'NSE_LIVE';
+        }
+        broadcast({
+            type: 'BROKER_UPDATE',
+            dhanConfig: dhanService.getConfig(),
+            fyersConfig: fyersService.getConfig(),
+            activeBroker: brokerManager.getActiveBroker(),
+            effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+            dataSource: currentDataSource,
+            timestamp: new Date().toISOString()
+        });
+        return res.json({ success: true, activeBroker: broker });
+    }
+    res.status(400).json({ success: false, message: 'Invalid broker. Choose DHAN, FYERS, or SIMULATOR' });
+});
+app.get('/api/broker/status', (req, res) => {
+    res.json({
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+        dhan: dhanService.getConfig(),
+        fyers: fyersService.getConfig()
+    });
 });
 // Fyers Connection Endpoint
 app.post('/api/fyers/connect', async (req, res) => {
