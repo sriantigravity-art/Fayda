@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent } from '../types';
+import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, DhanConfig, ActiveBroker, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
@@ -25,6 +25,15 @@ interface MarketContextType {
   setOptionExpiry: (expiry: string) => Promise<void>;
   dataSource: DataSourceMode;
   setDataSource: (mode: DataSourceMode) => Promise<void>;
+  // Multi-Broker Engine
+  activeBroker: ActiveBroker;
+  effectiveBroker: 'DHAN' | 'FYERS' | 'SIMULATOR';
+  selectBroker: (broker: ActiveBroker) => Promise<void>;
+  // Dhan Provider
+  dhanConfig: DhanConfig;
+  connectDhan: (clientId: string, accessToken: string) => Promise<{ success: boolean; message: string; userName?: string }>;
+  disconnectDhan: () => Promise<void>;
+  // Fyers Provider
   fyersConfig: FyersConfig;
   connectFyers: (appId: string, accessToken: string, secretKey?: string) => Promise<{ success: boolean; message: string; userName?: string }>;
   exchangeAuthCode: (appId: string, secretKey: string, authCode: string) => Promise<{ success: boolean; message: string; userName?: string; accessToken?: string }>;
@@ -116,6 +125,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     accessToken: '',
     isConnected: false
   });
+
+  // Dhan & Multi-Broker Platform States
+  const [dhanConfig, setDhanConfig] = useState<DhanConfig>({
+    clientId: '',
+    accessToken: '',
+    isConnected: false
+  });
+  const [activeBroker, setActiveBroker] = useState<ActiveBroker>('DHAN');
+  const [effectiveBroker, setEffectiveBroker] = useState<'DHAN' | 'FYERS' | 'SIMULATOR'>('SIMULATOR');
 
   const [latestExtremeSurge, setLatestExtremeSurge] = useState<SurgeEvent | null>(null);
 
@@ -388,6 +406,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.globalMarketContext) setGlobalMarketContext(msg.globalMarketContext);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
+          if (msg.dhanConfig) setDhanConfig(msg.dhanConfig);
+          if (msg.activeBroker) setActiveBroker(msg.activeBroker);
+          if (msg.effectiveBroker) setEffectiveBroker(msg.effectiveBroker);
+        } else if (msg.type === 'BROKER_UPDATE') {
+          if (msg.dhanConfig) setDhanConfig(msg.dhanConfig);
+          if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
+          if (msg.activeBroker) setActiveBroker(msg.activeBroker);
+          if (msg.effectiveBroker) setEffectiveBroker(msg.effectiveBroker);
+          if (msg.dataSource) setDataSourceState(msg.dataSource);
         } else if (msg.type === 'GLOBAL_INDICES_UPDATE') {
           if (msg.globalIndices) setGlobalIndices(msg.globalIndices);
         } else if (msg.type === 'GLOBAL_MARKET_CONTEXT_UPDATE') {
@@ -816,6 +843,52 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const connectDhan = async (clientId: string, accessToken: string) => {
+    try {
+      const json = await fetchBackendJson('/api/dhan/connect', 'POST', { clientId, accessToken });
+      if (json.success) {
+        setDhanConfig({
+          clientId,
+          accessToken,
+          isConnected: true,
+          userName: json.config?.userName || `Dhan Trader (${clientId})`,
+          lastConnected: new Date().toISOString()
+        });
+        setActiveBroker('DHAN');
+        setEffectiveBroker('DHAN');
+      }
+      return json;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Dhan connection failed' };
+    }
+  };
+
+  const disconnectDhan = async () => {
+    try {
+      await fetchBackendJson('/api/dhan/disconnect', 'POST', {});
+      setDhanConfig({
+        clientId: '',
+        accessToken: '',
+        isConnected: false
+      });
+      if (activeBroker === 'DHAN') {
+        setActiveBroker(fyersConfig.isConnected ? 'FYERS' : 'SIMULATOR');
+        setEffectiveBroker(fyersConfig.isConnected ? 'FYERS' : 'SIMULATOR');
+      }
+    } catch (err) {
+      console.warn('Dhan disconnect error:', err);
+    }
+  };
+
+  const selectBroker = async (broker: ActiveBroker) => {
+    setActiveBroker(broker);
+    try {
+      await fetchBackendJson('/api/broker/select', 'POST', { broker });
+    } catch (err) {
+      console.warn('Broker select error:', err);
+    }
+  };
+
   const selectedSurges = recentSurges.filter((s) => s.indexSymbol === selectedIndex);
 
   const refreshIndexStates = useCallback(async () => {
@@ -856,6 +929,12 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setOptionExpiry,
         dataSource,
         setDataSource,
+        activeBroker,
+        effectiveBroker,
+        selectBroker,
+        dhanConfig,
+        connectDhan,
+        disconnectDhan,
         fyersConfig,
         connectFyers,
         exchangeAuthCode,
@@ -919,6 +998,12 @@ export const useMarket = (): MarketContextType => {
       newsList: [],
       dataSource: 'NSE_FREE',
       setDataSource: () => {},
+      activeBroker: 'DHAN',
+      effectiveBroker: 'SIMULATOR',
+      selectBroker: async () => {},
+      dhanConfig: { clientId: '', accessToken: '', isConnected: false },
+      connectDhan: async () => ({ success: false, message: 'Fallback' }),
+      disconnectDhan: async () => {},
       fyersConfig: { isConfigured: false, appId: '', hasToken: false },
       setFyersConfig: () => {},
       latestTargetHitEvent: null,

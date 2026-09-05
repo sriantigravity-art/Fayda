@@ -86,7 +86,7 @@ export const ALL_SYMBOLS_CONFIG: SymbolConfig[] = [
 
 export type OptionType = 'CE' | 'PE';
 
-export type DataSourceMode = 'FYERS_LIVE' | 'NSE_LIVE';
+export type DataSourceMode = 'DHAN_LIVE' | 'FYERS_LIVE' | 'NSE_LIVE';
 
 export type BuildupType = 
   | 'LONG_BUILDUP' 
@@ -398,6 +398,17 @@ export interface FyersConfig {
   tokenRefreshedAt?: string;
   /** ISO timestamp when the refresh_token itself expires (15 days from initial login) */
   refreshTokenExpiresAt?: string;
+}
+
+export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';
+
+export interface DhanConfig {
+  clientId: string;
+  accessToken: string;
+  isConnected: boolean;
+  userName?: string;
+  lastConnected?: string;
+  tokenExpiresAt?: string;
 }
 
 export interface HeroZeroSignal {

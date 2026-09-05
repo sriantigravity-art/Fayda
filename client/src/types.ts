@@ -428,6 +428,17 @@ export interface FyersConfig {
   refreshTokenExpiresAt?: string;
 }
 
+export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';
+
+export interface DhanConfig {
+  clientId: string;
+  accessToken: string;
+  isConnected: boolean;
+  userName?: string;
+  lastConnected?: string;
+  tokenExpiresAt?: string;
+}
+
 export interface HeroZeroSignal {
   id: string;
   symbol: IndexSymbol;
