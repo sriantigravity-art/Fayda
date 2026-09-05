@@ -49,63 +49,104 @@ export const GlobalMarketContextBanner: React.FC = () => {
     </span>
   );
 
-  const formatPct = (val: number) => {
+  const formatPct = (val: number, labelPrefix?: string) => {
     const isPos = val >= 0;
     return (
-      <span className={`font-mono text-[10px] font-bold ${isPos ? 'text-bull' : 'text-bear'}`}>
-        {isPos ? '+' : ''}{val.toFixed(2)}%
+      <span className={`font-mono text-[10px] font-bold inline-flex items-center gap-0.5 ${isPos ? 'text-bull' : 'text-bear'}`}>
+        {labelPrefix && <span className="opacity-70">{labelPrefix}</span>}
+        <span>{isPos ? '+' : ''}{val.toFixed(2)}%</span>
       </span>
     );
   };
 
+  const fiiIsPos = (indicators.fiiNetBuyCr ?? 0) >= 0;
+  const diiIsPos = (indicators.diiNetBuyCr ?? 0) >= 0;
+
   return (
-    <div className="w-full bg-terminal-card/90 border-b border-terminal-border/80 text-terminal-text select-none text-xs font-mono shadow-sm">
+    <div className="w-full bg-terminal-card/95 border-b border-terminal-border/80 text-terminal-text select-none text-xs font-mono shadow-sm">
       {/* Primary Ticker Ribbon */}
       <div className="max-w-[1840px] mx-auto px-2 sm:px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
         {/* Left Side: Setup Badge & Key Global Indicators */}
-        <div className="flex items-center flex-wrap gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+        <div className="flex items-center flex-wrap gap-2 overflow-x-auto no-scrollbar py-0.5">
           {setupBadge}
 
-          {/* Quick Indicators Chips */}
-          <div className="flex items-center space-x-2 sm:space-x-3 text-[11px] font-sans">
+          {/* Quick Indicators Chips Matrix */}
+          <div className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 text-[11px] font-sans">
             {/* GIFT Nifty */}
-            <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border">
-              <span className="text-terminal-muted text-[10px] font-mono">GIFT NIFTY:</span>
-              <span className="font-bold text-terminal-text">₹{indicators.giftNifty.value.toFixed(0)}</span>
+            <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-semibold">GIFT NIFTY:</span>
+              <span className="font-bold text-terminal-text font-mono">₹{indicators.giftNifty.value.toFixed(0)}</span>
               {formatPct(indicators.giftNifty.changePct)}
             </div>
 
+            {/* USD/INR */}
+            <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-semibold">USD/INR:</span>
+              <span className="font-bold text-terminal-text font-mono">₹{indicators.usdInr.value.toFixed(2)}</span>
+              {formatPct(indicators.usdInr.changePct)}
+            </div>
+
             {/* Brent Crude */}
-            <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border">
-              <span className="text-terminal-muted text-[10px] font-mono">BRENT:</span>
-              <span className="font-bold text-terminal-text">${indicators.brentCrude.value.toFixed(2)}</span>
+            <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-semibold">CRUDE OIL:</span>
+              <span className="font-bold text-terminal-text font-mono">${indicators.brentCrude.value.toFixed(2)}</span>
               {formatPct(indicators.brentCrude.changePct)}
             </div>
 
-            {/* US 10Y Yield */}
-            <div className="hidden md:flex items-center space-x-1 px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border">
-              <span className="text-terminal-muted text-[10px] font-mono">US 10Y:</span>
-              <span className="font-bold text-terminal-text">{indicators.us10y.value.toFixed(2)}%</span>
-              {formatPct(indicators.us10y.changePct)}
+            {/* Asia Markets (Nikkei & Hang Seng) */}
+            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-bold text-accent-sky">ASIA:</span>
+              <span className="text-terminal-muted text-[10px] font-mono">Nikkei</span>
+              <span className="font-bold text-terminal-text font-mono">{indicators.nikkei.value.toFixed(0)}</span>
+              {formatPct(indicators.nikkei.changePct)}
+              <span className="text-terminal-border font-light">|</span>
+              <span className="text-terminal-muted text-[10px] font-mono">HSI</span>
+              <span className="font-bold text-terminal-text font-mono">{indicators.hangSeng.value.toFixed(0)}</span>
+              {formatPct(indicators.hangSeng.changePct)}
             </div>
 
-            {/* DXY */}
-            <div className="hidden lg:flex items-center space-x-1 px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border">
-              <span className="text-terminal-muted text-[10px] font-mono">DXY:</span>
-              <span className="font-bold text-terminal-text">{indicators.dxy.value.toFixed(2)}</span>
-              {formatPct(indicators.dxy.changePct)}
+            {/* US Markets (S&P 500 & Nasdaq) */}
+            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-bold text-accent-cyan">US:</span>
+              <span className="text-terminal-muted text-[10px] font-mono">S&P</span>
+              <span className="font-bold text-terminal-text font-mono">{indicators.sp500.value.toFixed(0)}</span>
+              {formatPct(indicators.sp500.changePct)}
+              <span className="text-terminal-border font-light">|</span>
+              <span className="text-terminal-muted text-[10px] font-mono">NDX</span>
+              <span className="font-bold text-terminal-text font-mono">{indicators.nasdaq.value.toFixed(0)}</span>
+              {formatPct(indicators.nasdaq.changePct)}
             </div>
 
-            {/* USD/INR */}
-            <div className="hidden sm:flex items-center space-x-1 px-1.5 py-0.5 rounded bg-terminal-panel border border-terminal-border">
-              <span className="text-terminal-muted text-[10px] font-mono">USD/INR:</span>
-              <span className="font-bold text-terminal-text">₹{indicators.usdInr.value.toFixed(2)}</span>
+            {/* Europe Markets (FTSE & DAX) */}
+            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border shrink-0 shadow-xs">
+              <span className="text-terminal-muted text-[10px] font-mono font-bold text-purple-400">EUROPE:</span>
+              <span className="text-terminal-muted text-[10px] font-mono">FTSE</span>
+              <span className="font-bold text-terminal-text font-mono">{(indicators.ftse?.value ?? 8240).toFixed(0)}</span>
+              {formatPct(indicators.ftse?.changePct ?? 0.25)}
+              <span className="text-terminal-border font-light">|</span>
+              <span className="text-terminal-muted text-[10px] font-mono">DAX</span>
+              <span className="font-bold text-terminal-text font-mono">{(indicators.dax?.value ?? 18650).toFixed(0)}</span>
+              {formatPct(indicators.dax?.changePct ?? 0.35)}
             </div>
 
-            {/* FII Net Buying */}
-            <div className="hidden xl:flex items-center space-x-1 px-1.5 py-0.5 rounded bg-bull/10 border border-bull/30 text-bull">
-              <span className="text-[10px] font-mono font-bold">FII NET:</span>
-              <span className="font-bold font-mono">+₹{indicators.fiiNetBuyCr.toLocaleString()} Cr</span>
+            {/* FII Data */}
+            <div className={`flex items-center space-x-1 px-2 py-0.5 rounded border shrink-0 ${
+              fiiIsPos ? 'bg-bull/10 border-bull/40 text-bull' : 'bg-bear/10 border-bear/40 text-bear'
+            }`}>
+              <span className="text-[10px] font-mono font-bold">FII:</span>
+              <span className="font-bold font-mono text-[11px]">
+                {fiiIsPos ? '+' : ''}₹{indicators.fiiNetBuyCr.toLocaleString()} Cr
+              </span>
+            </div>
+
+            {/* DII Data */}
+            <div className={`flex items-center space-x-1 px-2 py-0.5 rounded border shrink-0 ${
+              diiIsPos ? 'bg-bull/10 border-bull/40 text-bull' : 'bg-bear/10 border-bear/40 text-bear'
+            }`}>
+              <span className="text-[10px] font-mono font-bold">DII:</span>
+              <span className="font-bold font-mono text-[11px]">
+                {diiIsPos ? '+' : ''}₹{indicators.diiNetBuyCr.toLocaleString()} Cr
+              </span>
             </div>
           </div>
         </div>
@@ -122,7 +163,7 @@ export const GlobalMarketContextBanner: React.FC = () => {
           title="Toggle Global & Macro Intelligence Transmission Breakdown"
         >
           <Globe className="w-3.5 h-3.5 text-accent-cyan" />
-          <span className="hidden xs:inline">Macro Context & Transmission</span>
+          <span className="hidden xs:inline">Macro Breakdown</span>
           <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180 text-accent-cyan' : ''}`}>
             <ChevronDown className="w-3.5 h-3.5" />
           </div>

@@ -38,6 +38,7 @@ import { GlobalMarketContextBanner } from './components/GlobalMarketContextBanne
 import { TradeTipModal } from './components/TradeTipModal';
 import { EntityChartModal } from './components/EntityChartModal';
 import { OptionsDataTableModal } from './components/OptionsDataTableModal';
+import { TacticalStrikeSliderRadar } from './components/TacticalStrikeSliderRadar';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
 import { User, LogOut } from 'lucide-react';
 
@@ -93,6 +94,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
+        {/* Tactical Strike Slider (ATM ±3 Steps) & 10 Technical Indicators Deck */}
+        <TacticalStrikeSliderRadar />
+
         {/* Dual Market Intelligence & Pivot Range Ribbon (Side-by-Side Aligned to Top) */}
         {currentIndexState && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
