@@ -41,7 +41,7 @@ import {
   BarChart2
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { FyersModal } from './FyersModal';
+import { UnifiedBrokerModal } from './UnifiedBrokerModal';
 import { StockSelectorDropdown } from './StockSelectorDropdown';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { AuthModal } from './auth/AuthModal';
@@ -63,6 +63,9 @@ export const HeaderBar: React.FC = () => {
     setStrikeRange,
     strikeRange,
     setOptionExpiry,
+    effectiveBroker,
+    dhanConfig,
+    activeBroker,
     fyersConfig,
     dataSource,
     setDataSource,
@@ -312,18 +315,39 @@ export const HeaderBar: React.FC = () => {
 
           {/* DESKTOP-ONLY CONTROLS (Hidden on < 1024px, Available in Mobile Menu Dropdown) */}
           <div className="hidden lg:flex items-center space-x-1 sm:space-x-1.5">
-            {/* Fyers Broker Connect Button */}
+            {/* Unified Broker Connect Button */}
             <button
               type="button"
               onClick={() => setIsFyersModalOpen(true)}
-              className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-xs font-sans font-bold transition cursor-pointer shrink-0 ${isFyersActive
-                  ? 'bg-bull/15 border-bull/40 text-bull'
+              className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-xs font-sans font-bold transition cursor-pointer shrink-0 ${
+                effectiveBroker === 'DHAN'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                  : effectiveBroker === 'FYERS'
+                  ? 'bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400'
                   : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
                 }`}
-              title={isFyersActive ? 'Fyers API v3 Connected' : 'Connect Fyers Broker'}
+              title={
+                effectiveBroker === 'DHAN'
+                  ? 'DhanHQ API Connected (25 req/s Live)'
+                  : effectiveBroker === 'FYERS'
+                  ? 'Fyers API v3 Connected'
+                  : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
+              }
             >
-              <KeyRound className="w-3.5 h-3.5 text-accent-sky" />
-              <span className="hidden xl:inline">{isFyersActive ? 'Fyers Live' : 'Connect Fyers'}</span>
+              <KeyRound className={`w-3.5 h-3.5 ${
+                effectiveBroker === 'DHAN'
+                  ? 'text-emerald-500 animate-pulse'
+                  : effectiveBroker === 'FYERS'
+                  ? 'text-sky-500 animate-pulse'
+                  : 'text-accent-sky'
+              }`} />
+              <span className="hidden xl:inline">
+                {effectiveBroker === 'DHAN'
+                  ? 'Dhan Live'
+                  : effectiveBroker === 'FYERS'
+                  ? 'Fyers Live'
+                  : 'Connect Broker'}
+              </span>
             </button>
 
             {/* SuperAdmin Matrix Button (If Active) */}
@@ -717,7 +741,7 @@ export const HeaderBar: React.FC = () => {
       </div>
 
       {/* Modals & Drawers */}
-      <FyersModal isOpen={isFyersModalOpen} onClose={() => setIsFyersModalOpen(false)} />
+      <UnifiedBrokerModal isOpen={isFyersModalOpen} onClose={() => setIsFyersModalOpen(false)} />
       <RiskCalculatorModal isOpen={isRiskModalOpen} onClose={() => setIsRiskModalOpen(false)} defaultLtp={100} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <LegalDocumentModal isOpen={isLegalModalOpen} onClose={() => setIsLegalModalOpen(false)} initialDoc={activeLegalDoc} />
