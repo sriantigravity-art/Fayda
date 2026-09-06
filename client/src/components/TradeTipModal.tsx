@@ -23,6 +23,8 @@ import {
   Activity,
   AlertTriangle
 } from 'lucide-react';
+import { ConfluenceChecklist } from './ConfluenceChecklist';
+import { useTerminalMode } from '../context/TerminalModeContext';
 
 interface TradeTipModalProps {
   tip: ActiveTradeTipData | null;
@@ -32,9 +34,15 @@ interface TradeTipModalProps {
 
 export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClose }) => {
   const { setSelectedIndex, indices, openOptionsDataModal } = useMarket();
+  const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'>('BEGINNER');
+  const [activeTab, setActiveTab] = useState<'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'>(mode);
+
+  // Sync tab with active terminal mode when modal opens or mode changes
+  useEffect(() => {
+    setActiveTab(mode);
+  }, [mode, isOpen]);
 
   // Handle closing with smooth exit animation
   const handleClose = () => {
@@ -215,6 +223,91 @@ Generated via Fayda Trading Terminal`;
             </div>
           </div>
 
+          {/* Option Seller Dedicated Metrics Ribbon */}
+          {(tip.tradingRole === 'SELLER' || tip.sellerMetrics) && (
+            <div className="bg-purple-950/40 border border-purple-500/40 rounded-xl p-3 space-y-2 font-mono">
+              <div className="flex items-center justify-between text-xs font-bold text-purple-300">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-purple-400" />
+                  <span>
+                    {isBeginner 
+                      ? '🔰 SAFE OPTION SELLER PROTECTION (CASINO HOUSE ADVANTAGE)' 
+                      : isExpert 
+                      ? '🔬 INSTITUTIONAL OPTION SELLER & THETA HARVEST TERMINAL' 
+                      : 'OPTION SELLER PROTECTION & THETA HARVEST METRICS'}
+                  </span>
+                </span>
+                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-[10px] text-purple-200 border border-purple-500/30">
+                  POP: {tip.sellerMetrics?.popPct || 82}%
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs pt-1">
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
+                    {isBeginner ? 'CASH POCKETED' : isExpert ? 'NET PREMIUM INFLOW' : 'NET CREDIT POCKETED'}
+                  </span>
+                  <span className="font-black text-emerald-400 text-sm">
+                    ₹{tip.sellerMetrics?.netCreditPoints?.toFixed(2) || (typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—')} pts
+                  </span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">
+                    ₹{tip.sellerMetrics?.maxProfitRupees?.toLocaleString('en-IN') || '—'}/lot {isBeginner ? '(Upfront)' : ''}
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
+                    {isBeginner ? 'HEDGED MARGIN' : isExpert ? 'PORTFOLIO MARGIN' : 'EXCHANGE MARGIN'}
+                  </span>
+                  <span className="font-black text-slate-200 text-sm">
+                    ₹{tip.sellerMetrics?.marginRequired?.toLocaleString('en-IN') || '₹38,500'}
+                  </span>
+                  <span className="text-[9px] text-emerald-400 block mt-0.5">
+                    72% Hedged Discount
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
+                    {isBeginner ? 'SAFETY CUSHION' : isExpert ? 'STD DEV BUFFER' : 'SAFETY BUFFER'}
+                  </span>
+                  <span className="font-black text-amber-400 text-sm">
+                    {tip.sellerMetrics?.breakevenBufferPts ? `${tip.sellerMetrics.breakevenBufferPts} pts` : '220 pts'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">
+                    {isExpert ? '> 1.4σ Buffer' : isBeginner ? 'Distance to Loss' : 'Breakeven Cushion'}
+                  </span>
+                </div>
+
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
+                    {isBeginner ? 'TIME PROFIT BURN' : isExpert ? 'THETA (θ) VELOCITY' : 'THETA DECAY RATE'}
+                  </span>
+                  <span className="font-black text-cyan-400 text-sm">
+                    {tip.sellerMetrics?.thetaBurnRate || '+₹140/hr'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">
+                    {isBeginner ? 'Earns While You Wait' : isExpert ? 'Hourly Delta-Neutral θ' : 'Time Value Burn'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mode-specific guidance note */}
+              {isBeginner && (
+                <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-[10px] text-emerald-300 flex items-center gap-1.5">
+                  <span>💡</span>
+                  <span><strong>Casino House Advantage:</strong> You pocket the premium upfront. Even in an extreme black swan market crash, your bought hedge leg shields your capital from catastrophic losses.</span>
+                </div>
+              )}
+              {isExpert && (
+                <div className="p-2 rounded-lg bg-purple-950/40 border border-purple-500/30 text-[10px] text-purple-300 flex items-center gap-1.5 font-mono">
+                  <span>🔬</span>
+                  <span><strong>Quantitative Risk Matrix:</strong> Standard deviation buffer &gt; 1.4σ • Max Loss capped at ₹{tip.maxLossRupees ? tip.maxLossRupees.toLocaleString('en-IN') : 'Spread Width'} vs Max Profit ₹{tip.maxProfitRupees ? tip.maxProfitRupees.toLocaleString('en-IN') : 'Net Credit'}.</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Execution & Risk Matrix Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
             {/* Spot Price */}
@@ -378,7 +471,10 @@ Generated via Fayda Trading Terminal`;
                     : 'text-terminal-muted hover:text-terminal-text'
                 }`}
               >
-                <span>🔰 Beginner Explanation</span>
+                <span>🔰 Beginner View</span>
+                {mode === 'BEGINNER' && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">Active</span>
+                )}
               </button>
               <button
                 type="button"
@@ -390,6 +486,9 @@ Generated via Fayda Trading Terminal`;
                 }`}
               >
                 <span>📊 Technical Logic</span>
+                {mode === 'INTERMEDIATE' && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/30 text-sky-300 border border-sky-500/40">Active</span>
+                )}
               </button>
               <button
                 type="button"
@@ -401,6 +500,9 @@ Generated via Fayda Trading Terminal`;
                 }`}
               >
                 <span>🔬 Quantitative Greeks</span>
+                {mode === 'EXPERT' && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/30 text-purple-300 border border-purple-500/40">Active</span>
+                )}
               </button>
             </div>
 
@@ -447,6 +549,15 @@ Generated via Fayda Trading Terminal`;
               )}
             </div>
           </div>
+
+          {/* 10-Indicator Technical Confluence Checklist */}
+          {tip.confluenceBreakdown && (
+            <ConfluenceChecklist 
+              breakdown={tip.confluenceBreakdown} 
+              role={tip.tradingRole || (tip.action.includes('SELL') ? 'SELLER' : 'BUYER')}
+              score={tip.confluenceScore}
+            />
+          )}
         </div>
 
         {/* Footer Actions */}

@@ -821,6 +821,22 @@ export class OIEngine {
       strikeStep
     );
 
+    // Compute comprehensive 10-indicator technical & derivative suite
+    const technicalIndicators = technicalIndicatorsEngine.compute({
+      symbol,
+      spotPrice,
+      spotChange,
+      spotPctChange,
+      cprData,
+      pcr,
+      maxPain,
+      strikes: strikesData,
+      indiaVix,
+      clusterPcr: pcr.overallPcr,
+      totalCallOIChange5m,
+      totalPutOIChange5m
+    });
+
     const indexState: MarketIndexState = {
       symbol,
       spotPrice,
@@ -898,7 +914,9 @@ export class OIEngine {
           marketRegime,
           pcr,
           indiaVix,
-          prevTrades
+          prevTrades,
+          technicalIndicators,
+          maxPain
         );
 
         // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
@@ -913,6 +931,24 @@ export class OIEngine {
           if (!seenContractSymbols.has(tipsPackage.hedgedSpreadTrade.contractSymbol)) {
             activeToKeep.push(tipsPackage.hedgedSpreadTrade);
             seenContractSymbols.add(tipsPackage.hedgedSpreadTrade.contractSymbol);
+          }
+        }
+        if (tipsPackage.topSellerPutTrade && (tipsPackage.topSellerPutTrade.status === 'ACTIVE' || tipsPackage.topSellerPutTrade.status === 'TARGET1_HIT')) {
+          if (!seenContractSymbols.has(tipsPackage.topSellerPutTrade.contractSymbol)) {
+            activeToKeep.push(tipsPackage.topSellerPutTrade);
+            seenContractSymbols.add(tipsPackage.topSellerPutTrade.contractSymbol);
+          }
+        }
+        if (tipsPackage.topSellerCallTrade && (tipsPackage.topSellerCallTrade.status === 'ACTIVE' || tipsPackage.topSellerCallTrade.status === 'TARGET1_HIT')) {
+          if (!seenContractSymbols.has(tipsPackage.topSellerCallTrade.contractSymbol)) {
+            activeToKeep.push(tipsPackage.topSellerCallTrade);
+            seenContractSymbols.add(tipsPackage.topSellerCallTrade.contractSymbol);
+          }
+        }
+        if (tipsPackage.topSellerNeutralTrade && (tipsPackage.topSellerNeutralTrade.status === 'ACTIVE' || tipsPackage.topSellerNeutralTrade.status === 'TARGET1_HIT')) {
+          if (!seenContractSymbols.has(tipsPackage.topSellerNeutralTrade.contractSymbol)) {
+            activeToKeep.push(tipsPackage.topSellerNeutralTrade);
+            seenContractSymbols.add(tipsPackage.topSellerNeutralTrade.contractSymbol);
           }
         }
         for (const cf of tipsPackage.carriedForwardTrades) {
@@ -932,20 +968,7 @@ export class OIEngine {
         strikesRaw,
         spotChange
       ),
-      technicalIndicators: technicalIndicatorsEngine.compute({
-        symbol,
-        spotPrice,
-        spotChange,
-        spotPctChange,
-        cprData,
-        pcr,
-        maxPain,
-        strikes: strikesData,
-        indiaVix,
-        clusterPcr: pcr.overallPcr,
-        totalCallOIChange5m,
-        totalPutOIChange5m
-      })
+      technicalIndicators
     };
 
     return {

@@ -993,15 +993,54 @@ export type MarketSessionWindow =
   | 'COMMODITY_US_OPEN'         // 18:00 - 20:00 IST
   | 'COMMODITY_US_EOD'          // 20:00 - 23:30 IST
   | 'OFF_MARKET';
+export interface TipConfluenceFactor {
+  confirmed: boolean;
+  score: number;
+  weight: number;
+  details: string;
+}
+
+export interface TipConfluenceBreakdown {
+  oiConcentration: TipConfluenceFactor;
+  oiChange5m: TipConfluenceFactor;
+  emaStructure: TipConfluenceFactor;
+  indiaVix: TipConfluenceFactor;
+  vwapBenchmark: TipConfluenceFactor;
+  pcrVelocity: TipConfluenceFactor;
+  bollingerBands: TipConfluenceFactor;
+  rsiMomentum: TipConfluenceFactor;
+  imiCandles: TipConfluenceFactor;
+  maxPain: TipConfluenceFactor;
+  fiiDiiBonus?: { confirmed: boolean; bonus: number; details: string };
+  totalConfluenceScore: number;
+  confirmedCount: number;
+}
+
+export interface OptionSellerMetrics {
+  netCreditPerLot: number;
+  netCreditPts: number;
+  probabilityOfProfitPct: number;
+  estimatedMarginRupees: number;
+  marginSavingsPct: number;
+  maxProfitRupees: number;
+  maxLossRupees: number;
+  thetaDecayHourlyRupees: number;
+  safetyBufferPts: number;
+  hedgeLegSymbol: string;
+  lowerBreakeven?: number;
+  upperBreakeven?: number;
+}
 
 export interface UnifiedSmartTip {
   id: string;
   symbol: IndexSymbol;
   tier: 'PRIMARY_MOMENTUM' | 'HEDGED_SPREAD' | 'GAMMA_0DTE' | 'STANDBY';
   tierLabel: string;
+  tradingRole?: 'BUYER' | 'SELLER';
+  executionType?: 'NET_DEBIT' | 'NET_CREDIT';
   session: MarketSessionWindow;
   sessionName: string;
-  action: 'BUY_CALL' | 'BUY_PUT' | 'BULL_CALL_SPREAD' | 'BEAR_PUT_SPREAD' | 'WAIT' | 'STANDBY';
+  action: 'BUY_CALL' | 'BUY_PUT' | 'BULL_CALL_SPREAD' | 'BEAR_PUT_SPREAD' | 'SELL_PUT_SPREAD' | 'SELL_CALL_SPREAD' | 'IRON_CONDOR' | 'SELL_CALL' | 'SELL_PUT' | 'WAIT' | 'STANDBY';
   contractSymbol: string;
   strikePrice: number;
   optionType: 'CE' | 'PE' | 'SPREAD';
@@ -1036,6 +1075,8 @@ export interface UnifiedSmartTip {
     multiLegSpreadConfirmed: boolean;
     gammaExplosionConfirmed: boolean;
   };
+  confluenceBreakdown?: TipConfluenceBreakdown;
+  sellerMetrics?: OptionSellerMetrics;
   strategyTag: string;
   explanations: {
     beginner: string;
@@ -1071,8 +1112,13 @@ export interface UnifiedSessionTipsPackage {
   primaryTrade: UnifiedSmartTip | null;
   topCallTrade: UnifiedSmartTip | null;
   topPutTrade: UnifiedSmartTip | null;
+  topSellerPutTrade?: UnifiedSmartTip | null;
+  topSellerCallTrade?: UnifiedSmartTip | null;
+  topSellerNeutralTrade?: UnifiedSmartTip | null;
   hourlySlotId?: string;
   hourlyQuotaRemaining?: { calls: number; puts: number };
+  buyerQuotaRemaining?: { calls: number; puts: number };
+  sellerQuotaRemaining?: { putCredit: number; callCredit: number; neutral: number };
   hedgedSpreadTrade: UnifiedSmartTip | null;
   gammaTrade: UnifiedSmartTip | null;
   carriedForwardTrades: UnifiedSmartTip[];
@@ -1205,6 +1251,10 @@ export interface ActiveTradeTipData {
     premium: number;
     lotRatio?: number;
   }>;
+  tradingRole?: 'BUYER' | 'SELLER';
+  executionType?: 'NET_DEBIT' | 'NET_CREDIT';
+  confluenceBreakdown?: TipConfluenceBreakdown;
+  sellerMetrics?: OptionSellerMetrics;
 }
 
 

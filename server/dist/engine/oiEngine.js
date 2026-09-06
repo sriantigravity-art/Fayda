@@ -674,6 +674,21 @@ export class OIEngine {
             : null;
         // Evaluate 0DTE Gamma Spike & Hero-or-Zero Setups
         const heroZeroSignals = gammaEngine.evaluateHeroZeroSignals(symbol, spotPrice, atmStrike, strikesData, daysToExpiry, strikeStep);
+        // Compute comprehensive 10-indicator technical & derivative suite
+        const technicalIndicators = technicalIndicatorsEngine.compute({
+            symbol,
+            spotPrice,
+            spotChange,
+            spotPctChange,
+            cprData,
+            pcr,
+            maxPain,
+            strikes: strikesData,
+            indiaVix,
+            clusterPcr: pcr.overallPcr,
+            totalCallOIChange5m,
+            totalPutOIChange5m
+        });
         const indexState = {
             symbol,
             spotPrice,
@@ -719,7 +734,7 @@ export class OIEngine {
             unifiedTipsPackage: (() => {
                 const mc = ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternBreakout);
                 const prevTrades = this.sessionTradesHistory.get(symbol) || [];
-                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades);
+                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain);
                 // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
                 const activeToKeep = [];
                 const seenContractSymbols = new Set();
@@ -733,6 +748,24 @@ export class OIEngine {
                         seenContractSymbols.add(tipsPackage.hedgedSpreadTrade.contractSymbol);
                     }
                 }
+                if (tipsPackage.topSellerPutTrade && (tipsPackage.topSellerPutTrade.status === 'ACTIVE' || tipsPackage.topSellerPutTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.topSellerPutTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.topSellerPutTrade);
+                        seenContractSymbols.add(tipsPackage.topSellerPutTrade.contractSymbol);
+                    }
+                }
+                if (tipsPackage.topSellerCallTrade && (tipsPackage.topSellerCallTrade.status === 'ACTIVE' || tipsPackage.topSellerCallTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.topSellerCallTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.topSellerCallTrade);
+                        seenContractSymbols.add(tipsPackage.topSellerCallTrade.contractSymbol);
+                    }
+                }
+                if (tipsPackage.topSellerNeutralTrade && (tipsPackage.topSellerNeutralTrade.status === 'ACTIVE' || tipsPackage.topSellerNeutralTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.topSellerNeutralTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.topSellerNeutralTrade);
+                        seenContractSymbols.add(tipsPackage.topSellerNeutralTrade.contractSymbol);
+                    }
+                }
                 for (const cf of tipsPackage.carriedForwardTrades) {
                     if (!seenContractSymbols.has(cf.contractSymbol)) {
                         activeToKeep.push(cf);
@@ -743,20 +776,7 @@ export class OIEngine {
                 return tipsPackage;
             })(),
             ntmCluster: ntmClusterEngine.computeCluster(symbol, spotPrice, strikeStep, strikesRaw, spotChange),
-            technicalIndicators: technicalIndicatorsEngine.compute({
-                symbol,
-                spotPrice,
-                spotChange,
-                spotPctChange,
-                cprData,
-                pcr,
-                maxPain,
-                strikes: strikesData,
-                indiaVix,
-                clusterPcr: pcr.overallPcr,
-                totalCallOIChange5m,
-                totalPutOIChange5m
-            })
+            technicalIndicators
         };
         return {
             indexState,
