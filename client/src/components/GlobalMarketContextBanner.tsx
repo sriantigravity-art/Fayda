@@ -24,7 +24,6 @@ export const GlobalMarketContextBanner: React.FC = () => {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isAllView, setIsAllView] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(0);
 
   const SLIDE_DURATION_MS = 5000;
   const TICK_INTERVAL_MS = 100;
@@ -225,7 +224,7 @@ export const GlobalMarketContextBanner: React.FC = () => {
     ];
   }, [indicators, primaryDrivers, summary, fiiIsPos, diiIsPos]);
 
-  // 5-Second Loop Timer with Progress Tracking & Pause on Hover
+  // 5-Second Loop Timer with Pause on Hover
   useEffect(() => {
     if (slides.length === 0 || isAllView) return;
 
@@ -233,12 +232,9 @@ export const GlobalMarketContextBanner: React.FC = () => {
       if (isPaused || isHovered) return;
 
       elapsedRef.current += TICK_INTERVAL_MS;
-      const pct = Math.min(100, (elapsedRef.current / SLIDE_DURATION_MS) * 100);
-      setProgress(pct);
 
       if (elapsedRef.current >= SLIDE_DURATION_MS) {
         elapsedRef.current = 0;
-        setProgress(0);
         setCurrentSlide(prev => (prev + 1) % slides.length);
       }
     }, TICK_INTERVAL_MS);
@@ -250,19 +246,16 @@ export const GlobalMarketContextBanner: React.FC = () => {
 
   const handlePrev = () => {
     elapsedRef.current = 0;
-    setProgress(0);
     setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
   };
 
   const handleNext = () => {
     elapsedRef.current = 0;
-    setProgress(0);
     setCurrentSlide(prev => (prev + 1) % slides.length);
   };
 
   const handleSelectSlide = (idx: number) => {
     elapsedRef.current = 0;
-    setProgress(0);
     setCurrentSlide(idx);
   };
 
@@ -382,18 +375,8 @@ export const GlobalMarketContextBanner: React.FC = () => {
             </button>
           </div>
         </div>
-
-      {/* 5-Second Subtle Progress Bar (Visible only when auto-sliding) */}
-      {!isAllView && !isPaused && (
-        <div className="w-full h-[2px] bg-terminal-border/20 overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-accent-cyan via-accent-sky to-accent-cyan transition-all duration-100 ease-linear shadow-[0_0_6px_rgba(0,240,255,0.4)]"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 export default GlobalMarketContextBanner;
