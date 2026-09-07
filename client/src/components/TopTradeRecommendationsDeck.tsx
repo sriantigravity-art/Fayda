@@ -623,12 +623,18 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
   };
 
-  // Click handler for buttons: select to reveal details, or open modal if already selected
+  // Click handler for buttons: select to reveal details (smooth scroll), or toggle if already selected
   const handleButtonClick = (item: RecommendationTableItem) => {
     if (selectedItemId === item.id) {
-      handleOpenTipModal(item);
+      setSelectedItemId(null);
     } else {
       setSelectedItemId(item.id);
+      setTimeout(() => {
+        const el = document.getElementById('emergent-details-panel');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 50);
     }
   };
 
@@ -853,11 +859,6 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* ── HEAVYWEIGHT POINT CONTRIBUTION BAROMETER (STOCKEDGE / SENSEX / BANKNIFTY) ─── */}
-      <div className="px-3 sm:px-4 pt-3">
-        <IndexContributionBarometer />
-      </div>
-
       {/* ========================================================================= */}
       {/* ── 1. QUICK FOCUS BUTTONS VIEW (MINIMALIST, ATTRACTIVE, PROFESSIONAL) ─── */}
       {/* ========================================================================= */}
@@ -1015,20 +1016,42 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       </div>
                     </div>
 
-                    {/* Footer Micro-Bar: Confluence + Interactive Clue */}
+                    {/* Footer Micro-Bar: Confluence + Interactive Cues */}
                     <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] font-mono w-full">
                       <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                         <span>Score:</span>
                         <span className="font-black text-amber-600 dark:text-accent-gold">{item.confluenceScore}%</span>
                       </div>
 
-                      <div className={`flex items-center gap-0.5 font-bold ${
-                        isSelected 
-                          ? 'text-amber-600 dark:text-accent-gold' 
-                          : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
-                      }`}>
-                        <span>{isSelected ? 'Details Emerged ▲' : 'Click Details ▾'}</span>
-                        <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
+                      <div className="flex items-center gap-2">
+                        <span className={`flex items-center gap-0.5 font-bold ${
+                          isSelected 
+                            ? 'text-amber-600 dark:text-accent-gold' 
+                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
+                        }`}>
+                          <span>{isSelected ? 'Details Active ▲' : 'Click Details ▾'}</span>
+                          <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
+                        </span>
+
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenTipModal(item);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation();
+                              handleOpenTipModal(item);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wider flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
+                          title="Open Full Strategy Blueprint Modal"
+                        >
+                          <span>Blueprint</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </span>
                       </div>
                     </div>
                   </button>
@@ -1039,7 +1062,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
           {/* Emergent Details Panel (Emerges When User Clicks Any Button) */}
           {selectedItem && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300">
+            <div id="emergent-details-panel" className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300">
               {/* Emergent Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
@@ -1745,6 +1768,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         </div>
       </div>
     )}
+
+      {/* ── HEAVYWEIGHT POINT CONTRIBUTION BAROMETER (STOCKEDGE / SENSEX / BANKNIFTY) ─── */}
+      <div className="px-3 sm:px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20">
+        <IndexContributionBarometer />
+      </div>
 
       {/* ========================================================================= */}
       {/* ── BOTTOM SUMMARY DECK STRIP ──────────────────────────────────────────── */}

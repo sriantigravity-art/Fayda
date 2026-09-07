@@ -1128,32 +1128,10 @@ export class ConfluenceEngine {
     const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
     const isOffMarket = sessionInfo.session === 'OFF_MARKET';
 
-    // ── 0. Suspend Trade Suggestions When Market Is Closed ──────────────────
+    // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
     if (isOffMarket) {
-      return {
-        currentSession: sessionInfo.session,
-        currentSessionName: sessionInfo.sessionName,
-        sessionWindowTime: sessionInfo.windowTime,
-        quotaDescription: sessionInfo.quotaDescription,
-        primaryTrade: null,
-        topCallTrade: null,
-        topPutTrade: null,
-        topSellerPutTrade: null,
-        topSellerCallTrade: null,
-        topSellerNeutralTrade: null,
-        hourlySlotId: `${symbol}_OFF_MARKET`,
-        hourlyQuotaRemaining: { calls: 2, puts: 2 },
-        buyerQuotaRemaining: { calls: 2, puts: 2 },
-        sellerQuotaRemaining: { putCredit: 2, callCredit: 2, neutral: 2 },
-        hedgedSpreadTrade: null,
-        gammaTrade: null,
-        carriedForwardTrades: [],
-        regimeWarning: isCommodity
-          ? '🌙 MCX Commodity Market is CLOSED (23:30 - 09:00 IST). Live commodity trading opens at 09:00 AM IST.'
-          : '🌙 Indian NSE and BSE Market Closed! Visit Next Trading Day! Switch to MCX Commodities (Crude Oil, Natural Gas, Gold, Silver) to trade live evening sessions (Open until 11:30 PM IST).',
-        isNoTradeZone: true,
-        lastEvaluatedAt: new Date().toISOString()
-      };
+      sessionInfo.sessionName = 'Closing Benchmark (Study Mode)';
+      sessionInfo.quotaDescription = 'Market Closed • Displaying Closing Session Benchmark Setups for Study & Replay';
     }
 
     // ── 1. Carry-Forward Processing for Active Trades with Deduplication ────
