@@ -154,20 +154,20 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
   }, [currentLtp, entryPrice, target1Price, target2Price, stoplossPrice, currentTime]);
 
   return (
-    <div className="w-full bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-amber-400/40 dark:border-accent-gold/40 rounded-xl p-3 font-mono text-xs select-none shadow-md">
+    <div className="w-full bg-gradient-to-r from-amber-50/70 via-slate-50 to-amber-50/70 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border border-amber-300 dark:border-accent-gold/40 rounded-xl p-3 font-mono text-xs select-none shadow-xs">
       {/* ─────────────────────────────────────────────────────────────
           1. HEADER: DYNAMIC LIFECYCLE DIRECTIVE + RECOMMENDED ACTION
          ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center space-x-2">
-          <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0">
-            <ShieldCheck className="w-4 h-4 text-accent-gold animate-pulse" />
+          <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shrink-0">
+            <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-accent-gold animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-black text-white text-xs uppercase tracking-wide flex items-center gap-1.5">
+              <span className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wide flex items-center gap-1.5">
                 <span>Dynamic Trade Lifecycle Advisor</span>
-                <span className="text-[9px] font-sans font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-accent-gold border border-amber-500/30">
+                <span className="text-[9px] font-sans font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-800 dark:text-accent-gold border border-amber-500/30">
                   SEBI Discipline Engine
                 </span>
               </span>
@@ -180,8 +180,8 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
 
         {/* Action Directive Button */}
         <div className="flex items-center gap-2 self-end sm:self-center">
-          <span className="text-[10px] text-slate-400 uppercase font-bold">Recommended Directive:</span>
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wide shadow-sm flex items-center gap-1 ${analysis.actionClass}`}>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Recommended Directive:</span>
+          <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wide shadow-xs flex items-center gap-1 ${analysis.actionClass}`}>
             <Zap className="w-3 h-3" />
             <span>{analysis.actionDirective}</span>
           </span>
@@ -193,28 +193,28 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
          ───────────────────────────────────────────────────────────── */}
       <div className="my-2.5 grid grid-cols-1 md:grid-cols-3 gap-2.5">
         {/* Primary Trade Management Directive */}
-        <div className="md:col-span-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-start gap-2">
-          <Award className="w-4 h-4 text-accent-gold shrink-0 mt-0.5" />
+        <div className="md:col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-start gap-2 shadow-xs">
+          <Award className="w-4 h-4 text-amber-600 dark:text-accent-gold shrink-0 mt-0.5" />
           <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase block">
               Rule of Engagement (Standard Trading Discipline):
             </span>
-            <p className="text-[11px] text-slate-200 font-sans mt-0.5 leading-relaxed font-medium">
+            <p className="text-[11px] text-slate-800 dark:text-slate-200 font-sans mt-0.5 leading-relaxed font-medium">
               {analysis.primaryInstruction}
             </p>
           </div>
         </div>
 
         {/* Recommended Trailing Stop Loss Box */}
-        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
-          <span className="text-[10px] text-slate-400 font-bold uppercase">
+        <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">
             Trailing SL Target:
           </span>
           <div className="flex items-baseline justify-between mt-1">
-            <span className="text-base font-black text-accent-gold">
+            <span className="text-base font-black text-amber-600 dark:text-accent-gold">
               ₹{analysis.recommendedSl.toFixed(1)}
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
               {analysis.recommendedSl === entryPrice ? 'Risk-Free (Cost)' : analysis.recommendedSl > entryPrice ? 'Guaranteed Profit' : 'Initial Floor'}
             </span>
           </div>
@@ -224,18 +224,18 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       {/* ─────────────────────────────────────────────────────────────
           3. SESSION & SURGE TAILWIND NOTICES
          ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-600 dark:text-slate-400 font-sans">
         {/* Time of Day Context */}
         {analysis.sessionNote && (
-          <div className="flex items-center gap-1.5 text-amber-300">
-            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium">
+            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>{analysis.sessionNote}</span>
           </div>
         )}
 
         {/* Live Surge Tailwind */}
         {matchingSurge && (
-          <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-mono font-bold">
             <Flame className="w-3.5 h-3.5 text-rose-500 animate-pulse shrink-0" />
             <span>Institutional 1m Flow: +{matchingSurge.oiChangePct}% OI/min (Score {matchingSurge.surgeScore}/100)</span>
           </div>

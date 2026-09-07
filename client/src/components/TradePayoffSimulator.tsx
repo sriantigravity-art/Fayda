@@ -418,15 +418,15 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
           </div>
 
           {/* Visual Payoff Risk:Reward Horizon Bar */}
-          <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] flex flex-col space-y-1.5">
-            <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold uppercase">
-              <span>Risk: -₹{Math.abs(metrics.stoplossPnl).toLocaleString('en-IN')}</span>
-              <span className="text-accent-gold font-bold">Breakeven: ₹{entryPrice.toFixed(1)}</span>
-              <span className="text-emerald-400">Reward: +₹{metrics.target1Pnl.toLocaleString('en-IN')}</span>
+          <div className="p-2.5 rounded-xl bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-[11px] flex flex-col space-y-1.5 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase">
+              <span className="text-rose-700 dark:text-rose-400">Risk: -₹{Math.abs(metrics.stoplossPnl).toLocaleString('en-IN')}</span>
+              <span className="text-amber-700 dark:text-accent-gold font-bold">Breakeven: ₹{entryPrice.toFixed(1)}</span>
+              <span className="text-emerald-700 dark:text-emerald-400">Reward: +₹{metrics.target1Pnl.toLocaleString('en-IN')}</span>
             </div>
 
             {/* Dual Color Segmented Bar */}
-            <div className="w-full h-2 rounded-full bg-slate-800 flex overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-slate-300/80 dark:bg-slate-800 flex overflow-hidden">
               <div 
                 className="h-full bg-rose-500 transition-all duration-300"
                 style={{ width: '30%' }}
@@ -443,27 +443,27 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
           {/* ─────────────────────────────────────────────────────────────
               INTERACTIVE 2D SVG PAYOFF DIAGRAM & SPOT SLIDER (SENSIBULL / OPSTRA)
              ───────────────────────────────────────────────────────────── */}
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col space-y-2.5">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center space-x-2">
-                <span className="w-1.5 h-3.5 rounded-full bg-accent-gold" />
-                <span className="text-xs font-mono font-black text-white uppercase tracking-wider">
+                <span className="w-1.5 h-3.5 rounded-full bg-amber-500 dark:bg-accent-gold" />
+                <span className="text-xs font-mono font-black text-slate-900 dark:text-white uppercase tracking-wider">
                   Interactive 2D Strategy Payoff Curve
                 </span>
-                <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
                   Expiry Payoff
                 </span>
               </div>
 
               {/* Live Cursor Simulation Readout */}
               <div className="text-xs font-mono font-bold flex items-center gap-1.5">
-                <span className="text-slate-400 text-[10px]">Simulated Spot:</span>
-                <span className="text-white font-black">
+                <span className="text-slate-500 dark:text-slate-400 text-[10px]">Simulated Spot:</span>
+                <span className="text-slate-900 dark:text-white font-black">
                   {(strikePrice || 25000) + simulatedShift} ({simulatedShift >= 0 ? `+${simulatedShift}` : `${simulatedShift}`} pts)
                 </span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-400 dark:text-slate-600">•</span>
                 <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                  simulatedOutcome.pnl >= 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  simulatedOutcome.pnl >= 0 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/40'
                 }`}>
                   P&L: {simulatedOutcome.pnl >= 0 ? '+' : ''}₹{Math.round(simulatedOutcome.pnl).toLocaleString('en-IN')} ({simulatedOutcome.pct >= 0 ? '+' : ''}{simulatedOutcome.pct}%)
                 </span>
@@ -471,7 +471,7 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
             </div>
 
             {/* SVG Interactive Canvas */}
-            <div className="w-full h-36 relative overflow-hidden rounded-lg bg-slate-900/60 border border-slate-800/80">
+            <div className="w-full h-36 relative overflow-hidden rounded-lg bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 shadow-inner">
               <svg 
                 viewBox="0 0 600 140" 
                 preserveAspectRatio="none"
@@ -489,13 +489,13 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
                 </defs>
 
                 {/* Zero P&L Line */}
-                <line x1="0" y1="70" x2="600" y2="70" stroke="#475569" strokeDasharray="3 3" strokeWidth="1.2" />
+                <line x1="0" y1="70" x2="600" y2="70" stroke="#94a3b8" strokeDasharray="3 3" strokeWidth="1.2" />
 
                 {/* Vertical Current Spot Line (Center X = 300) */}
-                <line x1="300" y1="10" x2="300" y2="130" stroke="#F59E0B" strokeDasharray="2 2" strokeWidth="1" opacity="0.7" />
+                <line x1="300" y1="10" x2="300" y2="130" stroke="#F59E0B" strokeDasharray="2 2" strokeWidth="1" opacity="0.8" />
 
                 {/* Breakeven Marker (approx X = 360 for Call or X = 240 for Put) */}
-                <line x1={isCall ? 360 : 240} y1="30" x2={isCall ? 360 : 240} y2="110" stroke="#38BDF8" strokeDasharray="1 2" strokeWidth="1" />
+                <line x1={isCall ? 360 : 240} y1="30" x2={isCall ? 360 : 240} y2="110" stroke="#0284c7" strokeDasharray="1 2" strokeWidth="1" />
 
                 {/* Payoff Curve Polygon Area (Profit) */}
                 <polygon 
@@ -513,7 +513,7 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
                 <path 
                   d={curvePoints.svgPath}
                   fill="none"
-                  stroke="#FBBF24"
+                  stroke="#d97706"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -532,20 +532,20 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
               </svg>
 
               {/* On-Chart Key Markers */}
-              <div className="absolute top-1 left-2 text-[9px] font-mono text-emerald-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
+              <div className="absolute top-1 left-2 text-[9px] font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-white/90 dark:bg-slate-950/80 px-1.5 py-0.5 rounded border border-emerald-400/40 dark:border-emerald-500/30 shadow-xs">
                 ▲ Max Profit Zone
               </div>
-              <div className="absolute bottom-1 left-2 text-[9px] font-mono text-rose-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-rose-500/30">
+              <div className="absolute bottom-1 left-2 text-[9px] font-mono text-rose-700 dark:text-rose-400 font-bold bg-white/90 dark:bg-slate-950/80 px-1.5 py-0.5 rounded border border-rose-400/40 dark:border-rose-500/30 shadow-xs">
                 ▼ Defined Risk Floor
               </div>
-              <div className="absolute top-1 right-2 text-[9px] font-mono text-amber-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-amber-500/30">
+              <div className="absolute top-1 right-2 text-[9px] font-mono text-amber-700 dark:text-amber-400 font-bold bg-white/90 dark:bg-slate-950/80 px-1.5 py-0.5 rounded border border-amber-400/40 dark:border-amber-500/30 shadow-xs">
                 Spot: {(strikePrice || 25000)}
               </div>
             </div>
 
             {/* Spot Price Simulation Slider */}
             <div className="flex items-center space-x-3 pt-1">
-              <span className="text-[10px] font-mono text-slate-400 uppercase font-bold shrink-0">
+              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-bold shrink-0">
                 Shift Spot: -150 pts
               </span>
               <input
@@ -555,15 +555,15 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
                 step="5"
                 value={simulatedShift}
                 onChange={(e) => setSimulatedShift(parseInt(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1.5 bg-slate-300 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
-              <span className="text-[10px] font-mono text-slate-400 uppercase font-bold shrink-0">
+              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-bold shrink-0">
                 +150 pts
               </span>
               <button
                 type="button"
                 onClick={() => setSimulatedShift(0)}
-                className="px-2 py-0.5 rounded text-[9px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer shrink-0"
+                className="px-2 py-0.5 rounded text-[9px] font-mono bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer shrink-0 font-bold"
                 title="Reset simulation to current spot"
               >
                 Reset

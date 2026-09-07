@@ -160,7 +160,7 @@ export const IndexContributionBarometer: React.FC = () => {
             </div>
 
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5 block">
-              {alignmentVerdict.label} • {positiveCount}/{totalCount} Drivers Positive (+{positiveImpact} pts / {negativeImpact} pts)
+              <strong className="text-slate-700 dark:text-slate-300">Market Alignment:</strong> {alignmentVerdict.label} • <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Positive Boosters: +{positiveImpact} pts</span> • <span className="text-rose-700 dark:text-rose-400 font-semibold">Negative Drag: {negativeImpact} pts</span> • <span className="text-slate-600 dark:text-slate-400">Advancing: {positiveCount}/{totalCount} Stocks</span>
             </span>
           </div>
         </div>
@@ -173,16 +173,17 @@ export const IndexContributionBarometer: React.FC = () => {
               return (
                 <div 
                   key={stock.symbol}
-                  className={`px-2 py-1 rounded-lg border text-[11px] font-mono flex items-center gap-1 shrink-0 ${
+                  className={`px-2 py-1 rounded-lg border text-[11px] font-mono flex items-center gap-1.5 shrink-0 ${
                     isBull 
                       ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/80' 
                       : 'bg-rose-50/80 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800/80'
                   }`}
-                  title={`${stock.name}: ${stock.pctChange > 0 ? `+${stock.pctChange}%` : `${stock.pctChange}%`} | Weight: ${stock.weight}%`}
+                  title={`${stock.name}: Weight: ${stock.weight}%, Stock Change: ${stock.pctChange > 0 ? `+${stock.pctChange}%` : `${stock.pctChange}%`}, Point Impact: ${isBull ? `+${stock.pointImpact}` : `${stock.pointImpact}`} pts`}
                 >
                   <span className="font-bold">{stock.symbol}:</span>
-                  <span className="font-black">{isBull ? `+${stock.pointImpact}` : `${stock.pointImpact}`}</span>
-                  <span className="text-[9px] opacity-80">({stock.pctChange > 0 ? `+${stock.pctChange}%` : `${stock.pctChange}%`})</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">Impact:</span>
+                  <span className="font-black">{isBull ? `+${stock.pointImpact}` : `${stock.pointImpact}`} pts</span>
+                  <span className="text-[9px] opacity-80">(Chg: {stock.pctChange > 0 ? `+${stock.pctChange}%` : `${stock.pctChange}%`})</span>
                 </div>
               );
             })}
@@ -209,30 +210,37 @@ export const IndexContributionBarometer: React.FC = () => {
           <div className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono ${alignmentVerdict.badgeClass}`}>
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 shrink-0" />
+              <span className="text-slate-500 dark:text-slate-400 uppercase font-bold text-[10px]">Alignment State:</span>
               <strong className="font-black uppercase">{alignmentVerdict.label}:</strong>
               <span className="font-sans font-medium text-slate-700 dark:text-slate-200">{alignmentVerdict.explanation}</span>
             </div>
+
+            <div className="flex items-center gap-2 text-[11px] shrink-0">
+              <span className="px-2.5 py-1 rounded-lg bg-white/95 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-700/80 shadow-xs font-mono">
+                <span className="text-slate-600 dark:text-slate-400 text-[10px] font-bold">Net Impact:</span> <strong className={netPointImpact >= 0 ? 'text-emerald-700 dark:text-emerald-400 font-black' : 'text-rose-700 dark:text-rose-400 font-black'}>{netPointImpact >= 0 ? `+${netPointImpact}` : `${netPointImpact}`} pts</strong>
+              </span>
+            </div>
           </div>
 
-          {/* Heavyweight Contribution Visual Distribution Bar */}
-          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex flex-col space-y-1.5 font-mono text-[10px]">
-            <div className="flex items-center justify-between text-slate-400 font-bold uppercase">
-              <span className="text-rose-400">Draggers: {negativeImpact} pts</span>
-              <span className="text-accent-gold font-bold">Index Spot: {spotPrice.toFixed(0)}</span>
-              <span className="text-emerald-400">Boosters: +{positiveImpact} pts</span>
+          {/* Heavyweight Contribution Visual Distribution Bar (Pure Light & Dark Compatible) */}
+          <div className="bg-slate-100/95 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col space-y-1.5 font-mono text-[10px] shadow-xs">
+            <div className="flex items-center justify-between font-bold uppercase flex-wrap gap-1">
+              <span className="text-rose-700 dark:text-rose-400">Total Negative Drag (Draggers): {negativeImpact} pts</span>
+              <span className="text-slate-800 dark:text-accent-gold font-black">Current Index Spot: {spotPrice.toFixed(0)}</span>
+              <span className="text-emerald-700 dark:text-emerald-400">Total Positive Contribution (Boosters): +{positiveImpact} pts</span>
             </div>
 
             {/* Split Bar */}
-            <div className="w-full h-2 rounded-full bg-slate-800 flex overflow-hidden">
+            <div className="w-full h-2.5 rounded-full bg-slate-300/80 dark:bg-slate-800 flex overflow-hidden">
               <div 
                 className="h-full bg-rose-500 transition-all duration-300"
                 style={{ width: `${Math.max(15, Math.min(85, Math.abs(negativeImpact) / (Math.abs(negativeImpact) + Math.abs(positiveImpact) || 1) * 100))}%` }}
-                title={`Draggers: ${negativeImpact} pts`}
+                title={`Draggers Drag: ${negativeImpact} pts`}
               />
               <div 
                 className="h-full bg-emerald-500 transition-all duration-300"
                 style={{ width: `${Math.max(15, Math.min(85, Math.abs(positiveImpact) / (Math.abs(negativeImpact) + Math.abs(positiveImpact) || 1) * 100))}%` }}
-                title={`Boosters: +${positiveImpact} pts`}
+                title={`Boosters Contribution: +${positiveImpact} pts`}
               />
             </div>
           </div>
@@ -244,24 +252,36 @@ export const IndexContributionBarometer: React.FC = () => {
               return (
                 <div 
                   key={stock.symbol}
-                  className={`p-2 rounded-xl border flex flex-col justify-between ${
+                  className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-1.5 ${
                     isBull 
                       ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/60' 
                       : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Stock Symbol & Weight */}
+                  <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
                     <span className="font-black text-slate-900 dark:text-white truncate" title={stock.name}>
                       {stock.symbol}
                     </span>
-                    <span className="text-[9px] text-slate-500 dark:text-slate-400">
-                      {stock.weight}%
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400" title="Weightage in Index">
+                      <span className="text-[9px] text-slate-400">Weight: </span>{stock.weight}%
                     </span>
                   </div>
 
-                  <div className="mt-1 flex items-baseline justify-between">
-                    <span className={`font-black text-sm ${isBull ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                      {isBull ? `+${stock.pointImpact}` : `${stock.pointImpact}`} <span className="text-[9px] font-normal">pts</span>
+                  {/* Point Contribution with Explicit Title */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
+                      Point Impact:
+                    </span>
+                    <span className={`font-black text-xs ${isBull ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {isBull ? `+${stock.pointImpact}` : `${stock.pointImpact}`} pts
+                    </span>
+                  </div>
+
+                  {/* Stock Price % Change with Explicit Title */}
+                  <div className="flex items-center justify-between pt-0.5 border-t border-slate-200/40 dark:border-slate-800/40">
+                    <span className="text-[9px] text-slate-500 dark:text-slate-400">
+                      Stock Change:
                     </span>
                     <span className={`text-[10px] font-bold ${isBull ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                       {stock.pctChange > 0 ? `+${stock.pctChange}%` : `${stock.pctChange}%`}
