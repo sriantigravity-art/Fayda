@@ -1245,8 +1245,13 @@ export class ConfluenceEngine {
             slotEntry.calls[0] = topCallTrade;
         }
         else {
-            const ceCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 150 && s.callLtp > 0);
-            const bestCeStrike = ceCandidates.sort((a, b) => b.callOIChange1m - a.callOIChange1m)[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            const ceCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.callLtp > 0).sort((a, b) => b.callOIChange1m - a.callOIChange1m);
+            let bestCeStrike = ceCandidates[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            if (primaryTrade && primaryTrade.optionType === 'CE' && bestCeStrike && primaryTrade.strikePrice === bestCeStrike.strikePrice && ceCandidates.length > 1) {
+                const alt = ceCandidates.find(s => s.strikePrice !== primaryTrade?.strikePrice);
+                if (alt)
+                    bestCeStrike = alt;
+            }
             if (bestCeStrike && bestCeStrike.callLtp > 0) {
                 const callConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_CALL', spotPrice, bestCeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let callProb = callConfluence.totalConfluenceScore;
@@ -1352,8 +1357,13 @@ export class ConfluenceEngine {
             slotEntry.puts[0] = topPutTrade;
         }
         else {
-            const peCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 150 && s.putLtp > 0);
-            const bestPeStrike = peCandidates.sort((a, b) => b.putOIChange1m - a.putOIChange1m)[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            const peCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.putLtp > 0).sort((a, b) => b.putOIChange1m - a.putOIChange1m);
+            let bestPeStrike = peCandidates[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            if (primaryTrade && primaryTrade.optionType === 'PE' && bestPeStrike && primaryTrade.strikePrice === bestPeStrike.strikePrice && peCandidates.length > 1) {
+                const alt = peCandidates.find(s => s.strikePrice !== primaryTrade?.strikePrice);
+                if (alt)
+                    bestPeStrike = alt;
+            }
             if (bestPeStrike && bestPeStrike.putLtp > 0) {
                 const putConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_PUT', spotPrice, bestPeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let putProb = putConfluence.totalConfluenceScore;
@@ -1970,6 +1980,26 @@ export class ConfluenceEngine {
                 }
             };
         }
+        // Deduplicate carriedForwardTrades so they never replicate any currently active setup
+        const activeContractSymbols = new Set();
+        const normalizeSym = (sym) => (sym || '').replace(/\s+/g, '').toUpperCase();
+        if (primaryTrade)
+            activeContractSymbols.add(normalizeSym(primaryTrade.contractSymbol));
+        if (topCallTrade)
+            activeContractSymbols.add(normalizeSym(topCallTrade.contractSymbol));
+        if (topPutTrade)
+            activeContractSymbols.add(normalizeSym(topPutTrade.contractSymbol));
+        if (topSellerPutTrade)
+            activeContractSymbols.add(normalizeSym(topSellerPutTrade.contractSymbol));
+        if (topSellerCallTrade)
+            activeContractSymbols.add(normalizeSym(topSellerCallTrade.contractSymbol));
+        if (topSellerNeutralTrade)
+            activeContractSymbols.add(normalizeSym(topSellerNeutralTrade.contractSymbol));
+        if (hedgedSpreadTrade)
+            activeContractSymbols.add(normalizeSym(hedgedSpreadTrade.contractSymbol));
+        if (gammaTrade && gammaTrade.action !== 'STANDBY')
+            activeContractSymbols.add(normalizeSym(gammaTrade.contractSymbol));
+        const deduplicatedCarriedForward = carriedForwardTrades.filter(t => !activeContractSymbols.has(normalizeSym(t.contractSymbol)));
         return {
             currentSession: sessionInfo.session,
             currentSessionName: sessionInfo.sessionName,
@@ -1987,7 +2017,7 @@ export class ConfluenceEngine {
             sellerQuotaRemaining,
             hedgedSpreadTrade,
             gammaTrade,
-            carriedForwardTrades,
+            carriedForwardTrades: deduplicatedCarriedForward,
             regimeWarning: masterConfluence.marketRegime === 'RANGE_BOUND_CHOP' || masterConfluence.marketRegime === 'IV_CRUSH_ZONE'
                 ? `⚠️ ${masterConfluence.regimeLabel}: High choppy risk. Use Hedged Spreads or hold capital.`
                 : undefined,

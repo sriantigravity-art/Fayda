@@ -105,12 +105,43 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     const multiLegStrategy = currentIndexState.multiLegStrategy;
 
     const list: RecommendationTableItem[] = [];
+    const seenContracts = new Set<string>();
+
+    const getDedupeKey = (item: {
+      contractSymbol?: string;
+      strikePrice?: number;
+      optionType?: string;
+      action?: string;
+      role?: string;
+    }) => {
+      // Clean contract symbol: e.g. "SILVER 235500 CE", "SILVER 235500 CE (0DTE Gamma Burst)"
+      // Strip parenthesized/bracketed modifiers and spaces to extract the true underlying contract
+      const rawContract = (item.contractSymbol || '')
+        .replace(/\(.*?\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/\s+/g, '')
+        .toUpperCase();
+      
+      if (rawContract) {
+        return `${item.role || 'BUYER'}_${rawContract}`;
+      }
+      return `${item.role || 'BUYER'}_${item.optionType || ''}_${item.action || ''}_${item.strikePrice || 0}`;
+    };
+
+    const addUniqueItem = (item: RecommendationTableItem) => {
+      const key = getDedupeKey(item);
+      if (seenContracts.has(key)) {
+        return; // Deduplicate: Skip duplicate recommendation
+      }
+      seenContracts.add(key);
+      list.push(item);
+    };
 
     // 1. PRIMARY TRADE
     if (pkg?.primaryTrade) {
       const t = pkg.primaryTrade;
       const isSeller = t.tradingRole === 'SELLER' || t.executionType === 'NET_CREDIT';
-      list.push({
+      addUniqueItem({
         id: `primary-${t.id}`,
         category: isSeller ? 'SELLERS' : 'BUYERS',
         categoryTitle: isSeller ? '🛡️ Option Sellers & Credit Spreads' : '🟢 Option Buyers (High Alpha CE/PE)',
@@ -147,9 +178,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
 
     // 2. TOP CALL TRADE (Option Buyer)
-    if (pkg?.topCallTrade && pkg.topCallTrade.id !== pkg.primaryTrade?.id) {
+    if (pkg?.topCallTrade) {
       const t = pkg.topCallTrade;
-      list.push({
+      addUniqueItem({
         id: `buyer-call-${t.id}`,
         category: 'BUYERS',
         categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
@@ -179,9 +210,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
 
     // 3. TOP PUT TRADE (Option Buyer)
-    if (pkg?.topPutTrade && pkg.topPutTrade.id !== pkg.primaryTrade?.id) {
+    if (pkg?.topPutTrade) {
       const t = pkg.topPutTrade;
-      list.push({
+      addUniqueItem({
         id: `buyer-put-${t.id}`,
         category: 'BUYERS',
         categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
@@ -213,7 +244,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 4. TOP SELLER PUT TRADE (Bull Put Credit Spread)
     if (pkg?.topSellerPutTrade) {
       const t = pkg.topSellerPutTrade;
-      list.push({
+      addUniqueItem({
         id: `seller-put-${t.id}`,
         category: 'SELLERS',
         categoryTitle: '🛡️ Option Sellers & Credit Spreads',
@@ -252,7 +283,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 5. TOP SELLER CALL TRADE (Bear Call Credit Spread)
     if (pkg?.topSellerCallTrade) {
       const t = pkg.topSellerCallTrade;
-      list.push({
+      addUniqueItem({
         id: `seller-call-${t.id}`,
         category: 'SELLERS',
         categoryTitle: '🛡️ Option Sellers & Credit Spreads',
@@ -291,7 +322,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 6. TOP SELLER NEUTRAL TRADE (Iron Condor / Strangle)
     if (pkg?.topSellerNeutralTrade) {
       const t = pkg.topSellerNeutralTrade;
-      list.push({
+      addUniqueItem({
         id: `seller-neutral-${t.id}`,
         category: 'SELLERS',
         categoryTitle: '🛡️ Option Sellers & Credit Spreads',
@@ -330,7 +361,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 7. GAMMA / 0DTE HERO-OR-ZERO
     if (pkg?.gammaTrade && pkg.gammaTrade.action !== 'STANDBY') {
       const t = pkg.gammaTrade;
-      list.push({
+      addUniqueItem({
         id: `gamma-${t.id}`,
         category: 'GAMMA',
         categoryTitle: '⚡ 0DTE Hero-or-Zero (Gamma Explosion)',
@@ -361,7 +392,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       });
     } else if (heroZeroSignals && heroZeroSignals.length > 0) {
       const hz = heroZeroSignals[0];
-      list.push({
+      addUniqueItem({
         id: `gamma-${hz.id}`,
         category: 'GAMMA',
         categoryTitle: '⚡ 0DTE Hero-or-Zero (Gamma Explosion)',
@@ -395,7 +426,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 8. HEDGED SPREAD / BREAKOUT
     if (pkg?.hedgedSpreadTrade) {
       const t = pkg.hedgedSpreadTrade;
-      list.push({
+      addUniqueItem({
         id: `hedged-${t.id}`,
         category: 'BREAKOUTS',
         categoryTitle: '📈 Breakouts & Multi-Leg Formations',
@@ -432,7 +463,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     if (pkg?.carriedForwardTrades && pkg.carriedForwardTrades.length > 0) {
       pkg.carriedForwardTrades.forEach((t, idx) => {
         const isSeller = t.tradingRole === 'SELLER' || t.executionType === 'NET_CREDIT';
-        list.push({
+        addUniqueItem({
           id: `carried-${t.id}-${idx}`,
           category: isSeller ? 'SELLERS' : 'BUYERS',
           categoryTitle: isSeller ? '🛡️ Option Sellers & Credit Spreads' : '🟢 Option Buyers (High Alpha CE/PE)',
@@ -462,7 +493,18 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       });
     }
 
-    return list;
+    // Final defensive deduplication pass to guarantee zero duplicates
+    const finalSeen = new Set<string>();
+    const deduplicatedList: RecommendationTableItem[] = [];
+    for (const item of list) {
+      const k = getDedupeKey(item);
+      if (!finalSeen.has(k)) {
+        finalSeen.add(k);
+        deduplicatedList.push(item);
+      }
+    }
+
+    return deduplicatedList;
   }, [currentIndexState, selectedIndex, lotSize]);
 
   // Filtered items based on selected tab

@@ -3226,32 +3226,5 @@
     "nearTargetPct": 0,
     "nearTargetDescription": "0% of Target (LTP ₹11.48)",
     "notes": "LONG_ACCUMULATION (Gamma Score: 84)"
-  },
-  {
-    "id": "call_2026-09-07_SILVER_235500_CE_BUY_CALL",
-    "date": "2026-09-07",
-    "timestamp": "2026-09-07T17:57:18.532Z",
-    "timeFormatted": "23:27:18 IST",
-    "symbol": "SILVER",
-    "category": "COMMODITIES",
-    "contractName": "SILVER 235500 CE",
-    "strikePrice": 235500,
-    "optionType": "CE",
-    "action": "BUY_CALL",
-    "signalSource": "CONFLUENCE",
-    "entryPrice": 12126.54,
-    "recommendedEntryRange": "₹12126.54 - ₹12369.07",
-    "target1Price": 15764.5,
-    "target2Price": 19402.46,
-    "stoplossPrice": 9701.23,
-    "riskReward": "1:2.8",
-    "currentLtp": 12126.54,
-    "peakLtp": 12126.54,
-    "status": "ACTIVE",
-    "pointsPnl": 0,
-    "pnlPct": 0,
-    "nearTargetPct": 0,
-    "nearTargetDescription": "0% of Target (LTP ₹12126.54)",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout"
   }
 ]
