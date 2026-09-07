@@ -206,8 +206,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     (window as any).__triggerTestHighProbFlash = triggerTestHighProbFlash;
-    (window as any).__triggerTestHeroZeroFlash = triggerTestHeroZeroFlash;
-  }, [triggerTestHighProbFlash, triggerTestHeroZeroFlash]);
+  }, [triggerTestHighProbFlash]);
 
   // Square Off Emergency Alert Engine State
   const [latestSquareOffAlert, setLatestSquareOffAlert] = useState<SquareOffEvent | null>(null);
@@ -340,6 +339,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLatestHeroZeroFlash(demoSignal);
     if (!isMuted) soundManager.playTargetHitAlert();
   }, [selectedIndex, indices, isMuted]);
+
+  useEffect(() => {
+    (window as any).__triggerTestHeroZeroFlash = triggerTestHeroZeroFlash;
+  }, [triggerTestHeroZeroFlash]);
 
   const triggerTestTargetHit = () => {
     const isBull = true;

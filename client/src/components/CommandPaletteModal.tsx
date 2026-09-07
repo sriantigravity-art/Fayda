@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Sparkles,
   Command,
+  Flame,
   X
 } from 'lucide-react';
 
@@ -50,7 +51,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenAdminDrawer,
   onOpenFyersModal
 }) => {
-  const { selectedIndex, setSelectedIndex, triggerTestHighProbFlash } = useMarket();
+  const { selectedIndex, setSelectedIndex, triggerTestHighProbFlash, triggerTestHeroZeroFlash } = useMarket();
   const { mode, setMode } = useTerminalMode();
   const { density, setDensity } = useDensity();
   const { theme, toggleTheme } = useTheme();
@@ -180,11 +181,22 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       id: 'tool-test-high-prob-flash',
       category: 'TOOLS & SETTINGS' as const,
       title: '⚡ Test Prime High-Probability Flash Alert',
-      subtitle: 'Simulate instant high-confluence Call/Put trade alert with audio chime',
+      subtitle: 'Simulate instant 10s auto-closing high-confluence Call/Put trade alert',
       icon: Zap,
       action: () => {
         onClose();
         triggerTestHighProbFlash();
+      }
+    },
+    {
+      id: 'tool-test-hero-zero-flash',
+      category: 'TOOLS & SETTINGS' as const,
+      title: '⚡ Test 0DTE Hero-or-Zero Flash Alert',
+      subtitle: 'Simulate instant 10s auto-closing Gamma explosion breakout flash',
+      icon: Flame,
+      action: () => {
+        onClose();
+        triggerTestHeroZeroFlash();
       }
     },
     {
