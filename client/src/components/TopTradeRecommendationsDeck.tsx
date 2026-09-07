@@ -5,6 +5,9 @@ import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type Sur
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { TradePayoffSimulator } from './TradePayoffSimulator';
+import { IndexContributionBarometer } from './IndexContributionBarometer';
+import { TradeLifecycleAdvisor } from './TradeLifecycleAdvisor';
+import { BrokerBasketModal, type BrokerBasketItem } from './BrokerBasketModal';
 import { 
   Zap, 
   Target, 
@@ -18,13 +21,14 @@ import {
   TrendingDown, 
   Clock, 
   Layers, 
-  ExternalLink,
-  Award,
-  Sparkles,
-  Info,
-  X,
-  ChevronRight,
-  Flame
+  ExternalLink, 
+  Award, 
+  Sparkles, 
+  Info, 
+  X, 
+  ChevronRight, 
+  Flame,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
@@ -85,6 +89,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     sl: 80,
     target: 140
   });
+  const [isBasketModalOpen, setIsBasketModalOpen] = useState<boolean>(false);
+  const [activeBasketItem, setActiveBasketItem] = useState<BrokerBasketItem | null>(null);
 
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const lotSize = cfg?.lot || currentIndexState?.lotSize || 50;
@@ -847,6 +853,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         </div>
       </div>
 
+      {/* ── HEAVYWEIGHT POINT CONTRIBUTION BAROMETER (STOCKEDGE / SENSEX / BANKNIFTY) ─── */}
+      <div className="px-3 sm:px-4 pt-3">
+        <IndexContributionBarometer />
+      </div>
+
       {/* ========================================================================= */}
       {/* ── 1. QUICK FOCUS BUTTONS VIEW (MINIMALIST, ATTRACTIVE, PROFESSIONAL) ─── */}
       {/* ========================================================================= */}
@@ -1184,6 +1195,22 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 </div>
               </div>
 
+              {/* Dynamic Trade Lifecycle & Trailing SL Decision Engine */}
+              <TradeLifecycleAdvisor
+                contractSymbol={selectedItem.contractSymbol}
+                entryPrice={selectedItem.entryPrice}
+                currentLtp={selectedItem.currentLtp}
+                target1Price={selectedItem.target1Price}
+                target1Pct={selectedItem.target1Pct}
+                target2Price={selectedItem.target2Price}
+                target2Pct={selectedItem.target2Pct}
+                stoplossPrice={selectedItem.stoplossPrice}
+                stoplossPct={selectedItem.stoplossPct}
+                role={selectedItem.role}
+                executionType={selectedItem.executionType}
+                matchingSurge={getMatchingSurge(selectedItem)}
+              />
+
               {/* Sensibull Payoff Simulator, Opstra Margin Optimizer, & Quantsapp Radar */}
               <TradePayoffSimulator
                 contractSymbol={selectedItem.contractSymbol}
@@ -1262,6 +1289,32 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                   >
                     <Calculator className="w-3.5 h-3.5" />
                     <span>Calc Risk</span>
+                  </button>
+
+                  {/* Multi-Broker Basket Payload Generator */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveBasketItem({
+                        contractSymbol: selectedItem.contractSymbol,
+                        strikePrice: selectedItem.strikePrice,
+                        optionType: selectedItem.optionType,
+                        action: selectedItem.action,
+                        lotSize,
+                        lots: 1,
+                        entryPrice: selectedItem.entryPrice,
+                        stoplossPrice: selectedItem.stoplossPrice,
+                        target1Price: selectedItem.target1Price,
+                        executionType: selectedItem.executionType
+                      });
+                      setIsBasketModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/80 border border-purple-300 dark:border-purple-800/80 text-purple-800 dark:text-purple-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Generate Multi-Broker Order Basket (Fyers / Dhan / Zerodha)"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>Broker Basket</span>
                   </button>
 
                   {/* Open Full Modal */}
@@ -1725,6 +1778,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           defaultLtp={calcParams.ltp}
           defaultSl={calcParams.sl}
           defaultTarget={calcParams.target}
+        />
+      )}
+
+      {/* Multi-Broker Basket Payload Modal */}
+      {isBasketModalOpen && activeBasketItem && (
+        <BrokerBasketModal
+          isOpen={isBasketModalOpen}
+          onClose={() => setIsBasketModalOpen(false)}
+          basketItem={activeBasketItem}
         />
       )}
     </section>

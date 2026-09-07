@@ -150,6 +150,83 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
     maxLossRupees
   ]);
 
+  const [simulatedShift, setSimulatedShift] = useState<number>(0);
+
+  // 2D SVG Payoff Curve Coordinates calculation
+  const curvePoints = useMemo(() => {
+    const points: { x: number; y: number; pnl: number }[] = [];
+    const steps = 30;
+    const range = 150;
+    
+    const basePnlMax = metrics.target1Pnl * 1.3 || 10000;
+    const baseLossMax = Math.abs(metrics.stoplossPnl) || 5000;
+
+    for (let i = 0; i <= steps; i++) {
+      const shift = -range + (i / steps) * (range * 2);
+      const svgX = (i / steps) * 600;
+
+      let pnl = 0;
+      if (isSeller) {
+        const delta = isCall ? -0.45 : 0.45;
+        pnl = Math.min(metrics.target1Pnl, Math.max(metrics.stoplossPnl, metrics.target1Pnl + shift * delta * quantity * 0.15));
+      } else {
+        const delta = isCall ? 0.65 : -0.65;
+        pnl = Math.max(metrics.stoplossPnl, shift * delta * (quantity * 0.4));
+      }
+
+      let svgY = 70;
+      if (pnl >= 0) {
+        svgY = 70 - Math.min(55, (pnl / (basePnlMax || 1)) * 55);
+      } else {
+        svgY = 70 + Math.min(55, (Math.abs(pnl) / (baseLossMax || 1)) * 55);
+      }
+
+      points.push({ x: svgX, y: svgY, pnl });
+    }
+
+    const svgPath = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+
+    const profitPts = points.filter(p => p.y <= 70);
+    const profitPolygon = profitPts.length > 1
+      ? `${profitPts[0].x},70 ` + profitPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ` ${profitPts[profitPts.length - 1].x},70`
+      : '0,70 0,70';
+
+    const lossPts = points.filter(p => p.y >= 70);
+    const lossPolygon = lossPts.length > 1
+      ? `${lossPts[0].x},70 ` + lossPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ` ${lossPts[lossPts.length - 1].x},70`
+      : '0,70 0,70';
+
+    return { svgPath, profitPolygon, lossPolygon };
+  }, [metrics, isSeller, isCall, quantity]);
+
+  // Simulated Outcome at current simulatedShift
+  const simulatedOutcome = useMemo(() => {
+    let pnl = 0;
+    if (isSeller) {
+      const delta = isCall ? -0.45 : 0.45;
+      pnl = Math.min(metrics.target1Pnl, Math.max(metrics.stoplossPnl, metrics.target1Pnl + simulatedShift * delta * quantity * 0.15));
+    } else {
+      const delta = isCall ? 0.65 : -0.65;
+      pnl = Math.max(metrics.stoplossPnl, simulatedShift * delta * (quantity * 0.4));
+    }
+    const pct = metrics.capitalRequired > 0 ? +((pnl / metrics.capitalRequired) * 100).toFixed(1) : 0;
+    return { pnl, pct };
+  }, [simulatedShift, metrics, isSeller, isCall, quantity]);
+
+  // Cursor coordinates on SVG canvas (600x140)
+  const cursorCoords = useMemo(() => {
+    const x = Math.max(10, Math.min(590, ((simulatedShift + 150) / 300) * 600));
+    const basePnlMax = metrics.target1Pnl * 1.3 || 10000;
+    const baseLossMax = Math.abs(metrics.stoplossPnl) || 5000;
+    let y = 70;
+    if (simulatedOutcome.pnl >= 0) {
+      y = 70 - Math.min(55, (simulatedOutcome.pnl / (basePnlMax || 1)) * 55);
+    } else {
+      y = 70 + Math.min(55, (Math.abs(simulatedOutcome.pnl) / (baseLossMax || 1)) * 55);
+    }
+    return { x, y };
+  }, [simulatedShift, simulatedOutcome, metrics]);
+
   return (
     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-3 font-sans">
       {/* ─────────────────────────────────────────────────────────────
@@ -360,6 +437,137 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
                 style={{ width: '70%' }}
                 title={`Target 1 Upside (+${metrics.target1Pct}%)`}
               />
+            </div>
+          </div>
+
+          {/* ─────────────────────────────────────────────────────────────
+              INTERACTIVE 2D SVG PAYOFF DIAGRAM & SPOT SLIDER (SENSIBULL / OPSTRA)
+             ───────────────────────────────────────────────────────────── */}
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center space-x-2">
+                <span className="w-1.5 h-3.5 rounded-full bg-accent-gold" />
+                <span className="text-xs font-mono font-black text-white uppercase tracking-wider">
+                  Interactive 2D Strategy Payoff Curve
+                </span>
+                <span className="text-[9px] font-sans px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Expiry Payoff
+                </span>
+              </div>
+
+              {/* Live Cursor Simulation Readout */}
+              <div className="text-xs font-mono font-bold flex items-center gap-1.5">
+                <span className="text-slate-400 text-[10px]">Simulated Spot:</span>
+                <span className="text-white font-black">
+                  {(strikePrice || 25000) + simulatedShift} ({simulatedShift >= 0 ? `+${simulatedShift}` : `${simulatedShift}`} pts)
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
+                  simulatedOutcome.pnl >= 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                }`}>
+                  P&L: {simulatedOutcome.pnl >= 0 ? '+' : ''}₹{Math.round(simulatedOutcome.pnl).toLocaleString('en-IN')} ({simulatedOutcome.pct >= 0 ? '+' : ''}{simulatedOutcome.pct}%)
+                </span>
+              </div>
+            </div>
+
+            {/* SVG Interactive Canvas */}
+            <div className="w-full h-36 relative overflow-hidden rounded-lg bg-slate-900/60 border border-slate-800/80">
+              <svg 
+                viewBox="0 0 600 140" 
+                preserveAspectRatio="none"
+                className="w-full h-full"
+              >
+                <defs>
+                  <linearGradient id="payoffProfitGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.45" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0.02" />
+                  </linearGradient>
+                  <linearGradient id="payoffLossGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#EF4444" stopOpacity="0.02" />
+                    <stop offset="100%" stopColor="#EF4444" stopOpacity="0.45" />
+                  </linearGradient>
+                </defs>
+
+                {/* Zero P&L Line */}
+                <line x1="0" y1="70" x2="600" y2="70" stroke="#475569" strokeDasharray="3 3" strokeWidth="1.2" />
+
+                {/* Vertical Current Spot Line (Center X = 300) */}
+                <line x1="300" y1="10" x2="300" y2="130" stroke="#F59E0B" strokeDasharray="2 2" strokeWidth="1" opacity="0.7" />
+
+                {/* Breakeven Marker (approx X = 360 for Call or X = 240 for Put) */}
+                <line x1={isCall ? 360 : 240} y1="30" x2={isCall ? 360 : 240} y2="110" stroke="#38BDF8" strokeDasharray="1 2" strokeWidth="1" />
+
+                {/* Payoff Curve Polygon Area (Profit) */}
+                <polygon 
+                  points={curvePoints.profitPolygon}
+                  fill="url(#payoffProfitGrad)"
+                />
+
+                {/* Payoff Curve Polygon Area (Loss) */}
+                <polygon 
+                  points={curvePoints.lossPolygon}
+                  fill="url(#payoffLossGrad)"
+                />
+
+                {/* Main Payoff Line */}
+                <path 
+                  d={curvePoints.svgPath}
+                  fill="none"
+                  stroke="#FBBF24"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {/* Dynamic Cursor on Payoff Curve */}
+                <circle 
+                  cx={cursorCoords.x} 
+                  cy={cursorCoords.y} 
+                  r="5" 
+                  fill="#FFFFFF" 
+                  stroke={simulatedOutcome.pnl >= 0 ? '#10B981' : '#EF4444'} 
+                  strokeWidth="2.5"
+                  className="animate-pulse"
+                />
+              </svg>
+
+              {/* On-Chart Key Markers */}
+              <div className="absolute top-1 left-2 text-[9px] font-mono text-emerald-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                ▲ Max Profit Zone
+              </div>
+              <div className="absolute bottom-1 left-2 text-[9px] font-mono text-rose-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-rose-500/30">
+                ▼ Defined Risk Floor
+              </div>
+              <div className="absolute top-1 right-2 text-[9px] font-mono text-amber-400 font-bold bg-slate-950/80 px-1.5 py-0.5 rounded border border-amber-500/30">
+                Spot: {(strikePrice || 25000)}
+              </div>
+            </div>
+
+            {/* Spot Price Simulation Slider */}
+            <div className="flex items-center space-x-3 pt-1">
+              <span className="text-[10px] font-mono text-slate-400 uppercase font-bold shrink-0">
+                Shift Spot: -150 pts
+              </span>
+              <input
+                type="range"
+                min="-150"
+                max="150"
+                step="5"
+                value={simulatedShift}
+                onChange={(e) => setSimulatedShift(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+              <span className="text-[10px] font-mono text-slate-400 uppercase font-bold shrink-0">
+                +150 pts
+              </span>
+              <button
+                type="button"
+                onClick={() => setSimulatedShift(0)}
+                className="px-2 py-0.5 rounded text-[9px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer shrink-0"
+                title="Reset simulation to current spot"
+              >
+                Reset
+              </button>
             </div>
           </div>
         </div>
