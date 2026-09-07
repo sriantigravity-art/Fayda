@@ -1292,6 +1292,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 executionType={selectedItem.executionType}
                 optionType={selectedItem.optionType}
                 strikePrice={selectedItem.strikePrice}
+                spotPrice={currentIndexState?.spotPrice}
                 marginRequiredRupees={selectedItem.marginRequiredRupees}
                 maxProfitRupees={selectedItem.maxProfitRupees}
                 maxLossRupees={selectedItem.maxLossRupees}
