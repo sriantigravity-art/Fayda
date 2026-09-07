@@ -39,8 +39,9 @@ import { TradeTipModal } from './components/TradeTipModal';
 import { EntityChartModal } from './components/EntityChartModal';
 import { OptionsDataTableModal } from './components/OptionsDataTableModal';
 import { TacticalStrikeSliderRadar } from './components/TacticalStrikeSliderRadar';
+import { TopTradeRecommendationsDeck } from './components/TopTradeRecommendationsDeck';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Layers } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTabType>('CHAIN');
@@ -50,6 +51,7 @@ const DashboardContent: React.FC = () => {
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
   const [isMobileAuthOpen, setIsMobileAuthOpen] = useState<boolean>(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState<boolean>(false);
+  const [showDetailedCockpit, setShowDetailedCockpit] = useState<boolean>(false);
   const { panelVisibility, user, isAuthenticated, logout } = useAuth();
   const { currentIndexState, selectedIndex, activeTradeTipModal, closeTradeTipModal } = useMarket();
   const { isBeginner, isExpert } = useTerminalMode();
@@ -94,6 +96,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
+        {/* ⭐ TOP COMMAND CENTER: All Trade Recommendations & Tips in Tabular Format Under Section Headings */}
+        {panelVisibility.tradeGuidance && <TopTradeRecommendationsDeck />}
+
         {/* Tactical Strike Slider (ATM ±3 Steps) & 10 Technical Indicators Deck */}
         <TacticalStrikeSliderRadar />
 
@@ -120,8 +125,25 @@ const DashboardContent: React.FC = () => {
         <div className="hidden md:grid md:grid-cols-12 gap-3.5 flex-1 items-start">
           {/* Left Column (8 cols on xl, 7 cols on lg, 12 cols on md) */}
           <div className="md:col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col space-y-3.5">
-            {/* Unified Smart Call Tips Under One Roof */}
-            {panelVisibility.tradeGuidance && <UnifiedCallTipsCockpit />}
+            {/* Optional Expandable Detailed Card Deck */}
+            {panelVisibility.tradeGuidance && (
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                  <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Expanded Strategy Card Cockpit (Vertical Card Drill-Down)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailedCockpit(prev => !prev)}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-accent-gold text-xs font-mono font-bold transition-colors cursor-pointer"
+                  >
+                    {showDetailedCockpit ? 'Hide Card Deck ▲' : 'Show Card Deck ▼'}
+                  </button>
+                </div>
+                {showDetailedCockpit && <UnifiedCallTipsCockpit />}
+              </div>
+            )}
 
             {/* ATM ±3 Strike Cluster Radar & 09:15 Baseline OI Engine */}
             <NtmClusterRadar />
@@ -148,7 +170,8 @@ const DashboardContent: React.FC = () => {
           )}
           {mobileTab === 'SIGNALS' && (
             <div className="flex flex-col space-y-3">
-              {panelVisibility.tradeGuidance && <UnifiedCallTipsCockpit />}
+              {panelVisibility.tradeGuidance && <TopTradeRecommendationsDeck />}
+              {panelVisibility.tradeGuidance && showDetailedCockpit && <UnifiedCallTipsCockpit />}
               <NtmClusterRadar />
             </div>
           )}
