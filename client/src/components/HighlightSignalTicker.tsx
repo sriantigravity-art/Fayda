@@ -293,55 +293,65 @@ export const HighlightSignalTicker: React.FC = () => {
     };
 
     return (
-      <div 
+      <button 
         key={`${uniquePrefix}-${item.symbol}`} 
+        type="button"
         onClick={handleOpenModal}
-        className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl border transition-all select-none shadow-sm shrink-0 cursor-pointer ${
+        className={`group inline-flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-200 select-none shadow-xs hover:shadow-md shrink-0 cursor-pointer text-left ${
           isSl 
-            ? 'bg-bear/10 border-bear/40 hover:bg-bear/20 hover:border-bear' 
+            ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/40 hover:border-rose-500' 
             : isBull
-              ? 'bg-bull/10 border-bull/30 hover:bg-bull/20 hover:border-bull'
-              : 'bg-bear/10 border-bear/30 hover:bg-bear/20 hover:border-bear'
+              ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 hover:border-emerald-500'
+              : 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 hover:border-rose-500'
         }`}
-        title={`Click to view trade tip setup details for ${item.strike}`}
+        title={`Click to view emergent trade setup details for ${item.strike}`}
       >
-        {/* Symbol & Strike */}
-        <div className="flex items-center space-x-1.5 shrink-0">
-          <span className="font-mono font-bold text-xs text-terminal-text">{item.symbol}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
-            isBull ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
-          }`}>
-            {item.strike}
-          </span>
+        {/* Option Buy / Option Sell Badge */}
+        <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
+          isSl
+            ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40'
+            : isBull
+            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+            : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'}`} />
+          <span>{isSl ? 'SQUARE OFF' : isBull ? 'BUY CALL (CE)' : 'BUY PUT (PE)'}</span>
+        </span>
+
+        {/* Strike Price */}
+        <span className="font-mono font-black text-xs text-slate-100 group-hover:text-accent-gold transition-colors shrink-0">
+          {item.strike}
+        </span>
+
+        {/* Entry */}
+        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300 shrink-0">
+          <span className="text-slate-400 text-[9px] uppercase">Entry:</span>
+          <span className="font-bold text-sky-300">{item.entry}</span>
         </div>
 
         {/* Live LTP */}
-        <div className="flex items-center space-x-1 font-mono text-xs font-bold text-terminal-text shrink-0">
-          <span className="text-[10px] text-terminal-muted">LTP:</span>
-          <span>₹{(item.ltp || 0).toFixed(2)}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-100 shrink-0">
+          <span className="text-slate-400 text-[9px] uppercase">LTP:</span>
+          <span className="font-black text-amber-300">₹{(item.ltp || 0).toFixed(1)}</span>
         </div>
 
-        {/* Timing Tag */}
-        <div className="hidden md:flex items-center space-x-1 text-[10px] font-mono text-terminal-muted shrink-0">
+        {/* Target */}
+        <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-300 shrink-0">
+          <span className="text-emerald-500 text-[9px] uppercase">Target:</span>
+          <span className="font-bold">{item.target}</span>
+        </div>
+
+        {/* Timing */}
+        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-400 shrink-0">
           <Clock className="w-2.5 h-2.5 text-accent-cyan" />
           <span>{timing.givenTimeShort}</span>
         </div>
 
-        {/* Actionability Badge */}
-        <div className="flex items-center shrink-0">
-          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${advice.badgeClass}`}>
-            {advice.badgeLabel}
-          </span>
-        </div>
-
-        {/* Entry / Square Off Zone */}
-        <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] shrink-0 font-mono ${
-          isSl ? 'bg-bear/25 border-bear text-white' : 'bg-accent-cyan/10 border-accent-cyan/30 text-accent-cyan'
-        }`}>
-          <span className="font-bold">{isSl ? 'EXIT:' : 'ENTRY:'}</span>
-          <span className="font-bold whitespace-nowrap">{isSl ? `₹${(item.ltp || 0).toFixed(2)}` : item.entry}</span>
-        </div>
-      </div>
+        {/* Cue */}
+        <span className="text-[9px] font-mono font-bold text-accent-gold group-hover:translate-x-0.5 transition-transform flex items-center shrink-0">
+          Details ↗
+        </span>
+      </button>
     );
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
-import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type ActiveTradeTipData, type HeroZeroSignal } from '../types';
+import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal } from '../types';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { 
@@ -15,16 +15,14 @@ import {
   Calculator, 
   TrendingUp, 
   TrendingDown, 
-  Flame, 
   Clock, 
   Layers, 
-  Sliders, 
   ExternalLink,
-  Activity,
-  AlertTriangle,
   Award,
   Sparkles,
-  Info
+  Info,
+  X,
+  ChevronRight
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
@@ -75,6 +73,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
+  const [viewMode, setViewMode] = useState<'BUTTONS' | 'TABLE'>('BUTTONS');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [expandedConfluenceId, setExpandedConfluenceId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState<boolean>(false);
@@ -474,6 +474,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     };
   }, [items]);
 
+  // Currently focused item for emergent details view
+  const selectedItem = useMemo(() => {
+    if (!selectedItemId) return null;
+    return filteredItems.find(i => i.id === selectedItemId) || null;
+  }, [filteredItems, selectedItemId]);
+
   if (!currentIndexState) return null;
 
   // Handler to open full Trade Tip Modal
@@ -539,6 +545,51 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         strategyTag: '0DTE Gamma Sniper',
         lotSize
       });
+    } else {
+      openTradeTipModal({
+        symbol: selectedIndex,
+        title: item.contractSymbol,
+        contractSymbol: item.contractSymbol,
+        action: item.action,
+        optionType: item.optionType,
+        tierLabel: item.categoryTitle,
+        sessionName: 'Live Session',
+        confluenceScore: item.confluenceScore,
+        entryPrice: item.entryPrice,
+        entryRange: item.entryRange,
+        currentLtp: item.currentLtp,
+        stoplossPrice: item.stoplossPrice,
+        stoplossPct: item.stoplossPct,
+        target1Price: item.target1Price,
+        target1Pct: item.target1Pct,
+        target2Price: item.target2Price,
+        target2Pct: item.target2Pct,
+        riskReward: item.riskReward,
+        givenTimeFormatted: item.entryTimeFormatted,
+        elapsedTimeFormatted: 'Live Terminal Session',
+        actionGuidance: item.strategyTag,
+        status: item.status,
+        strategyTag: item.strategyTag,
+        lotSize,
+        tradingRole: item.role,
+        executionType: item.executionType,
+        sellerMetrics: {
+          netCreditRupees: item.netCreditRupees,
+          maxProfitRupees: item.maxProfitRupees,
+          maxLossRupees: item.maxLossRupees,
+          marginRequiredRupees: item.marginRequiredRupees,
+          probabilityOfProfitPct: item.probabilityOfProfitPct
+        }
+      });
+    }
+  };
+
+  // Click handler for buttons: select to reveal details, or open modal if already selected
+  const handleButtonClick = (item: RecommendationTableItem) => {
+    if (selectedItemId === item.id) {
+      handleOpenTipModal(item);
+    } else {
+      setSelectedItemId(item.id);
     }
   };
 
@@ -628,8 +679,38 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
         </div>
 
-        {/* Section Tabs & Actions */}
+        {/* Section Tabs, View Switcher & Actions */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* View Mode Toggle: Quick Focus Buttons vs Tabular Matrix */}
+          <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
+            <button
+              type="button"
+              onClick={() => setViewMode('BUTTONS')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'BUTTONS'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+              }`}
+              title="View recommendations as interactive quick-focus buttons"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>⚡ Quick Buttons</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('TABLE')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'TABLE'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+              }`}
+              title="View recommendations in complete 9-column tabular matrix"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>📋 Full Table</span>
+            </button>
+          </div>
+
           {/* Section Filter Pills */}
           <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
             <button
@@ -714,38 +795,459 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       </div>
 
       {/* ========================================================================= */}
-      {/* ── MAIN TABULAR RECOMMENDATIONS DECK (HORIZONTAL SCROLL RESPONSIVE) ────── */}
+      {/* ── 1. QUICK FOCUS BUTTONS VIEW (MINIMALIST, ATTRACTIVE, PROFESSIONAL) ─── */}
       {/* ========================================================================= */}
-      <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
-        <table className="w-full text-left border-collapse min-w-[980px]">
-          <thead>
-            <tr className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800/90 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              <th className="py-2.5 px-3 sm:px-4 w-[240px]">Contract & Strategy</th>
-              <th className="py-2.5 px-3 w-[150px]">Action & Role</th>
-              <th className="py-2.5 px-3 w-[150px]">
-                <div className="flex flex-col">
-                  <span>Entry Zone</span>
-                  <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Live LTP</span>
+      {viewMode === 'BUTTONS' && (
+        <div className="p-3.5 sm:p-4 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col space-y-4">
+          {/* Quick Focus Interactive Buttons Grid */}
+          {filteredItems.length === 0 ? (
+            <div className="py-8 px-4 text-center text-slate-500 dark:text-slate-400 font-mono bg-white dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <Info className="w-6 h-6 text-amber-500" />
+                <span>No active trade setups currently under this filter. Waiting for high-conviction order flow.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filteredItems.map(item => {
+                const isSelected = selectedItemId === item.id;
+                const isCall = item.optionType === 'CE' || item.action === 'BUY_CALL';
+                const isPut = item.optionType === 'PE' || item.action === 'BUY_PUT';
+                const isSeller = item.role === 'SELLER' || item.optionType === 'SPREAD';
+                const isGamma = item.category === 'GAMMA';
+
+                const strikeLabel = item.strikePrice
+                  ? `${item.strikePrice.toLocaleString('en-IN')} ${item.optionType}`
+                  : item.contractSymbol;
+
+                const ltpDiff = item.currentLtp - item.entryPrice;
+                const isProfitable = isSeller ? (item.entryPrice >= item.currentLtp) : (ltpDiff >= 0);
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleButtonClick(item)}
+                    className={`group relative text-left p-3.5 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between select-none ${
+                      isSelected
+                        ? isSeller
+                          ? 'bg-purple-50/80 dark:bg-purple-950/30 border-purple-500 ring-2 ring-purple-500/30 shadow-lg shadow-purple-500/10'
+                          : isGamma
+                          ? 'bg-cyan-50/80 dark:bg-cyan-950/30 border-cyan-500 ring-2 ring-cyan-500/30 shadow-lg shadow-cyan-500/10'
+                          : isCall
+                          ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-500 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                          : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-500 ring-2 ring-rose-500/30 shadow-lg shadow-rose-500/10'
+                        : isSeller
+                        ? 'bg-white dark:bg-slate-900/80 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 border-slate-200 dark:border-slate-800 hover:border-purple-400 dark:hover:border-purple-600 shadow-sm hover:shadow-md'
+                        : isGamma
+                        ? 'bg-white dark:bg-slate-900/80 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 border-slate-200 dark:border-slate-800 hover:border-cyan-400 dark:hover:border-cyan-600 shadow-sm hover:shadow-md'
+                        : isCall
+                        ? 'bg-white dark:bg-slate-900/80 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-600 shadow-sm hover:shadow-md'
+                        : 'bg-white dark:bg-slate-900/80 hover:bg-rose-50/20 dark:hover:bg-rose-950/20 border-slate-200 dark:border-slate-800 hover:border-rose-400 dark:hover:border-rose-600 shadow-sm hover:shadow-md'
+                    }`}
+                  >
+                    {/* Top Accent Line for Selected State */}
+                    {isSelected && (
+                      <div className={`absolute top-0 left-0 right-0 h-1 ${
+                        isSeller ? 'bg-purple-500' : isGamma ? 'bg-cyan-500' : isCall ? 'bg-emerald-500' : 'bg-rose-500'
+                      }`} />
+                    )}
+
+                    {/* Top Badges: Option Buy / Sell + Time */}
+                    <div className="flex items-center justify-between gap-1.5 w-full">
+                      {isSeller ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 shadow-xs flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                          <span>OPTION SELL</span>
+                        </span>
+                      ) : isGamma ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/80 shadow-xs flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+                          <span>0DTE HERO</span>
+                        </span>
+                      ) : isCall ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>OPTION BUY (CE)</span>
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/80 shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                          <span>OPTION BUY (PE)</span>
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <span>{item.entryTimeFormatted || '11:15 AM'}</span>
+                      </div>
+                    </div>
+
+                    {/* Strike Price & Strategy Tag */}
+                    <div className="my-2.5">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
+                          {strikeLabel}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                          {item.actionBadge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-sans" title={item.strategyTag}>
+                        {item.strategyTag}
+                      </p>
+                    </div>
+
+                    {/* Compact Minimalist Key Metrics: Entry, LTP, Target */}
+                    <div className="grid grid-cols-3 gap-1.5 w-full">
+                      {/* Entry */}
+                      <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
+                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">Entry</span>
+                        <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
+                        </span>
+                      </div>
+
+                      {/* LTP */}
+                      <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
+                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">LTP</span>
+                        <span className={`text-xs font-mono font-black truncate ${
+                          isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+                        }`}>
+                          ₹{item.currentLtp.toFixed(1)}
+                        </span>
+                      </div>
+
+                      {/* Target */}
+                      <div className="bg-emerald-50/50 dark:bg-emerald-950/30 p-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60 flex flex-col">
+                        <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 uppercase">Target</span>
+                        <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400 truncate">
+                          ₹{item.target1Price.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Footer Micro-Bar: Confluence + Interactive Clue */}
+                    <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] font-mono w-full">
+                      <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                        <span>Score:</span>
+                        <span className="font-black text-amber-600 dark:text-accent-gold">{item.confluenceScore}%</span>
+                      </div>
+
+                      <div className={`flex items-center gap-0.5 font-bold ${
+                        isSelected 
+                          ? 'text-amber-600 dark:text-accent-gold' 
+                          : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
+                      }`}>
+                        <span>{isSelected ? 'Details Emerged ▲' : 'Click Details ▾'}</span>
+                        <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Emergent Details Panel (Emerges When User Clicks Any Button) */}
+          {selectedItem && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300">
+              {/* Emergent Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white">
+                        {selectedItem.contractSymbol}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
+                        selectedItem.role === 'SELLER'
+                          ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                          : selectedItem.action === 'BUY_CALL'
+                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                      }`}>
+                        {selectedItem.actionBadge} ({selectedItem.role === 'SELLER' ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span>{selectedItem.status}</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5">
+                      {selectedItem.strategyTag}
+                    </p>
+                  </div>
                 </div>
-              </th>
-              <th className="py-2.5 px-3 w-[170px]">
-                <div className="flex flex-col">
-                  <span>Targets (T1 / T2)</span>
-                  <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Profit %</span>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedItemId(null)}
+                  className="self-end sm:self-center p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  title="Close emergent details"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Emergent 4-Card Analytical Metrics Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
+                {/* 1. Entry & Live Price */}
+                <div className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-bold block mb-1">
+                    Entry & Live Tracking
+                  </span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-mono text-slate-600 dark:text-slate-300">
+                      Entry: <strong className="text-slate-900 dark:text-white font-bold">{selectedItem.entryRange}</strong>
+                    </span>
+                    <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                      LTP: <strong className="text-slate-900 dark:text-white">₹{selectedItem.currentLtp.toFixed(1)}</strong>
+                    </span>
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-500 dark:text-slate-400">P&L / Lot:</span>
+                    <span className={`font-black ${
+                      (selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                    }`}>
+                      {(selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? '+' : ''}
+                      ₹{Math.round((selectedItem.currentLtp - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
+                    </span>
+                  </div>
                 </div>
-              </th>
-              <th className="py-2.5 px-3 w-[140px]">
-                <div className="flex flex-col">
-                  <span>Stop Loss</span>
-                  <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Capital Risk %</span>
+
+                {/* 2. Profit Targets */}
+                <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60">
+                  <span className="text-[10px] font-mono text-emerald-800 dark:text-emerald-400 uppercase font-bold block mb-1">
+                    Profit Targets
+                  </span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
+                      T1: ₹{selectedItem.target1Price.toFixed(1)} (+{selectedItem.target1Pct}%)
+                    </span>
+                    {selectedItem.target2Price && (
+                      <span className="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                        T2: ₹{selectedItem.target2Price.toFixed(1)} (+{selectedItem.target2Pct}%)
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-emerald-800 dark:text-emerald-400 font-semibold">T1 Profit / Lot:</span>
+                    <span className="font-black text-emerald-700 dark:text-emerald-400">
+                      +₹{Math.round((selectedItem.target1Price - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
+                    </span>
+                  </div>
                 </div>
-              </th>
-              <th className="py-2.5 px-3 w-[130px]">Confluence</th>
-              <th className="py-2.5 px-3 w-[100px]">R : R / POP</th>
-              <th className="py-2.5 px-3 w-[90px]">Status</th>
-              <th className="py-2.5 px-3 text-right pr-4 w-[160px]">Actions</th>
-            </tr>
-          </thead>
+
+                {/* 3. Stop Loss & Risk Management */}
+                <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/60">
+                  <span className="text-[10px] font-mono text-rose-800 dark:text-rose-400 uppercase font-bold block mb-1">
+                    Capital Protection & SL
+                  </span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400">
+                      SL: ₹{selectedItem.stoplossPrice.toFixed(1)} (-{selectedItem.stoplossPct}%)
+                    </span>
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                      R:R: {selectedItem.riskReward}
+                    </span>
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-800/60 flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-rose-800 dark:text-rose-400 font-semibold">Max Risk / Lot:</span>
+                    <span className="font-black text-rose-700 dark:text-rose-400">
+                      -₹{Math.round((selectedItem.entryPrice - selectedItem.stoplossPrice) * lotSize).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. Execution Role & Edge */}
+                <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
+                  <span className="text-[10px] font-mono text-amber-800 dark:text-accent-gold uppercase font-bold block mb-1">
+                    {selectedItem.role === 'SELLER' ? 'Option Seller Profile' : 'Confluence Edge'}
+                  </span>
+                  {selectedItem.role === 'SELLER' ? (
+                    <div>
+                      <div className="flex items-baseline justify-between text-xs font-mono">
+                        <span className="text-purple-700 dark:text-purple-300 font-bold">
+                          POP: {selectedItem.probabilityOfProfitPct || 78}%
+                        </span>
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Margin: ₹{Math.round((selectedItem.marginRequiredRupees || 48000) / 1000)}k
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-amber-800 dark:text-accent-gold font-semibold">Max Profit:</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400">
+                          ₹{(selectedItem.maxProfitRupees || Math.round(selectedItem.entryPrice * lotSize)).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-baseline justify-between text-xs font-mono">
+                        <span className="text-amber-700 dark:text-accent-gold font-bold">
+                          Score: {selectedItem.confluenceScore}%
+                        </span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                          Top Confluence
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-amber-800 dark:text-accent-gold font-semibold">Lot Size:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {lotSize} shares / lot
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Rationale & Action Toolbar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="text-xs font-mono text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                  <span className="font-bold text-amber-700 dark:text-accent-gold">Strategy Thesis:</span>
+                  <span className="truncate max-w-md">{selectedItem.strategyTag}</span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Confluence Breakdown Toggle */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleConfluence(selectedItem.id, e)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Target className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Confluence Checklist</span>
+                    {expandedConfluenceId === selectedItem.id ? (
+                      <ChevronUp className="w-3 h-3 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    )}
+                  </button>
+
+                  {/* Copy Setup */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopySetup(selectedItem, e)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    {copiedId === selectedItem.id ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Signal</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Calculator */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleOpenCalc(selectedItem, e)}
+                    className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-300 dark:border-sky-800/80 text-sky-800 dark:text-sky-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>Calc Risk</span>
+                  </button>
+
+                  {/* Open Full Modal */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenTipModal(selectedItem)}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+                  >
+                    <span>Open Full Institutional Blueprint</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Expandable 10-Indicator Confluence Checklist */}
+              {expandedConfluenceId === selectedItem.id && selectedItem.rawTip?.confluenceBreakdown && (
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <div className="bg-white dark:bg-slate-950 rounded-xl p-3.5 border border-amber-300/60 dark:border-amber-500/30 shadow-inner">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-amber-500" />
+                        <span className="text-xs font-mono font-black text-slate-900 dark:text-white uppercase">
+                          10-Indicator Confluence Checklist for {selectedItem.contractSymbol}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                        Mode: <strong className="text-amber-600 dark:text-accent-gold uppercase">{isBeginner ? 'Beginner' : isExpert ? 'Expert' : 'Intermediate'}</strong>
+                      </span>
+                    </div>
+
+                    <ConfluenceChecklist 
+                      breakdown={selectedItem.rawTip.confluenceBreakdown} 
+                      role={selectedItem.role} 
+                      score={selectedItem.confluenceScore} 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick toggle to table */}
+          <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-1">
+            <span>💡 Pro Tip: Click any recommendation button to emerge quick execution details, or click again to launch deep Greek analysis.</span>
+            <button
+              type="button"
+              onClick={() => setViewMode('TABLE')}
+              className="text-amber-700 dark:text-accent-gold hover:underline flex items-center gap-1 font-bold cursor-pointer"
+            >
+              <span>Switch to dense 9-column matrix view</span>
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ── 2. MAIN TABULAR RECOMMENDATIONS DECK (HORIZONTAL SCROLL RESPONSIVE) ─── */}
+      {/* ========================================================================= */}
+      {viewMode === 'TABLE' && (
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+          <table className="w-full text-left border-collapse min-w-[980px]">
+            <thead>
+              <tr className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800/90 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                <th className="py-2.5 px-3 sm:px-4 w-[240px]">Contract & Strategy</th>
+                <th className="py-2.5 px-3 w-[150px]">Action & Role</th>
+                <th className="py-2.5 px-3 w-[150px]">
+                  <div className="flex flex-col">
+                    <span>Entry Zone</span>
+                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Live LTP</span>
+                  </div>
+                </th>
+                <th className="py-2.5 px-3 w-[170px]">
+                  <div className="flex flex-col">
+                    <span>Targets (T1 / T2)</span>
+                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Profit %</span>
+                  </div>
+                </th>
+                <th className="py-2.5 px-3 w-[140px]">
+                  <div className="flex flex-col">
+                    <span>Stop Loss</span>
+                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Capital Risk %</span>
+                  </div>
+                </th>
+                <th className="py-2.5 px-3 w-[130px]">Confluence</th>
+                <th className="py-2.5 px-3 w-[100px]">R : R / POP</th>
+                <th className="py-2.5 px-3 w-[90px]">Status</th>
+                <th className="py-2.5 px-3 text-right pr-4 w-[160px]">Actions</th>
+              </tr>
+            </thead>
 
           <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/70 text-xs font-sans">
             {filteredItems.length === 0 ? (
@@ -1059,7 +1561,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             )}
           </tbody>
         </table>
+        <div className="p-2.5 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400">
+          <span>Viewing complete institutional 9-column ledger table.</span>
+          <button
+            type="button"
+            onClick={() => setViewMode('BUTTONS')}
+            className="text-amber-700 dark:text-accent-gold hover:underline flex items-center gap-1 font-bold cursor-pointer"
+          >
+            <span>Switch to Quick Focus Buttons</span>
+            <Zap className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+    )}
 
       {/* ========================================================================= */}
       {/* ── BOTTOM SUMMARY DECK STRIP ──────────────────────────────────────────── */}
