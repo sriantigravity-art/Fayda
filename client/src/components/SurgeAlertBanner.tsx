@@ -90,6 +90,22 @@ export const SurgeAlertBanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  // Window event listener for external triggers (e.g. from TopTradeRecommendationsDeck)
+  useEffect(() => {
+    const handleExternalOpen = (e: Event) => {
+      const customEvent = e as CustomEvent<{ asset?: string; side?: OptionSideFilter; category?: ScoreCategory }>;
+      if (customEvent.detail) {
+        if (customEvent.detail.asset) setAssetFilter(customEvent.detail.asset);
+        if (customEvent.detail.side) setSideFilter(customEvent.detail.side);
+        if (customEvent.detail.category) setScoreCategory(customEvent.detail.category);
+      }
+      setIsOpen(true);
+      localStorage.setItem('oi_radar_surge_modal_open', 'true');
+    };
+    window.addEventListener('open_surge_modal', handleExternalOpen);
+    return () => window.removeEventListener('open_surge_modal', handleExternalOpen);
+  }, []);
+
   // Helper to check if a surge has achieved its target price
   const checkIsTargetHit = (surge: SurgeEvent): boolean => {
     const isCall = surge.optionType === 'CE';

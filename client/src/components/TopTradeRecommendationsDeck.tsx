@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
-import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal } from '../types';
+import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
+import { TradePayoffSimulator } from './TradePayoffSimulator';
 import { 
   Zap, 
   Target, 
@@ -22,7 +23,8 @@ import {
   Sparkles,
   Info,
   X,
-  ChevronRight
+  ChevronRight,
+  Flame
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
@@ -69,7 +71,7 @@ interface RecommendationTableItem {
 }
 
 export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
-  const { currentIndexState, selectedIndex, openTradeTipModal } = useMarket();
+  const { currentIndexState, selectedIndex, openTradeTipModal, recentSurges } = useMarket();
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
@@ -480,6 +482,37 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return filteredItems.find(i => i.id === selectedItemId) || null;
   }, [filteredItems, selectedItemId]);
 
+  // Active surges for current symbol
+  const activeSurgesForSymbol = useMemo(() => {
+    return (recentSurges || []).filter(s => s.indexSymbol === selectedIndex);
+  }, [recentSurges, selectedIndex]);
+
+  // Helper to match a recommendation item with active surge
+  const getMatchingSurge = (item: RecommendationTableItem): SurgeEvent | undefined => {
+    if (!recentSurges || recentSurges.length === 0) return undefined;
+    return recentSurges.find(s => {
+      if (s.indexSymbol !== selectedIndex) return false;
+      if (item.strikePrice && s.strikePrice === item.strikePrice && s.optionType === item.optionType) {
+        return true;
+      }
+      if (s.contractSymbol && item.contractSymbol && s.contractSymbol.replace(/\s+/g, '') === item.contractSymbol.replace(/\s+/g, '')) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  // Open the Flash Surge Radar modal (with optional focus filter)
+  const handleOpenSurgeModal = (item?: RecommendationTableItem) => {
+    window.dispatchEvent(new CustomEvent('open_surge_modal', {
+      detail: {
+        asset: selectedIndex,
+        side: item ? (item.optionType === 'CE' ? 'CE' : item.optionType === 'PE' ? 'PE' : 'ALL') : 'ALL',
+        category: 'ALL'
+      }
+    }));
+  };
+
   if (!currentIndexState) return null;
 
   // Handler to open full Trade Tip Modal
@@ -774,6 +807,26 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             </button>
           </div>
 
+          {/* ⚡ Flash Surge Confluence Drawer / Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => handleOpenSurgeModal()}
+            className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+              activeSurgesForSymbol.length > 0
+                ? 'bg-gradient-to-r from-rose-500/15 via-bear/20 to-rose-500/15 text-bear border-bear/60 hover:bg-bear/25 animate-pulse shadow-[0_0_12px_rgba(255,59,105,0.25)]'
+                : 'bg-slate-200/80 dark:bg-slate-900/90 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-800'
+            }`}
+            title="Open 1-minute real-time institutional Flash Surge Radar"
+          >
+            <Zap className={`w-3.5 h-3.5 ${activeSurgesForSymbol.length > 0 ? 'text-bear fill-bear' : 'text-slate-400'}`} />
+            <span>{isBeginner ? '⚡ High Demand' : '⚡ Flash Surges'}</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+              activeSurgesForSymbol.length > 0 ? 'bg-bear text-white' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              {activeSurgesForSymbol.length}
+            </span>
+          </button>
+
           {/* Risk Calculator Launcher */}
           <button
             type="button"
@@ -822,6 +875,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                 const ltpDiff = item.currentLtp - item.entryPrice;
                 const isProfitable = isSeller ? (item.entryPrice >= item.currentLtp) : (ltpDiff >= 0);
+                const matchingSurge = getMatchingSurge(item);
 
                 return (
                   <button
@@ -853,29 +907,52 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       }`} />
                     )}
 
-                    {/* Top Badges: Option Buy / Sell + Time */}
-                    <div className="flex items-center justify-between gap-1.5 w-full">
-                      {isSeller ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 shadow-xs flex items-center gap-1">
-                          <ShieldCheck className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                          <span>OPTION SELL</span>
-                        </span>
-                      ) : isGamma ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/80 shadow-xs flex items-center gap-1">
-                          <Zap className="w-3 h-3 text-cyan-600 dark:text-cyan-400 animate-pulse" />
-                          <span>0DTE HERO</span>
-                        </span>
-                      ) : isCall ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 shadow-xs flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>OPTION BUY (CE)</span>
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/80 shadow-xs flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                          <span>OPTION BUY (PE)</span>
-                        </span>
-                      )}
+                    {/* Top Badges: Option Buy / Sell + Live Surge + Time */}
+                    <div className="flex items-center justify-between gap-1.5 w-full flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isSeller ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 shadow-xs flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                            <span>OPTION SELL</span>
+                          </span>
+                        ) : isGamma ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/80 shadow-xs flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+                            <span>0DTE HERO</span>
+                          </span>
+                        ) : isCall ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 shadow-xs flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>OPTION BUY (CE)</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/80 shadow-xs flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span>OPTION BUY (PE)</span>
+                          </span>
+                        )}
+
+                        {/* ⚡ Live Surge Flow Badge */}
+                        {matchingSurge && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenSurgeModal(item);
+                            }}
+                            className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 flex items-center gap-1 animate-pulse shadow-xs cursor-pointer"
+                            title={`Live 1-Minute Order Flow Surge Active! Score: ${matchingSurge.surgeScore}/100, Velocity: +${matchingSurge.oiChangePct}% OI/min. Click to inspect surge order flow.`}
+                          >
+                            <Zap className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
+                            <span>
+                              {isBeginner 
+                                ? '⚡ Surge' 
+                                : isIntermediate 
+                                ? `⚡ +${matchingSurge.oiChangePct}% OI/m` 
+                                : `⚡ Flow ${matchingSurge.surgeScore}`}
+                            </span>
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400">
                         <Clock className="w-3 h-3 text-slate-400" />
@@ -1107,6 +1184,33 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 </div>
               </div>
 
+              {/* Sensibull Payoff Simulator, Opstra Margin Optimizer, & Quantsapp Radar */}
+              <TradePayoffSimulator
+                contractSymbol={selectedItem.contractSymbol}
+                entryPrice={selectedItem.entryPrice}
+                currentLtp={selectedItem.currentLtp}
+                target1Price={selectedItem.target1Price}
+                target1Pct={selectedItem.target1Pct}
+                target2Price={selectedItem.target2Price}
+                target2Pct={selectedItem.target2Pct}
+                stoplossPrice={selectedItem.stoplossPrice}
+                stoplossPct={selectedItem.stoplossPct}
+                lotSize={lotSize}
+                role={selectedItem.role}
+                executionType={selectedItem.executionType}
+                optionType={selectedItem.optionType}
+                strikePrice={selectedItem.strikePrice}
+                marginRequiredRupees={selectedItem.marginRequiredRupees}
+                maxProfitRupees={selectedItem.maxProfitRupees}
+                maxLossRupees={selectedItem.maxLossRupees}
+                probabilityOfProfitPct={selectedItem.probabilityOfProfitPct}
+                legsSummary={selectedItem.legsSummary}
+                confluenceScore={selectedItem.confluenceScore}
+                strategyTag={selectedItem.strategyTag}
+                matchingSurge={getMatchingSurge(selectedItem)}
+                onOpenSurge={() => handleOpenSurgeModal(selectedItem)}
+              />
+
               {/* Rationale & Action Toolbar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <div className="text-xs font-mono text-slate-600 dark:text-slate-400 flex items-center gap-2">
@@ -1266,6 +1370,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 const isPut = item.optionType === 'PE' || item.action === 'BUY_PUT';
                 const isSpread = item.role === 'SELLER' || item.optionType === 'SPREAD';
                 const isGamma = item.category === 'GAMMA';
+                const matchingSurge = getMatchingSurge(item);
 
                 return (
                   <React.Fragment key={item.id}>
@@ -1278,10 +1383,23 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       {/* 1. CONTRACT & STRATEGY */}
                       <td className="py-3 px-3 sm:px-4">
                         <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono font-black text-sm text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
                               {item.contractSymbol}
                             </span>
+                            {matchingSurge && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenSurgeModal(item);
+                                }}
+                                className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[9px] font-mono font-black animate-pulse cursor-pointer flex items-center gap-0.5 shadow-xs"
+                                title={`Live 1-Minute Surge Active! Score: ${matchingSurge.surgeScore}/100. Click to inspect.`}
+                              >
+                                <Zap className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
+                                <span>SURGE</span>
+                              </span>
+                            )}
                             {isGamma && (
                               <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-[9px] font-mono font-black">
                                 0DTE
