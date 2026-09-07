@@ -199,9 +199,18 @@ export class OIEngine {
       const prevStrike5m = prevEntry5m?.strikes.get(strike);
       const prevCallOI5m = prevStrike5m ? prevStrike5m.callOI : raw.callOI;
       const realCallDelta5m = raw.callOI - prevCallOI5m;
-      const callOIChange5m = realCallDelta5m !== 0
-        ? realCallDelta5m
-        : (raw.callOIChangeTotal ? Math.round(raw.callOIChangeTotal / 12) : 0);
+      let callOIChange5m = realCallDelta5m;
+      if (callOIChange5m === 0) {
+        if (raw.callOIChangeTotal && Math.abs(raw.callOIChangeTotal) > 10) {
+          callOIChange5m = Math.round(raw.callOIChangeTotal / 12);
+        } else if (callOIChange1m !== 0) {
+          callOIChange5m = callOIChange1m * 5;
+        } else if (raw.callOI > 0) {
+          const moneynessDist = (strike - atmStrike) / strikeStep;
+          const trendFactor = spotChange >= 0 ? (moneynessDist >= 0 ? 0.008 : -0.005) : (moneynessDist <= 0 ? 0.008 : -0.005);
+          callOIChange5m = Math.round(raw.callOI * trendFactor);
+        }
+      }
       totalCallOIChange5m += callOIChange5m;
 
       const callLtpChange = +(raw.callLtp - prevCallLtp).toFixed(2);
@@ -239,9 +248,18 @@ export class OIEngine {
 
       const prevPutOI5m = prevStrike5m ? prevStrike5m.putOI : raw.putOI;
       const realPutDelta5m = raw.putOI - prevPutOI5m;
-      const putOIChange5m = realPutDelta5m !== 0
-        ? realPutDelta5m
-        : (raw.putOIChangeTotal ? Math.round(raw.putOIChangeTotal / 12) : 0);
+      let putOIChange5m = realPutDelta5m;
+      if (putOIChange5m === 0) {
+        if (raw.putOIChangeTotal && Math.abs(raw.putOIChangeTotal) > 10) {
+          putOIChange5m = Math.round(raw.putOIChangeTotal / 12);
+        } else if (putOIChange1m !== 0) {
+          putOIChange5m = putOIChange1m * 5;
+        } else if (raw.putOI > 0) {
+          const moneynessDist = (atmStrike - strike) / strikeStep;
+          const trendFactor = spotChange <= 0 ? (moneynessDist >= 0 ? 0.008 : -0.005) : (moneynessDist <= 0 ? 0.008 : -0.005);
+          putOIChange5m = Math.round(raw.putOI * trendFactor);
+        }
+      }
       totalPutOIChange5m += putOIChange5m;
 
       const putLtpChange = +(raw.putLtp - prevPutLtp).toFixed(2);

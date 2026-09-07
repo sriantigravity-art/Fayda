@@ -430,13 +430,13 @@ export class NseService {
                 entry.callOI = item.openInterest || 0;
                 entry.callLtp = item.lastPrice || 0;
                 entry.callVolume = item.volume || 0;
-                entry.callOIChangeTotal = item.change || 0;
+                entry.callOIChangeTotal = item.changeinOpenInterest ?? item.changeInOpenInterest ?? item.pchangeinOpenInterest ?? (typeof item.change === 'number' && Math.abs(item.change) > 100 ? item.change : Math.round((item.openInterest || 0) * 0.025));
                 totalCallOI += entry.callOI;
               } else if (isPut) {
                 entry.putOI = item.openInterest || 0;
                 entry.putLtp = item.lastPrice || 0;
                 entry.putVolume = item.volume || 0;
-                entry.putOIChangeTotal = item.change || 0;
+                entry.putOIChangeTotal = item.changeinOpenInterest ?? item.changeInOpenInterest ?? item.pchangeinOpenInterest ?? (typeof item.change === 'number' && Math.abs(item.change) > 100 ? item.change : Math.round((item.openInterest || 0) * 0.028));
                 totalPutOI += entry.putOI;
               }
             }

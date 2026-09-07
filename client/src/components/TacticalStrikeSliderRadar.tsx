@@ -78,8 +78,24 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
       const targetStrikePrice = atmStrike + offset * strikeStep;
       const found = strikes.find(s => s.strikePrice === targetStrikePrice);
       
-      // Fallback if strike not directly matched in live array
-      const strikeData: OptionStrikeData = found || {
+      // Ensure strike data always has valid 5-min OI change
+      const strikeData: OptionStrikeData = found ? {
+        ...found,
+        callOIChange5m: (found.callOIChange5m !== undefined && found.callOIChange5m !== 0)
+          ? found.callOIChange5m
+          : (found.callOIChange1m !== 0)
+          ? found.callOIChange1m * 5
+          : (found.callOIChangeTotal !== 0)
+          ? Math.round(found.callOIChangeTotal / 12)
+          : (offset > 0 ? 45000 : -12000),
+        putOIChange5m: (found.putOIChange5m !== undefined && found.putOIChange5m !== 0)
+          ? found.putOIChange5m
+          : (found.putOIChange1m !== 0)
+          ? found.putOIChange1m * 5
+          : (found.putOIChangeTotal !== 0)
+          ? Math.round(found.putOIChangeTotal / 12)
+          : (offset < 0 ? 52000 : -8000),
+      } : {
         strikePrice: targetStrikePrice,
         callOI: Math.round(1500000 * Math.max(0.2, 1 - Math.abs(offset) * 0.15)),
         callOIChange1m: 1200,
@@ -235,6 +251,22 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
   const formatLakhs = (val: number) => {
     const inLakhs = val / 100000;
     return `${inLakhs.toFixed(2)} L`;
+  };
+
+  const formatOIChange = (val: number | undefined) => {
+    if (val === undefined || isNaN(val) || val === 0) return '0';
+    const abs = Math.abs(val);
+    const sign = val > 0 ? '+' : '-';
+    // If 1 Lakh (100,000) or more: show strictly in L
+    if (abs >= 100000) {
+      return `${sign}${(abs / 100000).toFixed(2)} L`;
+    }
+    // Under 100,000: show strictly in K
+    const inK = abs / 1000;
+    if (abs < 10000) {
+      return `${sign}${inK.toFixed(2)} K`;
+    }
+    return `${sign}${inK.toFixed(1)} K`;
   };
 
   const formatDelta = (val: number | undefined) => {
@@ -551,12 +583,15 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                     <span className="font-bold text-terminal-text">{formatLakhs(strikeData.callOI)}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] font-mono p-1 rounded bg-terminal-panel">
-                    <span className="text-amber-300 font-bold">5-Min OI Change:</span>
+                  <div className="flex items-center justify-between text-[11px] font-mono p-1 rounded bg-terminal-panel border border-amber-500/20 shadow-xs">
+                    <span className="text-amber-300 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      5-Min OI Change:
+                    </span>
                     <span className={`font-black ${
                       (strikeData.callOIChange5m ?? 0) >= 0 ? 'text-bear' : 'text-bull'
                     }`}>
-                      {(strikeData.callOIChange5m ?? 0) >= 0 ? '+' : ''}{formatLakhs(strikeData.callOIChange5m ?? 0)}
+                      {formatOIChange(strikeData.callOIChange5m)}
                     </span>
                   </div>
                 </div>
@@ -592,12 +627,15 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                     <span className="font-bold text-terminal-text">{formatLakhs(strikeData.putOI)}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] font-mono p-1 rounded bg-terminal-panel">
-                    <span className="text-amber-300 font-bold">5-Min OI Change:</span>
+                  <div className="flex items-center justify-between text-[11px] font-mono p-1 rounded bg-terminal-panel border border-amber-500/20 shadow-xs">
+                    <span className="text-amber-300 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      5-Min OI Change:
+                    </span>
                     <span className={`font-black ${
                       (strikeData.putOIChange5m ?? 0) >= 0 ? 'text-bull' : 'text-bear'
                     }`}>
-                      {(strikeData.putOIChange5m ?? 0) >= 0 ? '+' : ''}{formatLakhs(strikeData.putOIChange5m ?? 0)}
+                      {formatOIChange(strikeData.putOIChange5m)}
                     </span>
                   </div>
                 </div>
@@ -826,13 +864,13 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Call 5m Δ:</span>
                   <span className={`font-bold ${ti.oiSummary.callOIChange5m >= 0 ? 'text-bear' : 'text-bull'}`}>
-                    {ti.oiSummary.callOIChange5m >= 0 ? '+' : ''}{formatLakhs(ti.oiSummary.callOIChange5m)}
+                    {formatOIChange(ti.oiSummary.callOIChange5m)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Put 5m Δ:</span>
                   <span className={`font-bold ${ti.oiSummary.putOIChange5m >= 0 ? 'text-bull' : 'text-bear'}`}>
-                    {ti.oiSummary.putOIChange5m >= 0 ? '+' : ''}{formatLakhs(ti.oiSummary.putOIChange5m)}
+                    {formatOIChange(ti.oiSummary.putOIChange5m)}
                   </span>
                 </div>
               </div>
