@@ -274,25 +274,26 @@ export const GlobalMarketContextBanner: React.FC = () => {
       onTouchStart={() => setIsHovered(true)}
       onTouchEnd={() => setIsHovered(false)}
     >
-      {/* Primary World Market Ticker Ribbon */}
-      <div className="max-w-[1840px] mx-auto px-2 sm:px-4 py-1.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        {/* Left Side: Macro Health Badge & Active Slide Category */}
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
+      {/* Primary World Market Ticker Ribbon - Left Aligned */}
+      <div className="max-w-[1840px] mx-auto px-2 sm:px-4 py-1.5 flex items-center justify-between gap-2.5 sm:gap-3">
+        {/* Left Section: Macro Badge + Category + Data Chips ALL FLUSH TO LEFT */}
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0 overflow-hidden">
+          {/* Setup Badge */}
           {setupBadge}
 
           {/* Active Slide Category Pill (Visible in slide mode) */}
           {!isAllView && (
-            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-terminal-panel/80 border border-terminal-border text-terminal-muted shrink-0">
+            <span className="hidden lg:inline-flex px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-terminal-panel/90 border border-terminal-border text-terminal-muted shrink-0">
               {slides[currentSlide]?.categoryBadge}
             </span>
           )}
-        </div>
 
-        {/* Center / Right: Dynamic 5-Second Sliding Chips or Full Grid */}
-        <div className="flex items-center justify-between md:justify-end gap-2 flex-1 min-w-0">
-          {/* Active Slide Container with Smooth Slide-in Animation */}
+          {/* Subtle Vertical Divider */}
+          <span className="hidden md:inline-block w-px h-4 bg-terminal-border/60 shrink-0" />
+
+          {/* Active Slide Data Chips - Left Aligned */}
           {isAllView ? (
-            <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 text-[11px] font-sans overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 text-[11px] font-sans overflow-x-auto no-scrollbar py-0.5 min-w-0 justify-start">
               {slides.map(s => (
                 <React.Fragment key={s.id}>
                   {s.items}
@@ -302,14 +303,15 @@ export const GlobalMarketContextBanner: React.FC = () => {
           ) : (
             <div 
               key={currentSlide} 
-              className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 text-[11px] font-sans transition-all duration-300 ease-out animate-in fade-in slide-in-from-right-3 py-0.5 min-w-0"
+              className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 text-[11px] font-sans transition-all duration-300 ease-out animate-in fade-in slide-in-from-left-2 py-0.5 min-w-0 justify-start"
             >
               {slides[currentSlide]?.items}
             </div>
           )}
+        </div>
 
-          {/* Interactive Slide Controls (Arrows, Dots, Play/Pause, 5s loop timer) */}
-          <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-terminal-border/60">
+        {/* Right Section: Compact Slide Controls */}
+        <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-terminal-border/60">
             {!isAllView && (
               <>
                 {/* Previous Slide */}
@@ -380,7 +382,6 @@ export const GlobalMarketContextBanner: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
 
       {/* 5-Second Subtle Progress Bar (Visible only when auto-sliding) */}
       {!isAllView && !isPaused && (
