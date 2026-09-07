@@ -26,6 +26,7 @@ import {
   Flame,
   X
 } from 'lucide-react';
+import { toggleBrowserFullscreen, isBrowserFullscreen } from '../utils/fullscreenManager';
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
@@ -208,6 +209,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       action: () => {
         toggleTheme();
         onClose();
+      }
+    },
+    {
+      id: 'tool-fullscreen-toggle',
+      category: 'TOOLS & SETTINGS' as const,
+      title: `${isBrowserFullscreen() ? 'Exit' : 'Enter'} Fullscreen Mode (F11 / F)`,
+      subtitle: 'Maximize terminal workspace to full monitor screen without distractions',
+      icon: isBrowserFullscreen() ? Minimize2 : Maximize2,
+      action: () => {
+        onClose();
+        toggleBrowserFullscreen();
       }
     }
   ];

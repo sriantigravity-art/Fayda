@@ -296,14 +296,18 @@ body {
   animation-play-state: paused;
 }
 
-/* Pseudo-fullscreen fallback for iOS Safari and restricted webviews (without breaking page scroll) */
+/* Enhanced pseudo-fullscreen fallback for Chrome, iOS Safari, and restricted webviews */
 body.terminal-fullscreen-active {
+  position: fixed !important;
+  inset: 0 !important;
   width: 100vw !important;
-  min-height: 100vh !important;
+  height: 100vh !important;
   margin: 0 !important;
   padding: 0 !important;
+  z-index: 99999 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  background-color: #080B11 !important;
 }
 
 /* Modal Entrance and Exit Animations */

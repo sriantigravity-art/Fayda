@@ -1,70 +1,49 @@
+import { requestBrowserFullscreen, isBrowserFullscreen } from './fullscreenManager';
+
 /**
  * Mobile Auto-Fullscreen Helper
- * Automatically puts the app in full screen mode by default on mobile page load
- * and seamlessly requests fullscreen on the very first touch/interaction.
+ * Requests fullscreen on mobile devices upon user interaction (click or touchend).
  */
-
 export function requestMobileFullscreen(): void {
   if (typeof window === 'undefined') return;
 
-  const isMobile = window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches;
-  if (!isMobile) return;
+  const isRealMobile = 
+    window.innerWidth < 768 && 
+    (/Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+     window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches);
 
-  const doc = document as any;
-  const isFs = !!(
-    doc.fullscreenElement ||
-    doc.webkitFullscreenElement ||
-    doc.mozFullScreenElement ||
-    doc.msFullscreenElement ||
-    document.body.classList.contains('terminal-fullscreen-active')
-  );
+  if (!isRealMobile) return;
+  if (isBrowserFullscreen()) return;
 
-  if (isFs) return;
-
-  const docEl = document.documentElement as any;
-  try {
-    if (docEl.requestFullscreen) {
-      docEl.requestFullscreen().catch(() => {});
-    } else if (docEl.webkitRequestFullscreen) {
-      docEl.webkitRequestFullscreen();
-    } else if (docEl.mozRequestFullScreen) {
-      docEl.mozRequestFullScreen();
-    } else if (docEl.msRequestFullscreen) {
-      docEl.msRequestFullscreen();
-    }
-  } catch {}
+  requestBrowserFullscreen().catch(() => {});
 }
 
 /**
  * Initializes auto-fullscreen listeners for mobile devices.
- * Dual-stage: attempts on mount + activates on very first user gesture.
+ * Safely triggers on first user tap / click without violating Chrome's user gesture policy.
  */
 export function initMobileAutoFullscreen(): () => void {
   if (typeof window === 'undefined') return () => {};
 
-  const isMobile = window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches;
-  if (!isMobile) return () => {};
+  const isRealMobile = 
+    window.innerWidth < 768 && 
+    (/Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+     window.matchMedia('(max-width: 768px) and (pointer: coarse)').matches);
 
-  // Stage 1: Immediate attempt on load (works in PWA / standalone / WebViews)
-  requestMobileFullscreen();
+  if (!isRealMobile) return () => {};
 
-  // Stage 2: Immediate full-screen trigger on first touch / tap / click
   const handleFirstInteraction = () => {
     requestMobileFullscreen();
     cleanup();
   };
 
   const cleanup = () => {
-    window.removeEventListener('touchstart', handleFirstInteraction);
-    window.removeEventListener('touchend', handleFirstInteraction);
-    window.removeEventListener('pointerdown', handleFirstInteraction);
     window.removeEventListener('click', handleFirstInteraction);
+    window.removeEventListener('touchend', handleFirstInteraction);
   };
 
-  window.addEventListener('touchstart', handleFirstInteraction, { passive: true, once: true });
-  window.addEventListener('touchend', handleFirstInteraction, { passive: true, once: true });
-  window.addEventListener('pointerdown', handleFirstInteraction, { passive: true, once: true });
-  window.addEventListener('click', handleFirstInteraction, { passive: true, once: true });
+  window.addEventListener('click', handleFirstInteraction, { once: true });
+  window.addEventListener('touchend', handleFirstInteraction, { once: true });
 
   return cleanup;
 }

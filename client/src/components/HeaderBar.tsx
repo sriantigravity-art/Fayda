@@ -48,6 +48,7 @@ import { AuthModal } from './auth/AuthModal';
 import { SuperAdminControlDrawer } from './admin/SuperAdminControlDrawer';
 import { LegalDocumentModal, type LegalDocType } from './auth/LegalDocumentModal';
 import { CommandPaletteModal } from './CommandPaletteModal';
+import { isBrowserFullscreen, toggleBrowserFullscreen, subscribeToFullscreen } from '../utils/fullscreenManager';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { UserProfileEditModal } from './profile/UserProfileEditModal';
 
@@ -93,106 +94,58 @@ export const HeaderBar: React.FC = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const mobileModeRef = useRef<HTMLDivElement>(null);
 
-  // Global Ctrl + K / Cmd + K keyboard shortcut
+  // Global Keyboard Shortcuts: Ctrl+K / Cmd+K (Palette), F11 (Fullscreen), and F (Fullscreen)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Intercept F11 to trigger synchronized HTML5 Fullscreen in Chrome & Edge
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleBrowserFullscreen();
+        return;
+      }
+
+      // 'f' or 'F' key toggle when not typing inside form fields
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const isInput = target && (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable
+        );
+        if (!isInput) {
+          e.preventDefault();
+          toggleBrowserFullscreen();
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync fullscreen state with all browser vendor prefix events
+  // Sync fullscreen state across standard events, vendor events, and window geometry
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      const doc = document as any;
-      const isFs = Boolean(
-        doc.fullscreenElement ||
-        doc.webkitFullscreenElement ||
-        doc.mozFullScreenElement ||
-        doc.msFullscreenElement ||
-        document.body.classList.contains('terminal-fullscreen-active')
-      );
-      setIsFullscreen(isFs);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
+    return subscribeToFullscreen((active) => {
+      setIsFullscreen(active);
+    });
   }, []);
 
   const toggleFullscreen = (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
-    const doc = document as any;
-    const docEl = document.documentElement as any;
-
-    const isNativeFs = Boolean(
-      doc.fullscreenElement ||
-      doc.webkitFullscreenElement ||
-      doc.mozFullScreenElement ||
-      doc.msFullscreenElement
-    );
-    const isCssFs = document.body.classList.contains('terminal-fullscreen-active');
-
-    if (isNativeFs || isCssFs) {
-      try {
-        if (doc.exitFullscreen) {
-          doc.exitFullscreen().catch(() => {});
-        } else if (doc.webkitExitFullscreen) {
-          doc.webkitExitFullscreen();
-        } else if (doc.mozCancelFullScreen) {
-          doc.mozCancelFullScreen();
-        } else if (doc.msExitFullscreen) {
-          doc.msExitFullscreen();
-        }
-      } catch (err) {
-        console.warn('[Fullscreen] Exit failed:', err);
-      } finally {
-        document.body.classList.remove('terminal-fullscreen-active');
-        setIsFullscreen(false);
-      }
-    } else {
-      let requested = false;
-      try {
-        const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-        if (req) {
-          const res = req.call(docEl);
-          if (res && res.catch) {
-            res.catch((err: any) => {
-              console.warn('[Fullscreen] Native rejected, applying CSS full window:', err);
-              document.body.classList.add('terminal-fullscreen-active');
-              setIsFullscreen(true);
-            });
-          }
-          requested = true;
-          setIsFullscreen(true);
-        }
-      } catch (err) {
-        console.warn('[Fullscreen] Native error, applying CSS full window:', err);
-      }
-
-      if (!requested) {
-        document.body.classList.add('terminal-fullscreen-active');
-        setIsFullscreen(true);
-      }
-    }
+    toggleBrowserFullscreen();
   };
 
   // Close more menu on outside click
@@ -485,7 +438,7 @@ export const HeaderBar: React.FC = () => {
                 ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
                 : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
             }`}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen (F11 / Full Window)'}
+            title={isFullscreen ? 'Exit Fullscreen (F11 / Esc / F)' : 'Enter Fullscreen (F11 / F)'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
