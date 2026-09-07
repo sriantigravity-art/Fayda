@@ -206,7 +206,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     (window as any).__triggerTestHighProbFlash = triggerTestHighProbFlash;
-  }, [triggerTestHighProbFlash]);
+    (window as any).__triggerTestHeroZeroFlash = triggerTestHeroZeroFlash;
+  }, [triggerTestHighProbFlash, triggerTestHeroZeroFlash]);
 
   // Square Off Emergency Alert Engine State
   const [latestSquareOffAlert, setLatestSquareOffAlert] = useState<SquareOffEvent | null>(null);

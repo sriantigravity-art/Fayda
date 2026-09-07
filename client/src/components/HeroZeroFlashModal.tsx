@@ -38,7 +38,7 @@ export const HeroZeroFlashModal: React.FC = () => {
       const pct = (remainingMs / durationMs) * 100;
       
       setProgress(pct);
-      setSecondsRemaining(Math.max(1, Math.ceil(remainingMs / 1000)));
+      setSecondsRemaining(Math.max(0, Math.ceil(remainingMs / 1000)));
 
       if (elapsed >= durationMs) {
         clearInterval(interval);
@@ -46,24 +46,39 @@ export const HeroZeroFlashModal: React.FC = () => {
       }
     }, 50);
 
-    return () => clearInterval(interval);
+    // Guaranteed fallback timeout to ensure dismissal after 10 seconds
+    const hardTimeout = setTimeout(() => {
+      clearInterval(interval);
+      dismissRef.current();
+    }, durationMs + 100);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(hardTimeout);
+    };
   }, [flashId]);
 
   if (!latestHeroZeroFlash) return null;
 
-  // Market hours check
+  // Market hours check (exempt explicit test/demo triggers)
+  const isTestOrDemo = latestHeroZeroFlash.id.startsWith('hero-zero-demo-') || latestHeroZeroFlash.id.startsWith('test-');
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const ist = new Date(utc + (3600000 * 5.5));
   const day = ist.getDay();
   const currentMin = ist.getHours() * 60 + ist.getMinutes();
   const isMarketOpen = day !== 0 && day !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
-  if (!isMarketOpen) return null;
+  if (!isMarketOpen && !isTestOrDemo) return null;
 
   const isCall = latestHeroZeroFlash.optionType === 'CE';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) dismissHeroZeroFlash();
+      }}
+    >
       <div className="relative w-full max-w-lg bg-terminal-card border-2 border-purple-500/80 rounded-3xl p-5 sm:p-6 shadow-[0_0_80px_rgba(168,85,247,0.4)] overflow-hidden font-mono text-terminal-text">
         {/* Top 10-Second Auto-dismiss Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-terminal-bg">

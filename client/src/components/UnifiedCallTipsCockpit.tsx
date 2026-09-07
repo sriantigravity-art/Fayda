@@ -21,7 +21,8 @@ import {
   Moon,
   TrendingUp,
   TrendingDown,
-  Target
+  Target,
+  BarChart2
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type TipConfluenceBreakdown, type OptionSellerMetrics } from '../types';
 import { ConfluenceChecklist } from './ConfluenceChecklist';

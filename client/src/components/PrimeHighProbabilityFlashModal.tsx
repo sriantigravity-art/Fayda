@@ -25,7 +25,6 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
 
   const [progress, setProgress] = useState(100);
   const [secondsRemaining, setSecondsRemaining] = useState(10);
-  const [isPaused, setIsPaused] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const dismissRef = React.useRef(dismissHighProbFlash);
@@ -46,14 +45,12 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
     const startTime = Date.now();
 
     const interval = setInterval(() => {
-      if (isPaused) return;
-
       const elapsed = Date.now() - startTime;
       const remainingMs = Math.max(0, durationMs - elapsed);
       const pct = (remainingMs / durationMs) * 100;
 
       setProgress(pct);
-      setSecondsRemaining(Math.max(1, Math.ceil(remainingMs / 1000)));
+      setSecondsRemaining(Math.max(0, Math.ceil(remainingMs / 1000)));
 
       if (elapsed >= durationMs) {
         clearInterval(interval);
@@ -61,8 +58,17 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
       }
     }, 50);
 
-    return () => clearInterval(interval);
-  }, [flashId, isPaused]);
+    // Guaranteed fallback timeout to ensure dismissal after 10 seconds
+    const hardTimeout = setTimeout(() => {
+      clearInterval(interval);
+      dismissRef.current();
+    }, durationMs + 100);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(hardTimeout);
+    };
+  }, [flashId]);
 
   if (!latestHighProbFlash) return null;
 
@@ -112,8 +118,11 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
   const modalContent = (
     <div 
       className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          dismissHighProbFlash();
+        }
+      }}
     >
       <div 
         className={`relative w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden text-terminal-text transition-all ${
