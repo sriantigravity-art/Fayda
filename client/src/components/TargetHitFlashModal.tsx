@@ -105,7 +105,7 @@ export const TargetHitFlashModal: React.FC = () => {
             </span>
           </div>
 
-          <h3 className="text-xl sm:text-2xl font-black text-white tracking-wide flex items-center justify-center gap-2">
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-wide flex items-center justify-center gap-2">
             <Sparkles className="w-5 h-5 text-amber animate-spin" />
             {latestTargetHit.symbol}
             <Sparkles className="w-5 h-5 text-amber animate-spin" />
@@ -119,25 +119,25 @@ export const TargetHitFlashModal: React.FC = () => {
         {/* Trade Execution Metrics Grid */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 text-center">
           {/* Entry */}
-          <div className="bg-terminal-bg/80 border border-terminal-border rounded-xl p-2.5">
-            <span className="text-[9px] text-terminal-muted block uppercase font-semibold">Entry Level</span>
-            <span className="font-bold text-xs sm:text-sm text-terminal-text block mt-0.5">
+          <div className="bg-slate-100 dark:bg-terminal-bg/80 border border-slate-200 dark:border-terminal-border rounded-xl p-2.5">
+            <span className="text-[9px] text-slate-600 dark:text-terminal-muted block uppercase font-bold">Entry Level</span>
+            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-terminal-text block mt-0.5">
               ₹{latestTargetHit.entryPrice.toFixed(2)}
             </span>
           </div>
 
           {/* Target */}
-          <div className="bg-terminal-bg/80 border border-terminal-border rounded-xl p-2.5">
-            <span className="text-[9px] text-terminal-muted block uppercase font-semibold">Target Level</span>
-            <span className="font-bold text-xs sm:text-sm text-accent-cyan block mt-0.5">
+          <div className="bg-slate-100 dark:bg-terminal-bg/80 border border-slate-200 dark:border-terminal-border rounded-xl p-2.5">
+            <span className="text-[9px] text-slate-600 dark:text-terminal-muted block uppercase font-bold">Target Level</span>
+            <span className="font-bold text-xs sm:text-sm text-cyan-700 dark:text-accent-cyan block mt-0.5">
               ₹{latestTargetHit.targetPrice.toFixed(2)}
             </span>
           </div>
 
           {/* Exit / Live LTP */}
-          <div className="bg-bull/15 border border-bull/50 rounded-xl p-2.5 shadow-[0_0_15px_rgba(0,245,155,0.2)]">
-            <span className="text-[9px] text-bull block uppercase font-black">Exit / Live LTP</span>
-            <span className="font-black text-xs sm:text-sm text-bull block mt-0.5">
+          <div className="bg-emerald-50 dark:bg-bull/15 border border-emerald-300 dark:border-bull/50 rounded-xl p-2.5 shadow-[0_0_15px_rgba(0,245,155,0.2)]">
+            <span className="text-[9px] text-emerald-800 dark:text-bull block uppercase font-black">Exit / Live LTP</span>
+            <span className="font-black text-xs sm:text-sm text-emerald-700 dark:text-bull block mt-0.5">
               ₹{latestTargetHit.currentLtp.toFixed(2)}
             </span>
           </div>
