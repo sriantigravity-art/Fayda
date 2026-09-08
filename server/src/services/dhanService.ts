@@ -97,10 +97,15 @@ export class DhanService {
     return {
       clientId: this.config.clientId ? `${this.config.clientId.slice(0, 3)}***` : '',
       isConnected: this.config.isConnected,
+      hasDataApi: this.config.hasDataApi,
       userName: this.config.userName,
       lastConnected: this.config.lastConnected,
       tokenExpiresAt: this.config.tokenExpiresAt
     };
+  }
+
+  public hasDataApi(): boolean {
+    return this.config.hasDataApi !== false;
   }
 
   public setConfig(clientId: string, accessToken: string) {
@@ -116,7 +121,8 @@ export class DhanService {
     this.config = {
       clientId: '',
       accessToken: '',
-      isConnected: false
+      isConnected: false,
+      hasDataApi: undefined
     };
     try {
       if (fs.existsSync(CONFIG_PATH)) {
@@ -130,14 +136,14 @@ export class DhanService {
   /**
    * Validate connection to Dhan by hitting Fund Limit or Profile API
    */
-  public async validateConnection(): Promise<{ success: boolean; message: string; userName?: string }> {
+  public async validateConnection(): Promise<{ success: boolean; message: string; userName?: string; hasDataApi?: boolean }> {
     if (!this.config.clientId || !this.config.accessToken) {
       this.config.isConnected = false;
       return { success: false, message: 'Dhan Client ID and Access Token are required' };
     }
 
     try {
-      // Dhan Fund Limit endpoint: GET https://api.dhan.co/v2/fundlimit
+      // Step 1: Validate Trading API credentials via Dhan Fund Limit endpoint
       const resp = await fetch('https://api.dhan.co/v2/fundlimit', {
         headers: {
           'client-id': this.config.clientId,
@@ -151,10 +157,40 @@ export class DhanService {
         this.config.isConnected = true;
         this.config.lastConnected = new Date().toISOString();
         this.config.userName = this.config.userName || `Dhan Trader (${this.config.clientId})`;
+
+        // Step 2: Check if Dhan Market Data API (Option Chain / LTP) is subscribed
+        let hasDataApi = true;
+        try {
+          const testDataResp = await fetch('https://api.dhan.co/v2/marketfeed/ltp', {
+            method: 'POST',
+            headers: {
+              'client-id': this.config.clientId,
+              'access-token': this.config.accessToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ IDX_I: [13] })
+          });
+
+          if (!testDataResp.ok) {
+            const errBody = await testDataResp.text().catch(() => '');
+            if (errBody.includes('806') || errBody.includes('Data APIs not Subscribed') || testDataResp.status === 401) {
+              hasDataApi = false;
+              console.warn(`[Dhan] ⚠️ Account ${this.config.clientId} connected to Trading API, but Market Data API is not subscribed (Error 806). Option chain will stream seamlessly via NSE Live.`);
+            }
+          }
+        } catch {
+          hasDataApi = false;
+        }
+
+        this.config.hasDataApi = hasDataApi;
         this.persistConfig();
+
         return {
           success: true,
-          message: 'Connected to DhanHQ successfully',
+          hasDataApi,
+          message: hasDataApi 
+            ? 'Connected to DhanHQ successfully' 
+            : 'Connected to DhanHQ Trading API. Note: Market Data API is not subscribed (Error 806). Option chain will stream seamlessly via NSE Live.',
           userName: this.config.userName
         };
       } else {
@@ -182,6 +218,11 @@ export class DhanService {
    */
   public async fetchOptionChain(symbol: IndexSymbol, expiry?: string): Promise<FyersOptionChainResult | null> {
     if (!this.config.isConnected && !this.config.accessToken) {
+      return null;
+    }
+
+    // If account has no Data API subscription, don't spam 401 requests
+    if (this.config.hasDataApi === false) {
       return null;
     }
 
@@ -361,7 +402,7 @@ export class DhanService {
    * Fetch batch spot quotes from Dhan
    */
   public async fetchBatchQuotes(symbols: IndexSymbol[]): Promise<Record<string, number>> {
-    if (!this.config.isConnected) return {};
+    if (!this.config.isConnected || this.config.hasDataApi === false) return {};
 
     const quotes: Record<string, number> = {};
     const idxScrips: number[] = [];

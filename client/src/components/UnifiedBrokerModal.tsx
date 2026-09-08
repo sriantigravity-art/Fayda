@@ -328,43 +328,64 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
           {selectedTab === 'DHAN' && (
             <div className="space-y-4">
               {/* Dhan Active Status Banner */}
+              {/* Dhan Active Status Banner */}
               {dhanConfig.isConnected ? (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-sm text-terminal-text">DhanHQ Connected & Streaming</span>
-                        <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40">
-                          LIVE 25 REQ/S
-                        </span>
+                <div className="space-y-2">
+                  <div className={`p-4 rounded-xl ${dhanConfig.hasDataApi === false ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-emerald-500/10 border border-emerald-500/30'} flex items-center justify-between flex-wrap gap-3`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-xl ${dhanConfig.hasDataApi === false ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'} flex items-center justify-center`}>
+                        {dhanConfig.hasDataApi === false ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                       </div>
-                      <p className="text-xs text-terminal-muted mt-0.5">
-                        Client ID: <strong className="text-terminal-text font-mono">{dhanConfig.clientId}</strong> • 
-                        User: <strong className="text-terminal-text">{dhanConfig.userName || 'Active'}</strong>
-                      </p>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-sm text-terminal-text">
+                            {dhanConfig.hasDataApi === false ? 'Dhan Trading API Connected' : 'DhanHQ Connected & Streaming'}
+                          </span>
+                          <span className={`px-2 py-0.2 rounded-full text-[10px] font-mono font-bold ${dhanConfig.hasDataApi === false ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'}`}>
+                            {dhanConfig.hasDataApi === false ? 'TRADING ONLY' : 'LIVE 25 REQ/S'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-terminal-muted mt-0.5">
+                          Client ID: <strong className="text-terminal-text font-mono">{dhanConfig.clientId}</strong> • 
+                          User: <strong className="text-terminal-text">{dhanConfig.userName || 'Active'}</strong>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {activeBroker !== 'DHAN' && (
+                    <div className="flex items-center gap-2">
+                      {activeBroker !== 'DHAN' && (
+                        <button
+                          type="button"
+                          onClick={() => selectBroker('DHAN')}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition cursor-pointer"
+                        >
+                          Set as Active
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => selectBroker('DHAN')}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition cursor-pointer"
+                        onClick={handleDisconnectDhan}
+                        className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 font-mono text-xs font-bold transition cursor-pointer"
                       >
-                        Set as Active
+                        Disconnect
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleDisconnectDhan}
-                      className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 font-mono text-xs font-bold transition cursor-pointer"
-                    >
-                      Disconnect
-                    </button>
+                    </div>
                   </div>
+
+                  {dhanConfig.hasDataApi === false && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-terminal-text space-y-1.5 font-mono">
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Dhan Error 806: Market Data API Not Subscribed</span>
+                      </div>
+                      <p className="text-terminal-muted text-[11px] leading-relaxed">
+                        Dhan provides Trading APIs for free, but charges ₹499/mo for live Option Chain &amp; LTP Data API.
+                        To stream live data directly from Dhan, visit <a href="https://web.dhan.co" target="_blank" rel="noopener noreferrer" className="text-amber-500 underline">web.dhan.co</a> &gt; Profile &gt; <strong>DhanHQ Trading APIs</strong> &gt; <strong>Data API</strong> tab &gt; <strong>Subscribe</strong>, then regenerate a fresh token.
+                      </p>
+                      <p className="text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
+                        ✅ In the meantime, Fayda is streaming live real-time option chains seamlessly using the official NSE live feed!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-accent-cyan/5 to-transparent border border-emerald-500/20 flex items-start space-x-3">

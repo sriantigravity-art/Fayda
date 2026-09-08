@@ -438,6 +438,7 @@ export interface DhanConfig {
   clientId: string;
   accessToken?: string;
   isConnected: boolean;
+  hasDataApi?: boolean;
   userName?: string;
   lastConnected?: string;
   tokenExpiresAt?: string;

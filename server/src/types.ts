@@ -419,6 +419,7 @@ export interface DhanConfig {
   clientId: string;
   accessToken: string;
   isConnected: boolean;
+  hasDataApi?: boolean;
   userName?: string;
   lastConnected?: string;
   tokenExpiresAt?: string;
@@ -427,6 +428,7 @@ export interface DhanConfig {
 export interface PublicDhanConfig {
   clientId: string;
   isConnected: boolean;
+  hasDataApi?: boolean;
   userName?: string;
   lastConnected?: string;
   tokenExpiresAt?: string;
