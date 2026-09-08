@@ -71,10 +71,10 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === tip.symbol);
   const lotSize = tip.lotSize || cfg?.lot || 50;
   const isCommodity = cfg?.category === 'COMMODITIES';
-  const isBull = tip.action.includes('CALL') || tip.action.includes('BULL');
-  const isBear = tip.action.includes('PUT') || tip.action.includes('BEAR');
+  const isBull = tip.action?.includes('CALL') || tip.action?.includes('BULL');
+  const isBear = tip.action?.includes('PUT') || tip.action?.includes('BEAR');
   const isSl = tip.action === 'SQUARE_OFF' || tip.status === 'SL_HIT';
-  const isSpread = tip.optionType === 'SPREAD' || tip.action.includes('SPREAD');
+  const isSpread = tip.optionType === 'SPREAD' || tip.action?.includes('SPREAD');
 
   const currentIndex = indices[tip.symbol];
   const liveSpot = currentIndex?.spotPrice || 0;
@@ -189,7 +189,7 @@ Generated via Fayda Trading Terminal`;
                     ? 'bg-bull/20 text-bull border-bull/40 shadow-[0_0_12px_rgba(0,245,155,0.25)]'
                     : 'bg-bear/20 text-bear border-bear/40 shadow-[0_0_12px_rgba(255,59,105,0.25)]'
                 }`}>
-                  {isSl ? '🛑 SQUARE OFF' : tip.action.replace(/_/g, ' ')}
+                  {isSl ? '🛑 SQUARE OFF' : (tip.action ? tip.action.replace(/_/g, ' ') : 'BUY')}
                 </span>
                 {tip.confluenceScore && (
                   <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
@@ -554,7 +554,7 @@ Generated via Fayda Trading Terminal`;
           {tip.confluenceBreakdown && (
             <ConfluenceChecklist 
               breakdown={tip.confluenceBreakdown} 
-              role={tip.tradingRole || (tip.action.includes('SELL') ? 'SELLER' : 'BUYER')}
+              role={tip.tradingRole || (tip.action?.includes('SELL') ? 'SELLER' : 'BUYER')}
               score={tip.confluenceScore}
             />
           )}

@@ -40,9 +40,13 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
   const [copiedFormat, setCopiedFormat] = useState<'JSON' | 'CSV' | null>(null);
   const [isSimulated, setIsSimulated] = useState<boolean>(false);
 
-  if (!isOpen) return null;
+  if (!isOpen || !basketItem) return null;
 
-  const totalQuantity = basketItem.lots * basketItem.lotSize;
+  const totalQuantity = (basketItem.lots || 1) * (basketItem.lotSize || 50);
+  const entryPrice = typeof basketItem.entryPrice === 'number' ? basketItem.entryPrice : (Number(basketItem.entryPrice) || 0);
+  const stoplossPrice = typeof basketItem.stoplossPrice === 'number' ? basketItem.stoplossPrice : (Number(basketItem.stoplossPrice) || 0);
+  const target1Price = typeof basketItem.target1Price === 'number' ? basketItem.target1Price : (Number(basketItem.target1Price) || 0);
+  const actionStr = String(basketItem.action || 'BUY');
 
   // Fyers API v3 and Dhan HQ API standard format
   const basketJson = JSON.stringify({
@@ -51,13 +55,13 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
     timestamp: new Date().toISOString(),
     orders: [
       {
-        symbol: basketItem.contractSymbol,
+        symbol: basketItem.contractSymbol || 'UNKNOWN',
         qty: totalQuantity,
-        side: basketItem.action.includes('BUY') ? 1 : -1,
+        side: actionStr.includes('BUY') ? 1 : -1,
         type: 'LIMIT',
-        limitPrice: basketItem.entryPrice,
-        stopPrice: basketItem.stoplossPrice,
-        targetPrice: basketItem.target1Price,
+        limitPrice: entryPrice,
+        stopPrice: stoplossPrice,
+        targetPrice: target1Price,
         productType: 'INTRADAY',
         validity: 'DAY'
       }
@@ -67,7 +71,7 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
   // Zerodha / Dhan Standard CSV import format
   const basketCsv = [
     'Symbol,Exchange,Segment,Action,Quantity,Price,TriggerPrice,Product,OrderType',
-    `"${basketItem.contractSymbol}",NSE,NFO,${basketItem.action.includes('BUY') ? 'BUY' : 'SELL'},${totalQuantity},${basketItem.entryPrice},${basketItem.stoplossPrice},MIS,LIMIT`
+    `"${basketItem.contractSymbol || 'UNKNOWN'}",NSE,NFO,${actionStr.includes('BUY') ? 'BUY' : 'SELL'},${totalQuantity},${entryPrice},${stoplossPrice},MIS,LIMIT`
   ].join('\n');
 
   const handleCopy = (text: string, format: 'JSON' | 'CSV') => {
@@ -137,28 +141,28 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[9px] text-slate-400 block uppercase">Order Action</span>
               <span className="font-bold text-xs text-slate-900 dark:text-white mt-0.5 block">
-                {basketItem.action.replace('_', ' ')}
+                {actionStr.replace(/_/g, ' ')}
               </span>
             </div>
 
             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[9px] text-slate-400 block uppercase">Quantity</span>
               <span className="font-bold text-xs text-slate-900 dark:text-white mt-0.5 block">
-                {totalQuantity} ({basketItem.lots}L)
+                {totalQuantity} ({basketItem.lots || 1}L)
               </span>
             </div>
 
             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[9px] text-slate-400 block uppercase">Limit Price</span>
               <span className="font-bold text-xs text-cyan-600 dark:text-cyan-400 mt-0.5 block">
-                ₹{basketItem.entryPrice.toFixed(1)}
+                ₹{entryPrice.toFixed(1)}
               </span>
             </div>
 
             <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <span className="text-[9px] text-slate-400 block uppercase">Target / SL</span>
               <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                ₹{basketItem.target1Price.toFixed(1)} / ₹{basketItem.stoplossPrice.toFixed(1)}
+                ₹{target1Price.toFixed(1)} / ₹{stoplossPrice.toFixed(1)}
               </span>
             </div>
           </div>

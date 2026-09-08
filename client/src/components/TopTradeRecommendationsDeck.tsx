@@ -1901,7 +1901,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         {/* Open Trade Tip Modal */}
                         <button
                           type="button"
-                          onClick={() => handleRowClick(currentFlashTip)}
+                          onClick={() => handleOpenTipModal(currentFlashTip)}
                           className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition shadow-sm cursor-pointer"
                         >
                           <Zap className="w-4 h-4" />
@@ -1913,9 +1913,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           type="button"
                           onClick={() => {
                             setCalcParams({
-                              ltp: currentFlashTip.currentLtp,
-                              sl: currentFlashTip.stoplossPrice,
-                              target: currentFlashTip.target1Price
+                              ltp: Number(currentFlashTip.currentLtp || currentFlashTip.entryPrice || 0),
+                              sl: Number(currentFlashTip.stoplossPrice || 0),
+                              target: Number(currentFlashTip.target1Price || 0)
                             });
                             setIsRiskModalOpen(true);
                           }}
@@ -1930,16 +1930,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           type="button"
                           onClick={() => {
                             setActiveBasketItem({
-                              symbol: selectedIndex,
                               contractSymbol: currentFlashTip.contractSymbol,
-                              optionType: currentFlashTip.optionType === 'SPREAD' ? 'CE' : currentFlashTip.optionType,
-                              action: currentFlashTip.action === 'BUY_CALL' ? 'BUY' : currentFlashTip.action === 'BUY_PUT' ? 'BUY' : 'SELL',
                               strikePrice: currentFlashTip.strikePrice || 0,
-                              entryPrice: currentFlashTip.currentLtp,
-                              stoplossPrice: currentFlashTip.stoplossPrice,
-                              targetPrice: currentFlashTip.target1Price,
-                              lotSize: lotSize,
-                              lots: 1
+                              optionType: currentFlashTip.optionType === 'SPREAD' ? 'CE' : (currentFlashTip.optionType || 'CE'),
+                              action: currentFlashTip.action?.includes('PUT') ? 'BUY_PUT' : currentFlashTip.action?.includes('CALL') ? 'BUY_CALL' : (currentFlashTip.action || 'BUY'),
+                              lotSize: lotSize || 50,
+                              lots: 1,
+                              entryPrice: Number(currentFlashTip.currentLtp || currentFlashTip.entryPrice || 0),
+                              stoplossPrice: Number(currentFlashTip.stoplossPrice || 0),
+                              target1Price: Number(currentFlashTip.target1Price || 0),
+                              executionType: currentFlashTip.role === 'SELLER' ? 'NET_CREDIT' : 'NET_DEBIT'
                             });
                             setIsBasketModalOpen(true);
                           }}
