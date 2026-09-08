@@ -370,12 +370,12 @@ export interface SquareOffEvent {
 }
 
 export type TipFlashEventType = 
-  | 'NEW_TIP'               // Tip given (flashed once only)
-  | 'BOOK_HALF_PROFIT'      // 50% milestone or Target 1 reached
-  | 'BOOK_FULL_PROFIT'      // Target 2 / Max profit reached
-  | 'BOOK_LOSS'             // Stop loss breached (Square off)
-  | 'HOLD_MOMENTUM'         // Strong momentum extension / Hold position
-  | 'TIGHTEN_SL';           // Trailing SL to breakeven
+  | 'NEW_TIP'               // Initial tip setup (optional/silent)
+  | 'BOOK_HALF_PROFIT'      // Book Partial Profit (50% Milestone / Target 1 reached)
+  | 'BOOK_FULL_PROFIT'      // Book Full Profit / Exit (Target 2 / Max Target reached)
+  | 'BOOK_LOSS'             // Book Loss / Exit (Stop Loss breached / Square off)
+  | 'HOLD_MOMENTUM'         // Hold Position (Strong momentum continuation)
+  | 'TIGHTEN_SL';           // Trailing Stop Loss (Move SL to breakeven/cost)
 
 export interface TipLifecycleFlashEvent {
   id: string;

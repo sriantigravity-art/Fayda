@@ -220,15 +220,16 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [latestSquareOffAlert, setLatestSquareOffAlert] = useState<SquareOffEvent | null>(null);
   const slTriggeredSetRef = useRef<Set<string>>(new Set());
 
-  // Dynamic Trade Lifecycle Flash Modal Engine State (Flashed ONCE ONLY per state)
+  // Dynamic Trade Lifecycle Flash Modal Engine State (Flashed ONCE ONLY per state, min 30s gap)
   const [latestLifecycleFlash, setLatestLifecycleFlash] = useState<TipLifecycleFlashEvent | null>(null);
   const flashedLifecycleEventsRef = useRef<Set<string>>(new Set());
+  const lastLifecycleFlashTimeRef = useRef<number>(0);
 
   const dismissLifecycleFlash = useCallback(() => {
     setLatestLifecycleFlash(null);
   }, []);
 
-  const triggerTestLifecycleFlash = useCallback((type: TipFlashEventType = 'NEW_TIP') => {
+  const triggerTestLifecycleFlash = useCallback((type: TipFlashEventType = 'BOOK_HALF_PROFIT') => {
     const isLoss = type === 'BOOK_LOSS';
     const isHalf = type === 'BOOK_HALF_PROFIT';
     const isFull = type === 'BOOK_FULL_PROFIT';
@@ -681,133 +682,17 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const pnlPct = +(((liveLtp - entryVal) / entryVal) * 100).toFixed(2);
               const isCall = actionStr.includes('CALL') || optType === 'CE';
 
-              // 1. NEW TIP FLASH (Flash ONCE ONLY when tip is first given)
-              const newTipKey = `new_tip_${symbol}_${contractSymbol}_${Math.round(entryVal)}`;
-              if (!flashedLifecycleEventsRef.current.has(newTipKey)) {
-                flashedLifecycleEventsRef.current.add(newTipKey);
-
-                const flashEvent: TipLifecycleFlashEvent = {
-                  id: `flash-new-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                  type: 'NEW_TIP',
-                  symbol,
-                  contractSymbol,
-                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                  optionType: optType,
-                  entryPrice: entryVal,
-                  entryRange: entryRangeStr,
-                  currentLtp: liveLtp,
-                  target1Price: target1Val,
-                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
-                  target2Price: target2Val,
-                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
-                  stoplossPrice: stoplossVal,
-                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
-                  confluenceScore: confluenceScoreVal,
-                  strategyTag: strategyTagStr,
-                  directiveTitle: 'High-Conviction Institutional Trade Setup Identified',
-                  directiveBadge: '🎯 NEW TRADE SETUP ISSUED',
-                  professionalGuidance: `Quantitative order flow and delta confluence confirm favorable risk-reward entry. Execute within designated entry range and immediately place hard protective Stop Loss at ₹${stoplossVal.toFixed(1)} to enforce strict risk discipline.`,
-                  recommendedAction: 'Enter Within Range & Set Hard SL',
-                  recommendedSl: stoplossVal,
-                  pnlPoints,
-                  pnlPct,
-                  timestamp: new Date().toISOString(),
-                  timeFormatted: formatISTTime(null, { showSeconds: true })
-                };
-
-                setLatestLifecycleFlash(flashEvent);
-                if (!isMuted) soundManager.playStrongAlert();
-                return;
-              }
-
-              // 2. TARGET 2 HIT / MAXIMUM PROFIT (Flash ONCE ONLY)
+              // 1. TARGET 2 HIT / MAXIMUM PROFIT / EXIT FULL (Flash ONCE ONLY, min 30s gap)
               const t2Key = `t2_${symbol}_${contractSymbol}_${Math.round(target2Val)}`;
               if (target2Val > 0 && liveLtp >= target2Val && !flashedLifecycleEventsRef.current.has(t2Key)) {
-                flashedLifecycleEventsRef.current.add(t2Key);
-
-                const flashEvent: TipLifecycleFlashEvent = {
-                  id: `flash-t2-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                  type: 'BOOK_FULL_PROFIT',
-                  symbol,
-                  contractSymbol,
-                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                  optionType: optType,
-                  entryPrice: entryVal,
-                  entryRange: entryRangeStr,
-                  currentLtp: liveLtp,
-                  target1Price: target1Val,
-                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
-                  target2Price: target2Val,
-                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
-                  stoplossPrice: stoplossVal,
-                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
-                  confluenceScore: confluenceScoreVal,
-                  strategyTag: strategyTagStr,
-                  directiveTitle: 'Secondary Target Reached — Book Full Profit & Liquidate',
-                  directiveBadge: '🏆 TARGET 2 ACHIEVED • BOOK FULL GAINS',
-                  professionalGuidance: `Secondary expansion target achieved (+${pnlPct}%). Maximum strategy alpha captured. Liquidate all remaining open contracts into institutional liquidity before theta decay or mean-reversion.`,
-                  recommendedAction: 'Book Remaining Profit & Liquidate',
-                  recommendedSl: target1Val,
-                  pnlPoints,
-                  pnlPct,
-                  timestamp: new Date().toISOString(),
-                  timeFormatted: formatISTTime(null, { showSeconds: true })
-                };
-
-                setLatestLifecycleFlash(flashEvent);
-                if (!isMuted) soundManager.playTargetHitAlert();
-                return;
-              }
-
-              // 3. TARGET 1 HIT / BOOK 50% PROFIT (Flash ONCE ONLY)
-              const t1Key = `t1_${symbol}_${contractSymbol}_${Math.round(target1Val)}`;
-              if (target1Val > 0 && liveLtp >= target1Val && !flashedLifecycleEventsRef.current.has(t1Key)) {
-                flashedLifecycleEventsRef.current.add(t1Key);
-
-                const flashEvent: TipLifecycleFlashEvent = {
-                  id: `flash-t1-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                  type: 'BOOK_HALF_PROFIT',
-                  symbol,
-                  contractSymbol,
-                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                  optionType: optType,
-                  entryPrice: entryVal,
-                  entryRange: entryRangeStr,
-                  currentLtp: liveLtp,
-                  target1Price: target1Val,
-                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
-                  target2Price: target2Val,
-                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
-                  stoplossPrice: stoplossVal,
-                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
-                  confluenceScore: confluenceScoreVal,
-                  strategyTag: strategyTagStr,
-                  directiveTitle: 'Target 1 Milestone Hit — Book 50% Profit & Trail SL to Cost',
-                  directiveBadge: '⚡ BOOK 50% PROFIT',
-                  professionalGuidance: `Primary target level achieved (+${pnlPct}%). Standard Institutional Protocol: Liquidate 50% to 70% position immediately to lock realized gains and trail Stop Loss to Entry Price ₹${entryVal.toFixed(1)} (Cost). Remaining runners are now 100% risk-free.`,
-                  recommendedAction: 'Book 50% Profit • Trail SL to Cost',
-                  recommendedSl: entryVal,
-                  pnlPoints,
-                  pnlPct,
-                  timestamp: new Date().toISOString(),
-                  timeFormatted: formatISTTime(null, { showSeconds: true })
-                };
-
-                setLatestLifecycleFlash(flashEvent);
-                if (!isMuted) soundManager.playTargetHitAlert();
-                return;
-              }
-
-              // 4. STOP LOSS HIT / BOOK LOSS (Flash ONCE ONLY)
-              const slKey = `sl_${symbol}_${contractSymbol}_${Math.round(stoplossVal)}`;
-              if (stoplossVal > 0 && liveLtp <= stoplossVal && !flashedLifecycleEventsRef.current.has(slKey)) {
-                const drawdownPct = ((entryVal - liveLtp) / entryVal) * 100;
-                if (drawdownPct >= 5.0) {
-                  flashedLifecycleEventsRef.current.add(slKey);
+                const nowMs = Date.now();
+                if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
+                  flashedLifecycleEventsRef.current.add(t2Key);
+                  lastLifecycleFlashTimeRef.current = nowMs;
 
                   const flashEvent: TipLifecycleFlashEvent = {
-                    id: `flash-sl-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                    type: 'BOOK_LOSS',
+                    id: `flash-t2-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    type: 'BOOK_FULL_PROFIT',
                     symbol,
                     contractSymbol,
                     action: isCall ? 'BUY_CALL' : 'BUY_PUT',
@@ -823,11 +708,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
                     confluenceScore: confluenceScoreVal,
                     strategyTag: strategyTagStr,
-                    directiveTitle: 'Technical Stop Loss Invalidation — Square Off Immediately',
-                    directiveBadge: '🛑 BOOK LOSS • SQUARE OFF',
-                    professionalGuidance: `Technical Stop Loss threshold breached (${pnlPct}%). Capital Preservation Mandate: Liquidate position without hesitation to contain downside and protect core trading capital. Maintain strict risk discipline.`,
-                    recommendedAction: 'Square Off Position Now',
-                    recommendedSl: stoplossVal,
+                    directiveTitle: 'Secondary Target Reached — Book Full Profit & Liquidate',
+                    directiveBadge: '🏆 TARGET 2 ACHIEVED • BOOK FULL GAINS',
+                    professionalGuidance: `Secondary expansion target achieved (+${pnlPct}%). Maximum strategy alpha captured. Liquidate all remaining open contracts into institutional liquidity before theta decay or mean-reversion.`,
+                    recommendedAction: 'Book Remaining Profit & Liquidate',
+                    recommendedSl: target1Val,
                     pnlPoints,
                     pnlPct,
                     timestamp: new Date().toISOString(),
@@ -835,50 +720,143 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
 
                   setLatestLifecycleFlash(flashEvent);
-                  if (!isMuted) soundManager.playExtremeAlert();
+                  if (!isMuted) soundManager.playTargetHitAlert();
                   return;
                 }
               }
 
-              // 5. ADVANCING TOWARDS TARGET / TIGHTEN STOP LOSS (Distance covered >= 55%)
+              // 2. TARGET 1 HIT / BOOK 50% PROFIT (Flash ONCE ONLY, min 30s gap)
+              const t1Key = `t1_${symbol}_${contractSymbol}_${Math.round(target1Val)}`;
+              if (target1Val > 0 && liveLtp >= target1Val && !flashedLifecycleEventsRef.current.has(t1Key)) {
+                const nowMs = Date.now();
+                if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
+                  flashedLifecycleEventsRef.current.add(t1Key);
+                  lastLifecycleFlashTimeRef.current = nowMs;
+
+                  const flashEvent: TipLifecycleFlashEvent = {
+                    id: `flash-t1-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    type: 'BOOK_HALF_PROFIT',
+                    symbol,
+                    contractSymbol,
+                    action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                    optionType: optType,
+                    entryPrice: entryVal,
+                    entryRange: entryRangeStr,
+                    currentLtp: liveLtp,
+                    target1Price: target1Val,
+                    target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                    target2Price: target2Val,
+                    target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                    stoplossPrice: stoplossVal,
+                    stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                    confluenceScore: confluenceScoreVal,
+                    strategyTag: strategyTagStr,
+                    directiveTitle: 'Target 1 Milestone Hit — Book 50% Profit & Trail SL to Cost',
+                    directiveBadge: '⚡ BOOK 50% PROFIT',
+                    professionalGuidance: `Primary target level achieved (+${pnlPct}%). Standard Institutional Protocol: Liquidate 50% to 70% position immediately to lock realized gains and trail Stop Loss to Entry Price ₹${entryVal.toFixed(1)} (Cost). Remaining runners are now 100% risk-free.`,
+                    recommendedAction: 'Book 50% Profit • Trail SL to Cost',
+                    recommendedSl: entryVal,
+                    pnlPoints,
+                    pnlPct,
+                    timestamp: new Date().toISOString(),
+                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                  };
+
+                  setLatestLifecycleFlash(flashEvent);
+                  if (!isMuted) soundManager.playTargetHitAlert();
+                  return;
+                }
+              }
+
+              // 3. STOP LOSS HIT / BOOK LOSS / EXIT (Flash ONCE ONLY, min 30s gap)
+              const slKey = `sl_${symbol}_${contractSymbol}_${Math.round(stoplossVal)}`;
+              if (stoplossVal > 0 && liveLtp <= stoplossVal && !flashedLifecycleEventsRef.current.has(slKey)) {
+                const drawdownPct = ((entryVal - liveLtp) / entryVal) * 100;
+                if (drawdownPct >= 5.0) {
+                  const nowMs = Date.now();
+                  if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
+                    flashedLifecycleEventsRef.current.add(slKey);
+                    lastLifecycleFlashTimeRef.current = nowMs;
+
+                    const flashEvent: TipLifecycleFlashEvent = {
+                      id: `flash-sl-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                      type: 'BOOK_LOSS',
+                      symbol,
+                      contractSymbol,
+                      action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                      optionType: optType,
+                      entryPrice: entryVal,
+                      entryRange: entryRangeStr,
+                      currentLtp: liveLtp,
+                      target1Price: target1Val,
+                      target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                      target2Price: target2Val,
+                      target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                      stoplossPrice: stoplossVal,
+                      stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                      confluenceScore: confluenceScoreVal,
+                      strategyTag: strategyTagStr,
+                      directiveTitle: 'Technical Stop Loss Invalidation — Square Off Immediately',
+                      directiveBadge: '🛑 BOOK LOSS • SQUARE OFF',
+                      professionalGuidance: `Technical Stop Loss threshold breached (${pnlPct}%). Capital Preservation Mandate: Liquidate position without hesitation to contain downside and protect core trading capital. Maintain strict risk discipline.`,
+                      recommendedAction: 'Square Off Position Now',
+                      recommendedSl: stoplossVal,
+                      pnlPoints,
+                      pnlPct,
+                      timestamp: new Date().toISOString(),
+                      timeFormatted: formatISTTime(null, { showSeconds: true })
+                    };
+
+                    setLatestLifecycleFlash(flashEvent);
+                    if (!isMuted) soundManager.playExtremeAlert();
+                    return;
+                  }
+                }
+              }
+
+              // 4. ADVANCING TOWARDS TARGET / TRAILING STOP LOSS (Distance covered >= 55%, min 30s gap)
               const trailKey = `trail_${symbol}_${contractSymbol}_${Math.round(entryVal)}`;
               const targetDist = target1Val - entryVal;
               if (targetDist > 0 && liveLtp > entryVal + targetDist * 0.55 && liveLtp < target1Val && !flashedLifecycleEventsRef.current.has(trailKey)) {
-                flashedLifecycleEventsRef.current.add(trailKey);
-                const breakevenSl = +(entryVal * 1.01).toFixed(1);
+                const nowMs = Date.now();
+                if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
+                  flashedLifecycleEventsRef.current.add(trailKey);
+                  lastLifecycleFlashTimeRef.current = nowMs;
+                  const breakevenSl = +(entryVal * 1.01).toFixed(1);
 
-                const flashEvent: TipLifecycleFlashEvent = {
-                  id: `flash-trail-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                  type: 'TIGHTEN_SL',
-                  symbol,
-                  contractSymbol,
-                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                  optionType: optType,
-                  entryPrice: entryVal,
-                  entryRange: entryRangeStr,
-                  currentLtp: liveLtp,
-                  target1Price: target1Val,
-                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
-                  target2Price: target2Val,
-                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
-                  stoplossPrice: stoplossVal,
-                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
-                  confluenceScore: confluenceScoreVal,
-                  strategyTag: strategyTagStr,
-                  directiveTitle: 'Price Advancing — Tighten Trailing Stop Loss to Breakeven',
-                  directiveBadge: '⚠️ TIGHTEN TRAILING SL',
-                  professionalGuidance: `Price has covered >55% distance to Target 1 (+${pnlPct}% gain). Trailing Directive: Move Stop Loss up to ₹${breakevenSl.toFixed(1)} (Cost/Breakeven) to guarantee zero capital loss before target completion.`,
-                  recommendedAction: 'Move SL to ₹' + breakevenSl.toFixed(1),
-                  recommendedSl: breakevenSl,
-                  pnlPoints,
-                  pnlPct,
-                  timestamp: new Date().toISOString(),
-                  timeFormatted: formatISTTime(null, { showSeconds: true })
-                };
+                  const flashEvent: TipLifecycleFlashEvent = {
+                    id: `flash-trail-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    type: 'TIGHTEN_SL',
+                    symbol,
+                    contractSymbol,
+                    action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                    optionType: optType,
+                    entryPrice: entryVal,
+                    entryRange: entryRangeStr,
+                    currentLtp: liveLtp,
+                    target1Price: target1Val,
+                    target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                    target2Price: target2Val,
+                    target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                    stoplossPrice: stoplossVal,
+                    stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                    confluenceScore: confluenceScoreVal,
+                    strategyTag: strategyTagStr,
+                    directiveTitle: 'Price Advancing — Tighten Trailing Stop Loss to Breakeven',
+                    directiveBadge: '⚠️ TIGHTEN TRAILING SL',
+                    professionalGuidance: `Price has covered >55% distance to Target 1 (+${pnlPct}% gain). Trailing Directive: Move Stop Loss up to ₹${breakevenSl.toFixed(1)} (Cost/Breakeven) to guarantee zero capital loss before target completion.`,
+                    recommendedAction: 'Move SL to ₹' + breakevenSl.toFixed(1),
+                    recommendedSl: breakevenSl,
+                    pnlPoints,
+                    pnlPct,
+                    timestamp: new Date().toISOString(),
+                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                  };
 
-                setLatestLifecycleFlash(flashEvent);
-                if (!isMuted) soundManager.playStrongAlert();
-                return;
+                  setLatestLifecycleFlash(flashEvent);
+                  if (!isMuted) soundManager.playStrongAlert();
+                  return;
+                }
               }
             };
 

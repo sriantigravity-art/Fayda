@@ -76,8 +76,13 @@ export const TradeLifecycleFlashModal: React.FC = () => {
     };
   }, [flashId]);
 
-  // Only show flash tips for the asset selected by user in header dropdown
-  if (!latestLifecycleFlash || (latestLifecycleFlash.symbol && selectedIndex && latestLifecycleFlash.symbol !== selectedIndex)) {
+  // Only show flash tips for the asset selected by user in header dropdown,
+  // AND strictly only show modal box when book profit, exit, trailing stoploss, or book loss
+  if (
+    !latestLifecycleFlash || 
+    (latestLifecycleFlash.symbol && selectedIndex && latestLifecycleFlash.symbol !== selectedIndex) ||
+    !['BOOK_HALF_PROFIT', 'BOOK_FULL_PROFIT', 'BOOK_LOSS', 'TIGHTEN_SL'].includes(latestLifecycleFlash.type)
+  ) {
     return null;
   }
 

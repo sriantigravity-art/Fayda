@@ -16,9 +16,6 @@ import { HeroZeroRadar } from './components/HeroZeroRadar';
 import { RightAnalyticsColumn } from './components/RightAnalyticsColumn';
 import { SurgeAlertBanner } from './components/SurgeAlertBanner';
 import { FlashNewsBanner } from './components/FlashNewsBanner';
-import { TargetHitFlashModal } from './components/TargetHitFlashModal';
-import { HeroZeroFlashModal } from './components/HeroZeroFlashModal';
-import { PrimeHighProbabilityFlashModal } from './components/PrimeHighProbabilityFlashModal';
 import { TradeLifecycleFlashModal } from './components/TradeLifecycleFlashModal';
 import { SquareOffAlertBanner } from './components/SquareOffAlertBanner';
 import { HighlightSignalTicker } from './components/HighlightSignalTicker';
@@ -71,16 +68,7 @@ const DashboardContent: React.FC = () => {
       {/* Emergency Square Off Reversal Banner */}
       {panelVisibility.squareOffBanner && <SquareOffAlertBanner />}
 
-      {/* Target Hit Flash Celebration Modal */}
-      <TargetHitFlashModal />
-
-      {/* 0DTE Hero-or-Zero Multiplier Flash Alert Modal */}
-      <HeroZeroFlashModal />
-
-      {/* Dedicated High-Probability Call/Put Flash Alert Modal */}
-      <PrimeHighProbabilityFlashModal />
-
-      {/* Dynamic Trade Lifecycle Flash Alert Modal (Once Only when Tip Given, Profit Booking, Stop Loss, Hold) */}
+      {/* Dynamic Trade Lifecycle Flash Alert Modal (Only on Book Profit, Exit, Trailing Stop Loss, or Book Loss with 30s gap) */}
       <TradeLifecycleFlashModal />
 
       {/* 10-Second Floating Breaking Flash News Banner */}
