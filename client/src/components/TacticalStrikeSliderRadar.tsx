@@ -161,13 +161,11 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
     });
   }, [currentIndexState]);
 
-  if (!currentIndexState || strikeWindow.length === 0) return null;
-
-  const { spotPrice, change, pctChange, atmStrike, strikeStep, lotSize, strikes, technicalIndicators } = currentIndexState;
-  const isPositive = change >= 0;
   // Selected strike node based on strikeOffset (-3 to +3)
-  const currentStrikeItem = strikeWindow.find(s => s.offset === strikeOffset) || strikeWindow[3];
-  const strikeData = currentStrikeItem.data;
+  const currentStrikeItem = useMemo(() => {
+    if (strikeWindow.length === 0) return null;
+    return strikeWindow.find(s => s.offset === strikeOffset) || strikeWindow[3] || strikeWindow[0] || null;
+  }, [strikeWindow, strikeOffset]);
 
   // Broadcast radar strike selection so TopTradeRecommendationsDeck dynamically synchronizes tips & counts
   useEffect(() => {
@@ -181,6 +179,12 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
       }));
     }
   }, [currentStrikeItem?.strikePrice, strikeOffset, selectedIndex]);
+
+  if (!currentIndexState || strikeWindow.length === 0 || !currentStrikeItem) return null;
+
+  const { spotPrice, change, pctChange, atmStrike, strikeStep, lotSize, strikes, technicalIndicators } = currentIndexState;
+  const isPositive = change >= 0;
+  const strikeData = currentStrikeItem.data;
 
   // Fallback technical indicators if server engine is syncing
   const ti: TechnicalIndicatorsData = technicalIndicators || {

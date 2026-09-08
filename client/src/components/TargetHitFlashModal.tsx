@@ -11,7 +11,7 @@ import {
 import { formatISTTime } from '../utils/formatTime';
 
 export const TargetHitFlashModal: React.FC = () => {
-  const { latestTargetHit, dismissTargetHit } = useMarket();
+  const { latestTargetHit, dismissTargetHit, selectedIndex } = useMarket();
   const [progress, setProgress] = useState(100);
   const [secondsRemaining, setSecondsRemaining] = useState(5);
   const dismissRef = React.useRef(dismissTargetHit);
@@ -48,7 +48,9 @@ export const TargetHitFlashModal: React.FC = () => {
     return () => clearInterval(interval);
   }, [hitId]);
 
-  if (!latestTargetHit) return null;
+  if (!latestTargetHit || (latestTargetHit.indexSymbol && selectedIndex && latestTargetHit.indexSymbol !== selectedIndex)) {
+    return null;
+  }
 
   const isBull = latestTargetHit.isBull;
 

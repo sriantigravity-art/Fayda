@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
-import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, DhanConfig, ActiveBroker, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent } from '../types';
+import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, DhanConfig, ActiveBroker, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent, TipLifecycleFlashEvent, TipFlashEventType } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 
@@ -58,6 +58,10 @@ interface MarketContextType {
   // Emergency Square Off Alert Engine
   latestSquareOffAlert: SquareOffEvent | null;
   dismissSquareOffAlert: () => void;
+  // Dynamic Trade Lifecycle Flash Modal Engine
+  latestLifecycleFlash: TipLifecycleFlashEvent | null;
+  dismissLifecycleFlash: () => void;
+  triggerTestLifecycleFlash: (type?: TipFlashEventType) => void;
   // Global International Indices & Macro Context
   globalIndices: GlobalIndexItem[];
   globalMarketContext: import('../types').GlobalMarketContextData | null;
@@ -98,6 +102,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // because it works even when older server cache entries don't have that field.
   const [indicesReceivedAt, setIndicesReceivedAt] = useState<Record<string, number>>({});
   const [selectedIndex, setSelectedIndex] = useState<IndexSymbol>('NIFTY');
+  const selectedIndexRef = useRef<IndexSymbol>(selectedIndex);
+  useEffect(() => {
+    selectedIndexRef.current = selectedIndex;
+  }, [selectedIndex]);
 
   const [visibleIndices, setVisibleIndices] = useState<IndexSymbol[]>(() => {
     const saved = localStorage.getItem('oi_radar_visible_indices');
@@ -211,6 +219,97 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Square Off Emergency Alert Engine State
   const [latestSquareOffAlert, setLatestSquareOffAlert] = useState<SquareOffEvent | null>(null);
   const slTriggeredSetRef = useRef<Set<string>>(new Set());
+
+  // Dynamic Trade Lifecycle Flash Modal Engine State (Flashed ONCE ONLY per state)
+  const [latestLifecycleFlash, setLatestLifecycleFlash] = useState<TipLifecycleFlashEvent | null>(null);
+  const flashedLifecycleEventsRef = useRef<Set<string>>(new Set());
+
+  const dismissLifecycleFlash = useCallback(() => {
+    setLatestLifecycleFlash(null);
+  }, []);
+
+  const triggerTestLifecycleFlash = useCallback((type: TipFlashEventType = 'NEW_TIP') => {
+    const isLoss = type === 'BOOK_LOSS';
+    const isHalf = type === 'BOOK_HALF_PROFIT';
+    const isFull = type === 'BOOK_FULL_PROFIT';
+    const isHold = type === 'HOLD_MOMENTUM';
+
+    const currentSym = selectedIndexRef.current || 'NIFTY';
+    const currentIdx = indices[currentSym] || indices['NIFTY'];
+    const atm = currentIdx?.atmStrike || (currentSym === 'BANKNIFTY' ? 51200 : currentSym === 'SENSEX' ? 80500 : 24500);
+
+    const testEvent: TipLifecycleFlashEvent = {
+      id: `test-life-${Date.now()}`,
+      type,
+      symbol: currentSym,
+      contractSymbol: `${currentSym} ${atm} CE`,
+      action: 'BUY CALL',
+      optionType: 'CE',
+      entryPrice: 110,
+      entryRange: '₹108.00 - ₹112.00',
+      currentLtp: isFull ? 182.5 : isHalf ? 146.0 : isLoss ? 86.5 : isHold ? 128.0 : 110.0,
+      target1Price: 145,
+      target1Pct: 32,
+      target2Price: 180,
+      target2Pct: 64,
+      stoplossPrice: 88,
+      stoplossPct: 20,
+      confluenceScore: 92,
+      strategyTag: 'Institutional High-Probability Confluence Breakout',
+      directiveTitle: isFull 
+        ? 'Secondary Target Reached — Book Full Profit & Liquidate' 
+        : isHalf 
+        ? 'Target 1 Milestone Hit — Book 50% Profit & Trail SL to Cost'
+        : isLoss
+        ? 'Technical Invalidation — Book Loss & Square Off Immediately'
+        : isHold
+        ? 'Institutional Order Flow Intact — Hold Position & Defend Pivot'
+        : 'High-Conviction Institutional Trade Setup Identified',
+      directiveBadge: isFull
+        ? '🏆 TARGET 2 HIT • BOOK FULL PROFIT'
+        : isHalf
+        ? '⚡ BOOK 50% PROFIT'
+        : isLoss
+        ? '🛑 BOOK LOSS • SQUARE OFF'
+        : isHold
+        ? '🟢 HOLD POSITION'
+        : '🎯 NEW TRADE SETUP ISSUED',
+      professionalGuidance: isFull
+        ? 'Secondary expansion target achieved (+64.0%). Maximum strategy alpha captured. Liquidate all remaining open contracts into institutional liquidity before theta decay or mean-reversion.'
+        : isHalf
+        ? 'Primary target level achieved (+32.0%). Standard Institutional Risk Protocol: Liquidate 50% to 70% position immediately to lock realized gains and trail Stop Loss to Entry Price (Cost). Remaining runners are now 100% risk-free.'
+        : isLoss
+        ? 'Technical Stop Loss threshold breached (-20.0%). Capital Preservation Mandate: Liquidate position without hesitation to contain downside and protect core trading capital. Maintain strict risk discipline.'
+        : isHold
+        ? 'Strong call delta order flow confirmation (+68% OI/min). Favorable risk-reward structure maintained. Hold position and let profits run with active trailing buffer.'
+        : 'Quantitative order flow and delta confluence confirm high-probability momentum. Execute within designated entry range and immediately place hard protective Stop Loss to enforce risk discipline.',
+      recommendedAction: isFull
+        ? 'Book Full Remaining Gains & Exit'
+        : isHalf
+        ? 'Book 50% Profit • Trail SL to Cost'
+        : isLoss
+        ? 'Square Off Position Now'
+        : isHold
+        ? 'Hold & Trail Protective SL'
+        : 'Enter Within Range & Set Hard SL',
+      recommendedSl: isFull ? 145 : isHalf ? 110 : isHold ? 100 : 88,
+      pnlPoints: isFull ? 72.5 : isHalf ? 36.0 : isLoss ? -23.5 : isHold ? 18.0 : 0,
+      pnlPct: isFull ? 65.9 : isHalf ? 32.7 : isLoss ? -21.4 : isHold ? 16.4 : 0,
+      timestamp: new Date().toISOString(),
+      timeFormatted: formatISTTime(null, { showSeconds: true })
+    };
+
+    setLatestLifecycleFlash(testEvent);
+    if (!isMuted) {
+      if (isLoss) soundManager.playExtremeAlert();
+      else if (isHalf || isFull) soundManager.playTargetHitAlert();
+      else soundManager.playStrongAlert();
+    }
+  }, [isMuted]);
+
+  useEffect(() => {
+    (window as any).__triggerTestLifecycleFlash = triggerTestLifecycleFlash;
+  }, [triggerTestLifecycleFlash]);
 
   // Global International Indices State
   const [globalIndices, setGlobalIndices] = useState<GlobalIndexItem[]>([]);
@@ -459,8 +558,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           // Stamp client-side receive time — used by UI to determine if data is fresh
           setIndicesReceivedAt((prev) => ({ ...prev, [symbol]: Date.now() }));
 
-          // Check Trade Recommendations Target Hits
-          if (indexState && indexState.recommendedTrades) {
+          // Check Trade Recommendations Target Hits (Only for selected asset chosen in header)
+          if (indexState && indexState.recommendedTrades && symbol === selectedIndexRef.current) {
             const checkAndTriggerTarget = (pick: any, isBull: boolean) => {
               if (!pick || !pick.strike) return;
               const strikeRow = indexState.strikes?.find((s: any) => s.strikePrice === pick.strike);
@@ -551,6 +650,325 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
           }
 
+          // -------------------------------------------------------------------------
+          // DYNAMIC TRADE LIFECYCLE FLASH ENGINE (ONCE ONLY PER STATE TRANSITION)
+          // Filtered strictly to the selected asset chosen in header dropdown!
+          // -------------------------------------------------------------------------
+          if (indexState && symbol === selectedIndexRef.current) {
+            const evaluateTipLifecycle = (
+              contractSymbol: string,
+              actionStr: string,
+              optType: 'CE' | 'PE' | 'SPREAD',
+              entryVal: number,
+              entryRangeStr: string,
+              target1Val: number,
+              target2Val: number,
+              stoplossVal: number,
+              confluenceScoreVal: number,
+              strategyTagStr: string,
+              strikePriceVal: number
+            ) => {
+              if (!contractSymbol || entryVal <= 0) return;
+
+              const strikeRow = indexState.strikes?.find((s: any) => s.strikePrice === strikePriceVal);
+              let liveLtp = entryVal;
+              if (strikeRow) {
+                liveLtp = optType === 'PE' ? strikeRow.putLtp : strikeRow.callLtp;
+              }
+              if (!liveLtp || liveLtp <= 0) liveLtp = entryVal;
+
+              const pnlPoints = +(liveLtp - entryVal).toFixed(2);
+              const pnlPct = +(((liveLtp - entryVal) / entryVal) * 100).toFixed(2);
+              const isCall = actionStr.includes('CALL') || optType === 'CE';
+
+              // 1. NEW TIP FLASH (Flash ONCE ONLY when tip is first given)
+              const newTipKey = `new_tip_${symbol}_${contractSymbol}_${Math.round(entryVal)}`;
+              if (!flashedLifecycleEventsRef.current.has(newTipKey)) {
+                flashedLifecycleEventsRef.current.add(newTipKey);
+
+                const flashEvent: TipLifecycleFlashEvent = {
+                  id: `flash-new-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                  type: 'NEW_TIP',
+                  symbol,
+                  contractSymbol,
+                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                  optionType: optType,
+                  entryPrice: entryVal,
+                  entryRange: entryRangeStr,
+                  currentLtp: liveLtp,
+                  target1Price: target1Val,
+                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                  target2Price: target2Val,
+                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                  stoplossPrice: stoplossVal,
+                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                  confluenceScore: confluenceScoreVal,
+                  strategyTag: strategyTagStr,
+                  directiveTitle: 'High-Conviction Institutional Trade Setup Identified',
+                  directiveBadge: '🎯 NEW TRADE SETUP ISSUED',
+                  professionalGuidance: `Quantitative order flow and delta confluence confirm favorable risk-reward entry. Execute within designated entry range and immediately place hard protective Stop Loss at ₹${stoplossVal.toFixed(1)} to enforce strict risk discipline.`,
+                  recommendedAction: 'Enter Within Range & Set Hard SL',
+                  recommendedSl: stoplossVal,
+                  pnlPoints,
+                  pnlPct,
+                  timestamp: new Date().toISOString(),
+                  timeFormatted: formatISTTime(null, { showSeconds: true })
+                };
+
+                setLatestLifecycleFlash(flashEvent);
+                if (!isMuted) soundManager.playStrongAlert();
+                return;
+              }
+
+              // 2. TARGET 2 HIT / MAXIMUM PROFIT (Flash ONCE ONLY)
+              const t2Key = `t2_${symbol}_${contractSymbol}_${Math.round(target2Val)}`;
+              if (target2Val > 0 && liveLtp >= target2Val && !flashedLifecycleEventsRef.current.has(t2Key)) {
+                flashedLifecycleEventsRef.current.add(t2Key);
+
+                const flashEvent: TipLifecycleFlashEvent = {
+                  id: `flash-t2-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                  type: 'BOOK_FULL_PROFIT',
+                  symbol,
+                  contractSymbol,
+                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                  optionType: optType,
+                  entryPrice: entryVal,
+                  entryRange: entryRangeStr,
+                  currentLtp: liveLtp,
+                  target1Price: target1Val,
+                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                  target2Price: target2Val,
+                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                  stoplossPrice: stoplossVal,
+                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                  confluenceScore: confluenceScoreVal,
+                  strategyTag: strategyTagStr,
+                  directiveTitle: 'Secondary Target Reached — Book Full Profit & Liquidate',
+                  directiveBadge: '🏆 TARGET 2 ACHIEVED • BOOK FULL GAINS',
+                  professionalGuidance: `Secondary expansion target achieved (+${pnlPct}%). Maximum strategy alpha captured. Liquidate all remaining open contracts into institutional liquidity before theta decay or mean-reversion.`,
+                  recommendedAction: 'Book Remaining Profit & Liquidate',
+                  recommendedSl: target1Val,
+                  pnlPoints,
+                  pnlPct,
+                  timestamp: new Date().toISOString(),
+                  timeFormatted: formatISTTime(null, { showSeconds: true })
+                };
+
+                setLatestLifecycleFlash(flashEvent);
+                if (!isMuted) soundManager.playTargetHitAlert();
+                return;
+              }
+
+              // 3. TARGET 1 HIT / BOOK 50% PROFIT (Flash ONCE ONLY)
+              const t1Key = `t1_${symbol}_${contractSymbol}_${Math.round(target1Val)}`;
+              if (target1Val > 0 && liveLtp >= target1Val && !flashedLifecycleEventsRef.current.has(t1Key)) {
+                flashedLifecycleEventsRef.current.add(t1Key);
+
+                const flashEvent: TipLifecycleFlashEvent = {
+                  id: `flash-t1-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                  type: 'BOOK_HALF_PROFIT',
+                  symbol,
+                  contractSymbol,
+                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                  optionType: optType,
+                  entryPrice: entryVal,
+                  entryRange: entryRangeStr,
+                  currentLtp: liveLtp,
+                  target1Price: target1Val,
+                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                  target2Price: target2Val,
+                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                  stoplossPrice: stoplossVal,
+                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                  confluenceScore: confluenceScoreVal,
+                  strategyTag: strategyTagStr,
+                  directiveTitle: 'Target 1 Milestone Hit — Book 50% Profit & Trail SL to Cost',
+                  directiveBadge: '⚡ BOOK 50% PROFIT',
+                  professionalGuidance: `Primary target level achieved (+${pnlPct}%). Standard Institutional Protocol: Liquidate 50% to 70% position immediately to lock realized gains and trail Stop Loss to Entry Price ₹${entryVal.toFixed(1)} (Cost). Remaining runners are now 100% risk-free.`,
+                  recommendedAction: 'Book 50% Profit • Trail SL to Cost',
+                  recommendedSl: entryVal,
+                  pnlPoints,
+                  pnlPct,
+                  timestamp: new Date().toISOString(),
+                  timeFormatted: formatISTTime(null, { showSeconds: true })
+                };
+
+                setLatestLifecycleFlash(flashEvent);
+                if (!isMuted) soundManager.playTargetHitAlert();
+                return;
+              }
+
+              // 4. STOP LOSS HIT / BOOK LOSS (Flash ONCE ONLY)
+              const slKey = `sl_${symbol}_${contractSymbol}_${Math.round(stoplossVal)}`;
+              if (stoplossVal > 0 && liveLtp <= stoplossVal && !flashedLifecycleEventsRef.current.has(slKey)) {
+                const drawdownPct = ((entryVal - liveLtp) / entryVal) * 100;
+                if (drawdownPct >= 5.0) {
+                  flashedLifecycleEventsRef.current.add(slKey);
+
+                  const flashEvent: TipLifecycleFlashEvent = {
+                    id: `flash-sl-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    type: 'BOOK_LOSS',
+                    symbol,
+                    contractSymbol,
+                    action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                    optionType: optType,
+                    entryPrice: entryVal,
+                    entryRange: entryRangeStr,
+                    currentLtp: liveLtp,
+                    target1Price: target1Val,
+                    target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                    target2Price: target2Val,
+                    target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                    stoplossPrice: stoplossVal,
+                    stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                    confluenceScore: confluenceScoreVal,
+                    strategyTag: strategyTagStr,
+                    directiveTitle: 'Technical Stop Loss Invalidation — Square Off Immediately',
+                    directiveBadge: '🛑 BOOK LOSS • SQUARE OFF',
+                    professionalGuidance: `Technical Stop Loss threshold breached (${pnlPct}%). Capital Preservation Mandate: Liquidate position without hesitation to contain downside and protect core trading capital. Maintain strict risk discipline.`,
+                    recommendedAction: 'Square Off Position Now',
+                    recommendedSl: stoplossVal,
+                    pnlPoints,
+                    pnlPct,
+                    timestamp: new Date().toISOString(),
+                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                  };
+
+                  setLatestLifecycleFlash(flashEvent);
+                  if (!isMuted) soundManager.playExtremeAlert();
+                  return;
+                }
+              }
+
+              // 5. ADVANCING TOWARDS TARGET / TIGHTEN STOP LOSS (Distance covered >= 55%)
+              const trailKey = `trail_${symbol}_${contractSymbol}_${Math.round(entryVal)}`;
+              const targetDist = target1Val - entryVal;
+              if (targetDist > 0 && liveLtp > entryVal + targetDist * 0.55 && liveLtp < target1Val && !flashedLifecycleEventsRef.current.has(trailKey)) {
+                flashedLifecycleEventsRef.current.add(trailKey);
+                const breakevenSl = +(entryVal * 1.01).toFixed(1);
+
+                const flashEvent: TipLifecycleFlashEvent = {
+                  id: `flash-trail-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                  type: 'TIGHTEN_SL',
+                  symbol,
+                  contractSymbol,
+                  action: isCall ? 'BUY_CALL' : 'BUY_PUT',
+                  optionType: optType,
+                  entryPrice: entryVal,
+                  entryRange: entryRangeStr,
+                  currentLtp: liveLtp,
+                  target1Price: target1Val,
+                  target1Pct: Math.round(((target1Val - entryVal) / entryVal) * 100),
+                  target2Price: target2Val,
+                  target2Pct: Math.round(((target2Val - entryVal) / entryVal) * 100),
+                  stoplossPrice: stoplossVal,
+                  stoplossPct: Math.round(((entryVal - stoplossVal) / entryVal) * 100),
+                  confluenceScore: confluenceScoreVal,
+                  strategyTag: strategyTagStr,
+                  directiveTitle: 'Price Advancing — Tighten Trailing Stop Loss to Breakeven',
+                  directiveBadge: '⚠️ TIGHTEN TRAILING SL',
+                  professionalGuidance: `Price has covered >55% distance to Target 1 (+${pnlPct}% gain). Trailing Directive: Move Stop Loss up to ₹${breakevenSl.toFixed(1)} (Cost/Breakeven) to guarantee zero capital loss before target completion.`,
+                  recommendedAction: 'Move SL to ₹' + breakevenSl.toFixed(1),
+                  recommendedSl: breakevenSl,
+                  pnlPoints,
+                  pnlPct,
+                  timestamp: new Date().toISOString(),
+                  timeFormatted: formatISTTime(null, { showSeconds: true })
+                };
+
+                setLatestLifecycleFlash(flashEvent);
+                if (!isMuted) soundManager.playStrongAlert();
+                return;
+              }
+            };
+
+            // Evaluate Primary Prime Setup
+            const primePick = indexState.sessionTips?.topCallTrade || indexState.sessionTips?.topPutTrade;
+            if (primePick) {
+              const isCall = primePick.contractSymbol.includes('CE');
+              evaluateTipLifecycle(
+                primePick.contractSymbol,
+                isCall ? 'BUY CALL' : 'BUY PUT',
+                isCall ? 'CE' : 'PE',
+                primePick.entryPrice,
+                primePick.entryRange || `₹${primePick.entryPrice.toFixed(1)}`,
+                primePick.target1Price,
+                primePick.target2Price || primePick.target1Price * 1.25,
+                primePick.stoplossPrice,
+                primePick.confluenceScore,
+                primePick.strategyTag || 'Institutional High-Probability Confluence',
+                primePick.strikePrice || parseInt(primePick.contractSymbol.replace(/[^0-9]/g, '')) || 0
+              );
+            }
+
+            // Evaluate Unified Tips Package
+            const pkg = indexState.unifiedTipsPackage;
+            if (pkg?.primaryTrade) {
+              const t = pkg.primaryTrade;
+              const isCall = t.action === 'BUY_CALL';
+              evaluateTipLifecycle(
+                t.contractSymbol,
+                t.action,
+                t.optionType === 'SPREAD' ? 'CE' : t.optionType,
+                t.entryPrice,
+                t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
+                t.target1Price,
+                t.target2Price || t.target1Price * 1.25,
+                t.stoplossPrice,
+                t.confluenceScore || 90,
+                t.strategyTag || 'Institutional Directional Alpha',
+                t.strikePrice || parseInt(t.contractSymbol.replace(/[^0-9]/g, '')) || 0
+              );
+            }
+
+            // Evaluate Recommended Trades
+            if (indexState.recommendedTrades?.bullishPick) {
+              const p = indexState.recommendedTrades.bullishPick;
+              const contract = p.suggestedContract;
+              if (contract) {
+                const pEntry = parseFloat(String(contract.recommendedEntry || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || contract.ltp;
+                const pTgt = parseFloat(String(contract.target || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 1.3);
+                const pSl = parseFloat(String(contract.stoploss || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 0.85);
+                evaluateTipLifecycle(
+                  contract.symbol,
+                  'BUY CALL',
+                  'CE',
+                  pEntry,
+                  contract.recommendedEntry || `₹${pEntry.toFixed(1)}`,
+                  pTgt,
+                  pTgt * 1.25,
+                  pSl,
+                  p.surgeScore || 88,
+                  p.rationale || 'High Velocity Breakout',
+                  p.strikePrice
+                );
+              }
+            }
+
+            if (indexState.recommendedTrades?.bearishPick) {
+              const p = indexState.recommendedTrades.bearishPick;
+              const contract = p.suggestedContract;
+              if (contract) {
+                const pEntry = parseFloat(String(contract.recommendedEntry || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || contract.ltp;
+                const pTgt = parseFloat(String(contract.target || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 1.3);
+                const pSl = parseFloat(String(contract.stoploss || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 0.85);
+                evaluateTipLifecycle(
+                  contract.symbol,
+                  'BUY PUT',
+                  'PE',
+                  pEntry,
+                  contract.recommendedEntry || `₹${pEntry.toFixed(1)}`,
+                  pTgt,
+                  pTgt * 1.25,
+                  pSl,
+                  p.surgeScore || 88,
+                  p.rationale || 'Support Floor Breakdown',
+                  p.strikePrice
+                );
+              }
+            }
+          }
+
           if (newSurges && newSurges.length > 0) {
             const atm = indexState?.atmStrike;
             const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
@@ -613,6 +1031,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else if (msg.type === 'MARKET_OPEN') {
           // 9:15 AM IST — server cleared all caches. Force full UI refresh.
           console.log('[Market] 🔔 Market opened — refreshing all data...');
+          flashedLifecycleEventsRef.current.clear();
           // Trigger immediate re-fetch of all index states
           refreshIndexStates();
           // Optional: play a distinct "market open" bell if not muted
@@ -961,6 +1380,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         triggerTestHeroZeroFlash,
         latestSquareOffAlert,
         dismissSquareOffAlert,
+        latestLifecycleFlash,
+        dismissLifecycleFlash,
+        triggerTestLifecycleFlash,
         globalIndices,
         globalMarketContext,
         refreshIndexStates,
@@ -1021,6 +1443,9 @@ export const useMarket = (): MarketContextType => {
       triggerTestHeroZeroFlash: () => {},
       latestSquareOffAlert: null,
       dismissSquareOffAlert: () => {},
+      latestLifecycleFlash: null,
+      dismissLifecycleFlash: () => {},
+      triggerTestLifecycleFlash: () => {},
       globalIndices: [],
       globalMarketContext: null,
       activeTradeTipModal: null,

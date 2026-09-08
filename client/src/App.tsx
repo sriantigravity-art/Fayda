@@ -19,6 +19,7 @@ import { FlashNewsBanner } from './components/FlashNewsBanner';
 import { TargetHitFlashModal } from './components/TargetHitFlashModal';
 import { HeroZeroFlashModal } from './components/HeroZeroFlashModal';
 import { PrimeHighProbabilityFlashModal } from './components/PrimeHighProbabilityFlashModal';
+import { TradeLifecycleFlashModal } from './components/TradeLifecycleFlashModal';
 import { SquareOffAlertBanner } from './components/SquareOffAlertBanner';
 import { HighlightSignalTicker } from './components/HighlightSignalTicker';
 import { DisclaimerTicker } from './components/DisclaimerTicker';
@@ -78,6 +79,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Dedicated High-Probability Call/Put Flash Alert Modal */}
       <PrimeHighProbabilityFlashModal />
+
+      {/* Dynamic Trade Lifecycle Flash Alert Modal (Once Only when Tip Given, Profit Booking, Stop Loss, Hold) */}
+      <TradeLifecycleFlashModal />
 
       {/* 10-Second Floating Breaking Flash News Banner */}
       {panelVisibility.newsBanner && <FlashNewsBanner />}

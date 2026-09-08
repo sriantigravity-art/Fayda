@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export const HeroZeroFlashModal: React.FC = () => {
-  const { latestHeroZeroFlash, dismissHeroZeroFlash } = useMarket();
+  const { latestHeroZeroFlash, dismissHeroZeroFlash, selectedIndex } = useMarket();
   const [progress, setProgress] = useState(100);
   const [secondsRemaining, setSecondsRemaining] = useState(10);
   const dismissRef = React.useRef(dismissHeroZeroFlash);
@@ -58,7 +58,9 @@ export const HeroZeroFlashModal: React.FC = () => {
     };
   }, [flashId]);
 
-  if (!latestHeroZeroFlash) return null;
+  if (!latestHeroZeroFlash || (latestHeroZeroFlash.symbol && selectedIndex && latestHeroZeroFlash.symbol !== selectedIndex)) {
+    return null;
+  }
 
   // Market hours check (exempt explicit test/demo triggers)
   const isTestOrDemo = latestHeroZeroFlash.id.startsWith('hero-zero-demo-') || latestHeroZeroFlash.id.startsWith('test-');

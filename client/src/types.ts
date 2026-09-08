@@ -369,6 +369,43 @@ export interface SquareOffEvent {
   timeFormatted: string;
 }
 
+export type TipFlashEventType = 
+  | 'NEW_TIP'               // Tip given (flashed once only)
+  | 'BOOK_HALF_PROFIT'      // 50% milestone or Target 1 reached
+  | 'BOOK_FULL_PROFIT'      // Target 2 / Max profit reached
+  | 'BOOK_LOSS'             // Stop loss breached (Square off)
+  | 'HOLD_MOMENTUM'         // Strong momentum extension / Hold position
+  | 'TIGHTEN_SL';           // Trailing SL to breakeven
+
+export interface TipLifecycleFlashEvent {
+  id: string;
+  type: TipFlashEventType;
+  symbol: string;
+  contractSymbol: string;
+  action: 'BUY CALL' | 'BUY PUT' | 'BUY_CALL' | 'BUY_PUT' | 'SELL';
+  optionType: 'CE' | 'PE' | 'SPREAD';
+  entryPrice: number;
+  entryRange?: string;
+  currentLtp: number;
+  target1Price: number;
+  target1Pct: number;
+  target2Price?: number;
+  target2Pct?: number;
+  stoplossPrice: number;
+  stoplossPct: number;
+  confluenceScore: number;
+  strategyTag: string;
+  directiveTitle: string;
+  directiveBadge: string;
+  professionalGuidance: string;
+  recommendedAction: string;
+  recommendedSl?: number;
+  pnlPoints?: number;
+  pnlPct?: number;
+  timestamp: string;
+  timeFormatted: string;
+}
+
 export interface PcrData {
   overallPcr: number;
   atmPlusMinus5Pcr: number;

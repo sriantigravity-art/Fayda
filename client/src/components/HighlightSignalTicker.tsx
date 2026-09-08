@@ -357,8 +357,6 @@ export const HighlightSignalTicker: React.FC = () => {
     );
   };
 
-  if (activeSetups.length === 0) return null;
-
   // 7-second automatic sequential rotation timer
   useEffect(() => {
     if (isPaused || isHovered || activeSetups.length <= 1) return;

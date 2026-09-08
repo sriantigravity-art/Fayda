@@ -20,7 +20,8 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
   const { 
     latestHighProbFlash, 
     dismissHighProbFlash, 
-    openTradeTipModal 
+    openTradeTipModal,
+    selectedIndex
   } = useMarket();
 
   const [progress, setProgress] = useState(100);
@@ -70,7 +71,9 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
     };
   }, [flashId]);
 
-  if (!latestHighProbFlash) return null;
+  if (!latestHighProbFlash || (latestHighProbFlash.symbol && selectedIndex && latestHighProbFlash.symbol !== selectedIndex)) {
+    return null;
+  }
 
   const { tip, direction, symbol } = latestHighProbFlash;
   const isCall = direction === 'CALL';
