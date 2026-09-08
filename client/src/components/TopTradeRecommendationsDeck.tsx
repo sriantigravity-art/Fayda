@@ -283,6 +283,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       seenContracts.add(key);
 
       const isItemExpiry = rawItem.isExpiryDay ?? rawItem.rawTip?.isExpiryDay ?? isExpiryDay;
+      const isSeller = rawItem.role === 'SELLER' || rawItem.optionType === 'SPREAD';
+      const entry = rawItem.entryPrice ?? rawItem.rawTip?.entryPrice ?? 0;
+      const ltp = rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? 0;
+
       const isContractExpired = Boolean(
         rawItem.status === 'EXPIRED' ||
         rawItem.rawTip?.status === 'EXPIRED' ||

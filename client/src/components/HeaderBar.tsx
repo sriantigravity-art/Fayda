@@ -242,19 +242,38 @@ export const HeaderBar: React.FC = () => {
           {/* Quick Stock / Index Selector Dropdown */}
           <StockSelectorDropdown />
 
-          {/* Live / Closed Market & Data Feed Indicator */}
-          <div 
-            className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0" 
-            title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Data Feed: ${effectiveBroker === 'FYERS' ? 'Fyers API v3' : effectiveBroker === 'DHAN' ? 'DhanHQ Live' : 'NSE Official Feed'}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
-            <span className="text-terminal-muted font-bold">
-              {isConnected ? (isLiveMarketOpen ? 'MKT LIVE' : 'CLOSED') : 'OFFLINE'}
-            </span>
-            <span className="text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted hidden sm:inline">
-              {effectiveBroker === 'FYERS' ? 'FYERS' : effectiveBroker === 'DHAN' ? 'DHAN' : 'NSE'}
-            </span>
-          </div>
+          {/* Live / Closed Market & Data Feed Indicator — shows active broker + correct exchange */}
+          {(() => {
+            const symCfg = ALL_SYMBOLS_CONFIG.find(s => s.symbol === selectedIndex);
+            const exchange = symCfg?.exchange === 'BSE' ? 'BSE' : symCfg?.exchange === 'MCX' || symCfg?.category === 'COMMODITIES' ? 'MCX' : 'NSE';
+            const brokerLabel = activeBroker === 'FYERS' ? 'FYERS' : activeBroker === 'DHAN' ? 'DHAN' : 'PAPER';
+            const feedLabel = activeBroker === 'FYERS' ? 'Fyers API v3' : activeBroker === 'DHAN' ? 'DhanHQ Live' : `${exchange} Official Feed (Simulator)`;
+            const brokerColor = activeBroker === 'FYERS'
+              ? 'text-sky-400 bg-sky-500/15 border-sky-500/40'
+              : activeBroker === 'DHAN'
+              ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40'
+              : 'text-slate-400 bg-slate-500/15 border-slate-500/30';
+            return (
+              <div
+                className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0 cursor-pointer"
+                title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Active Broker: ${brokerLabel} | Data Feed: ${feedLabel} | Exchange: ${exchange}`}
+                onClick={() => setIsFyersModalOpen(true)}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
+                <span className="text-terminal-muted font-bold">
+                  {isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}
+                </span>
+                {/* Broker badge — updates when user switches broker */}
+                <span className={`hidden sm:inline text-[9px] px-1 py-0.2 rounded border font-black ${brokerColor}`}>
+                  {brokerLabel}
+                </span>
+                {/* Exchange badge — updates when user switches index */}
+                <span className="hidden sm:inline text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted border border-terminal-border">
+                  {exchange}
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* RIGHT SECTION: RESPONSIVE ACTIONS & TOOLS */}
