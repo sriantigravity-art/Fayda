@@ -119,7 +119,10 @@ export const TradeLifecycleFlashModal: React.FC = () => {
       target2Price: event.target2Price,
       target2Pct: event.target2Pct,
       riskReward: '1:2.5',
-      givenTimeFormatted: event.timeFormatted,
+      givenTimeFormatted: event.entryTimeFormatted || 'Live Session',
+      bookedTimeFormatted: event.bookedTimeFormatted || event.timeFormatted,
+      carryForwardTimeFormatted: event.carryForwardTimeFormatted,
+      isCarriedForward: !!event.carryForwardTimeFormatted,
       elapsedTimeFormatted: 'Live Lifecycle Alert',
       actionGuidance: event.recommendedAction,
       status: isLoss ? 'SL_HIT' : isProfit ? 'PROFIT_LOCKED' : 'ACTIVE',
@@ -256,9 +259,21 @@ export const TradeLifecycleFlashModal: React.FC = () => {
                 }`}>
                   {event.action}
                 </span>
-                <span className="text-[11px] text-slate-400 font-normal">
-                  Triggered at {event.timeFormatted}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
+                  <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-400 border border-slate-700 text-[10px] font-bold">
+                    Given: {event.entryTimeFormatted || 'Earlier Session'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
+                    isLoss ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  }`}>
+                    {isLoss ? 'Loss Booked:' : 'Profit Booked:'} {event.bookedTimeFormatted || event.timeFormatted}
+                  </span>
+                  {event.carryForwardTimeFormatted && (
+                    <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold">
+                      Carry Forward: {event.carryForwardTimeFormatted}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1 flex items-center gap-2">
                 <span>{event.contractSymbol}</span>

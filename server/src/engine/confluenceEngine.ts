@@ -1169,17 +1169,33 @@ export class ConfluenceEngine {
       // Check Target / SL triggers
       if (currentLtp >= prev.target2Price) {
         updated.status = 'TARGET2_HIT';
-      } else if (currentLtp >= prev.target1Price && updated.status === 'ACTIVE') {
+        if (!updated.bookedTimeFormatted) {
+          updated.bookedTime = new Date().toISOString();
+          updated.bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentLtp >= prev.target1Price && (updated.status === 'ACTIVE' || updated.status === 'CARRIED_FORWARD')) {
         updated.status = 'TARGET1_HIT';
+        if (!updated.bookedTimeFormatted) {
+          updated.bookedTime = new Date().toISOString();
+          updated.bookedTimeFormatted = timeFormatted;
+        }
       } else if (currentLtp <= prev.stoplossPrice) {
         updated.status = 'SL_HIT';
+        if (!updated.bookedTimeFormatted) {
+          updated.bookedTime = new Date().toISOString();
+          updated.bookedTimeFormatted = timeFormatted;
+        }
       } else {
         updated.status = 'CARRIED_FORWARD';
         updated.isCarriedForward = true;
         updated.carriedFromSession = prev.sessionName;
+        if (!updated.carryForwardTimeFormatted) {
+          updated.carryForwardTime = new Date().toISOString();
+          updated.carryForwardTimeFormatted = timeFormatted;
+        }
       }
 
-      if (updated.status === 'CARRIED_FORWARD' || updated.status === 'TARGET1_HIT') {
+      if (updated.status === 'CARRIED_FORWARD' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
         carriedForwardTrades.push(updated);
       }
     }
@@ -1199,6 +1215,10 @@ export class ConfluenceEngine {
     const entryPrice = existingTrade ? existingTrade.entryPrice : currentLtp;
     const entryTime = existingTrade ? existingTrade.entryTime : new Date().toISOString();
     const entryTimeFormatted = existingTrade ? existingTrade.entryTimeFormatted : timeFormatted;
+    let bookedTime = existingTrade?.bookedTime;
+    let bookedTimeFormatted = existingTrade?.bookedTimeFormatted;
+    let carryForwardTime = existingTrade?.carryForwardTime;
+    let carryForwardTimeFormatted = existingTrade?.carryForwardTimeFormatted;
 
     const triggerPrice = entryPrice;
     const dipEntryMin = +(entryPrice * 0.975).toFixed(2);
@@ -1214,12 +1234,42 @@ export class ConfluenceEngine {
     const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
 
     let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
-    if (currentLtp >= t2Price) actionabilityStatus = 'TARGET_HIT';
-    else if (currentLtp >= t1Price) actionabilityStatus = 'TRAIL_SL';
-    else if (currentLtp <= slPrice) actionabilityStatus = 'SL_HIT';
-    else if (pnlPct >= 1.5) actionabilityStatus = 'RUNNING_PROFIT';
-    else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
-    else actionabilityStatus = 'AT_TRIGGER';
+    let primStatus: UnifiedSmartTip['status'] = 'ACTIVE';
+
+    if (currentLtp >= t2Price) {
+      actionabilityStatus = 'TARGET_HIT';
+      primStatus = 'TARGET2_HIT';
+      if (!bookedTimeFormatted) {
+        bookedTime = new Date().toISOString();
+        bookedTimeFormatted = timeFormatted;
+      }
+    } else if (currentLtp >= t1Price) {
+      actionabilityStatus = 'TRAIL_SL';
+      primStatus = 'TARGET1_HIT';
+      if (!bookedTimeFormatted) {
+        bookedTime = new Date().toISOString();
+        bookedTimeFormatted = timeFormatted;
+      }
+    } else if (currentLtp <= slPrice) {
+      actionabilityStatus = 'SL_HIT';
+      primStatus = 'SL_HIT';
+      if (!bookedTimeFormatted) {
+        bookedTime = new Date().toISOString();
+        bookedTimeFormatted = timeFormatted;
+      }
+    } else if (existingTrade?.isCarriedForward) {
+      primStatus = 'CARRIED_FORWARD';
+      if (!carryForwardTimeFormatted) {
+        carryForwardTime = new Date().toISOString();
+        carryForwardTimeFormatted = timeFormatted;
+      }
+    } else if (pnlPct >= 1.5) {
+      actionabilityStatus = 'RUNNING_PROFIT';
+    } else if (pnlPct <= -1.5) {
+      actionabilityStatus = 'DIP_OPPORTUNITY';
+    } else {
+      actionabilityStatus = 'AT_TRIGGER';
+    }
 
     const stratId = faydaStrategy?.strategyName || 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)';
     const patternName = patternBreakout?.activePattern?.patternName || 'Ascending Momentum';
@@ -1256,6 +1306,10 @@ export class ConfluenceEngine {
         optionType: optType,
         entryTime,
         entryTimeFormatted,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted,
         entryPrice,
         entryRange,
         triggerPrice,
@@ -1275,7 +1329,7 @@ export class ConfluenceEngine {
         riskReward: '1:2.8',
         confluenceScore: primScore,
         confluenceBreakdown: primConfluence,
-        status: currentLtp >= t1Price ? 'TARGET1_HIT' : currentLtp <= slPrice ? 'SL_HIT' : 'ACTIVE',
+        status: primStatus,
         strategyMatches: {
           faydaRadarConfluence: true,
           oiActivitySurge: !!pcr && (preferBull ? pcr.overallPcr >= 1.0 : pcr.overallPcr <= 0.95),
@@ -1326,9 +1380,33 @@ export class ConfluenceEngine {
       else actionabilityStatus = 'AT_TRIGGER';
 
       let status = activeCall.status;
-      if (currentLtp >= activeCall.target2Price) status = 'TARGET2_HIT';
-      else if (currentLtp >= activeCall.target1Price) status = 'TARGET1_HIT';
-      else if (currentLtp <= activeCall.stoplossPrice) status = 'SL_HIT';
+      let bookedTime = activeCall.bookedTime;
+      let bookedTimeFormatted = activeCall.bookedTimeFormatted;
+      let carryForwardTime = activeCall.carryForwardTime;
+      let carryForwardTimeFormatted = activeCall.carryForwardTimeFormatted;
+
+      if (currentLtp >= activeCall.target2Price) {
+        status = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentLtp >= activeCall.target1Price) {
+        status = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentLtp <= activeCall.stoplossPrice) {
+        status = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (activeCall.isCarriedForward && !carryForwardTimeFormatted) {
+        carryForwardTime = new Date().toISOString();
+        carryForwardTimeFormatted = timeFormatted;
+      }
 
       topCallTrade = {
         ...activeCall,
@@ -1336,7 +1414,11 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         actionabilityStatus,
-        status
+        status,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted
       };
       slotEntry.calls[0] = topCallTrade;
     } else {
@@ -1445,9 +1527,33 @@ export class ConfluenceEngine {
       else actionabilityStatus = 'AT_TRIGGER';
 
       let status = activePut.status;
-      if (currentLtp >= activePut.target2Price) status = 'TARGET2_HIT';
-      else if (currentLtp >= activePut.target1Price) status = 'TARGET1_HIT';
-      else if (currentLtp <= activePut.stoplossPrice) status = 'SL_HIT';
+      let bookedTime = activePut.bookedTime;
+      let bookedTimeFormatted = activePut.bookedTimeFormatted;
+      let carryForwardTime = activePut.carryForwardTime;
+      let carryForwardTimeFormatted = activePut.carryForwardTimeFormatted;
+
+      if (currentLtp >= activePut.target2Price) {
+        status = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentLtp >= activePut.target1Price) {
+        status = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentLtp <= activePut.stoplossPrice) {
+        status = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (activePut.isCarriedForward && !carryForwardTimeFormatted) {
+        carryForwardTime = new Date().toISOString();
+        carryForwardTimeFormatted = timeFormatted;
+      }
 
       topPutTrade = {
         ...activePut,
@@ -1455,7 +1561,11 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         actionabilityStatus,
-        status
+        status,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted
       };
       slotEntry.puts[0] = topPutTrade;
     } else {
@@ -1573,9 +1683,33 @@ export class ConfluenceEngine {
       else actionabilityStatus = 'AT_TRIGGER';
 
       let status = activeSellerPut.status;
-      if (currentSpreadLtp <= activeSellerPut.target2Price) status = 'TARGET2_HIT';
-      else if (currentSpreadLtp <= activeSellerPut.target1Price) status = 'TARGET1_HIT';
-      else if (currentSpreadLtp >= activeSellerPut.stoplossPrice) status = 'SL_HIT';
+      let bookedTime = activeSellerPut.bookedTime;
+      let bookedTimeFormatted = activeSellerPut.bookedTimeFormatted;
+      let carryForwardTime = activeSellerPut.carryForwardTime;
+      let carryForwardTimeFormatted = activeSellerPut.carryForwardTimeFormatted;
+
+      if (currentSpreadLtp <= activeSellerPut.target2Price) {
+        status = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentSpreadLtp <= activeSellerPut.target1Price) {
+        status = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentSpreadLtp >= activeSellerPut.stoplossPrice) {
+        status = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (activeSellerPut.isCarriedForward && !carryForwardTimeFormatted) {
+        carryForwardTime = new Date().toISOString();
+        carryForwardTimeFormatted = timeFormatted;
+      }
 
       topSellerPutTrade = {
         ...activeSellerPut,
@@ -1583,7 +1717,11 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         actionabilityStatus,
-        status
+        status,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted
       };
       slotEntry.sellerPuts[0] = topSellerPutTrade;
     } else {
@@ -1711,9 +1849,33 @@ export class ConfluenceEngine {
       else actionabilityStatus = 'AT_TRIGGER';
 
       let status = activeSellerCall.status;
-      if (currentSpreadLtp <= activeSellerCall.target2Price) status = 'TARGET2_HIT';
-      else if (currentSpreadLtp <= activeSellerCall.target1Price) status = 'TARGET1_HIT';
-      else if (currentSpreadLtp >= activeSellerCall.stoplossPrice) status = 'SL_HIT';
+      let bookedTime = activeSellerCall.bookedTime;
+      let bookedTimeFormatted = activeSellerCall.bookedTimeFormatted;
+      let carryForwardTime = activeSellerCall.carryForwardTime;
+      let carryForwardTimeFormatted = activeSellerCall.carryForwardTimeFormatted;
+
+      if (currentSpreadLtp <= activeSellerCall.target2Price) {
+        status = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentSpreadLtp <= activeSellerCall.target1Price) {
+        status = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (currentSpreadLtp >= activeSellerCall.stoplossPrice) {
+        status = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (activeSellerCall.isCarriedForward && !carryForwardTimeFormatted) {
+        carryForwardTime = new Date().toISOString();
+        carryForwardTimeFormatted = timeFormatted;
+      }
 
       topSellerCallTrade = {
         ...activeSellerCall,
@@ -1721,7 +1883,11 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         actionabilityStatus,
-        status
+        status,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted
       };
       slotEntry.sellerCalls[0] = topSellerCallTrade;
     } else {
@@ -1984,9 +2150,44 @@ export class ConfluenceEngine {
       const entryPrice = existingSpread ? existingSpread.entryPrice : spreadEntryPts;
       const entryTime = existingSpread ? existingSpread.entryTime : new Date().toISOString();
       const entryTimeFormatted = existingSpread ? existingSpread.entryTimeFormatted : timeFormatted;
+      let bookedTime = existingSpread?.bookedTime;
+      let bookedTimeFormatted = existingSpread?.bookedTimeFormatted;
+      let carryForwardTime = existingSpread?.carryForwardTime;
+      let carryForwardTimeFormatted = existingSpread?.carryForwardTimeFormatted;
 
       const pnlPoints = +(spreadEntryPts - entryPrice).toFixed(2);
       const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
+
+      const t1SpreadPrice = +(entryPrice + (maxProfitPts * 0.70)).toFixed(2);
+      const t2SpreadPrice = +(entryPrice + maxProfitPts).toFixed(2);
+      const slSpreadPrice = +(entryPrice * 0.50).toFixed(2);
+
+      let spreadStatus: UnifiedSmartTip['status'] = 'ACTIVE';
+      if (spreadEntryPts >= t2SpreadPrice) {
+        spreadStatus = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (spreadEntryPts >= t1SpreadPrice) {
+        spreadStatus = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (spreadEntryPts <= slSpreadPrice) {
+        spreadStatus = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (existingSpread?.isCarriedForward) {
+        spreadStatus = 'CARRIED_FORWARD';
+        if (!carryForwardTimeFormatted) {
+          carryForwardTime = new Date().toISOString();
+          carryForwardTimeFormatted = timeFormatted;
+        }
+      }
 
       const spreadConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(
         symbol,
@@ -2017,6 +2218,10 @@ export class ConfluenceEngine {
         optionType: 'SPREAD',
         entryTime,
         entryTimeFormatted,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted,
         entryPrice,
         entryRange: `Net Debit ₹${entryPrice.toFixed(2)} pts`,
         triggerPrice: entryPrice,
@@ -2027,16 +2232,16 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         currentLtp: spreadEntryPts,
-        stoplossPrice: +(entryPrice * 0.50).toFixed(2),
+        stoplossPrice: slSpreadPrice,
         stoplossPct: 50,
-        target1Price: +(entryPrice + (maxProfitPts * 0.70)).toFixed(2),
+        target1Price: t1SpreadPrice,
         target1Pct: 70,
-        target2Price: +(entryPrice + maxProfitPts).toFixed(2),
+        target2Price: t2SpreadPrice,
         target2Pct: 100,
         riskReward: riskRewardStr,
         confluenceScore: spreadConfluence.totalConfluenceScore,
         confluenceBreakdown: spreadConfluence,
-        status: 'ACTIVE',
+        status: spreadStatus,
         strategyMatches: {
           faydaRadarConfluence: true,
           oiActivitySurge: true,
@@ -2071,9 +2276,40 @@ export class ConfluenceEngine {
       const entryPrice = existingGamma ? existingGamma.entryPrice : topHz.ltp;
       const entryTime = existingGamma ? existingGamma.entryTime : new Date().toISOString();
       const entryTimeFormatted = existingGamma ? existingGamma.entryTimeFormatted : timeFormatted;
+      let bookedTime = existingGamma?.bookedTime;
+      let bookedTimeFormatted = existingGamma?.bookedTimeFormatted;
+      let carryForwardTime = existingGamma?.carryForwardTime;
+      let carryForwardTimeFormatted = existingGamma?.carryForwardTimeFormatted;
 
       const pnlPoints = +(topHz.ltp - entryPrice).toFixed(2);
       const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
+
+      let gammaStatus: UnifiedSmartTip['status'] = 'ACTIVE';
+      if (topHz.ltp >= topHz.target5x) {
+        gammaStatus = 'TARGET2_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (topHz.ltp >= topHz.target3x) {
+        gammaStatus = 'TARGET1_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (topHz.ltp <= topHz.stoploss) {
+        gammaStatus = 'SL_HIT';
+        if (!bookedTimeFormatted) {
+          bookedTime = new Date().toISOString();
+          bookedTimeFormatted = timeFormatted;
+        }
+      } else if (existingGamma?.isCarriedForward) {
+        gammaStatus = 'CARRIED_FORWARD';
+        if (!carryForwardTimeFormatted) {
+          carryForwardTime = new Date().toISOString();
+          carryForwardTimeFormatted = timeFormatted;
+        }
+      }
 
       gammaTrade = {
         id: `gamma-${symbol}-${sessionInfo.session}-${topHz.strike}-${topHz.optionType}`,
@@ -2088,6 +2324,10 @@ export class ConfluenceEngine {
         optionType: topHz.optionType,
         entryTime,
         entryTimeFormatted,
+        bookedTime,
+        bookedTimeFormatted,
+        carryForwardTime,
+        carryForwardTimeFormatted,
         entryPrice,
         entryRange: `₹${(entryPrice * 0.90).toFixed(2)} - ₹${entryPrice.toFixed(2)}`,
         triggerPrice: entryPrice,
@@ -2106,7 +2346,7 @@ export class ConfluenceEngine {
         target2Pct: 400,
         riskReward: topHz.riskReward,
         confluenceScore: topHz.gammaScore,
-        status: 'ACTIVE',
+        status: gammaStatus,
         strategyMatches: {
           faydaRadarConfluence: true,
           oiActivitySurge: true,

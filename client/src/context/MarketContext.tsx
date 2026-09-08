@@ -667,7 +667,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               stoplossVal: number,
               confluenceScoreVal: number,
               strategyTagStr: string,
-              strikePriceVal: number
+              strikePriceVal: number,
+              entryTimeFormatted?: string,
+              priorBookedTimeFormatted?: string,
+              carryForwardTimeFormatted?: string
             ) => {
               if (!contractSymbol || entryVal <= 0) return;
 
@@ -681,6 +684,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const pnlPoints = +(liveLtp - entryVal).toFixed(2);
               const pnlPct = +(((liveLtp - entryVal) / entryVal) * 100).toFixed(2);
               const isCall = actionStr.includes('CALL') || optType === 'CE';
+              const currentGivenTime = entryTimeFormatted || formatISTTime(null);
 
               // 1. TARGET 2 HIT / MAXIMUM PROFIT / EXIT FULL (Flash ONCE ONLY, min 30s gap)
               const t2Key = `t2_${symbol}_${contractSymbol}_${Math.round(target2Val)}`;
@@ -689,6 +693,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                   flashedLifecycleEventsRef.current.add(t2Key);
                   lastLifecycleFlashTimeRef.current = nowMs;
+                  const bookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
 
                   const flashEvent: TipLifecycleFlashEvent = {
                     id: `flash-t2-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -716,7 +721,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     pnlPoints,
                     pnlPct,
                     timestamp: new Date().toISOString(),
-                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                    timeFormatted: bookedTime,
+                    entryTimeFormatted: currentGivenTime,
+                    bookedTimeFormatted: bookedTime,
+                    carryForwardTimeFormatted
                   };
 
                   setLatestLifecycleFlash(flashEvent);
@@ -732,6 +740,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                   flashedLifecycleEventsRef.current.add(t1Key);
                   lastLifecycleFlashTimeRef.current = nowMs;
+                  const bookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
 
                   const flashEvent: TipLifecycleFlashEvent = {
                     id: `flash-t1-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -759,7 +768,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     pnlPoints,
                     pnlPct,
                     timestamp: new Date().toISOString(),
-                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                    timeFormatted: bookedTime,
+                    entryTimeFormatted: currentGivenTime,
+                    bookedTimeFormatted: bookedTime,
+                    carryForwardTimeFormatted
                   };
 
                   setLatestLifecycleFlash(flashEvent);
@@ -777,6 +789,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                     flashedLifecycleEventsRef.current.add(slKey);
                     lastLifecycleFlashTimeRef.current = nowMs;
+                    const lossBookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
 
                     const flashEvent: TipLifecycleFlashEvent = {
                       id: `flash-sl-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -804,7 +817,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       pnlPoints,
                       pnlPct,
                       timestamp: new Date().toISOString(),
-                      timeFormatted: formatISTTime(null, { showSeconds: true })
+                      timeFormatted: lossBookedTime,
+                      entryTimeFormatted: currentGivenTime,
+                      bookedTimeFormatted: lossBookedTime,
+                      carryForwardTimeFormatted
                     };
 
                     setLatestLifecycleFlash(flashEvent);
@@ -850,7 +866,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     pnlPoints,
                     pnlPct,
                     timestamp: new Date().toISOString(),
-                    timeFormatted: formatISTTime(null, { showSeconds: true })
+                    timeFormatted: formatISTTime(null, { showSeconds: true }),
+                    entryTimeFormatted: currentGivenTime,
+                    carryForwardTimeFormatted
                   };
 
                   setLatestLifecycleFlash(flashEvent);
@@ -883,7 +901,6 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const pkg = indexState.unifiedTipsPackage;
             if (pkg?.primaryTrade) {
               const t = pkg.primaryTrade;
-              const isCall = t.action === 'BUY_CALL';
               evaluateTipLifecycle(
                 t.contractSymbol,
                 t.action,
@@ -895,7 +912,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 t.stoplossPrice,
                 t.confluenceScore || 90,
                 t.strategyTag || 'Institutional Directional Alpha',
-                t.strikePrice || parseInt(t.contractSymbol.replace(/[^0-9]/g, '')) || 0
+                t.strikePrice || parseInt(t.contractSymbol.replace(/[^0-9]/g, '')) || 0,
+                t.entryTimeFormatted,
+                t.bookedTimeFormatted,
+                t.carryForwardTimeFormatted
               );
             }
 

@@ -281,6 +281,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
       givenTimeFormatted: t.entryTimeFormatted,
+      bookedTimeFormatted: t.bookedTimeFormatted,
+      carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+      isCarriedForward: t.isCarriedForward,
       elapsedTimeFormatted: 'Hourly Slot',
       actionGuidance: defaultGuidance,
       status: t.status,
@@ -317,6 +320,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
       givenTimeFormatted: t.entryTimeFormatted,
+      bookedTimeFormatted: t.bookedTimeFormatted,
+      carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+      isCarriedForward: t.isCarriedForward,
       elapsedTimeFormatted: 'Live Session',
       actionGuidance: '100% CAPITAL-PROTECTED SPREAD',
       status: t.status,
@@ -355,6 +361,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
       givenTimeFormatted: t.entryTimeFormatted,
+      bookedTimeFormatted: t.bookedTimeFormatted,
+      carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+      isCarriedForward: t.isCarriedForward,
       elapsedTimeFormatted: 'Power Hour',
       actionGuidance: '0DTE GAMMA EXPLOSION SNIPER',
       status: t.status,
@@ -389,6 +398,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
       givenTimeFormatted: t.entryTimeFormatted,
+      bookedTimeFormatted: t.bookedTimeFormatted,
+      carryForwardTimeFormatted: t.carryForwardTimeFormatted || t.entryTimeFormatted,
+      isCarriedForward: true,
       elapsedTimeFormatted: 'Carried Forward',
       actionGuidance: t.status === 'TARGET1_HIT' ? 'TRAIL STOPLOSS TO COST' : 'POSITION ACTIVE',
       status: t.status,
@@ -663,19 +675,45 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                    topCallTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
-                    topCallTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
-                    topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
-                    'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
-                  }`}>
-                    {topCallTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
-                     topCallTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
-                     topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
-                     '⚡ AT TRIGGER PRICE'}
-                  </span>
+                {/* Footer with Timing Badges */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      topCallTrade.status === 'TARGET1_HIT' || topCallTrade.status === 'TARGET2_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                      topCallTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                      topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                    }`}>
+                      {topCallTrade.status === 'TARGET2_HIT' ? '🏆 T2 HIT (Book Full)' :
+                       topCallTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                       topCallTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                       topCallTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                       '⚡ AT TRIGGER PRICE'}
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>Given: {topCallTrade.entryTimeFormatted}</span>
+                    </span>
+
+                    {topCallTrade.bookedTimeFormatted && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
+                        topCallTrade.status === 'SL_HIT'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span>{topCallTrade.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {topCallTrade.bookedTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {(topCallTrade.isCarriedForward || topCallTrade.carryForwardTimeFormatted) && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Carry Forward: {topCallTrade.carryForwardTimeFormatted || topCallTrade.entryTimeFormatted}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -834,19 +872,45 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                    topPutTrade.status === 'TARGET1_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
-                    topPutTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
-                    topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
-                    'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
-                  }`}>
-                    {topPutTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
-                     topPutTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
-                     topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
-                     '⚡ AT TRIGGER PRICE'}
-                  </span>
+                {/* Footer with Timing Badges */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      topPutTrade.status === 'TARGET1_HIT' || topPutTrade.status === 'TARGET2_HIT' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                      topPutTrade.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                      topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? 'bg-bull/20 text-bull border-bull/40' :
+                      'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30'
+                    }`}>
+                      {topPutTrade.status === 'TARGET2_HIT' ? '🏆 T2 HIT (Book Full)' :
+                       topPutTrade.status === 'TARGET1_HIT' ? '🎯 T1 HIT (Trail SL)' : 
+                       topPutTrade.status === 'SL_HIT' ? '🛑 SL HIT' :
+                       topPutTrade.actionabilityStatus === 'RUNNING_PROFIT' ? '🚀 IN PROFIT' :
+                       '⚡ AT TRIGGER PRICE'}
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>Given: {topPutTrade.entryTimeFormatted}</span>
+                    </span>
+
+                    {topPutTrade.bookedTimeFormatted && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
+                        topPutTrade.status === 'SL_HIT'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span>{topPutTrade.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {topPutTrade.bookedTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {(topPutTrade.isCarriedForward || topPutTrade.carryForwardTimeFormatted) && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Carry Forward: {topPutTrade.carryForwardTimeFormatted || topPutTrade.entryTimeFormatted}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1479,10 +1543,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                           ACTIVE
                         </span>
                       </div>
-                      <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5">
-                        <span className="text-accent-gold font-medium">Call Given:</span>
+                      <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5 flex-wrap">
+                        <span className="text-accent-gold font-medium">Given:</span>
                         <span className="font-mono text-terminal-text font-bold">{cf.entryTimeFormatted}</span>
                         <span className="text-terminal-muted">(Ref: ₹{Number(cf.entryPrice).toFixed(2)})</span>
+                        {(cf.isCarriedForward || cf.carryForwardTimeFormatted) && (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px]">
+                            Carry Forward: {cf.carryForwardTimeFormatted || cf.entryTimeFormatted}
+                          </span>
+                        )}
+                        {cf.bookedTimeFormatted && (
+                          <span className={`px-1.5 py-0.2 rounded font-bold text-[10px] border ${
+                            cf.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          }`}>
+                            {cf.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {cf.bookedTimeFormatted}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1615,22 +1691,47 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                {/* Action Buttons & Timing Badges */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold text-accent-sky px-2 py-1 bg-accent-sky/10 rounded border border-accent-sky/20">
+                      R:R {pkg.hedgedSpreadTrade.riskReward}
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>Given: {pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
+                    </span>
+
+                    {pkg.hedgedSpreadTrade.bookedTimeFormatted && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
+                        pkg.hedgedSpreadTrade.status === 'SL_HIT'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span>{pkg.hedgedSpreadTrade.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {pkg.hedgedSpreadTrade.bookedTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {(pkg.hedgedSpreadTrade.isCarriedForward || pkg.hedgedSpreadTrade.carryForwardTimeFormatted) && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Carry Forward: {pkg.hedgedSpreadTrade.carryForwardTimeFormatted || pkg.hedgedSpreadTrade.entryTimeFormatted}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenCalc(pkg.hedgedSpreadTrade!.entryPrice, pkg.hedgedSpreadTrade!.stoplossPrice, pkg.hedgedSpreadTrade!.target1Price);
                     }}
-                    className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className="py-1 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Calculator className="w-3.5 h-3.5 text-accent-sky" />
                     <span>Analyze Payoff</span>
                   </button>
-                  <span className="text-[10px] font-mono font-bold text-accent-sky px-2 py-1 bg-accent-sky/10 rounded border border-accent-sky/20">
-                    R:R {pkg.hedgedSpreadTrade.riskReward}
-                  </span>
                 </div>
               </div>
             ) : (
@@ -1714,22 +1815,47 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-3 mt-2 border-t border-terminal-border/60">
+                {/* Action Buttons & Timing Badges */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-terminal-border/60 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold text-purple-300 px-2 py-1 bg-purple-500/10 rounded border border-purple-500/20">
+                      High Multiplier
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>Given: {pkg.gammaTrade.entryTimeFormatted}</span>
+                    </span>
+
+                    {pkg.gammaTrade.bookedTimeFormatted && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
+                        pkg.gammaTrade.status === 'SL_HIT'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span>{pkg.gammaTrade.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {pkg.gammaTrade.bookedTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {(pkg.gammaTrade.isCarriedForward || pkg.gammaTrade.carryForwardTimeFormatted) && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Carry Forward: {pkg.gammaTrade.carryForwardTimeFormatted || pkg.gammaTrade.entryTimeFormatted}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenCalc(pkg.gammaTrade!.entryPrice, pkg.gammaTrade!.stoplossPrice, pkg.gammaTrade!.target1Price);
                     }}
-                    className="flex-1 py-1.5 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className="py-1 px-3 bg-terminal-bg hover:bg-terminal-border border border-terminal-border rounded-lg text-xs font-bold text-terminal-text flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Calculator className="w-3.5 h-3.5 text-purple-400" />
                     <span>Calculate Risk</span>
                   </button>
-                  <span className="text-[10px] font-mono font-bold text-purple-300 px-2 py-1 bg-purple-500/10 rounded border border-purple-500/20">
-                    High Multiplier
-                  </span>
                 </div>
               </div>
             ) : (

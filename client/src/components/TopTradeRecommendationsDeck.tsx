@@ -12,6 +12,7 @@ import {
   Zap, 
   Target, 
   ShieldCheck, 
+  CheckCircle2,
   ChevronDown, 
   ChevronUp, 
   Copy, 
@@ -51,6 +52,9 @@ interface RecommendationTableItem {
   executionType: 'NET_DEBIT' | 'NET_CREDIT';
   strategyTag: string;
   entryTimeFormatted: string;
+  bookedTimeFormatted?: string;
+  carryForwardTimeFormatted?: string;
+  isCarriedForward?: boolean;
   entryRange: string;
   entryPrice: number;
   currentLtp: number;
@@ -78,6 +82,83 @@ interface RecommendationTableItem {
   rawTip?: UnifiedSmartTip;
   rawHeroSignal?: HeroZeroSignal;
 }
+
+/**
+ * High-fidelity Traffic Signal / Traffic Light SVG Icon
+ * Features dark housing with visors and red, amber, and animated green lights
+ */
+export const TrafficSignalIcon: React.FC<{ className?: string; animated?: boolean }> = ({ 
+  className = "w-5 h-5",
+  animated = true 
+}) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`shrink-0 ${className}`}
+    aria-label="Traffic Signal Icon"
+  >
+    {/* Mounting Bracket Caps */}
+    <rect x="11" y="0.5" width="2" height="1.5" rx="0.5" fill="#475569" />
+    <rect x="11" y="22" width="2" height="1.5" rx="0.5" fill="#475569" />
+
+    {/* Main Traffic Light Housing */}
+    <rect
+      x="6.5"
+      y="1.5"
+      width="11"
+      height="21"
+      rx="3.5"
+      className="fill-slate-900 stroke-slate-600 dark:fill-[#080d1a] dark:stroke-slate-500"
+      strokeWidth="1.2"
+    />
+
+    {/* Visor Caps / Hoods */}
+    <path
+      d="M7 4.8C7.6 3.5 9.8 2.8 12 2.8C14.2 2.8 16.4 3.5 17 4.8"
+      stroke="#64748b"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M7 11.3C7.6 10 9.8 9.3 12 9.3C14.2 9.3 16.4 10 17 11.3"
+      stroke="#64748b"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M7 17.8C7.6 16.5 9.8 15.8 12 15.8C14.2 15.8 16.4 16.5 17 17.8"
+      stroke="#64748b"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+
+    {/* Red Light (Top) */}
+    <circle
+      cx="12"
+      cy="5.8"
+      r="2.2"
+      className="fill-rose-500 stroke-rose-400/80"
+      strokeWidth="0.5"
+    />
+    {/* Amber Light (Middle) */}
+    <circle
+      cx="12"
+      cy="12"
+      r="2.2"
+      className="fill-amber-400 stroke-amber-300/80"
+      strokeWidth="0.5"
+    />
+    {/* Green Light (Bottom - Active with pulse) */}
+    <circle
+      cx="12"
+      cy="18.2"
+      r="2.2"
+      className={`fill-emerald-400 stroke-emerald-300/90 ${animated ? 'animate-pulse' : ''}`}
+      strokeWidth="0.5"
+    />
+  </svg>
+);
 
 export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const { currentIndexState, selectedIndex, openTradeTipModal, recentSurges } = useMarket();
@@ -170,6 +251,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: t.executionType || (isSeller ? 'NET_CREDIT' : 'NET_DEBIT'),
         strategyTag: t.strategyTag || 'Institutional High-Probability Confluence',
         entryTimeFormatted: t.entryTimeFormatted || '11:15 AM',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -209,6 +293,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_DEBIT',
         strategyTag: t.strategyTag || 'Bullish VWAP Pullback & Heavy Put Writing',
         entryTimeFormatted: t.entryTimeFormatted || 'Live Session',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -241,6 +328,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_DEBIT',
         strategyTag: t.strategyTag || 'Bearish Breakdown & Heavy Call Concentration',
         entryTimeFormatted: t.entryTimeFormatted || 'Live Session',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -273,6 +363,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_CREDIT',
         strategyTag: t.strategyTag || 'Bull Put Credit Spread (High POP)',
         entryTimeFormatted: t.entryTimeFormatted || 'Morning Slot',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)} Credit`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -312,6 +405,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_CREDIT',
         strategyTag: t.strategyTag || 'Bear Call Credit Spread (Resistance Wall)',
         entryTimeFormatted: t.entryTimeFormatted || 'Morning Slot',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)} Credit`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -351,6 +447,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_CREDIT',
         strategyTag: t.strategyTag || 'Iron Condor Non-Directional Theta Harvest',
         entryTimeFormatted: t.entryTimeFormatted || 'Daily Slot',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)} Credit`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -390,6 +489,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: 'NET_DEBIT',
         strategyTag: t.strategyTag || '0DTE Post-1:30 PM Gamma Scalp Sniper',
         entryTimeFormatted: t.entryTimeFormatted || 'Power Hour',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -455,6 +557,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         executionType: t.executionType || 'NET_DEBIT',
         strategyTag: t.strategyTag || 'Hedged Defined-Risk Directional Spread',
         entryTimeFormatted: t.entryTimeFormatted || '10:30 AM',
+        bookedTimeFormatted: t.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward,
         entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
         entryPrice: t.entryPrice,
         currentLtp: t.currentLtp || t.entryPrice,
@@ -492,6 +597,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: t.executionType || (isSeller ? 'NET_CREDIT' : 'NET_DEBIT'),
           strategyTag: `[Carried from ${t.carriedFromSession || 'Prior Session'}] ${t.strategyTag}`,
           entryTimeFormatted: t.entryTimeFormatted || 'Earlier',
+          bookedTimeFormatted: t.bookedTimeFormatted,
+          carryForwardTimeFormatted: t.carryForwardTimeFormatted || t.entryTimeFormatted,
+          isCarriedForward: true,
           entryRange: t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
           entryPrice: t.entryPrice,
           currentLtp: t.currentLtp || t.entryPrice,
@@ -987,7 +1095,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Price: t.target2Price,
         target2Pct: t.target2Pct,
         riskReward: t.riskReward,
-        givenTimeFormatted: t.entryTimeFormatted,
+        givenTimeFormatted: t.entryTimeFormatted || item.entryTimeFormatted,
+        bookedTimeFormatted: t.bookedTimeFormatted || item.bookedTimeFormatted,
+        carryForwardTimeFormatted: t.carryForwardTimeFormatted || item.carryForwardTimeFormatted,
+        isCarriedForward: t.isCarriedForward || item.isCarriedForward,
         elapsedTimeFormatted: 'Live Terminal Session',
         actionGuidance: t.strategyTag,
         status: t.status,
@@ -1020,7 +1131,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Price: hz.target3x,
         target2Pct: Math.round(((hz.target3x - hz.ltp) / hz.ltp) * 100),
         riskReward: hz.riskReward,
-        givenTimeFormatted: 'Power Hour',
+        givenTimeFormatted: item.entryTimeFormatted || 'Power Hour',
+        bookedTimeFormatted: item.bookedTimeFormatted,
+        carryForwardTimeFormatted: item.carryForwardTimeFormatted,
+        isCarriedForward: item.isCarriedForward,
         elapsedTimeFormatted: '0DTE Special',
         actionGuidance: hz.rationale,
         status: 'ACTIVE',
@@ -1048,6 +1162,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Pct: item.target2Pct,
         riskReward: item.riskReward,
         givenTimeFormatted: item.entryTimeFormatted,
+        bookedTimeFormatted: item.bookedTimeFormatted,
+        carryForwardTimeFormatted: item.carryForwardTimeFormatted,
+        isCarriedForward: item.isCarriedForward,
         elapsedTimeFormatted: 'Live Terminal Session',
         actionGuidance: item.strategyTag,
         status: item.status,
@@ -1091,7 +1208,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const handleCopySetup = (item: RecommendationTableItem, e: React.MouseEvent) => {
     e.stopPropagation();
     const text = [
-      `🎯 [FAYDA TERMINAL] LIVE TRADE RECOMMENDATION`,
+      `🚦 [FAYDA SIGNALS] LIVE SIGNAL`,
       `⚡ SYMBOL: ${item.contractSymbol}`,
       `🏷️ ACTION: ${item.actionBadge} (${item.role === 'SELLER' ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})`,
       `💰 ENTRY ZONE: ${item.entryRange} (LTP: ₹${item.currentLtp.toFixed(1)})`,
@@ -1460,7 +1577,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   return (
     <section 
       id="top-trade-recommendations-command-center"
-      aria-label="Top Trade Recommendations Command Center"
+      aria-label="Fayda Signals Command Center"
       className="w-full bg-white dark:bg-gradient-to-b dark:from-[#0b1424] dark:via-[#0e172a] dark:to-[#080d1a] border border-amber-400/60 dark:border-accent-gold/40 rounded-2xl shadow-lg dark:shadow-[0_4px_30px_rgba(255,184,0,0.12)] overflow-hidden transition-all duration-200 select-none font-sans"
     >
       {/* ========================================================================= */}
@@ -1469,13 +1586,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       <div className="p-3 sm:p-4 bg-slate-50/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         {/* Title & Pulse Indicator */}
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/10 dark:from-accent-gold/25 dark:to-amber-500/5 text-amber-700 dark:text-accent-gold border border-amber-500/40 shadow-sm flex items-center justify-center">
-            <Target className="w-5 h-5 animate-pulse text-amber-600 dark:text-accent-gold" />
+          <div className="p-2 rounded-xl bg-slate-900/90 dark:bg-slate-950 text-amber-500 border border-slate-700/80 dark:border-slate-700/90 shadow-md flex items-center justify-center shrink-0">
+            <TrafficSignalIcon className="w-6 h-6" animated={true} />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-sm sm:text-base font-mono font-black text-slate-900 dark:text-white tracking-wide uppercase flex items-center gap-2">
-                <span>⚡ Trade Recommendations & Tips</span>
+                <TrafficSignalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" animated={true} />
+                <span>Fayda Signals</span>
                 <span className="hidden sm:inline-block text-xs font-semibold text-slate-500 dark:text-terminal-muted lowercase font-sans">
                   (Top Command Center)
                 </span>
@@ -1811,15 +1929,37 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         </span>
                       </div>
 
-                      {/* Confluence Pill */}
-                      <div className="flex items-center gap-2">
+                      {/* Confluence Pill & Timing Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
                         <div className="px-3 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 font-mono text-xs font-black flex items-center gap-1.5">
                           <Award className="w-3.5 h-3.5 text-amber-500" />
                           <span>{currentFlashTip.confluenceScore}% Confluence</span>
                         </div>
-                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                          {currentFlashTip.entryTimeFormatted}
-                        </span>
+
+                        {/* Timing Badges: Given, Booked (Profit/Loss), Carry Forward */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-sky-500" />
+                            <span>Given: {currentFlashTip.entryTimeFormatted}</span>
+                          </span>
+
+                          {currentFlashTip.bookedTimeFormatted && (
+                            <span className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold border flex items-center gap-1 ${
+                              currentFlashTip.status === 'SL_HIT'
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
+                                : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                            }`}>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{currentFlashTip.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {currentFlashTip.bookedTimeFormatted}</span>
+                            </span>
+                          )}
+
+                          {(currentFlashTip.isCarriedForward || currentFlashTip.carryForwardTimeFormatted) && (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                              <span>Carry Forward: {currentFlashTip.carryForwardTimeFormatted || currentFlashTip.entryTimeFormatted}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -1978,7 +2118,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               {/* Helpful Hint to switch to List */}
               <div className="text-center py-2">
                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                  Showing 1 trade tip for 7 seconds. Want to see all {filteredItems.length} recommendations at once? Click{' '}
+                  Showing 1 Fayda signal for 7 seconds. Want to see all {filteredItems.length} signals at once? Click{' '}
                   <button
                     type="button"
                     onClick={() => setViewMode('LIST')}
@@ -2105,10 +2245,27 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             </span>
                           )}
 
-                          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-1 ml-auto sm:ml-0">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>{item.entryTimeFormatted || '11:15 AM'}</span>
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap ml-auto sm:ml-0 text-[11px] font-mono">
+                            <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>Given: {item.entryTimeFormatted || '11:15 AM'}</span>
+                            </span>
+                            {item.bookedTimeFormatted && (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 ${
+                                item.status === 'SL_HIT'
+                                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              }`}>
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                <span>{item.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {item.bookedTimeFormatted}</span>
+                              </span>
+                            )}
+                            {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                                <span>Carry Forward: {item.carryForwardTimeFormatted || item.entryTimeFormatted}</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-xs text-slate-600 dark:text-slate-400 font-sans line-clamp-1">
@@ -2550,9 +2707,25 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           <span className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 mt-0.5" title={item.strategyTag}>
                             {item.strategyTag}
                           </span>
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{item.entryTimeFormatted}</span>
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5" />
+                              <span>Given: {item.entryTimeFormatted}</span>
+                            </span>
+                            {item.bookedTimeFormatted && (
+                              <span className={`px-1.5 py-0.2 rounded font-bold border flex items-center gap-0.5 ${
+                                item.status === 'SL_HIT'
+                                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              }`}>
+                                {item.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {item.bookedTimeFormatted}
+                              </span>
+                            )}
+                            {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                                Carry Forward: {item.carryForwardTimeFormatted || item.entryTimeFormatted}
+                              </span>
+                            )}
                             {item.legsSummary && (
                               <>
                                 <span>•</span>

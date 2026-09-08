@@ -1076,6 +1076,10 @@ export interface UnifiedSmartTip {
   status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED';
   isCarriedForward?: boolean;
   carriedFromSession?: string;
+  bookedTime?: string;
+  bookedTimeFormatted?: string;
+  carryForwardTime?: string;
+  carryForwardTimeFormatted?: string;
   strategyMatches: {
     faydaRadarConfluence: boolean;
     oiActivitySurge: boolean;

@@ -404,6 +404,9 @@ export interface TipLifecycleFlashEvent {
   pnlPct?: number;
   timestamp: string;
   timeFormatted: string;
+  entryTimeFormatted?: string;
+  bookedTimeFormatted?: string;
+  carryForwardTimeFormatted?: string;
 }
 
 export interface PcrData {
@@ -1103,6 +1106,10 @@ export interface UnifiedSmartTip {
   riskReward: string;
   confluenceScore: number; // 0 - 100
   status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED';
+  bookedTime?: string;
+  bookedTimeFormatted?: string;
+  carryForwardTime?: string;
+  carryForwardTimeFormatted?: string;
   isCarriedForward?: boolean;
   carriedFromSession?: string;
   strategyMatches: {
@@ -1250,6 +1257,9 @@ export interface ActiveTradeTipData {
   target2Pct?: number;
   riskReward?: string;
   givenTimeFormatted?: string;
+  bookedTimeFormatted?: string;
+  carryForwardTimeFormatted?: string;
+  isCarriedForward?: boolean;
   elapsedTimeFormatted?: string;
   actionGuidance?: string;
   actionBadge?: string;
