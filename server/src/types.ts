@@ -931,7 +931,7 @@ export interface OngoingProfitBoxData {
   pnlPoints: number;
   pnlPct: number;
   pnlRupees: number;
-  decisionTag: 'ENTER' | 'HOLD' | 'BOOK_HALF' | 'TRAIL_SL' | 'EXIT_SL';
+  decisionTag: 'ENTER' | 'HOLD' | 'BOOK_HALF' | 'TRAIL_SL' | 'EXIT_SL' | 'EXPIRED';
   decisionText: string;
   isProfit: boolean;
 }
@@ -1127,7 +1127,11 @@ export interface UnifiedSmartTip {
   halfProfitBookTimeFormatted?: string;
   marketRegime?: MarketMomentumRegime;
   momentumDescription?: string;
+  expiryDate?: string;
+  daysToExpiry?: number;
   isExpiryDay?: boolean;
+  nextExpiryDate?: string;
+  nextExpiryContractSymbol?: string;
   ongoingProfitBox?: OngoingProfitBoxData;
   strategyMatches: {
     faydaRadarConfluence: boolean;
@@ -1184,6 +1188,10 @@ export interface UnifiedSessionTipsPackage {
   hedgedSpreadTrade: UnifiedSmartTip | null;
   gammaTrade: UnifiedSmartTip | null;
   carriedForwardTrades: UnifiedSmartTip[];
+  activeExpiryDate?: string;
+  upcomingExpiries?: string[];
+  nextExpiryDate?: string;
+  isExpiryDay?: boolean;
   regimeWarning?: string;
   isNoTradeZone?: boolean;
   lastEvaluatedAt: string;

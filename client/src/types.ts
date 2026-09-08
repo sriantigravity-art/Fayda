@@ -964,7 +964,7 @@ export interface OngoingProfitBoxData {
   pnlPoints: number;
   pnlPct: number;
   pnlRupees: number;
-  decisionTag: 'ENTER' | 'HOLD' | 'BOOK_HALF' | 'TRAIL_SL' | 'EXIT_SL';
+  decisionTag: 'ENTER' | 'HOLD' | 'BOOK_HALF' | 'TRAIL_SL' | 'EXIT_SL' | 'EXPIRED';
   decisionText: string;
   isProfit: boolean;
 }
@@ -1141,6 +1141,11 @@ export interface UnifiedSmartTip {
   carryForwardTime?: string;
   carryForwardTimeFormatted?: string;
   carryForwardSuggestion?: string;
+  expiryDate?: string;
+  daysToExpiry?: number;
+  isExpiryDay?: boolean;
+  nextExpiryDate?: string;
+  nextExpiryContractSymbol?: string;
   isCarriedForward?: boolean;
   carriedFromSession?: string;
   strategyMatches: {
@@ -1198,6 +1203,10 @@ export interface UnifiedSessionTipsPackage {
   hedgedSpreadTrade: UnifiedSmartTip | null;
   gammaTrade: UnifiedSmartTip | null;
   carriedForwardTrades: UnifiedSmartTip[];
+  activeExpiryDate?: string;
+  upcomingExpiries?: string[];
+  nextExpiryDate?: string;
+  isExpiryDay?: boolean;
   regimeWarning?: string;
   isNoTradeZone?: boolean;
   lastEvaluatedAt: string;
@@ -1306,7 +1315,11 @@ export interface ActiveTradeTipData {
   carryForwardAdvice?: string;
   marketRegime?: MarketMomentumRegime;
   momentumDescription?: string;
+  expiryDate?: string;
+  daysToExpiry?: number;
   isExpiryDay?: boolean;
+  nextExpiryDate?: string;
+  nextExpiryContractSymbol?: string;
   ongoingProfitBox?: OngoingProfitBoxData;
   isCarriedForward?: boolean;
   pnlPoints?: number;
@@ -1355,6 +1368,7 @@ export interface ActiveTradeTipData {
   executionType?: 'NET_DEBIT' | 'NET_CREDIT';
   confluenceBreakdown?: TipConfluenceBreakdown;
   sellerMetrics?: OptionSellerMetrics;
+  initialDepthModal?: 'MILESTONES' | 'CONFLUENCE' | 'GREEKS' | 'ENTRY_TACTICS' | 'CARRY_FORWARD' | null;
 }
 
 

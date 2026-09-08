@@ -935,7 +935,9 @@ export class OIEngine {
           prevTrades,
           technicalIndicators,
           maxPain,
-          daysToExpiry
+          daysToExpiry,
+          activeExpiry,
+          expiries
         );
 
         // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)

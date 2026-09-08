@@ -83,6 +83,18 @@ interface RecommendationTableItem {
   // Gamma specific
   gammaScore?: number;
   multiplierTarget?: string;
+  // Lifecycle Milestones & Mode Context
+  entryPriceTimeFormatted?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTimeFormatted?: string;
+  marketRegime?: string;
+  isExpiryDay?: boolean;
+  explanations?: {
+    beginner?: string;
+    intermediate?: string;
+    expert?: string;
+  };
   // Raw tip or context
   rawTip?: UnifiedSmartTip;
   rawHeroSignal?: HeroZeroSignal;
@@ -166,12 +178,18 @@ export const TrafficSignalIcon: React.FC<{ className?: string; animated?: boolea
 );
 
 export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
-  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal, recentSurges } = useMarket();
+  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal, recentSurges, setOptionExpiry } = useMarket();
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const symConfig = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const isCommodity = symConfig?.category === 'COMMODITIES';
   const isOffMarket = currentIndexState?.unifiedTipsPackage?.currentSession === 'OFF_MARKET';
+  const pkg = currentIndexState?.unifiedTipsPackage;
+  const activeExpiryDate = pkg?.activeExpiryDate || currentIndexState?.selectedExpiry;
+  const upcomingExpiries = pkg?.upcomingExpiries || [];
+  const nextExpiryDate = pkg?.nextExpiryDate;
+  const isExpiryDay = pkg?.isExpiryDay || false;
+
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
   const [viewMode, setViewMode] = useState<'FLASH' | 'LIST' | 'BUTTONS' | 'TABLE'>('FLASH');
@@ -264,13 +282,20 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       }
       seenContracts.add(key);
 
-      const entry = rawItem.entryPrice || 0;
-      const ltp = rawItem.currentLtp !== undefined ? rawItem.currentLtp : entry;
-      const isSeller = rawItem.role === 'SELLER' || rawItem.executionType === 'NET_CREDIT';
+      const isItemExpiry = rawItem.isExpiryDay ?? rawItem.rawTip?.isExpiryDay ?? isExpiryDay;
+      const isContractExpired = Boolean(
+        rawItem.status === 'EXPIRED' ||
+        rawItem.rawTip?.status === 'EXPIRED' ||
+        (isItemExpiry && !isCommodity && ltp <= 0.05)
+      );
+
+      const finalStatus = isContractExpired ? 'EXPIRED' : (rawItem.status || 'ACTIVE');
 
       // 1. P&L in points
       let points = rawItem.pnlPoints;
-      if (points === undefined && rawItem.rawTip?.pnlPoints !== undefined) {
+      if (isContractExpired && !isSeller) {
+        points = -entry;
+      } else if (points === undefined && rawItem.rawTip?.pnlPoints !== undefined) {
         points = rawItem.rawTip.pnlPoints;
       }
       if (points === undefined) {
@@ -280,7 +305,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
       // 2. P&L in percentage
       let pct = rawItem.pnlPct;
-      if (pct === undefined && rawItem.rawTip?.pnlPct !== undefined) {
+      if (isContractExpired && !isSeller) {
+        pct = -100;
+      } else if (pct === undefined && rawItem.rawTip?.pnlPct !== undefined) {
         pct = rawItem.rawTip.pnlPct;
       }
       if (pct === undefined) {
@@ -289,35 +316,56 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
       // 3. P&L in Rupees per lot
       let rupees = rawItem.pnlRupees;
-      if (rupees === undefined && rawItem.rawTip?.pnlRupees !== undefined) {
+      if (isContractExpired && !isSeller) {
+        rupees = -Math.round(entry * (lotSize || 50));
+      } else if (rupees === undefined && rawItem.rawTip?.pnlRupees !== undefined) {
         rupees = rawItem.rawTip.pnlRupees;
       }
       if (rupees === undefined) {
         rupees = Math.round(points * (lotSize || 50));
       }
 
-      const isProfitable = rawItem.isProfitable !== undefined ? rawItem.isProfitable : rupees >= 0;
+      const isProfitable = isContractExpired ? (isSeller ? true : false) : (rawItem.isProfitable !== undefined ? rawItem.isProfitable : rupees >= 0);
 
       // 4. Carry forward suggestion & time
       let suggestion = rawItem.carryForwardSuggestion || rawItem.rawTip?.carryForwardSuggestion;
-      if (!suggestion) {
+      if (isContractExpired) {
+        suggestion = 'CONTRACT EXPIRED — SEBI Rules: (1) This option expired at 03:30 PM and settled at ₹0.00. There is NO automatic rollover. (2) To continue the trade, you must manually open a fresh contract in the NEXT EXPIRY separately.';
+      } else if (!suggestion) {
         if (isSeller) {
-          suggestion = 'Hold overnight if OTM decay buffer is > 65%. Close before 03:25 PM if underlying is within 0.4% of sold strike.';
+          suggestion = 'Option Seller Overnight Hold: Theta decay works in your favour if OTM decay buffer >65%. You may hold overnight — but options expire at expiry day; settlement is automatic. Close before 03:25 PM if underlying is within 0.4% of sold strike.';
         } else {
-          suggestion = 'Intraday recommendation: Book 50% profits near T1/T2. Avoid holding naked long options overnight to prevent opening theta erosion.';
+          suggestion = 'Intraday Recommendation: Book 50% profits near T1/T2. Options CANNOT be carried overnight (SEBI rules) — avoid holding naked long options; overnight Theta decay will erode premium rapidly.';
         }
       }
 
       const carryForwardTimeFormatted = rawItem.carryForwardTimeFormatted || rawItem.rawTip?.carryForwardTimeFormatted || '03:20 PM';
 
+      const entryPriceTimeFormatted = rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryTimeFormatted || 'Live';
+      const target1HitTimeFormatted = rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const target2HitTimeFormatted = rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const stoplossTimeFormatted = rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
+      const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
+      const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : rawItem.actionBadge;
+
       const fullItem: RecommendationTableItem = {
         ...rawItem,
+        status: finalStatus,
+        actionBadge,
         pnlPoints: points,
         pnlPct: pct,
         pnlRupees: rupees,
         isProfitable,
         carryForwardSuggestion: suggestion,
-        carryForwardTimeFormatted
+        carryForwardTimeFormatted,
+        entryPriceTimeFormatted,
+        target1HitTimeFormatted,
+        target2HitTimeFormatted,
+        stoplossTimeFormatted,
+        marketRegime,
+        isExpiryDay: isItemExpiry,
+        explanations
       };
 
       list.push(fullItem);
@@ -1161,8 +1209,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
   if (!currentIndexState) return null;
 
-  // Handler to open full Trade Tip Modal
-  const handleOpenTipModal = (item: RecommendationTableItem) => {
+  // Handler to open full Trade Tip Modal (with optional initial depth modal)
+  const handleOpenTipModal = (
+    item: RecommendationTableItem, 
+    initialDepthModal?: 'MILESTONES' | 'CONFLUENCE' | 'GREEKS' | 'ENTRY_TACTICS' | 'CARRY_FORWARD' | null
+  ) => {
     if (item.rawTip) {
       const t = item.rawTip;
       openTradeTipModal({
@@ -1185,10 +1236,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Pct: t.target2Pct,
         riskReward: t.riskReward,
         givenTimeFormatted: t.entryTimeFormatted || item.entryTimeFormatted,
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || t.entryPriceTimeFormatted || item.entryTimeFormatted,
+        target1HitTimeFormatted: item.target1HitTimeFormatted || t.target1HitTimeFormatted,
+        target2HitTimeFormatted: item.target2HitTimeFormatted || t.target2HitTimeFormatted,
+        stoplossTimeFormatted: item.stoplossTimeFormatted || t.stoplossTimeFormatted,
         bookedTimeFormatted: t.bookedTimeFormatted || item.bookedTimeFormatted,
         carryForwardTimeFormatted: t.carryForwardTimeFormatted || item.carryForwardTimeFormatted,
         carryForwardSuggestion: t.carryForwardSuggestion || item.carryForwardSuggestion,
         isCarriedForward: t.isCarriedForward || item.isCarriedForward,
+        marketRegime: (item.marketRegime || t.marketRegime) as any,
+        isExpiryDay: item.isExpiryDay ?? t.isExpiryDay,
         pnlRupees: item.pnlRupees,
         pnlPoints: item.pnlPoints,
         pnlPct: item.pnlPct,
@@ -1197,11 +1254,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         status: t.status,
         strategyTag: t.strategyTag,
         lotSize,
-        explanations: t.explanations,
+        explanations: t.explanations || item.explanations,
         tradingRole: t.tradingRole,
         executionType: t.executionType,
         confluenceBreakdown: t.confluenceBreakdown,
-        sellerMetrics: t.sellerMetrics
+        sellerMetrics: t.sellerMetrics,
+        initialDepthModal: initialDepthModal || null
       });
     } else if (item.rawHeroSignal) {
       const hz = item.rawHeroSignal;
@@ -1225,10 +1283,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Pct: Math.round(((hz.target3x - hz.ltp) / hz.ltp) * 100),
         riskReward: hz.riskReward,
         givenTimeFormatted: item.entryTimeFormatted || 'Power Hour',
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
+        target1HitTimeFormatted: item.target1HitTimeFormatted,
+        target2HitTimeFormatted: item.target2HitTimeFormatted,
+        stoplossTimeFormatted: item.stoplossTimeFormatted,
         bookedTimeFormatted: item.bookedTimeFormatted,
         carryForwardTimeFormatted: item.carryForwardTimeFormatted,
         carryForwardSuggestion: item.carryForwardSuggestion,
         isCarriedForward: item.isCarriedForward,
+        marketRegime: 'VOLATILE_SURGE',
+        isExpiryDay: true,
         pnlRupees: item.pnlRupees,
         pnlPoints: item.pnlPoints,
         pnlPct: item.pnlPct,
@@ -1236,7 +1300,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         actionGuidance: hz.rationale,
         status: 'ACTIVE',
         strategyTag: '0DTE Gamma Sniper',
-        lotSize
+        lotSize,
+        initialDepthModal: initialDepthModal || null
       });
     } else {
       openTradeTipModal({
@@ -1259,10 +1324,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Pct: item.target2Pct,
         riskReward: item.riskReward,
         givenTimeFormatted: item.entryTimeFormatted,
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
+        target1HitTimeFormatted: item.target1HitTimeFormatted,
+        target2HitTimeFormatted: item.target2HitTimeFormatted,
+        stoplossTimeFormatted: item.stoplossTimeFormatted,
         bookedTimeFormatted: item.bookedTimeFormatted,
         carryForwardTimeFormatted: item.carryForwardTimeFormatted,
         carryForwardSuggestion: item.carryForwardSuggestion,
         isCarriedForward: item.isCarriedForward,
+        marketRegime: (item.marketRegime || 'TRENDING_EXPANSION') as any,
+        isExpiryDay: item.isExpiryDay,
         pnlRupees: item.pnlRupees,
         pnlPoints: item.pnlPoints,
         pnlPct: item.pnlPct,
@@ -1271,6 +1342,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         status: item.status,
         strategyTag: item.strategyTag,
         lotSize,
+        explanations: item.explanations,
         tradingRole: item.role,
         executionType: item.executionType,
         sellerMetrics: {
@@ -1279,7 +1351,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           maxLossRupees: item.maxLossRupees,
           marginRequiredRupees: item.marginRequiredRupees,
           probabilityOfProfitPct: item.probabilityOfProfitPct
-        }
+        },
+        initialDepthModal: initialDepthModal || null
       });
     }
   };
@@ -1377,10 +1450,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 }`}>
                   {selectedItem.actionBadge} ({isSeller ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span>{selectedItem.status}</span>
-                </span>
+                {selectedItem.status === 'EXPIRED' ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
+                    <span>🛑 EXPIRED (₹0.00)</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span>{selectedItem.status}</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5">
                 {selectedItem.strategyTag}
@@ -1512,16 +1591,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
         </div>
 
-        {/* Carry Forward Suggestion Banner */}
+        {/* BTST/Overnight Guidance Banner */}
         {selectedItem.carryForwardSuggestion && (
           <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-3 flex items-start gap-2.5 text-xs font-mono">
             <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
-              📦
+              🌙
             </div>
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 <span className="font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider text-[11px]">
-                  Carry Forward Suggestion ({selectedItem.carryForwardTimeFormatted || '03:20 PM IST'})
+                  BTST / Overnight Guidance ({selectedItem.carryForwardTimeFormatted || '03:20 PM IST'}) — SEBI Compliant
                 </span>
               </div>
               <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
@@ -1545,6 +1624,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           role={selectedItem.role}
           executionType={selectedItem.executionType}
           matchingSurge={getMatchingSurge(selectedItem)}
+          isExpiryDay={selectedItem.isExpiryDay ?? isExpiryDay}
+          status={selectedItem.status}
         />
 
         {/* Sensibull Payoff Simulator, Opstra Margin Optimizer, & Quantsapp Radar */}
@@ -1725,12 +1806,62 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
                 {selectedIndex} • Lot: {lotSize}
               </span>
+              {/* ── Expiry Badge ── */}
+              {!isCommodity && activeExpiryDate && (
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 border ${
+                  isExpiryDay
+                    ? 'bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700 animate-pulse'
+                    : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800/60'
+                }`}>
+                  {isExpiryDay ? '⚡' : '📅'} {activeExpiryDate}{isExpiryDay ? ' • 0DTE' : ''}
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono mt-0.5 flex items-center gap-2">
               <span>{isBeginner ? 'Safe high-probability setups with defined profit targets & stop loss' : isExpert ? 'Multi-indicator alpha confluence with Greek profiles & delta order flow' : 'Institutional momentum setups & probability-of-profit credit spreads'}</span>
               <span className="text-slate-400 dark:text-slate-600">•</span>
               <span className="text-amber-700 dark:text-amber-400 font-bold">10-Factor Confluence</span>
             </p>
+            {/* ── 0DTE Alert Banner ── */}
+            {isExpiryDay && !isCommodity && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-red-700 dark:text-red-400 flex items-center gap-1">
+                  {isOffMarket 
+                    ? '🛑 0DTE CONTRACTS EXPIRED AT 03:30 PM — Today\'s contracts settled at ₹0.00 / intrinsic cash value.'
+                    : '⚠️ 0DTE TODAY (SEBI Rules) — Options CANNOT be carried overnight. Square off by 03:25 PM IST. To continue, manually open next-expiry contract.'}
+                </span>
+                {nextExpiryDate && setOptionExpiry && (
+                  <button
+                    type="button"
+                    onClick={() => setOptionExpiry(nextExpiryDate)}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 transition-all cursor-pointer flex items-center gap-1"
+                    title={`Open fresh Next Expiry (${nextExpiryDate}) contract for BTST — SEBI requires manual close + re-open`}
+                  >
+                    🌙 Open Fresh Next Expiry ({nextExpiryDate}) for BTST →
+                  </button>
+                )}
+              </div>
+            )}
+            {/* ── Expiry Switcher Pills (when multiple expiries available) ── */}
+            {!isCommodity && upcomingExpiries.length > 1 && !isExpiryDay && (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                <span className="text-[9px] font-mono text-slate-500 dark:text-slate-500 uppercase">Expiry:</span>
+                {upcomingExpiries.slice(0, 3).map((exp) => (
+                  <button
+                    key={exp}
+                    type="button"
+                    onClick={() => setOptionExpiry(exp)}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-all cursor-pointer ${
+                      exp === activeExpiryDate
+                        ? 'bg-amber-500 text-slate-900 border-amber-400'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {exp === activeExpiryDate ? '✓ ' : ''}{exp}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1914,7 +2045,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                New intraday signals for NSE/BSE cease after 03:40 PM. All trades show final entry time, booked profit/loss time, and carry-forward suggestions. MCX Commodities remain active for live trading until 11:30 PM IST.
+                New intraday signals for NSE/BSE cease after 03:40 PM. All trades show final entry time, booked profit/loss time, and BTST guidance (SEBI: close current contract + open fresh next-expiry manually). MCX Commodities remain active for live trading until 11:30 PM IST.
               </p>
             </div>
           </div>
@@ -2094,6 +2225,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                           {currentFlashTip.actionBadge}
                         </span>
+
+                        {currentFlashTip.expiryDate && !isCommodity && (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider flex items-center gap-1 ${
+                            currentFlashTip.isExpiryDay
+                              ? 'bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+                              : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800/60'
+                          }`}>
+                            {currentFlashTip.isExpiryDay ? '⚡ 0DTE:' : '📅'} {currentFlashTip.expiryDate}
+                          </span>
+                        )}
                       </div>
 
                       {/* Confluence Pill, P&L Badge & Timing Badges */}
@@ -2134,7 +2275,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                           {(currentFlashTip.isCarriedForward || currentFlashTip.carryForwardTimeFormatted) && (
                             <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
-                              <span>Carry Forward: {currentFlashTip.carryForwardTimeFormatted || '03:20 PM'}</span>
+                              <span>BTST Window: {currentFlashTip.carryForwardTimeFormatted || '03:20 PM'}</span>
                             </span>
                           )}
                         </div>
@@ -2151,12 +2292,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     {currentFlashTip.carryForwardSuggestion && (
                       <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-2.5 flex items-start gap-2.5 text-xs font-mono">
                         <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
-                          📦
+                          🌙
                         </div>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
                             <span className="font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider text-[11px]">
-                              Carry Forward Suggestion ({currentFlashTip.carryForwardTimeFormatted || '03:20 PM IST'})
+                              BTST / Overnight Guidance ({currentFlashTip.carryForwardTimeFormatted || '03:20 PM IST'}) — SEBI Compliant
                             </span>
                           </div>
                           <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
@@ -2170,15 +2311,22 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 my-3">
                       {/* Entry Zone */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
-                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Entry Range</div>
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">
+                          {isBeginner ? '🔰 Buy Zone' : isExpert ? 'Trigger Initiation' : 'Entry Range'}
+                        </div>
                         <div className="text-sm font-mono font-black text-sky-600 dark:text-sky-400 mt-0.5">
                           {currentFlashTip.entryRange}
+                        </div>
+                        <div className="text-[9px] font-mono text-sky-600 dark:text-sky-400 font-bold mt-0.5 truncate">
+                          ⏱️ Triggered: {currentFlashTip.entryPriceTimeFormatted || currentFlashTip.entryTimeFormatted || 'Live'}
                         </div>
                       </div>
 
                       {/* Live LTP */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
-                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Current LTP</div>
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">
+                          {isBeginner ? 'Current Price' : isExpert ? 'Option LTP' : 'Current LTP'}
+                        </div>
                         <div className="text-base font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
                           ₹{currentFlashTip.currentLtp.toFixed(2)}
                         </div>
@@ -2196,7 +2344,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <div className={`text-[10px] uppercase font-mono font-bold ${
                           currentFlashTip.isProfitable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                         }`}>
-                          P&L / Lot
+                          {isBeginner ? '💵 Profit / Lot' : isExpert ? 'Live Alpha P&L' : 'P&L / Lot'}
                         </div>
                         <div className={`text-base font-mono font-black mt-0.5 ${
                           currentFlashTip.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -2212,40 +2360,48 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                       {/* Target 1 */}
                       <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
-                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">Target 1</div>
+                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">
+                          {isBeginner ? '🎯 Profit Goal 1' : isExpert ? '1.2σ Expansion' : 'Target 1'}
+                        </div>
                         <div className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                           ₹{currentFlashTip.target1Price.toFixed(2)}
                         </div>
-                        <div className="text-[10px] font-mono font-bold text-emerald-500">
-                          +{currentFlashTip.target1Pct}%
+                        <div className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 truncate">
+                          ⏱️ {currentFlashTip.target1HitTimeFormatted ? `Hit: ${currentFlashTip.target1HitTimeFormatted}` : (currentFlashTip.status === 'TARGET1_HIT' || currentFlashTip.status === 'TARGET2_HIT' ? (currentFlashTip.bookedTimeFormatted || 'Booked') : 'Pending Target')}
                         </div>
                       </div>
 
                       {/* Target 2 */}
                       <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
-                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">Target 2</div>
+                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">
+                          {isBeginner ? '🚀 Bonus Goal 2' : isExpert ? '1.8σ Gamma Runner' : 'Target 2'}
+                        </div>
                         <div className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                           ₹{(currentFlashTip.target2Price || currentFlashTip.target1Price * 1.25).toFixed(2)}
                         </div>
-                        <div className="text-[10px] font-mono font-bold text-emerald-500">
-                          +{currentFlashTip.target2Pct || 60}%
+                        <div className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 truncate">
+                          ⏱️ {currentFlashTip.target2HitTimeFormatted ? `Hit: ${currentFlashTip.target2HitTimeFormatted}` : (currentFlashTip.status === 'TARGET2_HIT' ? (currentFlashTip.bookedTimeFormatted || 'Booked') : 'Runner Trailing')}
                         </div>
                       </div>
 
                       {/* Stoploss */}
                       <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40">
-                        <div className="text-[10px] uppercase font-mono text-rose-600 dark:text-rose-400">Stop Loss</div>
+                        <div className="text-[10px] uppercase font-mono text-rose-600 dark:text-rose-400">
+                          {isBeginner ? '🛡️ Capital Shield' : isExpert ? 'Invalidation Level' : 'Stop Loss'}
+                        </div>
                         <div className="text-sm font-mono font-black text-rose-600 dark:text-rose-400 mt-0.5">
                           ₹{currentFlashTip.stoplossPrice.toFixed(2)}
                         </div>
-                        <div className="text-[10px] font-mono font-bold text-rose-500">
-                          -{currentFlashTip.stoplossPct}%
+                        <div className="text-[9px] font-mono text-rose-600 dark:text-rose-400 font-bold mt-0.5 truncate">
+                          ⏱️ {currentFlashTip.stoplossTimeFormatted ? `Hit: ${currentFlashTip.stoplossTimeFormatted}` : (currentFlashTip.status === 'STOPLOSS_HIT' ? (currentFlashTip.bookedTimeFormatted || 'Stopped Out') : 'Active Shield')}
                         </div>
                       </div>
 
                       {/* Risk Reward */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
-                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Risk : Reward</div>
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">
+                          {isBeginner ? 'Reward vs Risk' : isExpert ? 'Asymmetric R:R' : 'Risk : Reward'}
+                        </div>
                         <div className="text-sm font-mono font-black text-slate-900 dark:text-white mt-0.5">
                           {currentFlashTip.riskReward}
                         </div>
@@ -2255,17 +2411,61 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       </div>
                     </div>
 
-                    {/* Action Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
+                    {/* Action Bar with Progressive Disclosure Depth Triggers */}
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {/* Open Trade Tip Modal */}
                         <button
                           type="button"
                           onClick={() => handleOpenTipModal(currentFlashTip)}
-                          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition shadow-sm cursor-pointer"
                         >
-                          <Zap className="w-4 h-4" />
-                          <span>Detailed Setup Ticket</span>
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>{isBeginner ? '🔰 Quick Setup Guide' : isExpert ? '🔬 Greek Blueprint' : '⚡ 3-Sec Quick Signal'}</span>
+                        </button>
+
+                        {/* Quick Depth Button: Milestones */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTipModal(currentFlashTip, 'MILESTONES')}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Open 6-Stage Timestamped Milestones Modal"
+                        >
+                          <Clock className="w-3 h-3 text-sky-500" />
+                          <span>⏱️ Milestones</span>
+                        </button>
+
+                        {/* Quick Depth Button: Confluence */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTipModal(currentFlashTip, 'CONFLUENCE')}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Open 10-Factor Confluence Checklist Modal"
+                        >
+                          <Award className="w-3 h-3 text-amber-500" />
+                          <span>📊 Confluence</span>
+                        </button>
+
+                        {/* Quick Depth Button: Greeks */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTipModal(currentFlashTip, 'GREEKS')}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Open Option Greeks & Payoff Calculator Modal"
+                        >
+                          <ShieldCheck className="w-3 h-3 text-purple-400" />
+                          <span>🔬 Greeks</span>
+                        </button>
+
+                        {/* Quick Depth Button: BTST/Overnight Rules */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTipModal(currentFlashTip, 'CARRY_FORWARD')}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Open BTST / Overnight Rules (SEBI Compliant)"
+                        >
+                          <span>🌙</span>
+                          <span>BTST Rules</span>
                         </button>
 
                         {/* Open Risk Calc */}
@@ -2279,10 +2479,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             });
                             setIsRiskModalOpen(true);
                           }}
-                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
                         >
-                          <Calculator className="w-3.5 h-3.5" />
-                          <span>Position Calc</span>
+                          <Calculator className="w-3 h-3" />
+                          <span>Calc</span>
                         </button>
 
                         {/* Add to Broker Basket */}
@@ -2303,10 +2503,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             });
                             setIsBasketModalOpen(true);
                           }}
-                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
                         >
-                          <Layers className="w-3.5 h-3.5" />
-                          <span>Basket Order</span>
+                          <Layers className="w-3 h-3" />
+                          <span>Basket</span>
                         </button>
                       </div>
 
@@ -2444,6 +2644,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             {item.actionBadge}
                           </span>
 
+                          {item.expiryDate && !isCommodity && (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border uppercase tracking-wider ${
+                              item.isExpiryDay
+                                ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+                                : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                            }`}>
+                              {item.isExpiryDay ? '⚡ 0DTE:' : '📅'} {item.expiryDate}
+                            </span>
+                          )}
+
                           {/* Dedicated P&L Badge */}
                           <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border ${
                             item.isProfitable
@@ -2491,7 +2701,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             )}
                             {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
-                                <span>Carry Forward: {item.carryForwardTimeFormatted || item.entryTimeFormatted}</span>
+                                <span>BTST Window: {item.carryForwardTimeFormatted || item.entryTimeFormatted}</span>
                               </span>
                             )}
                           </div>
@@ -2501,10 +2711,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           {item.strategyTag}
                         </p>
 
-                        {/* Carry Forward Suggestion Strip */}
+                        {/* BTST/Overnight Guidance Strip */}
                         {item.carryForwardSuggestion && (
                           <div className="mt-1.5 p-2 rounded-lg bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-2 text-[11px] font-mono text-purple-900 dark:text-purple-200">
-                            <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">📦 Carry Forward Suggestion ({item.carryForwardTimeFormatted || '03:20 PM'}):</span>
+                            <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">🌙 BTST/Overnight Guidance ({item.carryForwardTimeFormatted || '03:20 PM'}) — SEBI:</span>
                             <span className="text-slate-600 dark:text-slate-300 truncate">{item.carryForwardSuggestion}</span>
                           </div>
                         )}
@@ -2753,32 +2963,53 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
                           {strikeLabel}
                         </span>
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                          {item.actionBadge}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            {item.actionBadge}
+                          </span>
+                          {item.expiryDate && !isCommodity && (
+                            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase ${
+                              item.isExpiryDay
+                                ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+                                : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                            }`}>
+                              {item.isExpiryDay ? '⚡ 0DTE' : item.expiryDate}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-sans" title={item.strategyTag}>
                         {item.strategyTag}
                       </p>
                     </div>
 
-                    {/* Compact Minimalist Key Metrics: Entry, LTP, P&L, Target */}
+                    {/* Compact Minimalist Key Metrics: Entry, LTP, P&L, Target with Timestamps */}
                     <div className="grid grid-cols-4 gap-1.5 w-full">
                       {/* Entry */}
                       <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
-                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">Entry</span>
+                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">
+                          {isBeginner ? 'Buy Zone' : isExpert ? 'Trigger' : 'Entry'}
+                        </span>
                         <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
                           {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
+                        </span>
+                        <span className="text-[8px] font-mono text-sky-600 dark:text-sky-400 truncate mt-0.5 font-bold">
+                          ⏱️ {item.entryPriceTimeFormatted || item.entryTimeFormatted || 'Live'}
                         </span>
                       </div>
 
                       {/* LTP */}
                       <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
-                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">LTP</span>
+                        <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">
+                          {isBeginner ? 'Price' : isExpert ? 'LTP' : 'LTP'}
+                        </span>
                         <span className={`text-xs font-mono font-black truncate ${
                           item.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
                         }`}>
                           ₹{item.currentLtp.toFixed(1)}
+                        </span>
+                        <span className="text-[8px] font-mono text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                          Live Tick
                         </span>
                       </div>
 
@@ -2790,19 +3021,31 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       }`}>
                         <span className={`text-[9px] font-mono uppercase font-bold ${
                           item.isProfitable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
-                        }`}>P&L/Lot</span>
+                        }`}>
+                          {isBeginner ? 'Profit' : isExpert ? 'Alpha' : 'P&L/Lot'}
+                        </span>
                         <span className={`text-xs font-mono font-black truncate ${
                           item.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                         }`}>
                           {item.pnlRupees >= 0 ? '+' : ''}₹{item.pnlRupees.toLocaleString('en-IN')}
                         </span>
+                        <span className={`text-[8px] font-mono font-bold truncate mt-0.5 ${
+                          item.isProfitable ? 'text-emerald-500' : 'text-rose-500'
+                        }`}>
+                          {item.pnlPoints >= 0 ? `+${item.pnlPoints}p` : `${item.pnlPoints}p`}
+                        </span>
                       </div>
 
                       {/* Target */}
                       <div className="bg-emerald-50/50 dark:bg-emerald-950/30 p-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60 flex flex-col">
-                        <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 uppercase">Target</span>
+                        <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 uppercase">
+                          {isBeginner ? 'Goal 1' : isExpert ? '1.2σ' : 'Target'}
+                        </span>
                         <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400 truncate">
                           ₹{item.target1Price.toFixed(1)}
+                        </span>
+                        <span className="text-[8px] font-mono text-emerald-600 dark:text-emerald-400 truncate mt-0.5 font-bold">
+                          ⏱️ {item.target1HitTimeFormatted ? `Hit: ${item.target1HitTimeFormatted}` : 'Pending'}
                         </span>
                       </div>
                     </div>
@@ -2840,7 +3083,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wider flex items-center gap-0.5 transition-all shadow-xs cursor-pointer"
                           title="Open Full Strategy Blueprint Modal"
                         >
-                          <span>Blueprint</span>
+                          <span>{isBeginner ? 'Guide' : isExpert ? 'Greeks' : 'Blueprint'}</span>
                           <ExternalLink className="w-2.5 h-2.5" />
                         </span>
                       </div>
@@ -2962,6 +3205,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                                 0DTE
                               </span>
                             )}
+                            {item.expiryDate && !isCommodity && (
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border uppercase ${
+                                item.isExpiryDay
+                                  ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+                                  : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                              }`}>
+                                {item.isExpiryDay ? '⚡ 0DTE' : item.expiryDate}
+                              </span>
+                            )}
                           </div>
                           <span className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 mt-0.5" title={item.strategyTag}>
                             {item.strategyTag}
@@ -2982,12 +3234,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             )}
                             {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
                               <span className="px-1.5 py-0.2 rounded font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                                Carry Forward: {item.carryForwardTimeFormatted || '03:20 PM'}
+                                BTST Window: {item.carryForwardTimeFormatted || '03:20 PM'}
                               </span>
                             )}
                             {item.carryForwardSuggestion && (
                               <span className="text-purple-600 dark:text-purple-400 font-medium truncate max-w-[200px]" title={item.carryForwardSuggestion}>
-                                📦 {item.carryForwardSuggestion}
+                                🌙 {item.carryForwardSuggestion}
                               </span>
                             )}
                             {item.legsSummary && (
@@ -3192,10 +3444,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                       {/* 8. STATUS */}
                       <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 flex items-center gap-1 w-fit">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                          <span>{item.status}</span>
-                        </span>
+                        {item.status === 'EXPIRED' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/80 flex items-center gap-1 w-fit">
+                            <span>🛑 EXPIRED</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 flex items-center gap-1 w-fit">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                            <span>{item.status}</span>
+                          </span>
+                        )}
                       </td>
 
                       {/* 9. ACTIONS */}

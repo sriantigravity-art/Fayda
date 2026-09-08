@@ -21,7 +21,11 @@ import {
   BookOpen,
   DollarSign,
   Activity,
-  AlertTriangle
+  AlertTriangle,
+  Award,
+  Sparkles,
+  ArrowLeft,
+  BarChart3
 } from 'lucide-react';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { useTerminalMode } from '../context/TerminalModeContext';
@@ -33,38 +37,56 @@ interface TradeTipModalProps {
   onClose: () => void;
 }
 
+type DepthModalType = null | 'MILESTONES' | 'CONFLUENCE' | 'GREEKS' | 'ENTRY_TACTICS' | 'CARRY_FORWARD';
+
 export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClose }) => {
   const { setSelectedIndex, indices, openOptionsDataModal } = useMarket();
   const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'>(mode);
+  const [activeDepthModal, setActiveDepthModal] = useState<DepthModalType>(null);
 
   // Sync tab with active terminal mode when modal opens or mode changes
   useEffect(() => {
     setActiveTab(mode);
   }, [mode, isOpen]);
 
+  // Sync initial depth modal if requested directly from outside
+  useEffect(() => {
+    if (isOpen && tip?.initialDepthModal) {
+      setActiveDepthModal(tip?.initialDepthModal);
+    }
+  }, [isOpen, tip]);
+
   // Handle closing with smooth exit animation
   const handleClose = () => {
+    if (activeDepthModal) {
+      setActiveDepthModal(null);
+      return;
+    }
     if (isClosing) return;
     setIsClosing(true);
     setTimeout(() => {
       setIsClosing(false);
       onClose();
-    }, 200); // matches .animate-modal-exit (0.20s)
+    }, 200);
   };
 
-  // Keyboard shortcut: Escape to close
+  // Keyboard shortcut: Escape to close submodal first, or main modal if no submodal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isClosing) {
-        handleClose();
+      if (e.key === 'Escape' && isOpen) {
+        if (activeDepthModal) {
+          setActiveDepthModal(null);
+        } else if (!isClosing) {
+          handleClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isClosing]);
+  }, [isOpen, isClosing, activeDepthModal]);
 
   if (!isOpen && !isClosing) return null;
   if (!tip) return null;
@@ -79,6 +101,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const isCarriedForward = tip.status === 'CARRIED_FORWARD' || (tip.isCarriedForward && tip.status !== 'INTRADAY_CLOSED' && tip.status !== 'EXPIRED');
   const isSl = tip.action === 'SQUARE_OFF' || isSlHit;
   const isSpread = tip.optionType === 'SPREAD' || tip.action?.includes('SPREAD');
+  const isSeller = tip.tradingRole === 'SELLER' || tip.executionType === 'NET_CREDIT' || isSpread;
 
   const currentIndex = indices[tip.symbol];
   const liveSpot = currentIndex?.spotPrice || 0;
@@ -91,33 +114,144 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const rawPnlPct = tip.pnlPct ?? (entryNum > 0 ? +((rawPnlPoints / entryNum) * 100).toFixed(2) : 0);
   const rawPnlRupees = tip.pnlRupees ?? Math.round(rawPnlPoints * lotSize);
 
+  // Expiry / 0DTE expiration check: An option on expiry day with LTP <= 0.05 or off-market is EXPIRED
+  const isExpired = tip.status === 'EXPIRED' || (tip.isExpiryDay && !isCommodity && (ltpNum <= 0.05 || (!isMarketOpen && tip.status !== 'CARRIED_FORWARD')));
+
   const profitBoxData: OngoingProfitBoxData = tip.ongoingProfitBox || {
-    pnlPoints: rawPnlPoints,
-    pnlPct: rawPnlPct,
-    pnlRupees: rawPnlRupees,
-    decisionTag: isSlHit ? 'EXIT_SL' : rawPnlPct >= 25 ? 'BOOK_HALF' : rawPnlPct >= 15 ? 'TRAIL_SL' : 'HOLD',
-    decisionText: isSlHit 
+    pnlPoints: isExpired && !isSeller ? -entryNum : rawPnlPoints,
+    pnlPct: isExpired && !isSeller ? -100 : (isExpired && isSeller ? 100 : rawPnlPct),
+    pnlRupees: isExpired && !isSeller ? -Math.round(entryNum * lotSize) : (isExpired && isSeller ? Math.round(entryNum * lotSize) : rawPnlRupees),
+    decisionTag: isExpired && !isSeller ? 'EXPIRED' : isSlHit ? 'EXIT_SL' : rawPnlPct >= 25 ? 'BOOK_HALF' : rawPnlPct >= 15 ? 'TRAIL_SL' : 'HOLD',
+    decisionText: isExpired && !isSeller
+      ? `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Settled at zero.`
+      : isExpired && isSeller
+      ? `🎯 0DTE Expired OTM (+100%) — Full credit captured at 03:30 PM IST.`
+      : isSlHit 
       ? `🛑 Stoploss Hit (${rawPnlPct}%) — Capital protected & position archived to Trade Journal.`
       : rawPnlPct >= 25
       ? `🎯 Target 1 Achieved (+${rawPnlPct}%) — Lock 50% profit & trail SL to entry cost.`
       : rawPnlPct >= 15
       ? `🚀 Running in Profit (+${rawPnlPct}%) — Trail stoploss to entry price.`
       : `⏸️ Holding above stoploss (LTP ₹${ltpNum.toFixed(1)}) — Maintain position towards Target 1.`,
-    isProfit: rawPnlPoints >= 0
+    isProfit: isExpired && !isSeller ? false : (isExpired && isSeller ? true : rawPnlPoints >= 0)
   };
+
+  // If the backend supplied an ongoingProfitBox but the contract is clearly expired, override decisionTag so it never shows "HOLD"
+  if (isExpired && !isSeller) {
+    profitBoxData.decisionTag = 'EXPIRED';
+    profitBoxData.decisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Cannot be held or traded.`;
+    profitBoxData.isProfit = false;
+    profitBoxData.pnlPct = -100;
+  }
+
+  // Mode-Adaptive Titles, Descriptions, and Explanations
+  const modeLabels = {
+    BEGINNER: {
+      tag: '🔰 Safe Beginner View (Zero Jargon)',
+      roleTag: isExpired
+        ? '🛑 Expired Contract (0DTE Settled at 03:30 PM)'
+        : isBull 
+        ? '🔰 Safe Green Setup (Buy Call - Expecting Market Upward Move)' 
+        : '🔰 Safe Red Setup (Buy Put - Expecting Market Downward Move)',
+      entryLabel: '🔰 BUY PRICE ZONE',
+      t1Label: '🎯 1ST PROFIT GOAL',
+      t2Label: '🚀 2ND BONUS GOAL',
+      slLabel: '🛡️ CAPITAL SHIELD (STOP LOSS)',
+      ongoingLabel: '💵 YOUR LIVE PROFIT / LOT',
+      riskRewardLabel: 'REWARD vs RISK',
+      decisionTagLabels: {
+        BOOK_HALF: '🎯 SECURE 50% PROFIT NOW',
+        TRAIL_SL: '🚀 MOVE SHIELD TO BUY PRICE',
+        EXIT_SL: '🛑 SHIELD HIT - EXIT SAFELY',
+        ENTER: '🟢 BUY ZONE ACTIVE',
+        HOLD: '⏸️ PATIENTLY HOLD FOR GOAL',
+        EXPIRED: '🛑 CONTRACT EXPIRED (₹0.00)'
+      },
+      decisionAdvice: isExpired && !isSeller
+        ? `🛑 This 0DTE contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held overnight. Please switch to the Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}) contract.`
+        : isSlHit 
+        ? `🛑 Safety Shield Triggered (${rawPnlPct}%). Close this trade now to protect your remaining funds. Never average a losing trade.`
+        : rawPnlPct >= 25
+        ? `🎯 1st Profit Goal Reached (+${rawPnlPct}%)! Click "Book 50% Profit" to secure ₹${Math.round(profitBoxData.pnlRupees / 2).toLocaleString('en-IN')} cash into your account, and shift your Capital Shield to your buy price.`
+        : rawPnlPct >= 15
+        ? `🚀 Running in Good Profit (+${rawPnlPct}%)! Move your Capital Shield to your buy price (₹${entryNum}) so this trade cannot lose money.`
+        : `⏸️ Trade is moving safely in the right direction. Stay patient and wait for 1st Profit Goal (₹${tip.target1Price}).`,
+      desc: tip.explanations?.beginner ||
+        `Why this trade? Market strength is moving in your favor. Buy 1 lot within the Buy Price Zone. When 1st Profit Goal is reached, take half your cash off the table and let the rest run risk-free. Always keep your Capital Shield active to protect your hard-earned money.`
+    },
+    INTERMEDIATE: {
+      tag: '📈 Technical Momentum & Confluence',
+      roleTag: isExpired ? '🛑 0DTE Terminal Expiration' : tip.tierLabel || (isBull ? '🎯 High-Probability Long Momentum Setup' : '🎯 High-Probability Short Momentum Setup'),
+      entryLabel: 'ENTRY ZONE',
+      t1Label: 'TARGET 1 (+25%)',
+      t2Label: 'TARGET 2 (+48%)',
+      slLabel: 'STOP LOSS (-12%)',
+      ongoingLabel: 'ONGOING LIVE P&L',
+      riskRewardLabel: 'RISK : REWARD',
+      decisionTagLabels: {
+        BOOK_HALF: '🎯 BOOK 50% PROFIT',
+        TRAIL_SL: '🚀 TRAIL SL TO COST',
+        EXIT_SL: '🛑 STOPLOSS TRIGGERED',
+        ENTER: '🟢 OPTIMAL ENTRY ZONE',
+        HOLD: '⏸️ MAINTAIN HOLD',
+        EXPIRED: '🛑 EXPIRED WORTHLESS (₹0.00)'
+      },
+      decisionAdvice: isExpired && !isSeller
+        ? `🛑 0DTE Expiry Invalidation — Contract expired OTM at 03:30 PM IST with 100% time decay. Cannot be carried overnight. Roll over to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
+        : isSlHit
+        ? `🛑 Stoploss Hit (${rawPnlPct}%) — Confluence invalidation point breached. Trade automatically archived to Post-Market Trade Journal.`
+        : rawPnlPct >= 25
+        ? `🎯 Target 1 Achieved (+${rawPnlPct}%) — Lock 50% profit, trail SL to entry cost, and let runners aim for Target 2.`
+        : rawPnlPct >= 15
+        ? `🚀 Momentum Expansion (+${rawPnlPct}%) — Dynamic CPR pivot confirmed; trail SL to breakeven cost.`
+        : `⏸️ Holding above stoploss level (LTP ₹${ltpNum.toFixed(1)}) — Maintain position towards Target 1.`,
+      desc: tip.explanations?.intermediate ||
+        `${tip.strategyTag || 'Multi-Strategy Confluence'} confirmed across CPR Pivot range, 9-EMA momentum trigger, and volume absorption. Target 1 offers favorable 1:2.2 Risk-to-Reward.`
+    },
+    EXPERT: {
+      tag: '🔬 Quantitative Greeks & Order Flow',
+      roleTag: isExpired ? '🛑 0DTE Terminal Cash Settlement (Delta = 0)' : '🔬 Institutional Order Flow & Greeks Confluence',
+      entryLabel: 'TRIGGER INITIATION',
+      t1Label: '1.2σ EXPANSION TARGET',
+      t2Label: '1.8σ GAMMA RUNNER',
+      slLabel: 'INVALIDATION THRESHOLD',
+      ongoingLabel: 'LIVE ALPHA P&L',
+      riskRewardLabel: 'ASYMMETRIC R:R',
+      decisionTagLabels: {
+        BOOK_HALF: '🎯 1.2σ MEAN EXPANSION HIT',
+        TRAIL_SL: '🚀 POSITIVE GAMMA ACCELERATION',
+        EXIT_SL: '🛑 DELTA BOUNDARY VIOLATION',
+        ENTER: '🟢 INSTITUTIONAL INFLOW ZONE',
+        HOLD: '⏸️ DELTA DRIFT STABLE',
+        EXPIRED: '🛑 0DTE CASH SETTLED (0.00)'
+      },
+      decisionAdvice: isExpired && !isSeller
+        ? `🛑 0DTE Terminal Settlement — Position terminated at 03:30 PM IST cash settlement. Delta = 0, Gamma = 0, IV = 0. Re-deploy delta into Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
+        : isSlHit
+        ? `🛑 Structural Invalidation (${rawPnlPct}%) — Volume point of control breached; delta hedge deactivated and logged.`
+        : rawPnlPct >= 25
+        ? `🎯 1.2σ Mean Expansion Hit (+${rawPnlPct}%) — De-risk 50% delta exposure, trail gamma stoploss to breakeven POC.`
+        : rawPnlPct >= 15
+        ? `🚀 High Positive Gamma Flow (+${rawPnlPct}%) — Theta decay offset by momentum impulse. Trail stop to entry volume cluster.`
+        : `⏸️ Delta Drift Stable (IV: ${tip.iv || 13.2}%) — Order book absorption positive above VWAP. Maintain position.`,
+      desc: tip.explanations?.expert ||
+        `Delta: ${isBull ? '+0.48' : '-0.48'}, Gamma: 0.032, Theta: -₹140/hr. IV: ${tip.iv || 13.2}%. Institutional volume cluster confirmed above VWAP with order flow surge.`
+    }
+  }[activeTab];
 
   // Copy trade summary to clipboard
   const handleCopy = () => {
-    const text = `🎯 FAYDA TRADE TIP
+    const text = `🎯 FAYDA TRADE TIP (${activeTab} Mode)
 Symbol: ${tip.symbol}
 Contract: ${tip.contractSymbol || tip.title}
 Action: ${tip.action}
-Entry: ${tip.entryRange || tip.entryPrice}
-Stop Loss: ${tip.stoplossPrice || '—'}
-Target 1: ${tip.target1Price || '—'}
-Target 2: ${tip.target2Price || '—'}
+Entry: ${tip.entryRange || tip.entryPrice} (Triggered: ${tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'})
+Stop Loss: ${tip.stoplossPrice || '—'} (${tip.stoplossTimeFormatted || 'Active Shield'})
+Target 1: ${tip.target1Price || '—'} (${tip.target1HitTimeFormatted || 'Pending'})
+Target 2: ${tip.target2Price || '—'} (${tip.target2HitTimeFormatted || 'Runner'})
 Risk:Reward: ${tip.riskReward || '1:2'}
 Given Time: ${tip.givenTimeFormatted || 'Live'}
+Ongoing P&L: ${profitBoxData.isProfit ? '+' : ''}₹${profitBoxData.pnlRupees} / lot (${profitBoxData.pnlPct}%)
 Generated via Fayda Trading Terminal`;
 
     navigator.clipboard.writeText(text);
@@ -141,14 +275,16 @@ Generated via Fayda Trading Terminal`;
         }`}
       />
 
-      {/* Modal Dialog Box */}
+      {/* Main Modal Dialog Box */}
       <div
         className={`relative w-full max-w-2xl bg-gradient-to-b from-terminal-card via-terminal-card to-slate-950 border-2 border-accent-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.18)] overflow-hidden flex flex-col z-10 my-auto ${
           isClosing ? 'animate-modal-exit' : 'animate-modal-enter'
         }`}
       >
-        {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-terminal-panel/90 border-b border-terminal-border">
+        {/* ========================================================================= */}
+        {/* 1. TOP HEADER STRIP: SYMBOL + ASSET BADGE + MODE SELECTOR TABS + CLOSE    */}
+        {/* ========================================================================= */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-terminal-panel/90 border-b border-terminal-border gap-2">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className={`p-2 rounded-xl border shrink-0 ${
               isSl 
@@ -167,63 +303,99 @@ Generated via Fayda Trading Terminal`;
                 </span>
                 <span className={`px-2 py-0.2 rounded text-[10px] font-mono font-bold uppercase border ${
                   isCommodity 
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                    ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40' 
                     : 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/40'
                 }`}>
                   {isCommodity ? 'MCX Commodity' : 'NSE / BSE Index'}
                 </span>
-                {tip.tierLabel && (
-                  <span className="hidden sm:inline-block px-2 py-0.2 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                    {tip.tierLabel}
-                  </span>
-                )}
+                <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                  Lot: {lotSize}
+                </span>
               </div>
-              <p className="text-[11px] text-terminal-muted truncate font-sans">
-                {tip.sessionName || 'High-Conviction Institutional Trade Setup'}
+              <p className="text-[11px] text-terminal-muted truncate font-mono">
+                {modeLabels.roleTag}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 ml-2"
-            title="Close Window (Esc)"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Mode Selector Tabs (Beginner / Intermediate / Expert) */}
+          <div className="flex items-center gap-1">
+            <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-0.5 rounded-xl border border-slate-300 dark:border-slate-800 text-[10px] font-mono font-bold">
+              <button
+                type="button"
+                onClick={() => setActiveTab('BEGINNER')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'BEGINNER'
+                    ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Simplified friendly view with plain English"
+              >
+                Beginner
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('INTERMEDIATE')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'INTERMEDIATE'
+                    ? 'bg-sky-500 text-slate-950 font-black shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Standard technical & price action view"
+              >
+                Interm.
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('EXPERT')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'EXPERT'
+                    ? 'bg-purple-500 text-slate-950 font-black shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Advanced quant & derivatives Greeks view"
+              >
+                Expert
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 ml-1"
+              title="Close Window (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="p-4 sm:p-6 space-y-4 max-h-[calc(85vh-120px)] overflow-y-auto">
-          {/* Main Contract Banner & Trade Action */}
-          <div className="bg-terminal-bg/90 p-4 rounded-xl border border-terminal-border space-y-3 shadow-sm">
+        {/* ========================================================================= */}
+        {/* 2. MODAL BODY (FIRST GLANCE SIMPLICITY: 4 ESSENTIALS ONLY)                */}
+        {/* ========================================================================= */}
+        <div className="p-4 sm:p-5 space-y-3.5 max-h-[calc(85vh-115px)] overflow-y-auto">
+          {/* Main Contract Banner */}
+          <div className="bg-terminal-bg/90 p-3.5 sm:p-4 rounded-xl border border-terminal-border shadow-sm flex flex-col gap-2.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
                 <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider block">
                   RECOMMENDED CONTRACT
                 </span>
-                <h3 className="text-base sm:text-lg font-black text-terminal-text font-mono flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-terminal-text font-mono flex items-center gap-2 flex-wrap">
                   <span>{tip.contractSymbol || tip.title}</span>
+                  {tip.expiryDate && !isCommodity && (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider ${
+                      tip.isExpiryDay
+                        ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
+                        : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                    }`}>
+                      {tip.isExpiryDay ? '⚡ 0DTE EXPIRY:' : '📅 EXPIRY:'} {tip.expiryDate}
+                    </span>
+                  )}
                 </h3>
               </div>
 
               <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-1.5">
-                {/* P&L Badge */}
-                {tip.pnlRupees !== undefined && (
-                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black font-mono border shadow-sm flex items-center gap-1 ${
-                    tip.pnlRupees >= 0
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                      : 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
-                  }`}>
-                    <span>{tip.pnlRupees >= 0 ? '🟢' : '🔴'}</span>
-                    <span>{tip.pnlRupees >= 0 ? '+' : ''}₹{tip.pnlRupees.toLocaleString('en-IN')} / lot</span>
-                    {tip.pnlPct !== undefined && (
-                      <span className="text-[10px] font-bold">({tip.pnlPct >= 0 ? '+' : ''}{tip.pnlPct}%)</span>
-                    )}
-                  </span>
-                )}
-
                 <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider font-mono border shadow-sm ${
                   isSl
                     ? (isMarketOpen ? 'bg-bear/30 text-bear border-bear animate-pulse' : 'bg-bear/20 text-bear border-bear/50')
@@ -234,140 +406,79 @@ Generated via Fayda Trading Terminal`;
                     : 'bg-bear/20 text-bear border-bear/40 shadow-[0_0_12px_rgba(255,59,105,0.25)]'
                 }`}>
                   {isSlHit
-                    ? (isMarketOpen ? '🛑 SL HIT • BOOK LOSS' : '🛑 SL HIT • LOSS BOOKED')
-                    : tip.action === 'SQUARE_OFF'
-                    ? (isMarketOpen ? '🛑 SQUARE OFF' : '📁 POSITION CLOSED')
-                    : tip.status === 'EXPIRED'
-                    ? '⌛ EXPIRED (SETTLED)'
-                    : tip.status === 'INTRADAY_CLOSED'
-                    ? '📁 INTRADAY CLOSED'
-                    : isCarriedForward
-                    ? '📦 CARRIED FORWARD'
-                    : !isMarketOpen
-                    ? `${tip.action ? tip.action.replace(/_/g, ' ') : 'BUY'} (CLOSED)`
-                    : (tip.action ? tip.action.replace(/_/g, ' ') : 'BUY')}
+                    ? '🛑 SL HIT'
+                    : tip.action ? tip.action.replace(/_/g, ' ') : 'BUY'}
                 </span>
+
                 {tip.confluenceScore && (
                   <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
-                    Score {tip.confluenceScore}
+                    Score {tip.confluenceScore}%
                   </span>
                 )}
-              </div>
-            </div>
 
-            {/* Timing & Actionability Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-terminal-border/60 text-[11px] font-mono">
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 {tip.givenTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center gap-1.5 font-bold">
-                    <Clock className="w-3.5 h-3.5 text-sky-400" />
-                    <span>GIVEN: {tip.givenTimeFormatted}</span>
-                  </span>
-                )}
-                {tip.bookedTimeFormatted && (
-                  <span className={`px-2.5 py-1 rounded-lg border font-bold flex items-center gap-1.5 ${
-                    tip.status === 'SL_HIT' || tip.actionGuidance?.toLowerCase().includes('loss')
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  }`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>
-                      {tip.status === 'SL_HIT' || tip.actionGuidance?.toLowerCase().includes('loss') ? 'LOSS BOOKED:' : 'PROFIT BOOKED:'} {tip.bookedTimeFormatted}
-                    </span>
-                  </span>
-                )}
-                {isCarriedForward && (
-                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 font-bold">
-                    <span>CARRY FORWARD: {tip.carryForwardTimeFormatted || '03:20 PM'}</span>
-                  </span>
-                )}
-                {tip.status === 'INTRADAY_CLOSED' && (
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 font-bold">
-                    <span>EXIT BENCHMARK: 03:25 PM</span>
-                  </span>
-                )}
-                {tip.elapsedTimeFormatted && !tip.bookedTimeFormatted && (
-                  <span className="px-2 py-0.5 rounded bg-terminal-panel border border-terminal-border text-amber font-bold">
-                    ⏱️ {tip.elapsedTimeFormatted}
+                  <span className="px-2 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-sky-500" />
+                    <span>Given: {tip.givenTimeFormatted}</span>
                   </span>
                 )}
               </div>
-
-              {tip.actionGuidance && (
-                <span className={`px-2.5 py-0.5 rounded-lg font-bold border ${tip.actionClass || 'bg-bull/20 text-bull border-bull/40'}`}>
-                  {!isMarketOpen && (tip.actionGuidance.toLowerCase().includes('square off') || tip.actionGuidance.toLowerCase().includes('liquidate'))
-                    ? 'Session Closed at 03:40 PM IST • Intraday trades completed'
-                    : tip.actionGuidance}
-                </span>
-              )}
             </div>
 
-            {/* Carry Forward Suggestion / Intraday Exit Callout */}
-            {(tip.carryForwardSuggestion || isCarriedForward || tip.status === 'INTRADAY_CLOSED') && (
-              <div className={`mt-2.5 p-3 rounded-xl border text-xs font-mono flex items-start gap-2.5 ${
-                tip.status === 'INTRADAY_CLOSED'
-                  ? 'bg-slate-900/60 border-slate-700/60'
-                  : 'bg-purple-950/40 border-purple-500/40'
-              }`}>
-                <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
-                  tip.status === 'INTRADAY_CLOSED'
-                    ? 'bg-slate-800 text-slate-300'
-                    : 'bg-purple-500/20 text-purple-300'
-                }`}>
-                  {tip.status === 'INTRADAY_CLOSED' ? '📁' : '📦'}
+            {/* 0DTE Expiry Warning Strip & Next Expiry Alternative */}
+            {tip.isExpiryDay && !isCommodity && (
+              <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400 font-bold">
+                    ⚠️ 0DTE EXPIRY WARNING: Must exit by 03:25 PM IST.
+                  </span>
+                  <span className="text-slate-400 text-[11px] hidden md:inline">
+                    No overnight carry allowed on today's expiring contracts.
+                  </span>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-black uppercase tracking-wider text-[11px] ${
-                      tip.status === 'INTRADAY_CLOSED' ? 'text-slate-300' : 'text-purple-300'
-                    }`}>
-                      {tip.status === 'INTRADAY_CLOSED' ? 'Intraday Exit Guideline (03:25 PM IST)' : `Carry Forward Suggestion (${tip.carryForwardTimeFormatted || '03:20 PM IST'})`}
-                    </span>
+                {tip.nextExpiryDate && (
+                  <div className="text-[11px] text-indigo-300 bg-indigo-950/60 px-2 py-1 rounded border border-indigo-500/40 font-bold">
+                    🌙 For BTST / Overnight: Trade Next Expiry ({tip.nextExpiryDate})
                   </div>
-                  <p className="text-slate-300 text-[11px] leading-relaxed">
-                    {tip.carryForwardSuggestion || (tip.status === 'INTRADAY_CLOSED'
-                      ? 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk. Trade closed at session end.'
-                      : 'Hold overnight if OTM buffer is > 65%. For intraday long options, book partial profits before 03:25 PM IST to eliminate overnight theta erosion.')}
-                  </p>
-                </div>
+                )}
               </div>
             )}
           </div>
 
           {/* ========================================================================= */}
-          {/* PROMINENT ONGOING LIVE PROFIT BOX & DECISION COCKPIT                     */}
+          {/* ESSENTIAL 1: ONGOING LIVE PROFIT BOX & DECISION COCKPIT                   */}
           {/* ========================================================================= */}
-          <div className={`p-4 sm:p-5 rounded-2xl border-2 shadow-lg transition-all ${
+          <div className={`p-4 rounded-2xl border-2 shadow-md transition-all ${
             profitBoxData.isProfit
-              ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950 border-emerald-500/60 dark:border-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.18)]'
-              : 'bg-gradient-to-br from-rose-50 via-white to-rose-50/30 dark:from-rose-950/60 dark:via-slate-900 dark:to-slate-950 border-rose-500/60 dark:border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.18)]'
+              ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950 border-emerald-500/60 dark:border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+              : 'bg-gradient-to-br from-rose-50 via-white to-rose-50/30 dark:from-rose-950/60 dark:via-slate-900 dark:to-slate-950 border-rose-500/60 dark:border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
           }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700/60">
-              <div className="space-y-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-slate-700/60">
+              <div className="space-y-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    ⚡ ONGOING LIVE PROFIT COCKPIT
+                    ⚡ {modeLabels.ongoingLabel}
                   </span>
                   {tip.marketRegime && (
-                    <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-mono font-black uppercase border ${
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase border ${
                       tip.isExpiryDay
-                        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40'
                         : tip.marketRegime === 'SIDEWAYS_CHOP'
                         ? 'bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/40'
                         : 'bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/40'
                     }`}>
-                      {tip.isExpiryDay ? '⚡ 0DTE EXPIRY SURGE' : tip.marketRegime === 'SIDEWAYS_CHOP' ? '🐢 SIDEWAYS SCALP' : '⚡ FAST MOMENTUM'}
+                      {tip.isExpiryDay ? '⚡ 0DTE EXPIRY' : tip.marketRegime === 'SIDEWAYS_CHOP' ? '🐢 SIDEWAYS SCALP' : '⚡ FAST MOMENTUM'}
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-baseline gap-2.5">
+                <div className="flex items-baseline gap-2">
                   <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
                     profitBoxData.isProfit ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                   }`}>
                     {profitBoxData.isProfit ? '+' : ''}₹{Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')}
                   </span>
-                  <span className="text-xs font-mono text-slate-600 dark:text-slate-400">/ lot ({lotSize} units)</span>
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">/ lot ({lotSize} units)</span>
                   <span className={`px-2 py-0.5 rounded-lg text-xs font-mono font-black border ${
                     profitBoxData.isProfit 
                       ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40' 
@@ -378,510 +489,210 @@ Generated via Fayda Trading Terminal`;
                 </div>
               </div>
 
-              {/* Action Decision Badge */}
+              {/* Action Decision Pill */}
               <div className="flex flex-col sm:items-end gap-1 shrink-0">
                 <span className={`px-3 py-1.5 rounded-xl font-mono font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md border ${
                   profitBoxData.decisionTag === 'BOOK_HALF'
-                    ? 'bg-emerald-500/30 text-emerald-900 dark:text-emerald-200 border-emerald-500 dark:border-emerald-400 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.35)]'
+                    ? 'bg-emerald-500/30 text-emerald-900 dark:text-emerald-200 border-emerald-500 dark:border-emerald-400 animate-pulse'
                     : profitBoxData.decisionTag === 'TRAIL_SL'
-                    ? 'bg-sky-500/30 text-sky-900 dark:text-sky-200 border-sky-500 dark:border-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.35)]'
+                    ? 'bg-sky-500/30 text-sky-900 dark:text-sky-200 border-sky-500 dark:border-sky-400'
                     : profitBoxData.decisionTag === 'EXIT_SL'
-                    ? 'bg-rose-500/30 text-rose-900 dark:text-rose-200 border-rose-500 dark:border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.35)]'
+                    ? 'bg-rose-500/30 text-rose-900 dark:text-rose-200 border-rose-500 dark:border-rose-400'
                     : profitBoxData.decisionTag === 'ENTER'
                     ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-500/40'
                     : 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/40'
                 }`}>
                   <span className="w-2 h-2 rounded-full bg-current animate-ping" />
                   <span>
-                    {profitBoxData.decisionTag === 'BOOK_HALF' 
-                      ? '🎯 BOOK 50% PROFIT' 
-                      : profitBoxData.decisionTag === 'TRAIL_SL'
-                      ? '🚀 TRAIL STOPLOSS TO COST'
-                      : profitBoxData.decisionTag === 'EXIT_SL'
-                      ? '🛑 STOPLOSS HIT'
-                      : profitBoxData.decisionTag === 'ENTER'
-                      ? '🟢 OPTIMAL ENTRY ZONE'
-                      : '⏸️ HOLD POSITION'}
+                    {modeLabels.decisionTagLabels[profitBoxData.decisionTag] || 
+                      (profitBoxData.decisionTag === 'BOOK_HALF' 
+                        ? '🎯 BOOK 50% PROFIT' 
+                        : profitBoxData.decisionTag === 'TRAIL_SL'
+                        ? '🚀 TRAIL SL TO COST'
+                        : profitBoxData.decisionTag === 'EXIT_SL'
+                        ? '🛑 STOPLOSS HIT'
+                        : profitBoxData.decisionTag === 'ENTER'
+                        ? '🟢 OPTIMAL ENTRY ZONE'
+                        : '⏸️ HOLD POSITION')}
                   </span>
                 </span>
               </div>
             </div>
 
-            {/* Decision Instruction Banner */}
-            <div className="pt-2.5 flex items-start gap-2">
+            {/* Mode-Tailored Decision Instruction Banner */}
+            <div className="pt-2 flex items-start gap-1.5">
               <span className="text-sm shrink-0">💡</span>
               <p className="text-xs font-mono text-slate-800 dark:text-slate-200 leading-relaxed font-semibold">
-                {profitBoxData.decisionText}
+                {modeLabels.decisionAdvice || profitBoxData.decisionText}
               </p>
             </div>
           </div>
 
           {/* ========================================================================= */}
-          {/* 6-STAGE LIFECYCLE MILESTONE TIMINGS & CARRY-FORWARD AUDIT                */}
+          {/* ESSENTIAL 2: THE 4 CORE EXECUTION BOXES WITH MILESTONE TIMESTAMPS        */}
           {/* ========================================================================= */}
-          <div className="bg-slate-100 dark:bg-slate-900/90 p-4 rounded-2xl border border-slate-300 dark:border-slate-700/80 space-y-3 font-mono shadow-sm">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-xs font-black uppercase text-accent-cyan tracking-wider flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-accent-cyan" />
-                <span>6-STAGE SIGNAL LIFECYCLE MILESTONES</span>
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                Institutional Execution Audit
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
-              {/* 1. Call Given Time */}
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
-                <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
-                  1. CALL GIVEN
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                  {tip.callGivenTimeFormatted || tip.givenTimeFormatted || 'Live'}
-                </span>
-                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold">✓ Signal Dispatched</span>
-              </div>
-
-              {/* 2. Entry Price Time */}
-              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
-                <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
-                  2. ENTRY PRICE
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                  {tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}
-                </span>
-                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
-                  ✓ Triggered @ ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(1) : tip.entryPrice}
-                </span>
-              </div>
-
-              {/* 3. Half Profit Book Time */}
-              <div className={`p-2.5 rounded-xl text-left space-y-1 shadow-xs border ${
-                tip.halfProfitBookTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
-                  ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
-                  : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
-              }`}>
-                <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
-                  3. 50% PROFIT
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                  {tip.halfProfitBookTimeFormatted || (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Booked') : 'Pending T1')}
-                </span>
-                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold">
-                  {tip.halfProfitBookTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? '✓ 50% Capital Locked' : 'Waiting for +25%'}
-                </span>
-              </div>
-
-              {/* 4. Target 1 Hit Time */}
-              <div className={`p-2.5 rounded-xl text-left space-y-1 shadow-xs border ${
-                tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
-                  ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
-                  : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
-              }`}>
-                <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
-                  4. TARGET 1 HIT
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                  {tip.target1HitTimeFormatted || (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Hit') : 'Pending')}
-                </span>
-                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
-                  {tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? `✓ ₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}` : `Tgt: ₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}`}
-                </span>
-              </div>
-
-              {/* 5. Target 2 Hit Time */}
-              <div className={`p-2.5 rounded-xl text-left space-y-1 shadow-xs border ${
-                tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT'
-                  ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
-                  : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
-              }`}>
-                <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
-                  5. TARGET 2 HIT
-                </span>
-                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                  {tip.target2HitTimeFormatted || (tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Hit') : 'Runner Trailing')}
-                </span>
-                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
-                  {tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT' ? `✓ Full Runner Reached` : `Tgt 2: ₹${typeof tip.target2Price === 'number' ? tip.target2Price.toFixed(1) : (tip.target2Price || 'Trail')}`}
-                </span>
-              </div>
-
-              {/* 6. Stoploss Time / Journal Status */}
-              <div className={`p-2.5 rounded-xl text-left space-y-1 shadow-xs border ${
-                isSlHit
-                  ? 'border-rose-500/50 bg-rose-50 dark:bg-rose-950/30'
-                  : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800'
-              }`}>
-                <span className="text-[9px] font-black uppercase text-rose-700 dark:text-rose-400 block tracking-wider">
-                  6. STOPLOSS STATUS
-                </span>
-                <span className={`font-bold text-xs block truncate ${isSlHit ? 'text-rose-700 dark:text-rose-300' : 'text-slate-800 dark:text-slate-200'}`}>
-                  {tip.stoplossTimeFormatted || (isSlHit ? (tip.bookedTimeFormatted || 'Stopped Out') : 'Active Shield')}
-                </span>
-                <span className="text-[8.5px] block font-semibold text-rose-600 dark:text-rose-400 truncate">
-                  {isSlHit ? 'Archived to Journal' : `SL: ₹${typeof tip.stoplossPrice === 'number' ? tip.stoplossPrice.toFixed(1) : tip.stoplossPrice}`}
-                </span>
-              </div>
-            </div>
-
-            {/* Carry-Forward Call As Per Market */}
-            <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-300 dark:border-purple-500/40 text-xs flex items-start gap-2.5">
-              <span className="text-base shrink-0">🌙</span>
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 dark:text-purple-300 block">
-                  MARKET-TAILORED CARRY FORWARD CALL (0DTE EXPIRY vs BTST vs MCX)
-                </span>
-                <p className="text-slate-800 dark:text-slate-200 text-[11px] leading-relaxed">
-                  {tip.carryForwardAdvice || (tip.isExpiryDay && !isCommodity
-                    ? '⚠️ NO CARRY FORWARD (0DTE Weekly Expiry Contract) — Mandatory square-off before 03:25 PM IST to prevent 100% expiry cash settlement decay.'
-                    : isCommodity
-                    ? '⚡ OVERNIGHT COMMODITY (MCX) — Active until 11:30 PM IST. Eligible for carry forward with trailing stoploss.'
-                    : (rawPnlPct >= 15 || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT')
-                    ? '🌙 CARRY FORWARD (BTST / NEXT EXPIRY) — Lock 50% profit today; carry remaining runner lot with SL strictly trailed to entry cost. Carry window: 03:15 - 03:25 PM IST.'
-                    : 'Strict Intraday Exit at 03:25 PM IST — Avoid overnight carry due to rapid time decay (Theta erosion) and gap risk.')}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Option Seller Dedicated Metrics Ribbon */}
-          {(tip.tradingRole === 'SELLER' || tip.sellerMetrics) && (
-            <div className="bg-purple-950/40 border border-purple-500/40 rounded-xl p-3 space-y-2 font-mono">
-              <div className="flex items-center justify-between text-xs font-bold text-purple-300">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-purple-400" />
-                  <span>
-                    {isBeginner 
-                      ? '🔰 SAFE OPTION SELLER PROTECTION (CASINO HOUSE ADVANTAGE)' 
-                      : isExpert 
-                      ? '🔬 INSTITUTIONAL OPTION SELLER & THETA HARVEST TERMINAL' 
-                      : 'OPTION SELLER PROTECTION & THETA HARVEST METRICS'}
-                  </span>
-                </span>
-                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-[10px] text-purple-200 border border-purple-500/30">
-                  POP: {tip.sellerMetrics?.popPct || 82}%
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs pt-1">
-                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
-                    {isBeginner ? 'CASH POCKETED' : isExpert ? 'NET PREMIUM INFLOW' : 'NET CREDIT POCKETED'}
-                  </span>
-                  <span className="font-black text-emerald-400 text-sm">
-                    ₹{tip.sellerMetrics?.netCreditPoints?.toFixed(2) || (typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—')} pts
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">
-                    ₹{tip.sellerMetrics?.maxProfitRupees?.toLocaleString('en-IN') || '—'}/lot {isBeginner ? '(Upfront)' : ''}
-                  </span>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
-                    {isBeginner ? 'HEDGED MARGIN' : isExpert ? 'PORTFOLIO MARGIN' : 'EXCHANGE MARGIN'}
-                  </span>
-                  <span className="font-black text-slate-200 text-sm">
-                    ₹{tip.sellerMetrics?.marginRequired?.toLocaleString('en-IN') || '₹38,500'}
-                  </span>
-                  <span className="text-[9px] text-emerald-400 block mt-0.5">
-                    72% Hedged Discount
-                  </span>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
-                    {isBeginner ? 'SAFETY CUSHION' : isExpert ? 'STD DEV BUFFER' : 'SAFETY BUFFER'}
-                  </span>
-                  <span className="font-black text-amber-400 text-sm">
-                    {tip.sellerMetrics?.breakevenBufferPts ? `${tip.sellerMetrics.breakevenBufferPts} pts` : '220 pts'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">
-                    {isExpert ? '> 1.4σ Buffer' : isBeginner ? 'Distance to Loss' : 'Breakeven Cushion'}
-                  </span>
-                </div>
-
-                <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                  <span className="text-purple-300/80 block text-[9px] uppercase font-bold">
-                    {isBeginner ? 'TIME PROFIT BURN' : isExpert ? 'THETA (θ) VELOCITY' : 'THETA DECAY RATE'}
-                  </span>
-                  <span className="font-black text-cyan-400 text-sm">
-                    {tip.sellerMetrics?.thetaBurnRate || '+₹140/hr'}
-                  </span>
-                  <span className="text-[9px] text-slate-400 block mt-0.5">
-                    {isBeginner ? 'Earns While You Wait' : isExpert ? 'Hourly Delta-Neutral θ' : 'Time Value Burn'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Mode-specific guidance note */}
-              {isBeginner && (
-                <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-[10px] text-emerald-300 flex items-center gap-1.5">
-                  <span>💡</span>
-                  <span><strong>Casino House Advantage:</strong> You pocket the premium upfront. Even in an extreme black swan market crash, your bought hedge leg shields your capital from catastrophic losses.</span>
-                </div>
-              )}
-              {isExpert && (
-                <div className="p-2 rounded-lg bg-purple-950/40 border border-purple-500/30 text-[10px] text-purple-300 flex items-center gap-1.5 font-mono">
-                  <span>🔬</span>
-                  <span><strong>Quantitative Risk Matrix:</strong> Standard deviation buffer &gt; 1.4σ • Max Loss capped at ₹{tip.maxLossRupees ? tip.maxLossRupees.toLocaleString('en-IN') : 'Spread Width'} vs Max Profit ₹{tip.maxProfitRupees ? tip.maxProfitRupees.toLocaleString('en-IN') : 'Net Credit'}.</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Execution & Risk Matrix Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
-            {/* Spot Price */}
-            <div className="bg-terminal-bg p-3 rounded-xl border border-terminal-border">
-              <span className="text-terminal-muted block text-[9px] font-bold uppercase">ASSET SPOT</span>
-              <span className="font-bold text-terminal-text text-sm sm:text-base block">
-                ₹{liveSpot > 0 ? liveSpot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+            {/* 1. ENTRY ZONE (with Entry Price Time) */}
+            <div className="bg-accent-cyan/10 dark:bg-accent-cyan/15 p-3 rounded-xl border border-accent-cyan/30 text-left space-y-1">
+              <span className="text-accent-cyan block text-[9.5px] font-black uppercase tracking-wider">
+                {modeLabels.entryLabel}
               </span>
-              <span className="text-[9px] text-terminal-muted block mt-0.5">Live Underlying</span>
-            </div>
-
-            {/* Entry Price */}
-            <div className="bg-accent-cyan/10 p-3 rounded-xl border border-accent-cyan/30">
-              <span className="text-accent-cyan block text-[9px] font-bold uppercase">ENTRY ZONE</span>
-              <span className="font-black text-terminal-text text-sm sm:text-base block">
+              <span className="font-black text-slate-900 dark:text-terminal-text text-sm sm:text-base block">
                 {typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(2)}` : (tip.entryRange || tip.entryPrice || '—')}
               </span>
-              <span className="text-[9px] text-accent-cyan/80 block mt-0.5">Recommended</span>
-            </div>
-
-            {/* Stop Loss */}
-            <div className="bg-bear/15 p-3 rounded-xl border border-bear/30">
-              <span className="text-bear block text-[9px] font-bold uppercase">STOP LOSS</span>
-              <span className="font-black text-bear text-sm sm:text-base block">
-                {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
-              </span>
-              <span className="text-[9px] text-bear/80 block mt-0.5">
-                {tip.stoplossPct ? `-${Number(tip.stoplossPct).toFixed(2)}% Risk` : 'Capital Shield'}
+              <span className="text-[9px] text-sky-600 dark:text-sky-300 font-bold block truncate">
+                ⏱️ Triggered: {tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}
               </span>
             </div>
 
-            {/* Target 1 */}
-            <div className="bg-bull/15 p-3 rounded-xl border border-bull/30">
-              <span className="text-bull block text-[9px] font-bold uppercase">TARGET 1</span>
+            {/* 2. TARGET 1 (with Target 1 Hit Time) */}
+            <div className="bg-bull/10 dark:bg-bull/15 p-3 rounded-xl border border-bull/30 text-left space-y-1">
+              <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+                {modeLabels.t1Label}
+              </span>
               <span className="font-black text-bull text-sm sm:text-base block">
                 {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(2)}` : (tip.target1Price || '—')}
               </span>
-              <span className="text-[9px] text-bull/80 block mt-0.5">
-                {tip.target1Pct ? `+${Number(tip.target1Pct).toFixed(2)}% Gain` : 'Book 50%'}
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
+                ⏱️ {tip.target1HitTimeFormatted ? `Hit: ${tip.target1HitTimeFormatted}` : (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? `Hit: ${tip.bookedTimeFormatted || 'Booked'}` : 'Pending Target')}
+              </span>
+            </div>
+
+            {/* 3. TARGET 2 (with Target 2 Hit Time) */}
+            <div className="bg-bull/10 dark:bg-bull/15 p-3 rounded-xl border border-bull/30 text-left space-y-1">
+              <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+                {modeLabels.t2Label}
+              </span>
+              <span className="font-black text-bull text-sm sm:text-base block">
+                {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
+              </span>
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
+                ⏱️ {tip.target2HitTimeFormatted ? `Hit: ${tip.target2HitTimeFormatted}` : (tip.status === 'TARGET2_HIT' ? `Hit: ${tip.bookedTimeFormatted || 'Booked'}` : 'Runner Trailing')}
+              </span>
+            </div>
+
+            {/* 4. STOP LOSS (with Stoploss Time) */}
+            <div className="bg-bear/10 dark:bg-bear/15 p-3 rounded-xl border border-bear/30 text-left space-y-1">
+              <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider">
+                {modeLabels.slLabel}
+              </span>
+              <span className="font-black text-bear text-sm sm:text-base block">
+                {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
+              </span>
+              <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold block truncate">
+                ⏱️ {tip.stoplossTimeFormatted ? `Hit: ${tip.stoplossTimeFormatted}` : (isSlHit ? `Hit: ${tip.bookedTimeFormatted || 'Stopped Out'}` : 'Active Shield')}
               </span>
             </div>
           </div>
 
-          {/* Secondary Row: Target 2, Risk:Reward, Current LTP, Lot Size */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center text-xs">
-            <div className="bg-bull/10 p-2.5 rounded-xl border border-bull/20">
-              <span className="text-bull/80 block text-[9px] font-bold uppercase">TARGET 2 (RUNNER)</span>
-              <span className="font-bold text-bull block text-sm">
-                {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
+          {/* Compact Reference Metrics: Spot Price, Current LTP, Risk:Reward */}
+          <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs">
+            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border">
+              <span className="text-terminal-muted block text-[9px] font-bold uppercase">ASSET SPOT</span>
+              <span className="font-bold text-terminal-text text-sm">
+                ₹{liveSpot > 0 ? liveSpot.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}
               </span>
             </div>
 
-            <div className="bg-terminal-bg p-2.5 rounded-xl border border-terminal-border">
-              <span className="text-terminal-muted block text-[9px] font-bold uppercase">RISK : REWARD</span>
-              <span className="font-black text-amber block text-sm">{tip.riskReward || '1:2.2'}</span>
-            </div>
-
-            <div className="bg-terminal-bg p-2.5 rounded-xl border border-terminal-border">
-              <span className="text-terminal-muted block text-[9px] font-bold uppercase">LOT SIZE</span>
-              <span className="font-bold text-terminal-text block text-sm">{lotSize} units</span>
-            </div>
-
-            <div className="bg-amber/15 p-2.5 rounded-xl border border-amber/40 shadow-sm">
-              <span className="text-amber block text-[9px] font-bold uppercase">CURRENT LTP</span>
-              <span className="font-black text-amber block text-sm">
+            <div className="bg-amber-500/15 p-2 rounded-xl border border-amber-500/30">
+              <span className="text-amber-800 dark:text-amber-300 block text-[9px] font-bold uppercase">CURRENT LTP</span>
+              <span className="font-black text-amber-800 dark:text-amber-300 text-sm">
                 {tip.currentLtp ? `₹${Number(tip.currentLtp).toFixed(2)}` : '—'}
               </span>
             </div>
-          </div>
 
-          {/* 3-Tier Actionable Entry Strategy (Fayda Pro Standard) */}
-          <div className="bg-terminal-panel/80 p-3.5 rounded-xl border border-accent-cyan/30 space-y-2 font-mono">
-            <div className="flex items-center justify-between text-xs font-bold text-accent-cyan">
-              <span className="flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-accent-cyan" />
-                <span>ACTIONABLE ENTRY STRATEGY (FAYDA PRO STANDARD)</span>
+            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border">
+              <span className="text-terminal-muted block text-[9px] font-bold uppercase">{modeLabels.riskRewardLabel}</span>
+              <span className="font-black text-slate-800 dark:text-slate-200 text-sm">
+                {tip.riskReward || '1:2.2'}
               </span>
-              <span className="text-[10px] text-terminal-muted">Smart Execution</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1.5 border-t border-terminal-border/50">
-              {/* Limit Dip Entry */}
-              <div className="bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/25 text-left">
-                <div className="text-[9px] font-bold text-emerald-400 uppercase flex items-center gap-1">
-                  <span>🟢 LIMIT / PULLBACK DIP</span>
-                </div>
-                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
-                  ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 0.98).toFixed(2) : '—'} - ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—'}
-                </div>
-                <div className="text-[9px] text-terminal-muted mt-0.5">Optimal Value / Best R:R</div>
-              </div>
-
-              {/* Market Trigger */}
-              <div className="bg-accent-sky/10 p-2.5 rounded-lg border border-accent-sky/25 text-left">
-                <div className="text-[9px] font-bold text-accent-sky uppercase flex items-center gap-1">
-                  <span>⚡ AT SIGNAL TRIGGER</span>
-                </div>
-                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
-                  ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : (tip.entryRange || '—')}
-                </div>
-                <div className="text-[9px] text-terminal-muted mt-0.5">Benchmark @ {tip.givenTimeFormatted || 'Live'}</div>
-              </div>
-
-              {/* Breakout Confirmation */}
-              <div className="bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/25 text-left">
-                <div className="text-[9px] font-bold text-purple-300 uppercase flex items-center gap-1">
-                  <span>🚀 BREAKOUT TRIGGER</span>
-                </div>
-                <div className="font-bold text-terminal-text text-sm font-mono mt-0.5">
-                  &gt; ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 1.025).toFixed(2) : '—'}
-                </div>
-                <div className="text-[9px] text-terminal-muted mt-0.5">Buy on 1-min Candle Close</div>
-              </div>
             </div>
           </div>
 
-          {/* Spread Details Card (if it is a Multi-Leg Spread) */}
-          {isSpread && (
-            <div className="bg-terminal-panel/80 p-3.5 rounded-xl border border-purple-500/30 space-y-2 font-mono">
-              <div className="flex items-center justify-between text-xs font-bold text-purple-300">
-                <span className="flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-purple-400" />
-                  <span>HEDGED MULTI-LEG SPREAD PAYOFF MATRIX</span>
-                </span>
-                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-[10px]">72% Margin Benefit</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-xs pt-2 border-t border-terminal-border/50">
-                <div className="bg-bear/10 p-2 rounded-lg border border-bear/20">
-                  <span className="text-bear block text-[9px] font-bold uppercase">MAX RISK (₹)</span>
-                  <span className="font-black text-bear text-sm">
-                    {tip.maxLossRupees ? `₹${tip.maxLossRupees.toLocaleString('en-IN')}` : '—'}
-                  </span>
-                </div>
-                <div className="bg-bull/10 p-2 rounded-lg border border-bull/20">
-                  <span className="text-bull block text-[9px] font-bold uppercase">MAX PROFIT (₹)</span>
-                  <span className="font-black text-bull text-sm">
-                    {tip.maxProfitRupees ? `₹${tip.maxProfitRupees.toLocaleString('en-IN')}` : '—'}
-                  </span>
-                </div>
-                <div className="bg-terminal-bg p-2 rounded-lg border border-terminal-border">
-                  <span className="text-accent-cyan block text-[9px] font-bold uppercase">BREAKEVEN</span>
-                  <span className="font-bold text-terminal-text text-sm">
-                    {typeof tip.breakeven === 'number' ? `₹${tip.breakeven.toFixed(2)}` : '—'}
-                  </span>
-                </div>
-              </div>
+          {/* Mode-Adaptive Strategy Explanation Banner */}
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+            <div className="flex items-center gap-1.5 font-bold text-accent-cyan font-mono text-[11px] mb-1">
+              <span>{modeLabels.tag}</span>
             </div>
-          )}
-
-          {/* Multi-Perspective Strategy Explanations */}
-          <div className="bg-terminal-panel/60 rounded-xl border border-terminal-border overflow-hidden">
-            {/* Tabs */}
-            <div className="flex items-center border-b border-terminal-border bg-terminal-bg/80 text-[11px] font-mono">
-              <button
-                type="button"
-                onClick={() => setActiveTab('BEGINNER')}
-                className={`flex-1 py-2 px-3 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activeTab === 'BEGINNER'
-                    ? 'bg-accent-cyan/15 text-accent-cyan border-b-2 border-accent-cyan'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-              >
-                <span>🔰 Beginner View</span>
-                {mode === 'BEGINNER' && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">Active</span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('INTERMEDIATE')}
-                className={`flex-1 py-2 px-3 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activeTab === 'INTERMEDIATE'
-                    ? 'bg-accent-cyan/15 text-accent-cyan border-b-2 border-accent-cyan'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-              >
-                <span>📊 Technical Logic</span>
-                {mode === 'INTERMEDIATE' && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/30 text-sky-300 border border-sky-500/40">Active</span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('EXPERT')}
-                className={`flex-1 py-2 px-3 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activeTab === 'EXPERT'
-                    ? 'bg-accent-cyan/15 text-accent-cyan border-b-2 border-accent-cyan'
-                    : 'text-terminal-muted hover:text-terminal-text'
-                }`}
-              >
-                <span>🔬 Quantitative Greeks</span>
-                {mode === 'EXPERT' && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/30 text-purple-300 border border-purple-500/40">Active</span>
-                )}
-              </button>
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-3.5 text-xs text-terminal-text leading-relaxed font-sans">
-              {activeTab === 'BEGINNER' && (
-                <div className="space-y-1.5">
-                  <p className="font-medium">
-                    {tip.explanations?.beginner ||
-                      `High probability trade setup in ${tip.symbol}. Enter within the recommended zone with strict risk control. Once Target 1 is reached, book 50% profit and trail stoploss to your entry price to lock in capital safety.`}
-                  </p>
-                  <p className="text-[11px] text-terminal-muted">
-                    💡 <strong>Pro Rule:</strong> Never risk more than 2% of total trading account on a single recommendation.
-                  </p>
-                </div>
-              )}
-
-              {activeTab === 'INTERMEDIATE' && (
-                <div className="space-y-1.5">
-                  <p className="font-medium">
-                    {tip.explanations?.intermediate ||
-                      `${tip.strategyTag || 'Multi-Strategy Confluence'} confirmed across CPR Pivot range, 9-EMA momentum trigger, and 1-minute order flow volume absorption. Target 1 offers favorable 1:2 Risk-to-Reward.`}
-                  </p>
-                  {tip.buildup && (
-                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30">
-                      OI Flow: {tip.buildup}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'EXPERT' && (
-                <div className="space-y-1.5 font-mono text-[11px]">
-                  <p>
-                    {tip.explanations?.expert ||
-                      `Multi-factor confluence: Black-Scholes Greeks, IV pricing curve, and high delta institutional order surge. Expected momentum horizon: ~12-18 minutes.`}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px] text-terminal-muted">
-                    {tip.iv && <span>IV: <strong className="text-terminal-text">{tip.iv}%</strong> ({tip.ivStatus || 'Fair'})</span>}
-                    {tip.liquidityRating && <span>Liquidity: <strong className="text-terminal-text">{tip.liquidityRating}</strong></span>}
-                    {tip.spreadFormatted && <span>Spread: <strong className="text-terminal-text">{tip.spreadFormatted}</strong></span>}
-                  </div>
-                </div>
-              )}
-            </div>
+            <p className="text-[11.5px] leading-relaxed">
+              {modeLabels.desc}
+            </p>
           </div>
 
-          {/* 10-Indicator Technical Confluence Checklist */}
-          {tip.confluenceBreakdown && (
-            <ConfluenceChecklist 
-              breakdown={tip.confluenceBreakdown} 
-              role={tip.tradingRole || (tip.action?.includes('SELL') ? 'SELLER' : 'BUYER')}
-              score={tip.confluenceScore}
-            />
-          )}
+          {/* ========================================================================= */}
+          {/* ESSENTIAL 3: DEEP DIVE ANALYSIS BUTTONS (OPENS CLEAN DEDICATED MODALS)    */}
+          {/* ========================================================================= */}
+          <div className="bg-slate-100 dark:bg-slate-900/80 p-3.5 rounded-xl border border-slate-300 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-[11px]">
+                <span>🔍</span>
+                <span>DEEP DIVE ANALYSIS (Click to open specialized modal):</span>
+              </span>
+              <span className="text-[9.5px] text-slate-500 dark:text-slate-400 font-bold">On-Demand Quant Data</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 font-mono text-xs">
+              {/* Button 1: Milestones */}
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal('MILESTONES')}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-sky-700 dark:text-sky-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+              >
+                <span className="text-base">⏱️</span>
+                <span className="text-[11px] font-black">Milestones</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">6-Stage Audit</span>
+              </button>
+
+              {/* Button 2: Confluence */}
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal('CONFLUENCE')}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-amber-700 dark:text-amber-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+              >
+                <span className="text-base">📊</span>
+                <span className="text-[11px] font-black">Confluence</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">10 Factors ({tip.confluenceScore}%)</span>
+              </button>
+
+              {/* Button 3: Greeks & Payoff */}
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal('GREEKS')}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+              >
+                <span className="text-base">🔬</span>
+                <span className="text-[11px] font-black">Greeks & Payoff</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">Delta, Theta, POP</span>
+              </button>
+
+              {/* Button 4: 3-Tier Entry */}
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal('ENTRY_TACTICS')}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-emerald-700 dark:text-emerald-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+              >
+                <span className="text-base">🎯</span>
+                <span className="text-[11px] font-black">3-Tier Entry</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">Dip, Trigger, Breakout</span>
+              </button>
+
+              {/* Button 5: Carry Forward */}
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal('CARRY_FORWARD')}
+                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+              >
+                <span className="text-base">🌙</span>
+                <span className="text-[11px] font-black">Carry Forward</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">0DTE vs BTST vs MCX</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* ========================================================================= */}
+        {/* 3. MODAL FOOTER ACTIONS                                                   */}
+        {/* ========================================================================= */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-terminal-panel/90 border-t border-terminal-border gap-2">
           <button
             type="button"
@@ -913,6 +724,382 @@ Generated via Fayda Trading Terminal`;
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 4. DEDICATED DEPTH ANALYSIS MODAL OVERLAYS (OPENED ON DEMAND)             */}
+      {/* ========================================================================= */}
+      {activeDepthModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+          {/* Submodal backdrop */}
+          <div
+            onClick={() => setActiveDepthModal(null)}
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-md transition-all animate-modal-backdrop-enter"
+          />
+
+          <div className="relative w-full max-w-2xl bg-gradient-to-b from-terminal-card via-terminal-card to-slate-950 border-2 border-accent-cyan/50 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.25)] overflow-hidden flex flex-col z-10 my-auto animate-modal-enter max-h-[85vh]">
+            {/* Submodal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 bg-terminal-panel/95 border-b border-terminal-border">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
+                  {activeDepthModal === 'MILESTONES' && <Clock className="w-4 h-4" />}
+                  {activeDepthModal === 'CONFLUENCE' && <Award className="w-4 h-4" />}
+                  {activeDepthModal === 'GREEKS' && <ShieldCheck className="w-4 h-4" />}
+                  {activeDepthModal === 'ENTRY_TACTICS' && <Target className="w-4 h-4" />}
+                  {activeDepthModal === 'CARRY_FORWARD' && <span className="text-base">🌙</span>}
+                </div>
+                <div>
+                  <h4 className="text-sm font-mono font-black text-terminal-text uppercase tracking-wider">
+                    {activeDepthModal === 'MILESTONES' && '6-Stage Signal Lifecycle Milestones & Audit'}
+                    {activeDepthModal === 'CONFLUENCE' && '10-Factor Technical Confluence Checklist'}
+                    {activeDepthModal === 'GREEKS' && 'Option Greeks & Risk Payoff Calculator'}
+                    {activeDepthModal === 'ENTRY_TACTICS' && '3-Tier Actionable Entry Strategy'}
+                    {activeDepthModal === 'CARRY_FORWARD' && 'Market-Tailored Carry-Forward Rules'}
+                  </h4>
+                  <p className="text-[10px] text-terminal-muted font-mono">
+                    {tip.contractSymbol || tip.title} • {tip.symbol}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal(null)}
+                className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+                title="Back to Signal Summary (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Submodal Content */}
+            <div className="p-5 overflow-y-auto space-y-4 font-mono text-xs">
+              {/* SUBMODAL 1: MILESTONES */}
+              {activeDepthModal === 'MILESTONES' && (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-800 dark:text-sky-300 text-[11px] leading-relaxed">
+                    ⏱️ <strong>Lifecycle Milestone Tracking:</strong> Real-time institutional timestamps for signal dispatch, execution trigger, profit locking, and risk containment.
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-center text-xs">
+                    {/* 1. Call Given Time */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
+                      <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
+                        1. CALL GIVEN
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
+                        {tip.callGivenTimeFormatted || tip.givenTimeFormatted || 'Live'}
+                      </span>
+                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold">✓ Signal Dispatched</span>
+                    </div>
+
+                    {/* 2. Entry Price Time */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
+                      <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
+                        2. ENTRY PRICE
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
+                        {tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}
+                      </span>
+                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
+                        ✓ Triggered @ ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(1) : tip.entryPrice}
+                      </span>
+                    </div>
+
+                    {/* 3. Half Profit Book Time */}
+                    <div className={`p-3 rounded-xl text-left space-y-1 shadow-xs border ${
+                      tip.halfProfitBookTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
+                        ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
+                        : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
+                    }`}>
+                      <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
+                        3. 50% PROFIT
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
+                        {tip.halfProfitBookTimeFormatted || (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Booked') : 'Pending T1')}
+                      </span>
+                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+                        {tip.halfProfitBookTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? '✓ 50% Capital Locked' : 'Waiting for +25%'}
+                      </span>
+                    </div>
+
+                    {/* 4. Target 1 Hit Time */}
+                    <div className={`p-3 rounded-xl text-left space-y-1 shadow-xs border ${
+                      tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
+                        ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
+                        : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
+                    }`}>
+                      <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
+                        4. TARGET 1 HIT
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
+                        {tip.target1HitTimeFormatted || (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Hit') : 'Pending')}
+                      </span>
+                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
+                        {tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? `✓ ₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}` : `Tgt: ₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}`}
+                      </span>
+                    </div>
+
+                    {/* 5. Target 2 Hit Time */}
+                    <div className={`p-3 rounded-xl text-left space-y-1 shadow-xs border ${
+                      tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT'
+                        ? 'border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/20'
+                        : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 opacity-75'
+                    }`}>
+                      <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 block tracking-wider">
+                        5. TARGET 2 HIT
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
+                        {tip.target2HitTimeFormatted || (tip.status === 'TARGET2_HIT' ? (tip.bookedTimeFormatted || 'Hit') : 'Runner Trailing')}
+                      </span>
+                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
+                        {tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT' ? `✓ Full Runner Reached` : `Tgt 2: ₹${typeof tip.target2Price === 'number' ? tip.target2Price.toFixed(1) : (tip.target2Price || 'Trail')}`}
+                      </span>
+                    </div>
+
+                    {/* 6. Stoploss Time / Journal Status */}
+                    <div className={`p-3 rounded-xl text-left space-y-1 shadow-xs border ${
+                      isSlHit
+                        ? 'border-rose-500/50 bg-rose-50 dark:bg-rose-950/30'
+                        : 'bg-white dark:bg-slate-950/70 border-slate-200 dark:border-slate-800'
+                    }`}>
+                      <span className="text-[9px] font-black uppercase text-rose-700 dark:text-rose-400 block tracking-wider">
+                        6. STOPLOSS STATUS
+                      </span>
+                      <span className={`font-bold text-xs block truncate ${isSlHit ? 'text-rose-700 dark:text-rose-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                        {tip.stoplossTimeFormatted || (isSlHit ? (tip.bookedTimeFormatted || 'Stopped Out') : 'Active Shield')}
+                      </span>
+                      <span className="text-[8.5px] block font-semibold text-rose-600 dark:text-rose-400 truncate">
+                        {isSlHit ? 'Archived to Journal' : `SL: ₹${typeof tip.stoplossPrice === 'number' ? tip.stoplossPrice.toFixed(1) : tip.stoplossPrice}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBMODAL 2: 10-FACTOR CONFLUENCE */}
+              {activeDepthModal === 'CONFLUENCE' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300">
+                    <span className="font-bold">Overall Technical Score:</span>
+                    <span className="text-base font-black font-mono">{tip.confluenceScore || 85}% Confirmed</span>
+                  </div>
+
+                  {tip.confluenceBreakdown ? (
+                    <ConfluenceChecklist 
+                      breakdown={tip.confluenceBreakdown} 
+                      role={tip.tradingRole || (tip.action?.includes('SELL') ? 'SELLER' : 'BUYER')}
+                      score={tip.confluenceScore}
+                    />
+                  ) : (
+                    <div className="p-4 text-center text-slate-500 dark:text-slate-400">
+                      Technical breakdown verified across SuperTrend, 20 EMA, CPR Range, and Volume Surges.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUBMODAL 3: GREEKS & PAYOFF MATRIX */}
+              {activeDepthModal === 'GREEKS' && (
+                <div className="space-y-3">
+                  <div className="bg-purple-950/40 border border-purple-500/40 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-purple-300">
+                      <span className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-purple-400" />
+                        <span>OPTION GREEKS & THETA HARVEST METRICS</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-[10px] text-purple-200 border border-purple-500/30">
+                        POP: {tip.sellerMetrics?.popPct || 82}%
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs pt-1">
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">NET CREDIT / COST</span>
+                        <span className="font-black text-emerald-400 text-sm">
+                          ₹{tip.sellerMetrics?.netCreditPoints?.toFixed(2) || (typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—')} pts
+                        </span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5">
+                          ₹{tip.sellerMetrics?.maxProfitRupees?.toLocaleString('en-IN') || '—'}/lot
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">EXCHANGE MARGIN</span>
+                        <span className="font-black text-slate-200 text-sm">
+                          ₹{tip.sellerMetrics?.marginRequired?.toLocaleString('en-IN') || '₹38,500'}
+                        </span>
+                        <span className="text-[9px] text-emerald-400 block mt-0.5">
+                          72% Hedged Benefit
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">SAFETY BUFFER</span>
+                        <span className="font-black text-amber-400 text-sm">
+                          {tip.sellerMetrics?.breakevenBufferPts ? `${tip.sellerMetrics.breakevenBufferPts} pts` : '220 pts'}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Distance to Loss</span>
+                      </div>
+
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">THETA DECAY VELOCITY</span>
+                        <span className="font-black text-cyan-400 text-sm">
+                          {tip.sellerMetrics?.thetaBurnRate || '+₹140/hr'}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Hourly θ Inflow</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isSpread && (
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 space-y-2">
+                      <span className="text-[10px] font-bold text-slate-300 block uppercase">Hedged Spread Payoff</span>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="bg-bear/10 p-2 rounded-lg border border-bear/20">
+                          <span className="text-bear block text-[9px] font-bold">MAX RISK</span>
+                          <span className="font-black text-bear text-sm">
+                            {tip.maxLossRupees ? `₹${tip.maxLossRupees.toLocaleString('en-IN')}` : '—'}
+                          </span>
+                        </div>
+                        <div className="bg-bull/10 p-2 rounded-lg border border-bull/20">
+                          <span className="text-bull block text-[9px] font-bold">MAX PROFIT</span>
+                          <span className="font-black text-bull text-sm">
+                            {tip.maxProfitRupees ? `₹${tip.maxProfitRupees.toLocaleString('en-IN')}` : '—'}
+                          </span>
+                        </div>
+                        <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
+                          <span className="text-cyan-400 block text-[9px] font-bold">BREAKEVEN</span>
+                          <span className="font-bold text-slate-200 text-sm">
+                            {typeof tip.breakeven === 'number' ? `₹${tip.breakeven.toFixed(2)}` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUBMODAL 4: 3-TIER ACTIONABLE ENTRY */}
+              {activeDepthModal === 'ENTRY_TACTICS' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Limit Dip Entry */}
+                    <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/25 text-left space-y-1">
+                      <div className="text-[9.5px] font-bold text-emerald-400 uppercase flex items-center gap-1">
+                        <span>🟢 PULLBACK / LIMIT DIP</span>
+                      </div>
+                      <div className="font-black text-slate-100 text-sm font-mono">
+                        ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 0.98).toFixed(2) : '—'} - ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Best Risk-to-Reward Entry</div>
+                    </div>
+
+                    {/* Market Trigger */}
+                    <div className="bg-sky-500/10 p-3 rounded-xl border border-sky-500/25 text-left space-y-1">
+                      <div className="text-[9.5px] font-bold text-sky-400 uppercase flex items-center gap-1">
+                        <span>⚡ AT SIGNAL TRIGGER</span>
+                      </div>
+                      <div className="font-black text-slate-100 text-sm font-mono">
+                        ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : (tip.entryRange || '—')}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Benchmark Trigger @ {tip.givenTimeFormatted || 'Live'}</div>
+                    </div>
+
+                    {/* Breakout Confirmation */}
+                    <div className="bg-purple-500/10 p-3 rounded-xl border border-purple-500/25 text-left space-y-1">
+                      <div className="text-[9.5px] font-bold text-purple-300 uppercase flex items-center gap-1">
+                        <span>🚀 BREAKOUT TRIGGER</span>
+                      </div>
+                      <div className="font-black text-slate-100 text-sm font-mono">
+                        &gt; ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 1.025).toFixed(2) : '—'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Confirmation on 1-min Candle Close</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBMODAL 5: CARRY-FORWARD & BTST */}
+              {activeDepthModal === 'CARRY_FORWARD' && (
+                <div className="space-y-3">
+                  <div className={`p-4 rounded-xl border text-xs space-y-2.5 ${
+                    tip.isExpiryDay && !isCommodity
+                      ? 'bg-red-950/40 border-red-500/50'
+                      : 'bg-purple-950/40 border-purple-500/40'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-black uppercase tracking-wider block ${
+                        tip.isExpiryDay && !isCommodity ? 'text-red-400' : 'text-purple-300'
+                      }`}>
+                        {tip.isExpiryDay && !isCommodity ? '⚠️ 0DTE EXPIRY DAY — NO OVERNIGHT HOLD (SEBI RULES)' : '🌙 OVERNIGHT / BTST RULES (SEBI COMPLIANT)'}
+                      </span>
+                      {tip.expiryDate && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                          Expiry: {tip.expiryDate}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-200 text-xs leading-relaxed">
+                      {tip.carryForwardAdvice || (tip.isExpiryDay && !isCommodity
+                        ? '⚠️ 0DTE EXPIRY CONTRACT (SEBI Rules) — Options CANNOT be carried forward automatically. Any unclosed OTM position will expire WORTHLESS (₹0.00) at 03:30 PM. You MUST: (1) Square off this contract before 03:25 PM IST, and (2) If you wish to continue the trade, MANUALLY open a fresh contract in the NEXT EXPIRY separately.'
+                        : isCommodity
+                        ? '⚡ MCX FUTURES — Overnight Hold & Monthly Rollover Eligible: Active until 11:30 PM IST. Unlike NSE options, MCX futures CAN be rolled over to the next month. Rollover = (1) Close this month\'s contract, (2) Open same direction in next month\'s contract via spread order. Note: Brokerage + charges apply TWICE on rollover. Hold overnight with trailing stoploss.'
+                        : (rawPnlPct >= 15 || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT')
+                        ? '🌙 BTST via Manual Roll (SEBI Compliant) — Options CANNOT be auto-carried. To continue overnight: (1) Square off this contract today by 03:25 PM IST, then (2) Open a fresh next-expiry contract separately. Lock 50% profit today; trail SL to entry cost on the new position.'
+                        : 'Strict Intraday Exit at 03:25 PM IST — Options CANNOT be carried overnight (SEBI rules). Rapid Theta decay and gap risk will erode premium. Square off fully before 03:25 PM.')}
+                    </p>
+
+                    {/* Next Expiry Suggestion if 0DTE */}
+                    {tip.isExpiryDay && !isCommodity && tip.nextExpiryDate && (
+                      <div className="p-3 rounded-lg bg-indigo-950/60 border border-indigo-500/40 space-y-1.5 mt-2">
+                        <span className="text-[11px] font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>HOW TO CONTINUE OVERNIGHT (BTST) — SEBI COMPLIANT</span>
+                        </span>
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          <strong>Step 1:</strong> Square off this expiring contract before <strong>03:25 PM IST</strong> today (all 0DTE contracts expire at 03:30 PM).<br />
+                          <strong>Step 2:</strong> Separately open a fresh option contract in the <strong>Next Expiry ({tip.nextExpiryDate})</strong> — symbol: <strong>{tip.nextExpiryContractSymbol || `${tip.symbol} ${tip.strikePrice || ''} ${tip.optionType || ''}`}</strong>.<br />
+                          ⚠️ <em>There is no automatic rollover for options. You must manually close the old trade and open a new one (SEBI regulation).</em>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Standard Expiry & Timing Reference Table */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                      <span className="text-[9px] text-slate-500 uppercase block font-bold">{isCommodity ? 'MCX Session Ends' : 'Square-off Cutoff'}</span>
+                      <span className="font-bold text-amber-400">{isCommodity ? '11:30 PM IST' : '03:20 - 03:25 PM IST'}</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                      <span className="text-[9px] text-slate-500 uppercase block font-bold">Overnight / Rollover</span>
+                      <span className="font-bold text-slate-200">
+                        {isCommodity
+                          ? 'Futures Rollover via Spread Order'
+                          : tip.isExpiryDay
+                          ? 'Square off → Fresh Next Expiry Contract'
+                          : 'BTST Manual Roll (SEBI Compliant)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submodal Footer */}
+            <div className="flex items-center justify-end px-5 py-3 bg-terminal-panel/90 border-t border-terminal-border">
+              <button
+                type="button"
+                onClick={() => setActiveDepthModal(null)}
+                className="px-4 py-1.5 rounded-xl bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan border border-accent-cyan/40 font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Signal Summary</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

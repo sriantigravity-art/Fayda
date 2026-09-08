@@ -186,13 +186,32 @@ export function getUserTradeAdvice(params: {
   stoplossPrice: number;
   elapsedMinutes: number;
   maxValidityMinutes?: number;
+  isContractExpired?: boolean;
+  isExpiryDay?: boolean;
 }): TradeActionAdvice {
-  const { currentLtp, entryPrice, targetPrice, stoplossPrice, elapsedMinutes } = params;
+  const { currentLtp, entryPrice, targetPrice, stoplossPrice, elapsedMinutes, isContractExpired, isExpiryDay } = params;
   const maxMin = params.maxValidityMinutes || 30;
 
   const cleanEntry = Math.max(1, entryPrice);
   const pnlPoints = +(currentLtp - cleanEntry).toFixed(2);
   const pnlPct = +( (pnlPoints / cleanEntry) * 100 ).toFixed(2);
+
+  // 0. Contract Expiry Check: If 0DTE and contract expired (LTP <= 0.05 or flagged expired)
+  if (isContractExpired || (isExpiryDay && currentLtp <= 0.05)) {
+    return {
+      actionType: 'EXPIRED_ARCHIVE',
+      badgeLabel: '🛑 CONTRACT EXPIRED — (₹0.00)',
+      badgeClass: 'bg-rose-950/80 text-rose-300 border border-rose-600/50 shadow-[0_0_12px_rgba(244,63,94,0.3)]',
+      buttonLabel: 'Expired (Shift to Next Expiry)',
+      explanation: 'Weekly contract expired at 03:30 PM on expiry day and settled at ₹0.00. Do NOT hold or enter expired contracts. Roll over to next weekly expiry.',
+      pnlPoints: -cleanEntry,
+      pnlPct: -100,
+      isTargetAchieved: false,
+      isStoplossHit: true,
+      isExpired: true,
+      shouldArchiveToJournal: true
+    };
+  }
 
   const isTargetAchieved = targetPrice > 0 && currentLtp >= targetPrice;
   const isStoplossHit = stoplossPrice > 0 && currentLtp <= stoplossPrice;

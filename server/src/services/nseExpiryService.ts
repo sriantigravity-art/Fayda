@@ -139,16 +139,33 @@ export class NseExpiryService {
   }
 
   private static getIndexWeeklyExpiries(symbol: IndexSymbol, count: number): string[] {
-    const now      = new Date();
+    const now = new Date();
     const targetDay = this.getOfficialExpiryDay(symbol);
     const expiries: string[] = [];
 
-    const currentDay = now.getDay();
+    // Format now into IST explicitly so calculation is timezone-independent
+    const istParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour12: false,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      weekday: 'short'
+    }).formatToParts(now);
+
+    const istHour = parseInt(istParts.find(p => p.type === 'hour')?.value || '0', 10);
+    const istMinute = parseInt(istParts.find(p => p.type === 'minute')?.value || '0', 10);
+    const weekdayStr = istParts.find(p => p.type === 'weekday')?.value || 'Tue';
+    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const currentDay = weekdayMap[weekdayStr] ?? now.getDay();
+
     let diff = targetDay - currentDay;
 
-    // If today is expiry day, check if past market close (15:40 IST)
+    // If today is expiry day, check if past market close (15:30 IST)
     if (diff === 0) {
-      if (now.getHours() > 15 || (now.getHours() === 15 && now.getMinutes() >= 40)) {
+      if (istHour > 15 || (istHour === 15 && istMinute >= 30)) {
         diff = 7;
       }
     } else if (diff < 0) {

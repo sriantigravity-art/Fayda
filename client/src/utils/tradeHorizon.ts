@@ -266,7 +266,7 @@ export function calculateTargetHorizon(
     categoryTagColor = 'bg-amber/20 text-amber border-amber/50 shadow-[0_0_12px_rgba(255,170,0,0.3)]';
     categoryIcon = '🔄';
     timeHorizonLabel = '2-5 DAYS SWING SETUP';
-    recommendedHolding = '2 to 5 Trading Sessions (Carry forward overnight)';
+    recommendedHolding = '2 to 5 Trading Sessions (BTST via Manual Roll \u2014 SEBI: close current + open next-expiry)';
     suitability = 'Swing Option Buyers & Trend Followers';
     marketSituation = `Expiry is ${daysToExpiry} days away with gentle daily theta decay. Aligned with macro ${pcr >= 1.1 ? 'bullish' : pcr <= 0.9 ? 'bearish' : 'neutral'} trend for multi-day continuation.`;
   } else if (isPowerSurgeHour) {

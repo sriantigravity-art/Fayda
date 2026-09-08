@@ -28,6 +28,8 @@ export interface TradeLifecycleAdvisorProps {
   role: 'BUYER' | 'SELLER';
   executionType: 'NET_DEBIT' | 'NET_CREDIT';
   matchingSurge?: SurgeEvent;
+  isExpiryDay?: boolean;
+  status?: string;
 }
 
 export type LifecycleStage = 
@@ -36,7 +38,8 @@ export type LifecycleStage =
   | 'HALF_TARGET_TRAIL' 
   | 'TARGET_1_HIT' 
   | 'TARGET_2_HIT' 
-  | 'STOPLOSS_HIT';
+  | 'STOPLOSS_HIT'
+  | 'EXPIRED';
 
 export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
   contractSymbol,
@@ -49,7 +52,9 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
   stoplossPrice,
   stoplossPct,
   role,
-  matchingSurge
+  matchingSurge,
+  isExpiryDay,
+  status
 }) => {
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -63,8 +68,9 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
 
   // Analysis of current price vs targets
   const analysis = useMemo(() => {
-    const pnlPoints = +(currentLtp - entryPrice).toFixed(1);
-    const pnlPct = +(((currentLtp - entryPrice) / entryPrice) * 100).toFixed(1);
+    const isExpired = status === 'EXPIRED' || (isExpiryDay && currentLtp <= 0.05);
+    const pnlPoints = isExpired ? -entryPrice : +(currentLtp - entryPrice).toFixed(1);
+    const pnlPct = isExpired ? -100 : +(((currentLtp - entryPrice) / entryPrice) * 100).toFixed(1);
     const targetDistanceTotal = target1Price - entryPrice;
     const targetDistanceCovered = targetDistanceTotal > 0 ? (currentLtp - entryPrice) / targetDistanceTotal : 0;
 
@@ -76,7 +82,15 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
     let primaryInstruction = `LTP ₹${currentLtp.toFixed(1)} is in the entry zone. Keep initial Stop Loss at ₹${stoplossPrice.toFixed(1)}.`;
     let recommendedSl = stoplossPrice;
 
-    if (currentLtp <= stoplossPrice) {
+    if (isExpired) {
+      stage = 'EXPIRED';
+      badgeText = '🛑 CONTRACT EXPIRED (₹0.00)';
+      badgeColor = 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/40';
+      actionDirective = 'EXPIRED (0.00) — DO NOT HOLD';
+      actionClass = 'bg-rose-700 text-white font-black';
+      primaryInstruction = 'Contract expired at 03:30 PM on expiry day and settled at ₹0.00. Do NOT hold or enter expired contracts. Roll over to next weekly expiry.';
+      recommendedSl = 0;
+    } else if (currentLtp <= stoplossPrice) {
       stage = 'STOPLOSS_HIT';
       badgeText = `🛑 STOP LOSS HIT (${pnlPct}%)`;
       badgeColor = 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/40';
