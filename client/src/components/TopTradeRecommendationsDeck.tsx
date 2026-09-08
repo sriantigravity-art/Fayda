@@ -27,6 +27,10 @@ import {
   Info, 
   X, 
   ChevronRight, 
+  ChevronLeft,
+  Play,
+  Pause,
+  Timer,
   Flame,
   FileSpreadsheet,
   List
@@ -80,7 +84,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
-  const [viewMode, setViewMode] = useState<'LIST' | 'BUTTONS' | 'TABLE'>('LIST');
+  const [viewMode, setViewMode] = useState<'FLASH' | 'LIST' | 'BUTTONS' | 'TABLE'>('FLASH');
+  const [flashIndex, setFlashIndex] = useState<number>(0);
+  const [flashSecondsLeft, setFlashSecondsLeft] = useState<number>(7);
+  const [isFlashPaused, setIsFlashPaused] = useState<boolean>(false);
+  const [isFlashHovered, setIsFlashHovered] = useState<boolean>(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [expandedConfluenceId, setExpandedConfluenceId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -885,6 +893,44 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return filteredItems.find(i => i.id === selectedItemId) || null;
   }, [filteredItems, selectedItemId]);
 
+  // Reset 7-second flash countdown when category tab changes
+  useEffect(() => {
+    setFlashIndex(0);
+    setFlashSecondsLeft(7);
+  }, [activeTab]);
+
+  // 7-Second Automatic Sequential Flash Tip Rotation
+  useEffect(() => {
+    if (isFlashPaused || isFlashHovered || filteredItems.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setFlashSecondsLeft(prev => {
+        if (prev <= 1) {
+          setFlashIndex(curr => (curr + 1) % filteredItems.length);
+          return 7;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isFlashPaused, isFlashHovered, filteredItems.length]);
+
+  const handlePrevFlashTip = () => {
+    if (filteredItems.length === 0) return;
+    setFlashIndex(curr => (curr - 1 + filteredItems.length) % filteredItems.length);
+    setFlashSecondsLeft(7);
+  };
+
+  const handleNextFlashTip = () => {
+    if (filteredItems.length === 0) return;
+    setFlashIndex(curr => (curr + 1) % filteredItems.length);
+    setFlashSecondsLeft(7);
+  };
+
+  const safeFlashIndex = filteredItems.length > 0 ? flashIndex % filteredItems.length : 0;
+  const currentFlashTip = filteredItems[safeFlashIndex] || null;
+
   // Active surges for current symbol
   const activeSurgesForSymbol = useMemo(() => {
     return (recentSurges || []).filter(s => s.indexSymbol === selectedIndex);
@@ -1452,8 +1498,21 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
         {/* Section Tabs, View Switcher & Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle: Actionable List vs Quick Focus Buttons vs Tabular Matrix */}
+          {/* View Mode Toggle: 7s Flash Solo vs Actionable List vs Quick Focus Buttons vs Tabular Matrix */}
           <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
+            <button
+              type="button"
+              onClick={() => setViewMode('FLASH')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'FLASH'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+              }`}
+              title="Flash trade tips for 7 seconds one after another (solo focus)"
+            >
+              <Zap className={`w-3.5 h-3.5 ${viewMode === 'FLASH' ? 'text-slate-950' : 'text-amber-500'} animate-pulse`} />
+              <span>⚡ 7s Flash Solo</span>
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('LIST')}
@@ -1599,7 +1658,344 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       </div>
 
       {/* ========================================================================= */}
-      {/* ── 0. ACTIONABLE DETAILED LIST VIEW (DEFAULT & COMPREHENSIVE) ─────────── */}
+      {/* ── 0. ⚡ 7-SECOND LIVE FLASH SOLO VIEW (ONE BY ONE ROTATION) ───────────── */}
+      {/* ========================================================================= */}
+      {viewMode === 'FLASH' && (
+        <div 
+          className="p-3.5 sm:p-5 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col space-y-4"
+          onMouseEnter={() => setIsFlashHovered(true)}
+          onMouseLeave={() => setIsFlashHovered(false)}
+        >
+          {filteredItems.length === 0 ? (
+            <div className="py-8 px-4 text-center text-slate-500 dark:text-slate-400 font-mono bg-white dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <Info className="w-6 h-6 text-amber-500" />
+                <span>No active trade setups currently under this filter. Waiting for high-conviction order flow.</span>
+              </div>
+            </div>
+          ) : currentFlashTip && (
+            <div className="flex flex-col space-y-4">
+              {/* TOP SPOTLIGHT CONTROLLER STRIP */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/90 p-3.5 rounded-2xl border border-amber-500/40 dark:border-accent-gold/40 shadow-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-500 border border-amber-500/40">
+                    <Zap className="w-4 h-4 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-black uppercase text-amber-600 dark:text-accent-gold tracking-wider">
+                        ⚡ 7-Second Live Flash Spotlight
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                        Tip {safeFlashIndex + 1} of {filteredItems.length}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      Flashing 1 trade tip at a time for 7 seconds. Showing next tip automatically.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 7s Flash Controls: Prev, Pause, Next, Countdown */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevFlashTip}
+                    className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 text-xs font-mono"
+                    title="Previous trade tip"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden md:inline font-bold">Prev</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsFlashPaused(!isFlashPaused)}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold"
+                    title={isFlashPaused ? "Resume 7-second auto flash" : "Pause on this trade tip"}
+                  >
+                    {isFlashPaused ? (
+                      <>
+                        <Play className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-600 dark:text-emerald-400">RESUME</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-amber-600 dark:text-amber-400">PAUSE</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextFlashTip}
+                    className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 text-xs font-mono"
+                    title="Next trade tip"
+                  >
+                    <span className="hidden md:inline font-bold">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* 7s Countdown Badge */}
+                  <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-mono text-xs font-bold bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30">
+                    <Timer className="w-3.5 h-3.5 animate-pulse text-sky-500" />
+                    <span>Next in {flashSecondsLeft}s</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7-Second Draining Countdown Progress Bar */}
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-accent-cyan via-amber-400 to-emerald-400 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(flashSecondsLeft / 7) * 100}%` }}
+                />
+              </div>
+
+              {/* THE SINGLE ACTIVE TRADE TIP CARD (SOLO FOCUS) */}
+              {(() => {
+                const isCall = currentFlashTip.optionType === 'CE' || currentFlashTip.action === 'BUY_CALL';
+                const isPut = currentFlashTip.optionType === 'PE' || currentFlashTip.action === 'BUY_PUT';
+                const isSeller = currentFlashTip.role === 'SELLER' || currentFlashTip.optionType === 'SPREAD';
+                const isGamma = currentFlashTip.category === 'GAMMA';
+
+                const strikeLabel = currentFlashTip.strikePrice
+                  ? `${currentFlashTip.strikePrice.toLocaleString('en-IN')} ${currentFlashTip.optionType}`
+                  : currentFlashTip.contractSymbol;
+
+                const ltpDiff = currentFlashTip.currentLtp - currentFlashTip.entryPrice;
+                const isProfitable = isSeller ? (currentFlashTip.entryPrice >= currentFlashTip.currentLtp) : (ltpDiff >= 0);
+
+                return (
+                  <div className={`p-5 sm:p-6 rounded-2xl border-2 transition-all duration-300 bg-white dark:bg-slate-900/90 shadow-xl ${
+                    isSeller 
+                      ? 'border-purple-500 shadow-purple-500/10' 
+                      : isGamma 
+                      ? 'border-cyan-500 shadow-cyan-500/10' 
+                      : isCall 
+                      ? 'border-emerald-500 shadow-emerald-500/10' 
+                      : 'border-rose-500 shadow-rose-500/10'
+                  }`}>
+                    {/* Top Row: Action Badge + Strike + Confluence */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        {isSeller ? (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700 flex items-center gap-1.5">
+                            <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span>OPTION SELL / SPREAD</span>
+                          </span>
+                        ) : isGamma ? (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black uppercase tracking-wider bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 flex items-center gap-1.5">
+                            <Zap className="w-4 h-4 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+                            <span>0DTE HERO / GAMMA</span>
+                          </span>
+                        ) : isCall ? (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>BUY CALL (CE)</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                            <span>BUY PUT (PE)</span>
+                          </span>
+                        )}
+
+                        <span className="text-xl sm:text-2xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
+                          {strikeLabel}
+                        </span>
+
+                        <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                          {currentFlashTip.actionBadge}
+                        </span>
+                      </div>
+
+                      {/* Confluence Pill */}
+                      <div className="flex items-center gap-2">
+                        <div className="px-3 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 font-mono text-xs font-black flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{currentFlashTip.confluenceScore}% Confluence</span>
+                        </div>
+                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                          {currentFlashTip.entryTimeFormatted}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Strategy Tag */}
+                    <div className="py-2.5 text-xs font-mono text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="font-semibold">{currentFlashTip.strategyTag}</span>
+                    </div>
+
+                    {/* 6 High-Alpha Metrics Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 my-3">
+                      {/* Entry Zone */}
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Entry Range</div>
+                        <div className="text-sm font-mono font-black text-sky-600 dark:text-sky-400 mt-0.5">
+                          {currentFlashTip.entryRange}
+                        </div>
+                      </div>
+
+                      {/* Live LTP */}
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Current LTP</div>
+                        <div className="text-base font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                          ₹{currentFlashTip.currentLtp.toFixed(2)}
+                        </div>
+                        <div className={`text-[10px] font-mono font-bold ${isProfitable ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {ltpDiff >= 0 ? `+₹${ltpDiff.toFixed(1)}` : `-₹${Math.abs(ltpDiff).toFixed(1)}`}
+                        </div>
+                      </div>
+
+                      {/* Target 1 */}
+                      <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
+                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">Target 1</div>
+                        <div className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          ₹{currentFlashTip.target1Price.toFixed(2)}
+                        </div>
+                        <div className="text-[10px] font-mono font-bold text-emerald-500">
+                          +{currentFlashTip.target1Pct}%
+                        </div>
+                      </div>
+
+                      {/* Target 2 */}
+                      <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
+                        <div className="text-[10px] uppercase font-mono text-emerald-600 dark:text-emerald-400">Target 2</div>
+                        <div className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          ₹{(currentFlashTip.target2Price || currentFlashTip.target1Price * 1.25).toFixed(2)}
+                        </div>
+                        <div className="text-[10px] font-mono font-bold text-emerald-500">
+                          +{currentFlashTip.target2Pct || 60}%
+                        </div>
+                      </div>
+
+                      {/* Stoploss */}
+                      <div className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40">
+                        <div className="text-[10px] uppercase font-mono text-rose-600 dark:text-rose-400">Stop Loss</div>
+                        <div className="text-sm font-mono font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                          ₹{currentFlashTip.stoplossPrice.toFixed(2)}
+                        </div>
+                        <div className="text-[10px] font-mono font-bold text-rose-500">
+                          -{currentFlashTip.stoplossPct}%
+                        </div>
+                      </div>
+
+                      {/* Risk Reward */}
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+                        <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Risk : Reward</div>
+                        <div className="text-sm font-mono font-black text-slate-900 dark:text-white mt-0.5">
+                          {currentFlashTip.riskReward}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                          Lot: {lotSize}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        {/* Open Trade Tip Modal */}
+                        <button
+                          type="button"
+                          onClick={() => handleRowClick(currentFlashTip)}
+                          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                        >
+                          <Zap className="w-4 h-4" />
+                          <span>Detailed Setup Ticket</span>
+                        </button>
+
+                        {/* Open Risk Calc */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCalcParams({
+                              ltp: currentFlashTip.currentLtp,
+                              sl: currentFlashTip.stoplossPrice,
+                              target: currentFlashTip.target1Price
+                            });
+                            setIsRiskModalOpen(true);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          <span>Position Calc</span>
+                        </button>
+
+                        {/* Add to Broker Basket */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveBasketItem({
+                              symbol: selectedIndex,
+                              contractSymbol: currentFlashTip.contractSymbol,
+                              optionType: currentFlashTip.optionType === 'SPREAD' ? 'CE' : currentFlashTip.optionType,
+                              action: currentFlashTip.action === 'BUY_CALL' ? 'BUY' : currentFlashTip.action === 'BUY_PUT' ? 'BUY' : 'SELL',
+                              strikePrice: currentFlashTip.strikePrice || 0,
+                              entryPrice: currentFlashTip.currentLtp,
+                              stoplossPrice: currentFlashTip.stoplossPrice,
+                              targetPrice: currentFlashTip.target1Price,
+                              lotSize: lotSize,
+                              lots: 1
+                            });
+                            setIsBasketModalOpen(true);
+                          }}
+                          className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Layers className="w-3.5 h-3.5" />
+                          <span>Basket Order</span>
+                        </button>
+                      </div>
+
+                      {/* Confluence toggle */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleConfluence(currentFlashTip.id, e)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-amber-600 dark:text-accent-gold hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{expandedConfluenceId === currentFlashTip.id ? 'Hide Confluence' : 'Check Confluence Checklist'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandedConfluenceId === currentFlashTip.id ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+
+                    {/* Expandable Confluence Checklist */}
+                    {expandedConfluenceId === currentFlashTip.id && (
+                      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                        <ConfluenceChecklist 
+                          confluenceScore={currentFlashTip.confluenceScore}
+                          symbol={selectedIndex}
+                          action={currentFlashTip.action}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Helpful Hint to switch to List */}
+              <div className="text-center py-2">
+                <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                  Showing 1 trade tip for 7 seconds. Want to see all {filteredItems.length} recommendations at once? Click{' '}
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('LIST')}
+                    className="text-amber-500 hover:underline font-bold cursor-pointer"
+                  >
+                    📝 Detailed List
+                  </button>
+                  .
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ── 1. ACTIONABLE DETAILED LIST VIEW (COMPREHENSIVE) ────────────────────── */}
       {/* ========================================================================= */}
       {viewMode === 'LIST' && (
         <div className="p-3.5 sm:p-4 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col space-y-3">

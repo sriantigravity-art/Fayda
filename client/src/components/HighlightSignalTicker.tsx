@@ -3,7 +3,7 @@ import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice } from '../utils/signalTimeHelper';
-import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer } from 'lucide-react';
+import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { IndexSymbol } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
@@ -16,6 +16,8 @@ export const HighlightSignalTicker: React.FC = () => {
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [tickerSpeed, setTickerSpeed] = useState<'SLOW' | 'NORMAL' | 'FAST'>('NORMAL');
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const [activeTipIndex, setActiveTipIndex] = useState<number>(0);
+  const [secondsLeft, setSecondsLeft] = useState<number>(7);
 
   // Live 1-second ticker for real-time elapsed calculations & clock
   useEffect(() => {
@@ -357,7 +359,38 @@ export const HighlightSignalTicker: React.FC = () => {
 
   if (activeSetups.length === 0) return null;
 
+  // 7-second automatic sequential rotation timer
+  useEffect(() => {
+    if (isPaused || isHovered || activeSetups.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          setActiveTipIndex((curr) => (curr + 1) % activeSetups.length);
+          return 7;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isPaused, isHovered, activeSetups.length]);
+
+  const handlePrevTip = () => {
+    setActiveTipIndex((curr) => (curr - 1 + activeSetups.length) % activeSetups.length);
+    setSecondsLeft(7);
+  };
+
+  const handleNextTip = () => {
+    setActiveTipIndex((curr) => (curr + 1) % activeSetups.length);
+    setSecondsLeft(7);
+  };
+
+  if (activeSetups.length === 0) return null;
+
   const istTimeString = formatISTTime(currentTime, { showSeconds: true, includeSuffix: true });
+  const safeIndex = activeTipIndex % (activeSetups.length || 1);
+  const currentSetup = activeSetups[safeIndex];
 
   return (
     <div 
@@ -369,7 +402,7 @@ export const HighlightSignalTicker: React.FC = () => {
       onTouchCancel={() => setIsHovered(false)}
     >
       {/* ========================================================================= */}
-      {/* MOBILE LAYOUT: LINE 1 = FAYDA RADAR + SYSTEM TIME | LINE 2 = FAST TICKER  */}
+      {/* MOBILE LAYOUT: LINE 1 = RADAR + TIME + CONTROLS | LINE 2 = 7s FLASH TIP   */}
       {/* ========================================================================= */}
       <div className="flex flex-col sm:hidden py-1 px-2.5 space-y-1">
         {/* LINE 1: FAYDA RADAR BRAND (LEFT) + SYSTEM TIME & CONTROLS (RIGHT) */}
@@ -390,57 +423,74 @@ export const HighlightSignalTicker: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center space-x-1.5">
-            {/* System Time in IST */}
-            <div className="flex items-center space-x-1 font-mono text-[10px] text-accent-cyan bg-terminal-card px-2 py-0.5 rounded-lg border border-terminal-border shadow-sm">
-              <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
-              <span className="font-bold">{istTimeString}</span>
-            </div>
-
-            {/* Play / Pause Toggle */}
+          <div className="flex items-center space-x-1">
+            {/* Quick 7s Navigation */}
+            <button
+              type="button"
+              onClick={handlePrevTip}
+              className="p-1 rounded bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+              title="Previous trade tip"
+            >
+              <ChevronLeft className="w-3 h-3" />
+            </button>
             <button
               type="button"
               onClick={() => setIsPaused(!isPaused)}
-              className="p-1 rounded-lg bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-              title={isPaused ? "Resume ticker" : "Pause ticker"}
+              className="p-1 rounded bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+              title={isPaused ? "Resume 7s rotation" : "Pause 7s rotation"}
             >
               {isPaused ? <Play className="w-3 h-3 text-bull" /> : <Pause className="w-3 h-3" />}
             </button>
+            <button
+              type="button"
+              onClick={handleNextTip}
+              className="p-1 rounded bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+              title="Next trade tip"
+            >
+              <ChevronRight className="w-3 h-3" />
+            </button>
+
+            {/* System Time in IST */}
+            <div className="flex items-center space-x-1 font-mono text-[9px] text-accent-cyan bg-terminal-card px-1.5 py-0.5 rounded border border-terminal-border">
+              <Clock className="w-2.5 h-2.5 text-accent-cyan shrink-0" />
+              <span className="font-bold">{istTimeString}</span>
+            </div>
           </div>
         </div>
 
-        {/* LINE 2: CONTINUOUS SCROLLING TICKER (FREEZES ON MOUSEOVER / TOUCH) */}
-        <div 
-          className="overflow-hidden whitespace-nowrap w-full relative flex items-center py-0.5 border-t border-terminal-border/50 active:cursor-grabbing"
-          onTouchStart={() => setIsHovered(true)}
-          onTouchEnd={() => setIsHovered(false)}
-          onTouchCancel={() => setIsHovered(false)}
-        >
-          <div 
-            className="flex items-center whitespace-nowrap will-change-transform py-0.5"
-            style={{
-              animationName: 'marqueeTicker',
-              animationDuration: `${speedSeconds}s`,
-              animationTimingFunction: 'linear',
-              animationIterationCount: 'infinite',
-              animationPlayState: isAnimationPaused ? 'paused' : 'running',
-              width: 'max-content'
-            }}
-          >
-            <div className="flex items-center space-x-2.5 shrink-0 pr-2.5">
-              {activeSetups.map((item, idx) => renderSetupItem(item, `mob-orig-${idx}`))}
-            </div>
-            <div className="flex items-center space-x-2.5 shrink-0 pr-2.5" aria-hidden="true">
-              {activeSetups.map((item, idx) => renderSetupItem(item, `mob-dup-${idx}`))}
-            </div>
+        {/* LINE 2: SINGLE FLASHING TRADE TIP (7 SECONDS PER TIP, ONE AFTER ONE) */}
+        <div className="w-full flex items-center justify-between gap-1.5 py-0.5 border-t border-terminal-border/50">
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+              <Zap className="w-2.5 h-2.5 text-amber-400 animate-pulse" />
+              <span>7s FLASH</span>
+            </span>
+            <span className="text-[8.5px] font-mono text-slate-400">
+              {safeIndex + 1}/{activeSetups.length}
+            </span>
+            <span className="px-1 py-0.2 rounded text-[8px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              {secondsLeft}s
+            </span>
           </div>
+
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center">
+            {currentSetup && renderSetupItem(currentSetup, `mob-single-${safeIndex}`)}
+          </div>
+        </div>
+
+        {/* Mobile 7-Second Countdown Draining Progress Bar */}
+        <div className="w-full h-0.5 bg-terminal-border/40 overflow-hidden rounded-full">
+          <div 
+            className="h-full bg-gradient-to-r from-accent-cyan via-amber-400 to-emerald-400 transition-all duration-1000 ease-linear"
+            style={{ width: `${(secondsLeft / 7) * 100}%` }}
+          />
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP LAYOUT (>= sm): INLINE SINGLE ROW WITH FAST SCROLLING TICKER      */}
+      {/* DESKTOP LAYOUT (>= sm): INLINE SINGLE 7-SECOND FLASHING TRADE TIP         */}
       {/* ========================================================================= */}
-      <div className="hidden sm:flex items-center py-2 px-3 relative min-h-[48px]">
+      <div className="hidden sm:flex items-center py-2 px-3 relative min-h-[48px] justify-between">
         {/* Left Sticky Label */}
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
           <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
@@ -456,25 +506,48 @@ export const HighlightSignalTicker: React.FC = () => {
           </span>
         </div>
 
-        {/* Continuous Marquee Container */}
-        <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center py-1">
-          <div 
-            className="flex items-center whitespace-nowrap will-change-transform py-0.5"
-            style={{
-              animationName: 'marqueeTicker',
-              animationDuration: `${speedSeconds}s`,
-              animationTimingFunction: 'linear',
-              animationIterationCount: 'infinite',
-              animationPlayState: isAnimationPaused ? 'paused' : 'running',
-              width: 'max-content'
-            }}
+        {/* Center: EXACTLY ONE TRADE TIP SHOWN AT A TIME FOR 7 SECONDS */}
+        <div className="flex-1 flex items-center justify-center space-x-3 px-2 min-w-0">
+          {/* Flash Indicator Pill */}
+          <div className="flex items-center space-x-1.5 bg-amber-500/15 border border-amber-500/35 px-2.5 py-1 rounded-lg shrink-0">
+            <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
+            <span className="text-[10px] font-mono font-black uppercase text-amber-300 tracking-wider">
+              7s Flash Tip
+            </span>
+            <span className="text-[10px] font-mono font-bold text-slate-300 bg-slate-900/60 px-1.5 py-0.2 rounded border border-slate-700">
+              {safeIndex + 1} of {activeSetups.length}
+            </span>
+          </div>
+
+          {/* Quick Prev Tip Button */}
+          <button
+            type="button"
+            onClick={handlePrevTip}
+            className="p-1 rounded-lg bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text hover:border-terminal-muted transition cursor-pointer shrink-0"
+            title="Show previous trade tip"
           >
-            <div className="flex items-center space-x-3 shrink-0 pr-3">
-              {activeSetups.map((item, idx) => renderSetupItem(item, `orig-${idx}`))}
-            </div>
-            <div className="flex items-center space-x-3 shrink-0 pr-3" aria-hidden="true">
-              {activeSetups.map((item, idx) => renderSetupItem(item, `dup-${idx}`))}
-            </div>
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          {/* The Single Active Trade Tip Card */}
+          <div className="transition-all duration-300 ease-in-out shrink-0">
+            {currentSetup && renderSetupItem(currentSetup, `desktop-single-${safeIndex}`)}
+          </div>
+
+          {/* Quick Next Tip Button */}
+          <button
+            type="button"
+            onClick={handleNextTip}
+            className="p-1 rounded-lg bg-terminal-card border border-terminal-border text-terminal-muted hover:text-terminal-text hover:border-terminal-muted transition cursor-pointer shrink-0"
+            title="Show next trade tip"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* 7-Second Countdown Timer Badge */}
+          <div className="flex items-center space-x-1 font-mono text-[10px] text-sky-300 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded-md shrink-0" title="Auto-advancing to next tip in 7 seconds">
+            <Timer className="w-3 h-3 text-sky-400 animate-pulse" />
+            <span>Next in {secondsLeft}s</span>
           </div>
         </div>
 
@@ -490,11 +563,26 @@ export const HighlightSignalTicker: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
-            className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-            title={isPaused ? "Resume ticker" : "Pause ticker"}
+            className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer flex items-center gap-1 text-[11px] font-mono"
+            title={isPaused ? "Resume 7-second auto flash" : "Pause on this trade tip"}
           >
-            {isPaused ? <Play className="w-3.5 h-3.5 text-bull" /> : <Pause className="w-3.5 h-3.5" />}
+            {isPaused ? (
+              <>
+                <Play className="w-3.5 h-3.5 text-bull" />
+                <span className="text-bull text-[10px] font-bold">PAUSED</span>
+              </>
+            ) : (
+              <Pause className="w-3.5 h-3.5" />
+            )}
           </button>
+        </div>
+
+        {/* Full-width 7-Second Draining Progress Bar along Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-border/30 overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-accent-cyan via-amber-400 to-emerald-400 transition-all duration-1000 ease-linear"
+            style={{ width: `${(secondsLeft / 7) * 100}%` }}
+          />
         </div>
       </div>
     </div>
