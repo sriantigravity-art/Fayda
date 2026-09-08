@@ -39,7 +39,8 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
   const [strikeOffset, setStrikeOffset] = useState<number>(0);
 
   // Auto-scroll controls: auto cycles through -3 to +3, pauses on mouseover, resumes on mouseout
-  const [isAutoScrollActive, setIsAutoScrollActive] = useState<boolean>(true);
+  // Defaulted to false so radar slider does not constantly slide automatically
+  const [isAutoScrollActive, setIsAutoScrollActive] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
 
   // Tick animation triggers for live changing values
@@ -167,6 +168,19 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
   // Selected strike node based on strikeOffset (-3 to +3)
   const currentStrikeItem = strikeWindow.find(s => s.offset === strikeOffset) || strikeWindow[3];
   const strikeData = currentStrikeItem.data;
+
+  // Broadcast radar strike selection so TopTradeRecommendationsDeck dynamically synchronizes tips & counts
+  useEffect(() => {
+    if (currentStrikeItem?.strikePrice) {
+      window.dispatchEvent(new CustomEvent('radar_strike_selected', {
+        detail: {
+          strikePrice: currentStrikeItem.strikePrice,
+          offset: strikeOffset,
+          selectedIndex
+        }
+      }));
+    }
+  }, [currentStrikeItem?.strikePrice, strikeOffset, selectedIndex]);
 
   // Fallback technical indicators if server engine is syncing
   const ti: TechnicalIndicatorsData = technicalIndicators || {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
@@ -28,7 +28,8 @@ import {
   X, 
   ChevronRight, 
   Flame,
-  FileSpreadsheet
+  FileSpreadsheet,
+  List
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
@@ -79,7 +80,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
-  const [viewMode, setViewMode] = useState<'BUTTONS' | 'TABLE'>('BUTTONS');
+  const [viewMode, setViewMode] = useState<'LIST' | 'BUTTONS' | 'TABLE'>('LIST');
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [expandedConfluenceId, setExpandedConfluenceId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -91,6 +92,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   });
   const [isBasketModalOpen, setIsBasketModalOpen] = useState<boolean>(false);
   const [activeBasketItem, setActiveBasketItem] = useState<BrokerBasketItem | null>(null);
+  const [radarStrikePrice, setRadarStrikePrice] = useState<number | null>(null);
+
+  // Synchronize with Tactical Strike Slider Radar when user slides/selects any strike
+  useEffect(() => {
+    const handleRadarStrike = (e: Event) => {
+      const customEvent = e as CustomEvent<{ strikePrice: number; offset: number; selectedIndex: string }>;
+      if (customEvent.detail?.strikePrice) {
+        setRadarStrikePrice(customEvent.detail.strikePrice);
+      }
+    };
+    window.addEventListener('radar_strike_selected', handleRadarStrike);
+    return () => window.removeEventListener('radar_strike_selected', handleRadarStrike);
+  }, []);
 
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
   const lotSize = cfg?.lot || currentIndexState?.lotSize || 50;
@@ -487,30 +501,35 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       });
     }
 
-    // Defensive fallback: If list has no BUYERS or no SELLERS, generate actionable setups from current strikes
-    const hasBuyer = list.some(i => i.role === 'BUYER' || i.category === 'BUYERS');
-    const hasSeller = list.some(i => i.role === 'SELLER' || i.category === 'SELLERS');
+    // 10. COMPREHENSIVE MULTI-STRIKE OPTION BUYER TIPS (ATM, ITM-1, OTM+1, & TACTICAL RADAR SELECTION)
     const strikes = currentIndexState.strikes || [];
     const spot = currentIndexState.spotPrice || 0;
+    const step = currentIndexState.strikeStep || (strikes.length > 1 ? Math.abs(strikes[1].strikePrice - strikes[0].strikePrice) : 50);
+    const atmStrike = currentIndexState.atmStrike || (strikes.length > 0 ? strikes.reduce((prev, curr) => 
+      Math.abs(curr.strikePrice - spot) < Math.abs(prev.strikePrice - spot) ? curr : prev, strikes[0]).strikePrice : spot);
 
-    if (!hasBuyer && strikes.length > 0 && spot > 0) {
-      const atmStrike = strikes.reduce((prev, curr) => 
-        Math.abs(curr.strikePrice - spot) < Math.abs(prev.strikePrice - spot) ? curr : prev, strikes[0]);
-      if (atmStrike) {
-        const callPrice = Math.max(atmStrike.callLtp || 0, 45);
-        const putPrice = Math.max(atmStrike.putLtp || 0, 45);
+    if (strikes.length > 0 && spot > 0) {
+      // Find strike objects around ATM
+      const atmObj = strikes.find(s => s.strikePrice === atmStrike);
+      const itm1Obj = strikes.find(s => s.strikePrice === atmStrike - step);
+      const otm1Obj = strikes.find(s => s.strikePrice === atmStrike + step);
+      const radarObj = radarStrikePrice ? strikes.find(s => s.strikePrice === radarStrikePrice) : null;
+
+      // 10a. ATM Call Setup (if not already added via pkg)
+      if (atmObj) {
+        const callPrice = Math.max(atmObj.callLtp || 0, 45);
         addUniqueItem({
-          id: `fallback-buyer-ce-${atmStrike.strikePrice}`,
+          id: `buyer-atm-ce-${atmObj.strikePrice}`,
           category: 'BUYERS',
           categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${atmStrike.strikePrice} CE`,
-          strikePrice: atmStrike.strikePrice,
+          contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
+          strikePrice: atmObj.strikePrice,
           optionType: 'CE',
           action: 'BUY_CALL',
-          actionBadge: 'BUY CALL',
+          actionBadge: 'BUY CALL (ATM)',
           role: 'BUYER',
           executionType: 'NET_DEBIT',
-          strategyTag: 'Bullish Momentum Breakout',
+          strategyTag: 'ATM High-Alpha Momentum Breakout & Aggressive Put Writing',
           entryTimeFormatted: 'Live Intraday',
           entryRange: `₹${(callPrice * 0.98).toFixed(1)} - ₹${callPrice.toFixed(1)}`,
           entryPrice: callPrice,
@@ -522,21 +541,24 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           stoplossPrice: +(callPrice * 0.78).toFixed(1),
           stoplossPct: 22,
           riskReward: '1:2.4',
-          confluenceScore: 86,
+          confluenceScore: 89,
           status: 'ACTIVE'
         });
+
+        // 10b. ATM Put Setup (if not already added via pkg)
+        const putPrice = Math.max(atmObj.putLtp || 0, 45);
         addUniqueItem({
-          id: `fallback-buyer-pe-${atmStrike.strikePrice}`,
+          id: `buyer-atm-pe-${atmObj.strikePrice}`,
           category: 'BUYERS',
           categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${atmStrike.strikePrice} PE`,
-          strikePrice: atmStrike.strikePrice,
+          contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,
+          strikePrice: atmObj.strikePrice,
           optionType: 'PE',
           action: 'BUY_PUT',
-          actionBadge: 'BUY PUT',
+          actionBadge: 'BUY PUT (ATM)',
           role: 'BUYER',
           executionType: 'NET_DEBIT',
-          strategyTag: 'Bearish Pullback Reversal',
+          strategyTag: 'ATM Intraday Breakdown Scalp & Call Resistance Wall',
           entryTimeFormatted: 'Live Intraday',
           entryRange: `₹${(putPrice * 0.98).toFixed(1)} - ₹${putPrice.toFixed(1)}`,
           entryPrice: putPrice,
@@ -548,11 +570,197 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           stoplossPrice: +(putPrice * 0.78).toFixed(1),
           stoplossPct: 22,
           riskReward: '1:2.4',
-          confluenceScore: 84,
+          confluenceScore: 88,
+          status: 'ACTIVE'
+        });
+      }
+
+      // 10c. ITM-1 Call (Conservative Trend Follower - Delta ~0.65, Low Theta)
+      if (itm1Obj) {
+        const p = Math.max(itm1Obj.callLtp || 0, 75);
+        addUniqueItem({
+          id: `buyer-itm1-ce-${itm1Obj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} CE`,
+          strikePrice: itm1Obj.strikePrice,
+          optionType: 'CE',
+          action: 'BUY_CALL',
+          actionBadge: 'BUY CALL (ITM)',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: 'ITM Conservative Trend Follower (Delta ~0.65, Low Theta)',
+          entryTimeFormatted: 'Session Trend',
+          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryPrice: p,
+          currentLtp: p,
+          target1Price: +(p * 1.28).toFixed(1),
+          target1Pct: 28,
+          target2Price: +(p * 1.60).toFixed(1),
+          target2Pct: 60,
+          stoplossPrice: +(p * 0.82).toFixed(1),
+          stoplossPct: 18,
+          riskReward: '1:2.6',
+          confluenceScore: 91,
+          status: 'ACTIVE'
+        });
+      }
+
+      // 10d. OTM-1 Call (Resistance Breakout Squeeze - High Velocity Gamma)
+      if (otm1Obj) {
+        const p = Math.max(otm1Obj.callLtp || 0, 35);
+        addUniqueItem({
+          id: `buyer-otm1-ce-${otm1Obj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} CE`,
+          strikePrice: otm1Obj.strikePrice,
+          optionType: 'CE',
+          action: 'BUY_CALL',
+          actionBadge: 'BUY CALL (OTM)',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: 'Resistance Breakout Squeeze (High Velocity Gamma)',
+          entryTimeFormatted: 'Breakout Slot',
+          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryPrice: p,
+          currentLtp: p,
+          target1Price: +(p * 1.35).toFixed(1),
+          target1Pct: 35,
+          target2Price: +(p * 1.75).toFixed(1),
+          target2Pct: 75,
+          stoplossPrice: +(p * 0.75).toFixed(1),
+          stoplossPct: 25,
+          riskReward: '1:2.8',
+          confluenceScore: 87,
+          status: 'ACTIVE'
+        });
+      }
+
+      // 10e. ITM-1 Put (Institutional Breakdown Runner - Delta ~0.65, Cushion)
+      if (otm1Obj) { // For Put, strike > spot is ITM
+        const p = Math.max(otm1Obj.putLtp || 0, 75);
+        addUniqueItem({
+          id: `buyer-itm1-pe-${otm1Obj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} PE`,
+          strikePrice: otm1Obj.strikePrice,
+          optionType: 'PE',
+          action: 'BUY_PUT',
+          actionBadge: 'BUY PUT (ITM)',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: 'ITM Institutional Breakdown Runner (Delta ~0.65, Cushion)',
+          entryTimeFormatted: 'Session Trend',
+          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryPrice: p,
+          currentLtp: p,
+          target1Price: +(p * 1.28).toFixed(1),
+          target1Pct: 28,
+          target2Price: +(p * 1.60).toFixed(1),
+          target2Pct: 60,
+          stoplossPrice: +(p * 0.82).toFixed(1),
+          stoplossPct: 18,
+          riskReward: '1:2.6',
+          confluenceScore: 90,
+          status: 'ACTIVE'
+        });
+      }
+
+      // 10f. OTM-1 Put (Support Floor Collapse Scalp - Momentum Acceleration)
+      if (itm1Obj) { // For Put, strike < spot is OTM
+        const p = Math.max(itm1Obj.putLtp || 0, 35);
+        addUniqueItem({
+          id: `buyer-otm1-pe-${itm1Obj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} PE`,
+          strikePrice: itm1Obj.strikePrice,
+          optionType: 'PE',
+          action: 'BUY_PUT',
+          actionBadge: 'BUY PUT (OTM)',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: 'Support Floor Collapse Scalp (Aggressive Put Flow)',
+          entryTimeFormatted: 'Breakdown Slot',
+          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryPrice: p,
+          currentLtp: p,
+          target1Price: +(p * 1.35).toFixed(1),
+          target1Pct: 35,
+          target2Price: +(p * 1.75).toFixed(1),
+          target2Pct: 75,
+          stoplossPrice: +(p * 0.75).toFixed(1),
+          stoplossPct: 25,
+          riskReward: '1:2.8',
+          confluenceScore: 86,
+          status: 'ACTIVE'
+        });
+      }
+
+      // 10g. Tactical Radar-Selected Strike Tips (Synchronized when user clicks or slides in Tactical Radar)
+      if (radarObj && radarObj.strikePrice !== atmStrike && radarObj.strikePrice !== itm1Obj?.strikePrice && radarObj.strikePrice !== otm1Obj?.strikePrice) {
+        const pCall = Math.max(radarObj.callLtp || 0, 25);
+        const pPut = Math.max(radarObj.putLtp || 0, 25);
+
+        addUniqueItem({
+          id: `radar-buyer-ce-${radarObj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${radarObj.strikePrice} CE`,
+          strikePrice: radarObj.strikePrice,
+          optionType: 'CE',
+          action: 'BUY_CALL',
+          actionBadge: 'RADAR CE',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} CE Momentum Tip)`,
+          entryTimeFormatted: 'Radar Selected',
+          entryRange: `₹${(pCall * 0.98).toFixed(1)} - ₹${pCall.toFixed(1)}`,
+          entryPrice: pCall,
+          currentLtp: pCall,
+          target1Price: +(pCall * 1.30).toFixed(1),
+          target1Pct: 30,
+          target2Price: +(pCall * 1.65).toFixed(1),
+          target2Pct: 65,
+          stoplossPrice: +(pCall * 0.78).toFixed(1),
+          stoplossPct: 22,
+          riskReward: '1:2.5',
+          confluenceScore: 89,
+          status: 'ACTIVE'
+        });
+
+        addUniqueItem({
+          id: `radar-buyer-pe-${radarObj.strikePrice}`,
+          category: 'BUYERS',
+          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+          contractSymbol: `${selectedIndex} ${radarObj.strikePrice} PE`,
+          strikePrice: radarObj.strikePrice,
+          optionType: 'PE',
+          action: 'BUY_PUT',
+          actionBadge: 'RADAR PE',
+          role: 'BUYER',
+          executionType: 'NET_DEBIT',
+          strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} PE Reversal Tip)`,
+          entryTimeFormatted: 'Radar Selected',
+          entryRange: `₹${(pPut * 0.98).toFixed(1)} - ₹${pPut.toFixed(1)}`,
+          entryPrice: pPut,
+          currentLtp: pPut,
+          target1Price: +(pPut * 1.30).toFixed(1),
+          target1Pct: 30,
+          target2Price: +(pPut * 1.65).toFixed(1),
+          target2Pct: 65,
+          stoplossPrice: +(pPut * 0.78).toFixed(1),
+          stoplossPct: 22,
+          riskReward: '1:2.5',
+          confluenceScore: 88,
           status: 'ACTIVE'
         });
       }
     }
+
+    const hasSeller = list.some(i => i.role === 'SELLER' || i.category === 'SELLERS');
 
     if (!hasSeller && strikes.length > 0 && spot > 0) {
       const step = strikes.length > 1 ? Math.abs(strikes[1].strikePrice - strikes[0].strikePrice) : 50;
@@ -640,7 +848,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
 
     return deduplicatedList;
-  }, [currentIndexState, selectedIndex, lotSize]);
+  }, [currentIndexState, selectedIndex, lotSize, radarStrikePrice]);
 
   // Filtered items based on selected tab
   const filteredItems = useMemo(() => {
@@ -874,6 +1082,335 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     setExpandedConfluenceId(prev => prev === id ? null : id);
   };
 
+  // Reusable Emergent Details Panel for both LIST and BUTTONS views
+  const renderEmergentDetailsPanel = () => {
+    if (!selectedItem) return null;
+
+    const isCall = selectedItem.optionType === 'CE' || selectedItem.action === 'BUY_CALL';
+    const isPut = selectedItem.optionType === 'PE' || selectedItem.action === 'BUY_PUT';
+    const isSeller = selectedItem.role === 'SELLER' || selectedItem.optionType === 'SPREAD';
+    const isGamma = selectedItem.category === 'GAMMA';
+
+    return (
+      <div id="emergent-details-panel" className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300 my-3">
+        {/* Emergent Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white">
+                  {selectedItem.contractSymbol}
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
+                  isSeller
+                    ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                    : isCall
+                    ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                    : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                }`}>
+                  {selectedItem.actionBadge} ({isSeller ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>{selectedItem.status}</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5">
+                {selectedItem.strategyTag}
+              </p>
+            </div>
+          </div>
+
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={() => setSelectedItemId(null)}
+            className="self-end sm:self-center p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            title="Close emergent details"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Emergent 4-Card Analytical Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
+          {/* 1. Entry & Live Price */}
+          <div className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-bold block mb-1">
+              Entry & Live Tracking
+            </span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-mono text-slate-600 dark:text-slate-300">
+                Entry: <strong className="text-slate-900 dark:text-white font-bold">{selectedItem.entryRange}</strong>
+              </span>
+              <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                LTP: <strong className="text-slate-900 dark:text-white">₹{selectedItem.currentLtp.toFixed(1)}</strong>
+              </span>
+            </div>
+            <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+              <span className="text-slate-500 dark:text-slate-400">P&L / Lot:</span>
+              <span className={`font-black ${
+                (selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                {(selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? '+' : ''}
+                ₹{Math.round((selectedItem.currentLtp - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Profit Targets */}
+          <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60">
+            <span className="text-[10px] font-mono text-emerald-800 dark:text-emerald-400 uppercase font-bold block mb-1">
+              Profit Targets
+            </span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
+                T1: ₹{selectedItem.target1Price.toFixed(1)} (+{selectedItem.target1Pct}%)
+              </span>
+              {selectedItem.target2Price && (
+                <span className="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                  T2: ₹{selectedItem.target2Price.toFixed(1)} (+{selectedItem.target2Pct}%)
+                </span>
+              )}
+            </div>
+            <div className="mt-2 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-between text-[11px] font-mono">
+              <span className="text-emerald-800 dark:text-emerald-400 font-semibold">T1 Profit / Lot:</span>
+              <span className="font-black text-emerald-700 dark:text-emerald-400">
+                +₹{Math.round((selectedItem.target1Price - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          {/* 3. Stop Loss & Risk Management */}
+          <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/60">
+            <span className="text-[10px] font-mono text-rose-800 dark:text-rose-400 uppercase font-bold block mb-1">
+              Capital Protection & SL
+            </span>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400">
+                SL: ₹{selectedItem.stoplossPrice.toFixed(1)} (-{selectedItem.stoplossPct}%)
+              </span>
+              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                R:R: {selectedItem.riskReward}
+              </span>
+            </div>
+            <div className="mt-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-800/60 flex items-center justify-between text-[11px] font-mono">
+              <span className="text-rose-800 dark:text-rose-400 font-semibold">Max Risk / Lot:</span>
+              <span className="font-black text-rose-700 dark:text-rose-400">
+                -₹{Math.round((selectedItem.entryPrice - selectedItem.stoplossPrice) * lotSize).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          {/* 4. Execution Role & Edge */}
+          <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
+            <span className="text-[10px] font-mono text-amber-800 dark:text-accent-gold uppercase font-bold block mb-1">
+              {isSeller ? 'Option Seller Profile' : 'Confluence Edge'}
+            </span>
+            {isSeller ? (
+              <div>
+                <div className="flex items-baseline justify-between text-xs font-mono">
+                  <span className="text-purple-700 dark:text-purple-300 font-bold">
+                    POP: {selectedItem.probabilityOfProfitPct || 78}%
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Margin: ₹{Math.round((selectedItem.marginRequiredRupees || 48000) / 1000)}k
+                  </span>
+                </div>
+                <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-amber-800 dark:text-accent-gold font-semibold">Max Profit:</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400">
+                    ₹{(selectedItem.maxProfitRupees || Math.round(selectedItem.entryPrice * lotSize)).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-baseline justify-between text-xs font-mono">
+                  <span className="text-amber-700 dark:text-accent-gold font-bold">
+                    Score: {selectedItem.confluenceScore}%
+                  </span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    Top Confluence
+                  </span>
+                </div>
+                <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-amber-800 dark:text-accent-gold font-semibold">Lot Size:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {lotSize} shares / lot
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Dynamic Trade Lifecycle & Trailing SL Decision Engine */}
+        <TradeLifecycleAdvisor
+          contractSymbol={selectedItem.contractSymbol}
+          entryPrice={selectedItem.entryPrice}
+          currentLtp={selectedItem.currentLtp}
+          target1Price={selectedItem.target1Price}
+          target1Pct={selectedItem.target1Pct}
+          target2Price={selectedItem.target2Price}
+          target2Pct={selectedItem.target2Pct}
+          stoplossPrice={selectedItem.stoplossPrice}
+          stoplossPct={selectedItem.stoplossPct}
+          role={selectedItem.role}
+          executionType={selectedItem.executionType}
+          matchingSurge={getMatchingSurge(selectedItem)}
+        />
+
+        {/* Sensibull Payoff Simulator, Opstra Margin Optimizer, & Quantsapp Radar */}
+        <TradePayoffSimulator
+          contractSymbol={selectedItem.contractSymbol}
+          entryPrice={selectedItem.entryPrice}
+          currentLtp={selectedItem.currentLtp}
+          target1Price={selectedItem.target1Price}
+          target1Pct={selectedItem.target1Pct}
+          target2Price={selectedItem.target2Price}
+          target2Pct={selectedItem.target2Pct}
+          stoplossPrice={selectedItem.stoplossPrice}
+          stoplossPct={selectedItem.stoplossPct}
+          lotSize={lotSize}
+          role={selectedItem.role}
+          executionType={selectedItem.executionType}
+          optionType={selectedItem.optionType}
+          strikePrice={selectedItem.strikePrice}
+          spotPrice={currentIndexState?.spotPrice}
+          marginRequiredRupees={selectedItem.marginRequiredRupees}
+          maxProfitRupees={selectedItem.maxProfitRupees}
+          maxLossRupees={selectedItem.maxLossRupees}
+          probabilityOfProfitPct={selectedItem.probabilityOfProfitPct}
+          legsSummary={selectedItem.legsSummary}
+          confluenceScore={selectedItem.confluenceScore}
+          strategyTag={selectedItem.strategyTag}
+          matchingSurge={getMatchingSurge(selectedItem)}
+          onOpenSurge={() => handleOpenSurgeModal(selectedItem)}
+        />
+
+        {/* Rationale & Action Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="text-xs font-mono text-slate-600 dark:text-slate-400 flex items-center gap-2">
+            <span className="font-bold text-amber-700 dark:text-accent-gold">Strategy Thesis:</span>
+            <span className="truncate max-w-md">{selectedItem.strategyTag}</span>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Confluence Breakdown Toggle */}
+            <button
+              type="button"
+              onClick={(e) => handleToggleConfluence(selectedItem.id, e)}
+              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Target className="w-3.5 h-3.5 text-amber-500" />
+              <span>Confluence Checklist</span>
+              {expandedConfluenceId === selectedItem.id ? (
+                <ChevronUp className="w-3 h-3 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              )}
+            </button>
+
+            {/* Copy Setup */}
+            <button
+              type="button"
+              onClick={(e) => handleCopySetup(selectedItem, e)}
+              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              {copiedId === selectedItem.id ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Signal</span>
+                </>
+              )}
+            </button>
+
+            {/* Calculator */}
+            <button
+              type="button"
+              onClick={(e) => handleOpenCalc(selectedItem, e)}
+              className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-300 dark:border-sky-800/80 text-sky-800 dark:text-sky-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Calc Risk</span>
+            </button>
+
+            {/* Multi-Broker Basket Payload Generator */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveBasketItem({
+                  contractSymbol: selectedItem.contractSymbol,
+                  strikePrice: selectedItem.strikePrice,
+                  optionType: selectedItem.optionType,
+                  action: selectedItem.action,
+                  lotSize,
+                  lots: 1,
+                  entryPrice: selectedItem.entryPrice,
+                  stoplossPrice: selectedItem.stoplossPrice,
+                  target1Price: selectedItem.target1Price,
+                  executionType: selectedItem.executionType
+                });
+                setIsBasketModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/80 border border-purple-300 dark:border-purple-800/80 text-purple-800 dark:text-purple-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Generate Multi-Broker Order Basket (Fyers / Dhan / Zerodha)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Broker Basket</span>
+            </button>
+
+            {/* Open Full Modal */}
+            <button
+              type="button"
+              onClick={() => handleOpenTipModal(selectedItem)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+            >
+              <span>Open Full Institutional Blueprint</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable 10-Indicator Confluence Checklist */}
+        {expandedConfluenceId === selectedItem.id && selectedItem.rawTip?.confluenceBreakdown && (
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-950 rounded-xl p-3.5 border border-amber-300/60 dark:border-amber-500/30 shadow-inner">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 mb-2">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-mono font-black text-slate-900 dark:text-white uppercase">
+                    10-Indicator Confluence Checklist for {selectedItem.contractSymbol}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  Mode: <strong className="text-amber-600 dark:text-accent-gold uppercase">{isBeginner ? 'Beginner' : isExpert ? 'Expert' : 'Intermediate'}</strong>
+                </span>
+              </div>
+
+              <ConfluenceChecklist 
+                breakdown={selectedItem.rawTip.confluenceBreakdown} 
+                role={selectedItem.role} 
+                score={selectedItem.confluenceScore} 
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section 
       id="top-trade-recommendations-command-center"
@@ -915,8 +1452,21 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
         {/* Section Tabs, View Switcher & Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle: Quick Focus Buttons vs Tabular Matrix */}
+          {/* View Mode Toggle: Actionable List vs Quick Focus Buttons vs Tabular Matrix */}
           <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
+            <button
+              type="button"
+              onClick={() => setViewMode('LIST')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'LIST'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+              }`}
+              title="View recommendations in comprehensive actionable list format"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>📝 Detailed List</span>
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('BUTTONS')}
@@ -1047,6 +1597,252 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </button>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* ── 0. ACTIONABLE DETAILED LIST VIEW (DEFAULT & COMPREHENSIVE) ─────────── */}
+      {/* ========================================================================= */}
+      {viewMode === 'LIST' && (
+        <div className="p-3.5 sm:p-4 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col space-y-3">
+          {filteredItems.length === 0 ? (
+            <div className="py-8 px-4 text-center text-slate-500 dark:text-slate-400 font-mono bg-white dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <Info className="w-6 h-6 text-amber-500" />
+                <span>No active trade setups currently under this filter. Waiting for high-conviction order flow.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-2.5">
+              {filteredItems.map(item => {
+                const isSelected = selectedItemId === item.id;
+                const isCall = item.optionType === 'CE' || item.action === 'BUY_CALL';
+                const isPut = item.optionType === 'PE' || item.action === 'BUY_PUT';
+                const isSeller = item.role === 'SELLER' || item.optionType === 'SPREAD';
+                const isGamma = item.category === 'GAMMA';
+
+                const strikeLabel = item.strikePrice
+                  ? `${item.strikePrice.toLocaleString('en-IN')} ${item.optionType}`
+                  : item.contractSymbol;
+
+                const ltpDiff = item.currentLtp - item.entryPrice;
+                const isProfitable = isSeller ? (item.entryPrice >= item.currentLtp) : (ltpDiff >= 0);
+                const matchingSurge = getMatchingSurge(item);
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleButtonClick(item)}
+                    className={`group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden p-3.5 sm:p-4 pl-4 sm:pl-5 bg-white dark:bg-slate-900/85 select-none shadow-xs hover:shadow-md ${
+                      isSelected
+                        ? isSeller
+                          ? 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/20 dark:bg-purple-950/25'
+                          : isGamma
+                          ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-cyan-50/20 dark:bg-cyan-950/25'
+                          : isCall
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/25'
+                          : 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/25'
+                        : isSeller
+                        ? 'border-slate-200 dark:border-slate-800 hover:border-purple-400 dark:hover:border-purple-600'
+                        : isGamma
+                        ? 'border-slate-200 dark:border-slate-800 hover:border-cyan-400 dark:hover:border-cyan-600'
+                        : isCall
+                        ? 'border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-600'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-rose-400 dark:hover:border-rose-600'
+                    }`}
+                  >
+                    {/* Left Colored Accent Stripe */}
+                    <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${
+                      isSeller ? 'bg-purple-500' : isGamma ? 'bg-cyan-500' : isCall ? 'bg-emerald-500' : 'bg-rose-500'
+                    }`} />
+
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                      {/* Left: Contract Symbol, Action & Strategy */}
+                      <div className="flex-1 min-w-[260px]">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {isSeller ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                              <span>OPTION SELL</span>
+                            </span>
+                          ) : isGamma ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/80 flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+                              <span>0DTE HERO</span>
+                            </span>
+                          ) : isCall ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/80 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>BUY CALL</span>
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/80 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              <span>BUY PUT</span>
+                            </span>
+                          )}
+
+                          <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
+                            {strikeLabel}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            {item.actionBadge}
+                          </span>
+
+                          {item.id.includes('radar') && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 flex items-center gap-1 animate-pulse">
+                              <Target className="w-3 h-3 text-cyan-500" />
+                              <span>RADAR SYNC</span>
+                            </span>
+                          )}
+
+                          {matchingSurge && (
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenSurgeModal(item);
+                              }}
+                              className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 flex items-center gap-1 animate-pulse cursor-pointer"
+                              title="Live Order Flow Surge Active"
+                            >
+                              <Zap className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
+                              <span>⚡ +{matchingSurge.oiChangePct}% OI/m</span>
+                            </span>
+                          )}
+
+                          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-1 ml-auto sm:ml-0">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>{item.entryTimeFormatted || '11:15 AM'}</span>
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-slate-400 font-sans line-clamp-1">
+                          {item.strategyTag}
+                        </p>
+                      </div>
+
+                      {/* Middle: 4 Key Metrics Blocks (Entry, LTP, Target, SL) */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 min-w-[320px]">
+                        {/* Entry Range */}
+                        <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
+                          <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Entry Zone</span>
+                          <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate block">
+                            {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
+                          </span>
+                        </div>
+
+                        {/* Live LTP & P&L */}
+                        <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
+                          <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Live LTP</span>
+                          <div className="flex items-baseline justify-between">
+                            <span className={`text-xs font-mono font-black ${
+                              isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+                            }`}>
+                              ₹{item.currentLtp.toFixed(1)}
+                            </span>
+                            <span className={`text-[10px] font-mono font-bold ${
+                              isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                            }`}>
+                              {ltpDiff >= 0 ? '+' : ''}{Math.round(ltpDiff * lotSize)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Target 1 */}
+                        <div className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60">
+                          <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 uppercase block">Target 1</span>
+                          <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400 truncate block">
+                            ₹{item.target1Price.toFixed(1)} (+{item.target1Pct}%)
+                          </span>
+                        </div>
+
+                        {/* Stop Loss */}
+                        <div className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-800/60">
+                          <span className="text-[9px] font-mono text-rose-700 dark:text-rose-400 uppercase block">Stop Loss (SL)</span>
+                          <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400 truncate block">
+                            ₹{item.stoplossPrice.toFixed(1)} (-{item.stoplossPct}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Confluence Score & Action Toolbar */}
+                      <div className="flex items-center justify-between lg:justify-end gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-200/60 dark:border-slate-800/60">
+                        {/* Confluence Pill */}
+                        <div className="flex flex-col items-center justify-center px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60">
+                          <span className="text-[9px] font-mono text-amber-700 dark:text-accent-gold uppercase font-bold">Confluence</span>
+                          <span className="text-xs font-mono font-black text-amber-600 dark:text-accent-gold">{item.confluenceScore}%</span>
+                        </div>
+
+                        {/* Copy Setup */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopySetup(item, e)}
+                          className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                          title="Copy trade recommendation to clipboard"
+                        >
+                          {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+
+                        {/* Position Risk Calculator */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenCalc(item, e)}
+                          className="p-2 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 transition cursor-pointer"
+                          title="Open Position & Risk Calculator"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Details Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleButtonClick(item)}
+                          className={`px-2.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          <span>{isSelected ? 'Details ▲' : 'Details ▾'}</span>
+                        </button>
+
+                        {/* Full Blueprint Modal */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenTipModal(item);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black transition flex items-center gap-1 shadow-xs cursor-pointer"
+                          title="Open full strategy blueprint modal"
+                        >
+                          <span>Blueprint</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Emergent Details Panel inside LIST view */}
+          {renderEmergentDetailsPanel()}
+
+          {/* Quick toggle hint */}
+          <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-1">
+            <span>💡 Pro Tip: Click any trade row to view full lifecycle analysis, or click Blueprint for comprehensive trading plan.</span>
+            <button
+              type="button"
+              onClick={() => setViewMode('TABLE')}
+              className="text-amber-700 dark:text-accent-gold hover:underline flex items-center gap-1 font-bold cursor-pointer"
+            >
+              <span>Switch to dense 9-column matrix view</span>
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* ── 1. QUICK FOCUS BUTTONS VIEW (MINIMALIST, ATTRACTIVE, PROFESSIONAL) ─── */}
@@ -1250,324 +2046,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           )}
 
           {/* Emergent Details Panel (Emerges When User Clicks Any Button) */}
-          {selectedItem && (
-            <div id="emergent-details-panel" className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300">
-              {/* Emergent Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white">
-                        {selectedItem.contractSymbol}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
-                        selectedItem.role === 'SELLER'
-                          ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
-                          : selectedItem.action === 'BUY_CALL'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
-                          : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
-                      }`}>
-                        {selectedItem.actionBadge} ({selectedItem.role === 'SELLER' ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span>{selectedItem.status}</span>
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5">
-                      {selectedItem.strategyTag}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedItemId(null)}
-                  className="self-end sm:self-center p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                  title="Close emergent details"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Emergent 4-Card Analytical Metrics Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
-                {/* 1. Entry & Live Price */}
-                <div className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-bold block mb-1">
-                    Entry & Live Tracking
-                  </span>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-mono text-slate-600 dark:text-slate-300">
-                      Entry: <strong className="text-slate-900 dark:text-white font-bold">{selectedItem.entryRange}</strong>
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
-                      LTP: <strong className="text-slate-900 dark:text-white">₹{selectedItem.currentLtp.toFixed(1)}</strong>
-                    </span>
-                  </div>
-                  <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-slate-500 dark:text-slate-400">P&L / Lot:</span>
-                    <span className={`font-black ${
-                      (selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                    }`}>
-                      {(selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? '+' : ''}
-                      ₹{Math.round((selectedItem.currentLtp - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2. Profit Targets */}
-                <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60">
-                  <span className="text-[10px] font-mono text-emerald-800 dark:text-emerald-400 uppercase font-bold block mb-1">
-                    Profit Targets
-                  </span>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
-                      T1: ₹{selectedItem.target1Price.toFixed(1)} (+{selectedItem.target1Pct}%)
-                    </span>
-                    {selectedItem.target2Price && (
-                      <span className="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">
-                        T2: ₹{selectedItem.target2Price.toFixed(1)} (+{selectedItem.target2Pct}%)
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-emerald-800 dark:text-emerald-400 font-semibold">T1 Profit / Lot:</span>
-                    <span className="font-black text-emerald-700 dark:text-emerald-400">
-                      +₹{Math.round((selectedItem.target1Price - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3. Stop Loss & Risk Management */}
-                <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/60">
-                  <span className="text-[10px] font-mono text-rose-800 dark:text-rose-400 uppercase font-bold block mb-1">
-                    Capital Protection & SL
-                  </span>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400">
-                      SL: ₹{selectedItem.stoplossPrice.toFixed(1)} (-{selectedItem.stoplossPct}%)
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                      R:R: {selectedItem.riskReward}
-                    </span>
-                  </div>
-                  <div className="mt-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-800/60 flex items-center justify-between text-[11px] font-mono">
-                    <span className="text-rose-800 dark:text-rose-400 font-semibold">Max Risk / Lot:</span>
-                    <span className="font-black text-rose-700 dark:text-rose-400">
-                      -₹{Math.round((selectedItem.entryPrice - selectedItem.stoplossPrice) * lotSize).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 4. Execution Role & Edge */}
-                <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
-                  <span className="text-[10px] font-mono text-amber-800 dark:text-accent-gold uppercase font-bold block mb-1">
-                    {selectedItem.role === 'SELLER' ? 'Option Seller Profile' : 'Confluence Edge'}
-                  </span>
-                  {selectedItem.role === 'SELLER' ? (
-                    <div>
-                      <div className="flex items-baseline justify-between text-xs font-mono">
-                        <span className="text-purple-700 dark:text-purple-300 font-bold">
-                          POP: {selectedItem.probabilityOfProfitPct || 78}%
-                        </span>
-                        <span className="text-slate-600 dark:text-slate-400">
-                          Margin: ₹{Math.round((selectedItem.marginRequiredRupees || 48000) / 1000)}k
-                        </span>
-                      </div>
-                      <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-amber-800 dark:text-accent-gold font-semibold">Max Profit:</span>
-                        <span className="font-black text-emerald-600 dark:text-emerald-400">
-                          ₹{(selectedItem.maxProfitRupees || Math.round(selectedItem.entryPrice * lotSize)).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-baseline justify-between text-xs font-mono">
-                        <span className="text-amber-700 dark:text-accent-gold font-bold">
-                          Score: {selectedItem.confluenceScore}%
-                        </span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                          Top Confluence
-                        </span>
-                      </div>
-                      <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-amber-800 dark:text-accent-gold font-semibold">Lot Size:</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {lotSize} shares / lot
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic Trade Lifecycle & Trailing SL Decision Engine */}
-              <TradeLifecycleAdvisor
-                contractSymbol={selectedItem.contractSymbol}
-                entryPrice={selectedItem.entryPrice}
-                currentLtp={selectedItem.currentLtp}
-                target1Price={selectedItem.target1Price}
-                target1Pct={selectedItem.target1Pct}
-                target2Price={selectedItem.target2Price}
-                target2Pct={selectedItem.target2Pct}
-                stoplossPrice={selectedItem.stoplossPrice}
-                stoplossPct={selectedItem.stoplossPct}
-                role={selectedItem.role}
-                executionType={selectedItem.executionType}
-                matchingSurge={getMatchingSurge(selectedItem)}
-              />
-
-              {/* Sensibull Payoff Simulator, Opstra Margin Optimizer, & Quantsapp Radar */}
-              <TradePayoffSimulator
-                contractSymbol={selectedItem.contractSymbol}
-                entryPrice={selectedItem.entryPrice}
-                currentLtp={selectedItem.currentLtp}
-                target1Price={selectedItem.target1Price}
-                target1Pct={selectedItem.target1Pct}
-                target2Price={selectedItem.target2Price}
-                target2Pct={selectedItem.target2Pct}
-                stoplossPrice={selectedItem.stoplossPrice}
-                stoplossPct={selectedItem.stoplossPct}
-                lotSize={lotSize}
-                role={selectedItem.role}
-                executionType={selectedItem.executionType}
-                optionType={selectedItem.optionType}
-                strikePrice={selectedItem.strikePrice}
-                spotPrice={currentIndexState?.spotPrice}
-                marginRequiredRupees={selectedItem.marginRequiredRupees}
-                maxProfitRupees={selectedItem.maxProfitRupees}
-                maxLossRupees={selectedItem.maxLossRupees}
-                probabilityOfProfitPct={selectedItem.probabilityOfProfitPct}
-                legsSummary={selectedItem.legsSummary}
-                confluenceScore={selectedItem.confluenceScore}
-                strategyTag={selectedItem.strategyTag}
-                matchingSurge={getMatchingSurge(selectedItem)}
-                onOpenSurge={() => handleOpenSurgeModal(selectedItem)}
-              />
-
-              {/* Rationale & Action Toolbar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="text-xs font-mono text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                  <span className="font-bold text-amber-700 dark:text-accent-gold">Strategy Thesis:</span>
-                  <span className="truncate max-w-md">{selectedItem.strategyTag}</span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Confluence Breakdown Toggle */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleConfluence(selectedItem.id, e)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Target className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Confluence Checklist</span>
-                    {expandedConfluenceId === selectedItem.id ? (
-                      <ChevronUp className="w-3 h-3 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
-                    )}
-                  </button>
-
-                  {/* Copy Setup */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleCopySetup(selectedItem, e)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    {copiedId === selectedItem.id ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Signal</span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Calculator */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleOpenCalc(selectedItem, e)}
-                    className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-300 dark:border-sky-800/80 text-sky-800 dark:text-sky-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Calculator className="w-3.5 h-3.5" />
-                    <span>Calc Risk</span>
-                  </button>
-
-                  {/* Multi-Broker Basket Payload Generator */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveBasketItem({
-                        contractSymbol: selectedItem.contractSymbol,
-                        strikePrice: selectedItem.strikePrice,
-                        optionType: selectedItem.optionType,
-                        action: selectedItem.action,
-                        lotSize,
-                        lots: 1,
-                        entryPrice: selectedItem.entryPrice,
-                        stoplossPrice: selectedItem.stoplossPrice,
-                        target1Price: selectedItem.target1Price,
-                        executionType: selectedItem.executionType
-                      });
-                      setIsBasketModalOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/80 border border-purple-300 dark:border-purple-800/80 text-purple-800 dark:text-purple-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Generate Multi-Broker Order Basket (Fyers / Dhan / Zerodha)"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                    <span>Broker Basket</span>
-                  </button>
-
-                  {/* Open Full Modal */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenTipModal(selectedItem)}
-                    className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
-                  >
-                    <span>Open Full Institutional Blueprint</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Expandable 10-Indicator Confluence Checklist */}
-              {expandedConfluenceId === selectedItem.id && selectedItem.rawTip?.confluenceBreakdown && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <div className="bg-white dark:bg-slate-950 rounded-xl p-3.5 border border-amber-300/60 dark:border-amber-500/30 shadow-inner">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 mb-2">
-                      <div className="flex items-center gap-2">
-                        <Award className="w-4 h-4 text-amber-500" />
-                        <span className="text-xs font-mono font-black text-slate-900 dark:text-white uppercase">
-                          10-Indicator Confluence Checklist for {selectedItem.contractSymbol}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                        Mode: <strong className="text-amber-600 dark:text-accent-gold uppercase">{isBeginner ? 'Beginner' : isExpert ? 'Expert' : 'Intermediate'}</strong>
-                      </span>
-                    </div>
-
-                    <ConfluenceChecklist 
-                      breakdown={selectedItem.rawTip.confluenceBreakdown} 
-                      role={selectedItem.role} 
-                      score={selectedItem.confluenceScore} 
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {renderEmergentDetailsPanel()}
 
           {/* Quick toggle to table */}
           <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-1">
