@@ -9,6 +9,7 @@ import {
   Clock 
 } from 'lucide-react';
 import { formatISTTime } from '../utils/formatTime';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
 export const SquareOffAlertBanner: React.FC = () => {
   const { latestSquareOffAlert, dismissSquareOffAlert } = useMarket();
@@ -49,6 +50,11 @@ export const SquareOffAlertBanner: React.FC = () => {
   }, [alertId]);
 
   if (!latestSquareOffAlert) return null;
+
+  const alertSymbol = latestSquareOffAlert.indexSymbol || latestSquareOffAlert.symbol.split(' ')[0] || '';
+  if (!isMarketOpenForSymbol(alertSymbol)) {
+    return null;
+  }
 
   return (
     <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 max-w-2xl w-[95%] animate-in fade-in slide-in-from-top-4 duration-300 font-mono select-none">

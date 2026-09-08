@@ -1200,10 +1200,15 @@ export class ConfluenceEngine {
           bookedTimeFormatted = timeFormatted;
         }
       } else {
-        status = 'CARRIED_FORWARD';
-        if (!carryForwardTimeFormatted) {
-          carryForwardTime = new Date().toISOString();
-          carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+        const isEligibleToCarry = isSeller || pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT';
+        if (isEligibleToCarry) {
+          status = 'CARRIED_FORWARD';
+          if (!carryForwardTimeFormatted) {
+            carryForwardTime = new Date().toISOString();
+            carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+          }
+        } else {
+          status = 'INTRADAY_CLOSED';
         }
       }
 
@@ -1260,7 +1265,7 @@ export class ConfluenceEngine {
         carriedFromSession: prev.sessionName
       };
 
-      if (updated.status === 'CARRIED_FORWARD' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
+      if (updated.status === 'CARRIED_FORWARD' || updated.status === 'INTRADAY_CLOSED' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
         carriedForwardTrades.push(updated);
       }
     }
@@ -1323,10 +1328,15 @@ export class ConfluenceEngine {
         bookedTimeFormatted = timeFormatted;
       }
     } else if (isPast340Pm || existingTrade?.isCarriedForward) {
-      primStatus = 'CARRIED_FORWARD';
-      if (!carryForwardTimeFormatted) {
-        carryForwardTime = new Date().toISOString();
-        carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+      const isEligibleToCarry = pnlPct >= 15;
+      if (isEligibleToCarry) {
+        primStatus = 'CARRIED_FORWARD';
+        if (!carryForwardTimeFormatted) {
+          carryForwardTime = new Date().toISOString();
+          carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+        }
+      } else {
+        primStatus = 'INTRADAY_CLOSED';
       }
     } else if (pnlPct >= 1.5) {
       actionabilityStatus = 'RUNNING_PROFIT';
@@ -1496,10 +1506,15 @@ export class ConfluenceEngine {
           bookedTimeFormatted = timeFormatted;
         }
       } else if (isPast340Pm || activeCall.isCarriedForward) {
-        status = 'CARRIED_FORWARD';
-        if (!carryForwardTimeFormatted) {
-          carryForwardTime = new Date().toISOString();
-          carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+        const isEligibleToCarry = pnlPct >= 15;
+        if (isEligibleToCarry) {
+          status = 'CARRIED_FORWARD';
+          if (!carryForwardTimeFormatted) {
+            carryForwardTime = new Date().toISOString();
+            carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+          }
+        } else {
+          status = 'INTRADAY_CLOSED';
         }
       }
 
@@ -1676,10 +1691,15 @@ export class ConfluenceEngine {
           bookedTimeFormatted = timeFormatted;
         }
       } else if (isPast340Pm || activePut.isCarriedForward) {
-        status = 'CARRIED_FORWARD';
-        if (!carryForwardTimeFormatted) {
-          carryForwardTime = new Date().toISOString();
-          carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+        const isEligibleToCarry = pnlPct >= 15;
+        if (isEligibleToCarry) {
+          status = 'CARRIED_FORWARD';
+          if (!carryForwardTimeFormatted) {
+            carryForwardTime = new Date().toISOString();
+            carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+          }
+        } else {
+          status = 'INTRADAY_CLOSED';
         }
       }
 

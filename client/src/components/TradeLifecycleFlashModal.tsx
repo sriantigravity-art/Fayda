@@ -21,6 +21,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG, type TipLifecycleFlashEvent } from '../types';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
 export const TradeLifecycleFlashModal: React.FC = () => {
   const { 
@@ -76,10 +77,14 @@ export const TradeLifecycleFlashModal: React.FC = () => {
     };
   }, [flashId]);
 
+  const isMarketOpen = isMarketOpenForSymbol(latestLifecycleFlash?.symbol || '');
+
   // Only show flash tips for the asset selected by user in header dropdown,
-  // AND strictly only show modal box when book profit, exit, trailing stoploss, or book loss
+  // AND strictly only show modal box when book profit, exit, trailing stoploss, or book loss,
+  // AND strictly only when market is open for this symbol (cash market closes at 03:40 PM IST).
   if (
     !latestLifecycleFlash || 
+    !isMarketOpen ||
     (latestLifecycleFlash.symbol && selectedIndex && latestLifecycleFlash.symbol !== selectedIndex) ||
     !['BOOK_HALF_PROFIT', 'BOOK_FULL_PROFIT', 'BOOK_LOSS', 'TIGHTEN_SL'].includes(latestLifecycleFlash.type)
   ) {

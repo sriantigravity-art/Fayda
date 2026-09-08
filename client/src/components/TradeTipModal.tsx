@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { useTerminalMode } from '../context/TerminalModeContext';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
 interface TradeTipModalProps {
   tip: ActiveTradeTipData | null;
@@ -71,9 +72,12 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === tip.symbol);
   const lotSize = tip.lotSize || cfg?.lot || 50;
   const isCommodity = cfg?.category === 'COMMODITIES';
+  const isMarketOpen = isMarketOpenForSymbol(tip.symbol);
   const isBull = tip.action?.includes('CALL') || tip.action?.includes('BULL');
   const isBear = tip.action?.includes('PUT') || tip.action?.includes('BEAR');
-  const isSl = tip.action === 'SQUARE_OFF' || tip.status === 'SL_HIT';
+  const isSlHit = tip.status === 'SL_HIT';
+  const isCarriedForward = tip.status === 'CARRIED_FORWARD' || (tip.isCarriedForward && tip.status !== 'INTRADAY_CLOSED' && tip.status !== 'EXPIRED');
+  const isSl = tip.action === 'SQUARE_OFF' || isSlHit;
   const isSpread = tip.optionType === 'SPREAD' || tip.action?.includes('SPREAD');
 
   const currentIndex = indices[tip.symbol];
@@ -125,7 +129,7 @@ Generated via Fayda Trading Terminal`;
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className={`p-2 rounded-xl border shrink-0 ${
               isSl 
-                ? 'bg-bear/20 border-bear text-bear animate-pulse' 
+                ? (isMarketOpen ? 'bg-bear/20 border-bear text-bear animate-pulse' : 'bg-bear/20 border-bear text-bear') 
                 : isBull 
                 ? 'bg-bull/20 border-bull/40 text-bull' 
                 : 'bg-bear/20 border-bear/40 text-bear'
@@ -199,12 +203,26 @@ Generated via Fayda Trading Terminal`;
 
                 <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider font-mono border shadow-sm ${
                   isSl
-                    ? 'bg-bear/30 text-bear border-bear animate-pulse'
+                    ? (isMarketOpen ? 'bg-bear/30 text-bear border-bear animate-pulse' : 'bg-bear/20 text-bear border-bear/50')
+                    : isCarriedForward
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                     : isBull
                     ? 'bg-bull/20 text-bull border-bull/40 shadow-[0_0_12px_rgba(0,245,155,0.25)]'
                     : 'bg-bear/20 text-bear border-bear/40 shadow-[0_0_12px_rgba(255,59,105,0.25)]'
                 }`}>
-                  {isSl ? '🛑 SQUARE OFF' : (tip.action ? tip.action.replace(/_/g, ' ') : 'BUY')}
+                  {isSlHit
+                    ? (isMarketOpen ? '🛑 SL HIT • BOOK LOSS' : '🛑 SL HIT • LOSS BOOKED')
+                    : tip.action === 'SQUARE_OFF'
+                    ? (isMarketOpen ? '🛑 SQUARE OFF' : '📁 POSITION CLOSED')
+                    : tip.status === 'EXPIRED'
+                    ? '⌛ EXPIRED (SETTLED)'
+                    : tip.status === 'INTRADAY_CLOSED'
+                    ? '📁 INTRADAY CLOSED'
+                    : isCarriedForward
+                    ? '📦 CARRIED FORWARD'
+                    : !isMarketOpen
+                    ? `${tip.action ? tip.action.replace(/_/g, ' ') : 'BUY'} (CLOSED)`
+                    : (tip.action ? tip.action.replace(/_/g, ' ') : 'BUY')}
                 </span>
                 {tip.confluenceScore && (
                   <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
@@ -235,9 +253,14 @@ Generated via Fayda Trading Terminal`;
                     </span>
                   </span>
                 )}
-                {(tip.isCarriedForward || tip.carryForwardTimeFormatted) && (
+                {isCarriedForward && (
                   <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 font-bold">
                     <span>CARRY FORWARD: {tip.carryForwardTimeFormatted || '03:20 PM'}</span>
+                  </span>
+                )}
+                {tip.status === 'INTRADAY_CLOSED' && (
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 font-bold">
+                    <span>EXIT BENCHMARK: 03:25 PM</span>
                   </span>
                 )}
                 {tip.elapsedTimeFormatted && !tip.bookedTimeFormatted && (
@@ -249,25 +272,39 @@ Generated via Fayda Trading Terminal`;
 
               {tip.actionGuidance && (
                 <span className={`px-2.5 py-0.5 rounded-lg font-bold border ${tip.actionClass || 'bg-bull/20 text-bull border-bull/40'}`}>
-                  {tip.actionGuidance}
+                  {!isMarketOpen && (tip.actionGuidance.toLowerCase().includes('square off') || tip.actionGuidance.toLowerCase().includes('liquidate'))
+                    ? 'Session Closed at 03:40 PM IST • Intraday trades completed'
+                    : tip.actionGuidance}
                 </span>
               )}
             </div>
 
-            {/* Carry Forward Suggestion Callout */}
-            {(tip.carryForwardSuggestion || tip.isCarriedForward || tip.carryForwardTimeFormatted) && (
-              <div className="mt-2.5 p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-xs font-mono flex items-start gap-2.5">
-                <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 shrink-0 mt-0.5">
-                  📦
+            {/* Carry Forward Suggestion / Intraday Exit Callout */}
+            {(tip.carryForwardSuggestion || isCarriedForward || tip.status === 'INTRADAY_CLOSED') && (
+              <div className={`mt-2.5 p-3 rounded-xl border text-xs font-mono flex items-start gap-2.5 ${
+                tip.status === 'INTRADAY_CLOSED'
+                  ? 'bg-slate-900/60 border-slate-700/60'
+                  : 'bg-purple-950/40 border-purple-500/40'
+              }`}>
+                <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+                  tip.status === 'INTRADAY_CLOSED'
+                    ? 'bg-slate-800 text-slate-300'
+                    : 'bg-purple-500/20 text-purple-300'
+                }`}>
+                  {tip.status === 'INTRADAY_CLOSED' ? '📁' : '📦'}
                 </div>
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-purple-300 uppercase tracking-wider text-[11px]">
-                      Carry Forward Suggestion ({tip.carryForwardTimeFormatted || '03:20 PM IST'})
+                    <span className={`font-black uppercase tracking-wider text-[11px] ${
+                      tip.status === 'INTRADAY_CLOSED' ? 'text-slate-300' : 'text-purple-300'
+                    }`}>
+                      {tip.status === 'INTRADAY_CLOSED' ? 'Intraday Exit Guideline (03:25 PM IST)' : `Carry Forward Suggestion (${tip.carryForwardTimeFormatted || '03:20 PM IST'})`}
                     </span>
                   </div>
                   <p className="text-slate-300 text-[11px] leading-relaxed">
-                    {tip.carryForwardSuggestion || 'Hold overnight if OTM buffer is > 65%. For intraday long options, book partial profits before 03:25 PM IST to eliminate overnight theta erosion.'}
+                    {tip.carryForwardSuggestion || (tip.status === 'INTRADAY_CLOSED'
+                      ? 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk. Trade closed at session end.'
+                      : 'Hold overnight if OTM buffer is > 65%. For intraday long options, book partial profits before 03:25 PM IST to eliminate overnight theta erosion.')}
                   </p>
                 </div>
               </div>

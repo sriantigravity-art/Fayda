@@ -4,6 +4,7 @@ import { formatISTTime } from '../utils/formatTime';
 import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, DhanConfig, ActiveBroker, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent, TipLifecycleFlashEvent, TipFlashEventType } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
 interface MarketContextType {
   indices: Record<IndexSymbol, MarketIndexState | null>;
@@ -610,6 +611,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               }
 
               // SL: require confirmed -5% drawdown from entry to prevent false triggers from option noise
+              if (!isMarketOpenForSymbol(symbol)) return;
               if (liveLtp > 0 && stoplossNum > 0 && liveLtp <= stoplossNum) {
                 const drawdownPct = ((entryNum - liveLtp) / entryNum) * 100;
                 if (drawdownPct < 5.0) return; // ignore tiny noise oscillations below 5%
@@ -673,6 +675,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               carryForwardTimeFormatted?: string
             ) => {
               if (!contractSymbol || entryVal <= 0) return;
+              if (!isMarketOpenForSymbol(symbol)) return;
 
               const strikeRow = indexState.strikes?.find((s: any) => s.strikePrice === strikePriceVal);
               let liveLtp = entryVal;

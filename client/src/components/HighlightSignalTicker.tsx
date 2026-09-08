@@ -8,6 +8,7 @@ import type { IndexSymbol } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
 export const HighlightSignalTicker: React.FC = () => {
   const { indices, visibleIndices, setSelectedIndex, selectedIndex, openTradeTipModal } = useMarket();
@@ -256,6 +257,7 @@ export const HighlightSignalTicker: React.FC = () => {
   const renderSetupItem = (item: (typeof activeSetups)[0], uniquePrefix: string) => {
     const isSl = item.isStoplossHit;
     const isBull = item.isBull;
+    const isMarketOpen = isMarketOpenForSymbol(item.symbol);
 
     const timing = getSignalTimingData(
       item.rawTimestamp,
@@ -317,7 +319,17 @@ export const HighlightSignalTicker: React.FC = () => {
             : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'}`} />
-          <span>{isSl ? 'SQUARE OFF' : isBull ? 'BUY CALL (CE)' : 'BUY PUT (PE)'}</span>
+          <span>
+            {!isMarketOpen && isSl
+              ? 'SL HIT (CLOSED)'
+              : !isMarketOpen
+              ? (isBull ? 'CALL (CLOSED)' : 'PUT (CLOSED)')
+              : isSl
+              ? 'SQUARE OFF'
+              : isBull
+              ? 'BUY CALL (CE)'
+              : 'BUY PUT (PE)'}
+          </span>
         </span>
 
         {/* Strike Price */}

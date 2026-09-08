@@ -1,3 +1,5 @@
+import { isMarketOpenForSymbol } from './lastClosedData';
+
 export type TradeCategory = 'SCALPING' | 'INTRADAY' | 'SWING' | 'DELIVERY';
 
 export interface DynamicTargetResult {
@@ -218,8 +220,31 @@ export function calculateTargetHorizon(
   let recommendedHolding = 'Intraday (Square off before 03:15 PM)';
   let suitability = 'Intraday Momentum Traders';
   let marketSituation = '';
+  const isOpen = isMarketOpenForSymbol(symbol);
+  if (!isOpen) {
+    return {
+      tradeCategory: 'INTRADAY',
+      categoryBadge: '📁 SESSION CLOSED',
+      categoryTagColor: 'bg-slate-800 text-slate-300 border-slate-700',
+      categoryIcon: '📁',
+      timeHorizonLabel: 'SESSION CLOSED AT 03:40 PM IST',
+      recommendedHolding: 'Market Closed (Trades Completed / Carried Forward)',
+      suitability: 'All Market Participants',
+      marketSituation: `Market closed for ${symbol}. Intraday square-offs concluded at 03:40 PM IST. Displaying session ledger and overnight carry suggestions.`,
+      minMinutes: 0,
+      maxMinutes: 0,
+      requiredSpotMove: 0,
+      estimatedDelta: 0.5,
+      desc: `Market closed at 03:40 PM IST`,
+      color: 'text-slate-400',
+      badge: 'bg-slate-800 text-slate-300 border-slate-700',
+      label: 'SESSION CLOSED',
+      velocityName: 'Off-Market Settlement',
+      velocityBadge: '📁 CLOSED'
+    };
+  }
 
-  const isPowerSurgeHour = totalMinutes >= 15 * 60; // 03:00 PM - 03:40 PM
+  const isPowerSurgeHour = totalMinutes >= 15 * 60 && totalMinutes < 15 * 60 + 40; // 03:00 PM - 03:40 PM
   const isOpeningSurge = totalMinutes <= 9 * 60 + 45; // 09:15 AM - 09:45 AM
   const is0DTE = daysToExpiry <= 1;
   const isHighVelocity = score >= 85;

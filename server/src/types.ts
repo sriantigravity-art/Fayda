@@ -1074,7 +1074,7 @@ export interface UnifiedSmartTip {
   target2Pct: number;
   riskReward: string;
   confluenceScore: number; // 0 - 100
-  status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED';
+  status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED' | 'INTRADAY_CLOSED';
   isCarriedForward?: boolean;
   carriedFromSession?: string;
   bookedTime?: string;
