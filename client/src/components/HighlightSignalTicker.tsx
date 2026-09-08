@@ -313,12 +313,12 @@ export const HighlightSignalTicker: React.FC = () => {
         {/* Option Buy / Option Sell Badge */}
         <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
           isSl
-            ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40'
+            ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40'
             : isBull
-            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-            : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+            ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40'
+            : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/40'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-600 dark:bg-emerald-400 animate-pulse' : 'bg-rose-600 dark:bg-rose-400 animate-pulse'}`} />
           <span>
             {!isMarketOpen && isSl
               ? 'SL HIT (CLOSED)'
@@ -333,36 +333,36 @@ export const HighlightSignalTicker: React.FC = () => {
         </span>
 
         {/* Strike Price */}
-        <span className="font-mono font-black text-xs text-slate-100 group-hover:text-accent-gold transition-colors shrink-0">
+        <span className="font-mono font-black text-xs text-slate-900 dark:text-slate-100 group-hover:text-accent-cyan transition-colors shrink-0">
           {item.strike}
         </span>
 
         {/* Entry */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300 shrink-0">
-          <span className="text-slate-400 text-[9px] uppercase">Entry:</span>
-          <span className="font-bold text-sky-300">{item.entry}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-600 dark:text-slate-300 shrink-0">
+          <span className="text-slate-500 dark:text-slate-400 text-[9px] uppercase font-bold">Entry:</span>
+          <span className="font-bold text-sky-700 dark:text-sky-300">{item.entry}</span>
         </div>
 
         {/* Live LTP */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-100 shrink-0">
-          <span className="text-slate-400 text-[9px] uppercase">LTP:</span>
-          <span className="font-black text-amber-300">₹{(item.ltp || 0).toFixed(1)}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-700 dark:text-slate-200 shrink-0">
+          <span className="text-slate-500 dark:text-slate-400 text-[9px] uppercase font-bold">LTP:</span>
+          <span className="font-black text-amber-800 dark:text-amber-300">₹{(item.ltp || 0).toFixed(1)}</span>
         </div>
 
         {/* Target */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-300 shrink-0">
-          <span className="text-emerald-500 text-[9px] uppercase">Target:</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-800 dark:text-emerald-300 shrink-0">
+          <span className="text-emerald-700 dark:text-emerald-400 text-[9px] uppercase font-bold">Target:</span>
           <span className="font-bold">{item.target}</span>
         </div>
 
         {/* Timing */}
-        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-400 shrink-0">
+        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-500 dark:text-slate-400 shrink-0">
           <Clock className="w-2.5 h-2.5 text-accent-cyan" />
           <span>{timing.givenTimeShort}</span>
         </div>
 
         {/* Cue */}
-        <span className="text-[9px] font-mono font-bold text-accent-gold group-hover:translate-x-0.5 transition-transform flex items-center shrink-0">
+        <span className="text-[9px] font-mono font-bold text-amber-800 dark:text-accent-gold group-hover:translate-x-0.5 transition-transform flex items-center shrink-0">
           Details ↗
         </span>
       </button>
@@ -427,7 +427,7 @@ export const HighlightSignalTicker: React.FC = () => {
             <span className={`text-[8.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0 ${
               isLiveNseMarket 
                 ? 'bg-bull/20 text-bull border border-bull/40' 
-                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
             }`}>
               {isLiveNseMarket ? 'LIVE NSE' : 'MCX LIVE'}
             </span>
@@ -471,14 +471,14 @@ export const HighlightSignalTicker: React.FC = () => {
         {/* LINE 2: SINGLE FLASHING TRADE TIP (7 SECONDS PER TIP, ONE AFTER ONE) */}
         <div className="w-full flex items-center justify-between gap-1.5 py-0.5 border-t border-terminal-border/50">
           <div className="flex items-center gap-1 shrink-0">
-            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-              <Zap className="w-2.5 h-2.5 text-amber-400 animate-pulse" />
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1">
+              <Zap className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 animate-pulse" />
               <span>7s FLASH</span>
             </span>
-            <span className="text-[8.5px] font-mono text-slate-400">
+            <span className="text-[8.5px] font-mono text-slate-600 dark:text-slate-400 font-bold">
               {safeIndex + 1}/{activeSetups.length}
             </span>
-            <span className="px-1 py-0.2 rounded text-[8px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+            <span className="px-1 py-0.2 rounded text-[8px] font-mono font-bold bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/30">
               {secondsLeft}s
             </span>
           </div>
@@ -503,14 +503,14 @@ export const HighlightSignalTicker: React.FC = () => {
       <div className="hidden sm:flex items-center py-2 px-3 relative min-h-[48px] justify-between">
         {/* Left Sticky Label */}
         <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
-          <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-400'} animate-pulse`} />
+          <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-600 dark:text-amber-400'} animate-pulse`} />
           <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
             {isBeginner ? '🧭 MARKET COMPASS' : isIntermediate ? '🧭 FAYDA RADAR' : '🔬 QUANT COMPASS'}
           </span>
           <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
             isLiveNseMarket 
               ? 'bg-bull/20 text-bull border border-bull/40' 
-              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              : 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
           }`}>
             {isLiveNseMarket ? 'LIVE NSE' : 'MCX COMMODITIES LIVE'}
           </span>
@@ -520,11 +520,11 @@ export const HighlightSignalTicker: React.FC = () => {
         <div className="flex-1 flex items-center justify-center space-x-3 px-2 min-w-0">
           {/* Flash Indicator Pill */}
           <div className="flex items-center space-x-1.5 bg-amber-500/15 border border-amber-500/35 px-2.5 py-1 rounded-lg shrink-0">
-            <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
-            <span className="text-[10px] font-mono font-black uppercase text-amber-300 tracking-wider">
+            <Zap className="w-3 h-3 text-amber-600 dark:text-amber-400 animate-pulse" />
+            <span className="text-[10px] font-mono font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider">
               7s Flash Tip
             </span>
-            <span className="text-[10px] font-mono font-bold text-slate-300 bg-slate-900/60 px-1.5 py-0.2 rounded border border-slate-700">
+            <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-900/60 px-1.5 py-0.2 rounded border border-slate-300 dark:border-slate-700">
               {safeIndex + 1} of {activeSetups.length}
             </span>
           </div>
@@ -555,8 +555,8 @@ export const HighlightSignalTicker: React.FC = () => {
           </button>
 
           {/* 7-Second Countdown Timer Badge */}
-          <div className="flex items-center space-x-1 font-mono text-[10px] text-sky-300 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded-md shrink-0" title="Auto-advancing to next tip in 7 seconds">
-            <Timer className="w-3 h-3 text-sky-400 animate-pulse" />
+          <div className="flex items-center space-x-1 font-mono text-[10px] text-sky-700 dark:text-sky-300 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded-md shrink-0" title="Auto-advancing to next tip in 7 seconds">
+            <Timer className="w-3 h-3 text-sky-600 dark:text-sky-400 animate-pulse" />
             <span>Next in {secondsLeft}s</span>
           </div>
         </div>
