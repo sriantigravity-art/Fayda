@@ -1096,6 +1096,7 @@ export interface UnifiedSmartTip {
   actionabilityStatus?: 'IN_ENTRY_ZONE' | 'AT_TRIGGER' | 'RUNNING_PROFIT' | 'DIP_OPPORTUNITY' | 'TRAIL_SL' | 'TARGET_HIT' | 'SL_HIT';
   pnlPoints?: number;
   pnlPct?: number;
+  pnlRupees?: number;
   currentLtp: number;
   stoplossPrice: number;
   stoplossPct: number;
@@ -1110,6 +1111,7 @@ export interface UnifiedSmartTip {
   bookedTimeFormatted?: string;
   carryForwardTime?: string;
   carryForwardTimeFormatted?: string;
+  carryForwardSuggestion?: string;
   isCarriedForward?: boolean;
   carriedFromSession?: string;
   strategyMatches: {
@@ -1259,7 +1261,11 @@ export interface ActiveTradeTipData {
   givenTimeFormatted?: string;
   bookedTimeFormatted?: string;
   carryForwardTimeFormatted?: string;
+  carryForwardSuggestion?: string;
   isCarriedForward?: boolean;
+  pnlPoints?: number;
+  pnlPct?: number;
+  pnlRupees?: number;
   elapsedTimeFormatted?: string;
   actionGuidance?: string;
   actionBadge?: string;

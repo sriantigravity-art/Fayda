@@ -54,10 +54,15 @@ interface RecommendationTableItem {
   entryTimeFormatted: string;
   bookedTimeFormatted?: string;
   carryForwardTimeFormatted?: string;
+  carryForwardSuggestion?: string;
   isCarriedForward?: boolean;
   entryRange: string;
   entryPrice: number;
   currentLtp: number;
+  pnlPoints: number;
+  pnlPct: number;
+  pnlRupees: number;
+  isProfitable: boolean;
   target1Price: number;
   target1Pct: number;
   target2Price?: number;
@@ -161,8 +166,12 @@ export const TrafficSignalIcon: React.FC<{ className?: string; animated?: boolea
 );
 
 export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
-  const { currentIndexState, selectedIndex, openTradeTipModal, recentSurges } = useMarket();
+  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal, recentSurges } = useMarket();
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
+
+  const symConfig = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
+  const isCommodity = symConfig?.category === 'COMMODITIES';
+  const isOffMarket = currentIndexState?.unifiedTipsPackage?.currentSession === 'OFF_MARKET';
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
   const [viewMode, setViewMode] = useState<'FLASH' | 'LIST' | 'BUTTONS' | 'TABLE'>('FLASH');
@@ -225,13 +234,93 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       return `${item.category || 'TRADE'}_${item.role || 'BUYER'}_${item.optionType || ''}_${item.action || ''}_${item.strikePrice || 0}_${rawContract}`;
     };
 
-    const addUniqueItem = (item: RecommendationTableItem) => {
-      const key = getDedupeKey(item);
+    const addUniqueItem = (rawItem: Partial<RecommendationTableItem> & {
+      id: string;
+      category: 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
+      categoryTitle: string;
+      contractSymbol: string;
+      strikePrice?: number;
+      optionType: 'CE' | 'PE' | 'SPREAD';
+      action: string;
+      actionBadge: string;
+      role: 'BUYER' | 'SELLER';
+      executionType: 'NET_DEBIT' | 'NET_CREDIT';
+      strategyTag: string;
+      entryTimeFormatted: string;
+      entryRange: string;
+      entryPrice: number;
+      currentLtp: number;
+      target1Price: number;
+      target1Pct: number;
+      stoplossPrice: number;
+      stoplossPct: number;
+      riskReward: string;
+      confluenceScore: number;
+      status: string;
+    }) => {
+      const key = getDedupeKey(rawItem);
       if (seenContracts.has(key)) {
         return; // Deduplicate: Skip duplicate recommendation
       }
       seenContracts.add(key);
-      list.push(item);
+
+      const entry = rawItem.entryPrice || 0;
+      const ltp = rawItem.currentLtp !== undefined ? rawItem.currentLtp : entry;
+      const isSeller = rawItem.role === 'SELLER' || rawItem.executionType === 'NET_CREDIT';
+
+      // 1. P&L in points
+      let points = rawItem.pnlPoints;
+      if (points === undefined && rawItem.rawTip?.pnlPoints !== undefined) {
+        points = rawItem.rawTip.pnlPoints;
+      }
+      if (points === undefined) {
+        points = isSeller ? (entry - ltp) : (ltp - entry);
+      }
+      points = Number(points.toFixed(2));
+
+      // 2. P&L in percentage
+      let pct = rawItem.pnlPct;
+      if (pct === undefined && rawItem.rawTip?.pnlPct !== undefined) {
+        pct = rawItem.rawTip.pnlPct;
+      }
+      if (pct === undefined) {
+        pct = entry > 0 ? Number(((points / entry) * 100).toFixed(1)) : 0;
+      }
+
+      // 3. P&L in Rupees per lot
+      let rupees = rawItem.pnlRupees;
+      if (rupees === undefined && rawItem.rawTip?.pnlRupees !== undefined) {
+        rupees = rawItem.rawTip.pnlRupees;
+      }
+      if (rupees === undefined) {
+        rupees = Math.round(points * (lotSize || 50));
+      }
+
+      const isProfitable = rawItem.isProfitable !== undefined ? rawItem.isProfitable : rupees >= 0;
+
+      // 4. Carry forward suggestion & time
+      let suggestion = rawItem.carryForwardSuggestion || rawItem.rawTip?.carryForwardSuggestion;
+      if (!suggestion) {
+        if (isSeller) {
+          suggestion = 'Hold overnight if OTM decay buffer is > 65%. Close before 03:25 PM if underlying is within 0.4% of sold strike.';
+        } else {
+          suggestion = 'Intraday recommendation: Book 50% profits near T1/T2. Avoid holding naked long options overnight to prevent opening theta erosion.';
+        }
+      }
+
+      const carryForwardTimeFormatted = rawItem.carryForwardTimeFormatted || rawItem.rawTip?.carryForwardTimeFormatted || '03:20 PM';
+
+      const fullItem: RecommendationTableItem = {
+        ...rawItem,
+        pnlPoints: points,
+        pnlPct: pct,
+        pnlRupees: rupees,
+        isProfitable,
+        carryForwardSuggestion: suggestion,
+        carryForwardTimeFormatted
+      };
+
+      list.push(fullItem);
     };
 
     // 1. PRIMARY TRADE
@@ -1098,7 +1187,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         givenTimeFormatted: t.entryTimeFormatted || item.entryTimeFormatted,
         bookedTimeFormatted: t.bookedTimeFormatted || item.bookedTimeFormatted,
         carryForwardTimeFormatted: t.carryForwardTimeFormatted || item.carryForwardTimeFormatted,
+        carryForwardSuggestion: t.carryForwardSuggestion || item.carryForwardSuggestion,
         isCarriedForward: t.isCarriedForward || item.isCarriedForward,
+        pnlRupees: item.pnlRupees,
+        pnlPoints: item.pnlPoints,
+        pnlPct: item.pnlPct,
         elapsedTimeFormatted: 'Live Terminal Session',
         actionGuidance: t.strategyTag,
         status: t.status,
@@ -1134,7 +1227,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         givenTimeFormatted: item.entryTimeFormatted || 'Power Hour',
         bookedTimeFormatted: item.bookedTimeFormatted,
         carryForwardTimeFormatted: item.carryForwardTimeFormatted,
+        carryForwardSuggestion: item.carryForwardSuggestion,
         isCarriedForward: item.isCarriedForward,
+        pnlRupees: item.pnlRupees,
+        pnlPoints: item.pnlPoints,
+        pnlPct: item.pnlPct,
         elapsedTimeFormatted: '0DTE Special',
         actionGuidance: hz.rationale,
         status: 'ACTIVE',
@@ -1164,7 +1261,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         givenTimeFormatted: item.entryTimeFormatted,
         bookedTimeFormatted: item.bookedTimeFormatted,
         carryForwardTimeFormatted: item.carryForwardTimeFormatted,
+        carryForwardSuggestion: item.carryForwardSuggestion,
         isCarriedForward: item.isCarriedForward,
+        pnlRupees: item.pnlRupees,
+        pnlPoints: item.pnlPoints,
+        pnlPct: item.pnlPct,
         elapsedTimeFormatted: 'Live Terminal Session',
         actionGuidance: item.strategyTag,
         status: item.status,
@@ -1316,10 +1417,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
               <span className="text-slate-500 dark:text-slate-400">P&L / Lot:</span>
               <span className={`font-black ${
-                (selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                selectedItem.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
               }`}>
-                {(selectedItem.currentLtp - selectedItem.entryPrice) >= 0 ? '+' : ''}
-                ₹{Math.round((selectedItem.currentLtp - selectedItem.entryPrice) * lotSize).toLocaleString('en-IN')}
+                {selectedItem.pnlRupees >= 0 ? '+' : ''}
+                ₹{selectedItem.pnlRupees.toLocaleString('en-IN')} ({selectedItem.pnlPct >= 0 ? '+' : ''}{selectedItem.pnlPct}%)
               </span>
             </div>
           </div>
@@ -1410,6 +1511,25 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             )}
           </div>
         </div>
+
+        {/* Carry Forward Suggestion Banner */}
+        {selectedItem.carryForwardSuggestion && (
+          <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-3 flex items-start gap-2.5 text-xs font-mono">
+            <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
+              📦
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider text-[11px]">
+                  Carry Forward Suggestion ({selectedItem.carryForwardTimeFormatted || '03:20 PM IST'})
+                </span>
+              </div>
+              <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+                {selectedItem.carryForwardSuggestion}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Trade Lifecycle & Trailing SL Decision Engine */}
         <TradeLifecycleAdvisor
@@ -1776,6 +1896,53 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       </div>
 
       {/* ========================================================================= */}
+      {/* ── AFTER-HOURS 03:40 PM IST BANNER (HALTED FOR EQUITIES, ACTIVE FOR MCX) ─ */}
+      {/* ========================================================================= */}
+      {isOffMarket && !isCommodity && (
+        <div className="mx-3.5 sm:mx-5 mt-3.5 p-3 sm:p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/10 to-amber-500/10 border border-amber-500/40 dark:border-amber-400/30 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono shadow-sm">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shrink-0">
+              <Clock className="w-4 h-4 text-amber-500" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                  EQUITY INTRADAY HALTED (03:40 PM IST)
+                </span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  Closed at 03:40 PM IST • Showing Closing Outcomes & P&L Audit
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                New intraday signals for NSE/BSE cease after 03:40 PM. All trades show final entry time, booked profit/loss time, and carry-forward suggestions. MCX Commodities remain active for live trading until 11:30 PM IST.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedIndex('CRUDEOIL')}
+            className="self-start md:self-center px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0"
+          >
+            <span>Switch to MCX Commodities</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+      {isCommodity && (
+        <div className="mx-3.5 sm:mx-5 mt-3.5 p-2.5 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="font-black text-emerald-600 dark:text-emerald-400 uppercase">
+              MCX Commodity Evening Session Live (Trades until 11:30 PM IST)
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold hidden sm:inline">
+            Active real-time alpha & breakout signals enabled
+          </span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* ── 0. ⚡ 7-SECOND LIVE FLASH SOLO VIEW (ONE BY ONE ROTATION) ───────────── */}
       {/* ========================================================================= */}
       {viewMode === 'FLASH' && (
@@ -1883,7 +2050,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                   : currentFlashTip.contractSymbol;
 
                 const ltpDiff = currentFlashTip.currentLtp - currentFlashTip.entryPrice;
-                const isProfitable = isSeller ? (currentFlashTip.entryPrice >= currentFlashTip.currentLtp) : (ltpDiff >= 0);
+                const isProfitable = currentFlashTip.isProfitable;
 
                 return (
                   <div className={`p-5 sm:p-6 rounded-2xl border-2 transition-all duration-300 bg-white dark:bg-slate-900/90 shadow-xl ${
@@ -1929,8 +2096,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         </span>
                       </div>
 
-                      {/* Confluence Pill & Timing Badges */}
+                      {/* Confluence Pill, P&L Badge & Timing Badges */}
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* P&L BADGE (Rupees per lot & Pct) */}
+                        <div className={`px-3 py-1 rounded-xl text-xs font-mono font-black border flex items-center gap-1.5 ${
+                          currentFlashTip.isProfitable
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                            : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
+                        }`}>
+                          <span>{currentFlashTip.isProfitable ? '🟢' : '🔴'} P&L:</span>
+                          <span>{currentFlashTip.pnlRupees >= 0 ? '+' : ''}₹{currentFlashTip.pnlRupees.toLocaleString('en-IN')} / lot</span>
+                          <span className="text-[10px]">({currentFlashTip.pnlPct >= 0 ? '+' : ''}{currentFlashTip.pnlPct}%)</span>
+                        </div>
+
                         <div className="px-3 py-1 rounded-xl bg-amber-500/15 text-amber-600 dark:text-accent-gold border border-amber-500/30 font-mono text-xs font-black flex items-center gap-1.5">
                           <Award className="w-3.5 h-3.5 text-amber-500" />
                           <span>{currentFlashTip.confluenceScore}% Confluence</span>
@@ -1956,7 +2134,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                           {(currentFlashTip.isCarriedForward || currentFlashTip.carryForwardTimeFormatted) && (
                             <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
-                              <span>Carry Forward: {currentFlashTip.carryForwardTimeFormatted || currentFlashTip.entryTimeFormatted}</span>
+                              <span>Carry Forward: {currentFlashTip.carryForwardTimeFormatted || '03:20 PM'}</span>
                             </span>
                           )}
                         </div>
@@ -1969,8 +2147,27 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       <span className="font-semibold">{currentFlashTip.strategyTag}</span>
                     </div>
 
-                    {/* 6 High-Alpha Metrics Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 my-3">
+                    {/* Carry Forward Suggestion Banner */}
+                    {currentFlashTip.carryForwardSuggestion && (
+                      <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-2.5 flex items-start gap-2.5 text-xs font-mono">
+                        <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
+                          📦
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider text-[11px]">
+                              Carry Forward Suggestion ({currentFlashTip.carryForwardTimeFormatted || '03:20 PM IST'})
+                            </span>
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+                            {currentFlashTip.carryForwardSuggestion}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 7 High-Alpha Metrics Cards (Including Dedicated P&L / Lot Card) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 my-3">
                       {/* Entry Zone */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
                         <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">Entry Range</div>
@@ -1987,6 +2184,29 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         </div>
                         <div className={`text-[10px] font-mono font-bold ${isProfitable ? 'text-emerald-500' : 'text-rose-500'}`}>
                           {ltpDiff >= 0 ? `+₹${ltpDiff.toFixed(1)}` : `-₹${Math.abs(ltpDiff).toFixed(1)}`}
+                        </div>
+                      </div>
+
+                      {/* Dedicated P&L / Lot Card */}
+                      <div className={`p-3 rounded-xl border ${
+                        currentFlashTip.isProfitable
+                          ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80'
+                          : 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800/80'
+                      }`}>
+                        <div className={`text-[10px] uppercase font-mono font-bold ${
+                          currentFlashTip.isProfitable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
+                        }`}>
+                          P&L / Lot
+                        </div>
+                        <div className={`text-base font-mono font-black mt-0.5 ${
+                          currentFlashTip.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        }`}>
+                          {currentFlashTip.pnlRupees >= 0 ? '+' : ''}₹{currentFlashTip.pnlRupees.toLocaleString('en-IN')}
+                        </div>
+                        <div className={`text-[10px] font-mono font-bold ${
+                          currentFlashTip.isProfitable ? 'text-emerald-500' : 'text-rose-500'
+                        }`}>
+                          {currentFlashTip.pnlPoints >= 0 ? `+${currentFlashTip.pnlPoints} pts` : `${currentFlashTip.pnlPoints} pts`} ({currentFlashTip.pnlPct >= 0 ? '+' : ''}{currentFlashTip.pnlPct}%)
                         </div>
                       </div>
 
@@ -2224,6 +2444,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             {item.actionBadge}
                           </span>
 
+                          {/* Dedicated P&L Badge */}
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border ${
+                            item.isProfitable
+                              ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                              : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                          }`}>
+                            P&L: {item.pnlRupees >= 0 ? '+' : ''}₹{item.pnlRupees.toLocaleString('en-IN')} / lot ({item.pnlPct >= 0 ? '+' : ''}{item.pnlPct}%)
+                          </span>
+
                           {item.id.includes('radar') && (
                             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 flex items-center gap-1 animate-pulse">
                               <Target className="w-3 h-3 text-cyan-500" />
@@ -2271,6 +2500,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <p className="text-xs text-slate-600 dark:text-slate-400 font-sans line-clamp-1">
                           {item.strategyTag}
                         </p>
+
+                        {/* Carry Forward Suggestion Strip */}
+                        {item.carryForwardSuggestion && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-2 text-[11px] font-mono text-purple-900 dark:text-purple-200">
+                            <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">📦 Carry Forward Suggestion ({item.carryForwardTimeFormatted || '03:20 PM'}):</span>
+                            <span className="text-slate-600 dark:text-slate-300 truncate">{item.carryForwardSuggestion}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Middle: 4 Key Metrics Blocks (Entry, LTP, Target, SL) */}
@@ -2525,8 +2762,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       </p>
                     </div>
 
-                    {/* Compact Minimalist Key Metrics: Entry, LTP, Target */}
-                    <div className="grid grid-cols-3 gap-1.5 w-full">
+                    {/* Compact Minimalist Key Metrics: Entry, LTP, P&L, Target */}
+                    <div className="grid grid-cols-4 gap-1.5 w-full">
                       {/* Entry */}
                       <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
                         <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">Entry</span>
@@ -2539,9 +2776,25 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
                         <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">LTP</span>
                         <span className={`text-xs font-mono font-black truncate ${
-                          isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+                          item.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
                         }`}>
                           ₹{item.currentLtp.toFixed(1)}
+                        </span>
+                      </div>
+
+                      {/* P&L / Lot */}
+                      <div className={`p-1.5 rounded-lg border flex flex-col ${
+                        item.isProfitable 
+                          ? 'bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60' 
+                          : 'bg-rose-50/60 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60'
+                      }`}>
+                        <span className={`text-[9px] font-mono uppercase font-bold ${
+                          item.isProfitable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
+                        }`}>P&L/Lot</span>
+                        <span className={`text-xs font-mono font-black truncate ${
+                          item.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        }`}>
+                          {item.pnlRupees >= 0 ? '+' : ''}₹{item.pnlRupees.toLocaleString('en-IN')}
                         </span>
                       </div>
 
@@ -2626,35 +2879,41 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <tr className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800/90 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-2.5 px-3 sm:px-4 w-[240px]">Contract & Strategy</th>
                 <th className="py-2.5 px-3 w-[150px]">Action & Role</th>
-                <th className="py-2.5 px-3 w-[150px]">
+                <th className="py-2.5 px-3 w-[140px]">
                   <div className="flex flex-col">
                     <span>Entry Zone</span>
                     <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Live LTP</span>
                   </div>
                 </th>
-                <th className="py-2.5 px-3 w-[170px]">
+                <th className="py-2.5 px-3 w-[130px]">
+                  <div className="flex flex-col">
+                    <span>P&L / Lot</span>
+                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Points / %</span>
+                  </div>
+                </th>
+                <th className="py-2.5 px-3 w-[150px]">
                   <div className="flex flex-col">
                     <span>Targets (T1 / T2)</span>
                     <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Profit %</span>
                   </div>
                 </th>
-                <th className="py-2.5 px-3 w-[140px]">
+                <th className="py-2.5 px-3 w-[130px]">
                   <div className="flex flex-col">
                     <span>Stop Loss</span>
                     <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Capital Risk %</span>
                   </div>
                 </th>
-                <th className="py-2.5 px-3 w-[130px]">Confluence</th>
-                <th className="py-2.5 px-3 w-[100px]">R : R / POP</th>
-                <th className="py-2.5 px-3 w-[90px]">Status</th>
-                <th className="py-2.5 px-3 text-right pr-4 w-[160px]">Actions</th>
+                <th className="py-2.5 px-3 w-[110px]">Confluence</th>
+                <th className="py-2.5 px-3 w-[95px]">R : R / POP</th>
+                <th className="py-2.5 px-3 w-[85px]">Status</th>
+                <th className="py-2.5 px-3 text-right pr-4 w-[150px]">Actions</th>
               </tr>
             </thead>
 
           <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/70 text-xs font-sans">
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-8 px-4 text-center text-slate-500 dark:text-slate-400 font-mono">
+                <td colSpan={10} className="py-8 px-4 text-center text-slate-500 dark:text-slate-400 font-mono">
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <Info className="w-6 h-6 text-amber-500" />
                     <span>No active trade setups currently under this filter. Waiting for high-conviction order flow.</span>
@@ -2723,7 +2982,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             )}
                             {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
                               <span className="px-1.5 py-0.2 rounded font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                                Carry Forward: {item.carryForwardTimeFormatted || item.entryTimeFormatted}
+                                Carry Forward: {item.carryForwardTimeFormatted || '03:20 PM'}
+                              </span>
+                            )}
+                            {item.carryForwardSuggestion && (
+                              <span className="text-purple-600 dark:text-purple-400 font-medium truncate max-w-[200px]" title={item.carryForwardSuggestion}>
+                                📦 {item.carryForwardSuggestion}
                               </span>
                             )}
                             {item.legsSummary && (
@@ -2784,6 +3048,22 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             </span>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           </div>
+                        </div>
+                      </td>
+
+                      {/* 4. P&L / LOT (RUPEES & PERCENTAGE) */}
+                      <td className="py-3 px-3 font-mono">
+                        <div className="flex flex-col">
+                          <span className={`text-xs font-black ${
+                            item.isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                          }`}>
+                            {item.pnlRupees >= 0 ? '+' : ''}₹{item.pnlRupees.toLocaleString('en-IN')}
+                          </span>
+                          <span className={`text-[10px] font-bold ${
+                            item.isProfitable ? 'text-emerald-500' : 'text-rose-500'
+                          }`}>
+                            {item.pnlPoints >= 0 ? `+${item.pnlPoints} pts` : `${item.pnlPoints} pts`} ({item.pnlPct >= 0 ? '+' : ''}{item.pnlPct}%)
+                          </span>
                         </div>
                       </td>
 

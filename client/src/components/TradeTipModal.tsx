@@ -181,7 +181,22 @@ Generated via Fayda Trading Terminal`;
                 </h3>
               </div>
 
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-1.5">
+                {/* P&L Badge */}
+                {tip.pnlRupees !== undefined && (
+                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black font-mono border shadow-sm flex items-center gap-1 ${
+                    tip.pnlRupees >= 0
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                      : 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
+                  }`}>
+                    <span>{tip.pnlRupees >= 0 ? '🟢' : '🔴'}</span>
+                    <span>{tip.pnlRupees >= 0 ? '+' : ''}₹{tip.pnlRupees.toLocaleString('en-IN')} / lot</span>
+                    {tip.pnlPct !== undefined && (
+                      <span className="text-[10px] font-bold">({tip.pnlPct >= 0 ? '+' : ''}{tip.pnlPct}%)</span>
+                    )}
+                  </span>
+                )}
+
                 <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider font-mono border shadow-sm ${
                   isSl
                     ? 'bg-bear/30 text-bear border-bear animate-pulse'
@@ -222,7 +237,7 @@ Generated via Fayda Trading Terminal`;
                 )}
                 {(tip.isCarriedForward || tip.carryForwardTimeFormatted) && (
                   <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 font-bold">
-                    <span>CARRY FORWARD: {tip.carryForwardTimeFormatted || tip.givenTimeFormatted}</span>
+                    <span>CARRY FORWARD: {tip.carryForwardTimeFormatted || '03:20 PM'}</span>
                   </span>
                 )}
                 {tip.elapsedTimeFormatted && !tip.bookedTimeFormatted && (
@@ -238,6 +253,25 @@ Generated via Fayda Trading Terminal`;
                 </span>
               )}
             </div>
+
+            {/* Carry Forward Suggestion Callout */}
+            {(tip.carryForwardSuggestion || tip.isCarriedForward || tip.carryForwardTimeFormatted) && (
+              <div className="mt-2.5 p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-xs font-mono flex items-start gap-2.5">
+                <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 shrink-0 mt-0.5">
+                  📦
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-purple-300 uppercase tracking-wider text-[11px]">
+                      Carry Forward Suggestion ({tip.carryForwardTimeFormatted || '03:20 PM IST'})
+                    </span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    {tip.carryForwardSuggestion || 'Hold overnight if OTM buffer is > 65%. For intraday long options, book partial profits before 03:25 PM IST to eliminate overnight theta erosion.'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Option Seller Dedicated Metrics Ribbon */}

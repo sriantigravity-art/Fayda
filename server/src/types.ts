@@ -1064,6 +1064,7 @@ export interface UnifiedSmartTip {
   actionabilityStatus?: 'IN_ENTRY_ZONE' | 'AT_TRIGGER' | 'RUNNING_PROFIT' | 'DIP_OPPORTUNITY' | 'TRAIL_SL' | 'TARGET_HIT' | 'SL_HIT';
   pnlPoints?: number;
   pnlPct?: number;
+  pnlRupees?: number;
   currentLtp: number;
   stoplossPrice: number;
   stoplossPct: number;
@@ -1080,6 +1081,7 @@ export interface UnifiedSmartTip {
   bookedTimeFormatted?: string;
   carryForwardTime?: string;
   carryForwardTimeFormatted?: string;
+  carryForwardSuggestion?: string;
   strategyMatches: {
     faydaRadarConfluence: boolean;
     oiActivitySurge: boolean;

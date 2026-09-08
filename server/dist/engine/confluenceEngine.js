@@ -1042,10 +1042,24 @@ export class ConfluenceEngine {
         const isDirectional = isBull || isBear;
         const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
         const isOffMarket = sessionInfo.session === 'OFF_MARKET';
+        const isPast340Pm = !isCommodity && isOffMarket;
+        // Symbol configuration & lot size for rupee P&L calculation
+        const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+        const instrumentLot = symCfg?.lot || (symbol === 'NIFTY' ? 65 : symbol === 'BANKNIFTY' ? 30 : 50);
+        // When equity markets close at 03:40 PM IST, stop giving live timestamps like 03:52 PM.
+        // Instead clamp to the session closing benchmark (03:15 - 03:20 PM IST).
+        const effectiveEntryTimeFormatted = isPast340Pm ? '03:15 PM IST' : timeFormatted;
+        const effectiveCarryForwardTimeFormatted = isPast340Pm ? '03:20 PM IST' : (isOffMarket ? '03:20 PM IST' : timeFormatted);
         // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
         if (isOffMarket) {
-            sessionInfo.sessionName = 'Closing Benchmark (Study Mode)';
-            sessionInfo.quotaDescription = 'Market Closed • Displaying Closing Session Benchmark Setups for Study & Replay';
+            if (isCommodity) {
+                sessionInfo.sessionName = 'MCX Post-Market Settlement';
+                sessionInfo.quotaDescription = 'Commodity Market Closed (23:30 - 09:00 IST) • Showing Session Ledger';
+            }
+            else {
+                sessionInfo.sessionName = 'Market Closed at 03:40 PM IST';
+                sessionInfo.quotaDescription = 'Equity intraday signals closed at 03:40 PM IST. Displaying day outcomes, P&L audit & carry-forward suggestions. Live signals continue for MCX Commodities.';
+            }
         }
         // ── 1. Carry-Forward Processing for Active Trades with Deduplication ────
         const carriedForwardTrades = [];
@@ -1061,6 +1075,7 @@ export class ConfluenceEngine {
             const currentLtp = liveLtp > 0 ? liveLtp : prev.currentLtp;
             const pnlPoints = +(currentLtp - prev.entryPrice).toFixed(2);
             const pnlPct = prev.entryPrice > 0 ? +((pnlPoints / prev.entryPrice) * 100).toFixed(2) : 0;
+            const isSeller = prev.tradingRole === 'SELLER' || prev.executionType === 'NET_CREDIT';
             let actionabilityStatus = 'IN_ENTRY_ZONE';
             if (currentLtp >= prev.target2Price)
                 actionabilityStatus = 'TARGET_HIT';
@@ -1074,44 +1089,99 @@ export class ConfluenceEngine {
                 actionabilityStatus = 'DIP_OPPORTUNITY';
             else
                 actionabilityStatus = 'AT_TRIGGER';
+            let status = prev.status;
+            let bookedTime = prev.bookedTime;
+            let bookedTimeFormatted = prev.bookedTimeFormatted;
+            let carryForwardTime = prev.carryForwardTime;
+            let carryForwardTimeFormatted = prev.carryForwardTimeFormatted;
+            // Check Target / SL triggers
+            if (currentLtp >= prev.target2Price) {
+                status = 'TARGET2_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else if (currentLtp >= prev.target1Price && (status === 'ACTIVE' || status === 'CARRIED_FORWARD')) {
+                status = 'TARGET1_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else if (currentLtp <= prev.stoplossPrice) {
+                status = 'SL_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else {
+                status = 'CARRIED_FORWARD';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
+            // Calculate Rupee P&L based on status
+            let pnlRupees = 0;
+            if (isSeller) {
+                if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
+                    pnlRupees = Math.round(prev.sellerMetrics?.maxProfitRupees || (pnlPoints * instrumentLot));
+                }
+                else if (status === 'SL_HIT') {
+                    pnlRupees = -Math.round(prev.sellerMetrics?.maxLossRupees || (Math.abs(pnlPoints) * instrumentLot));
+                }
+                else {
+                    pnlRupees = Math.round((prev.entryPrice - currentLtp) * instrumentLot);
+                }
+            }
+            else {
+                if (status === 'TARGET1_HIT') {
+                    pnlRupees = Math.round((prev.target1Price - prev.entryPrice) * instrumentLot);
+                }
+                else if (status === 'TARGET2_HIT') {
+                    pnlRupees = Math.round(((prev.target2Price || prev.target1Price) - prev.entryPrice) * instrumentLot);
+                }
+                else if (status === 'SL_HIT') {
+                    pnlRupees = Math.round((prev.stoplossPrice - prev.entryPrice) * instrumentLot);
+                }
+                else {
+                    pnlRupees = Math.round(pnlPoints * instrumentLot);
+                }
+            }
+            // Carry forward suggestion
+            let carryForwardSuggestion = prev.carryForwardSuggestion;
+            if (!carryForwardSuggestion) {
+                if (isSeller) {
+                    carryForwardSuggestion = 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.';
+                }
+                else if (pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
+                    carryForwardSuggestion = 'Carry Forward (BTST): Lock 50% profit today; carry remaining runner lot overnight with Stop Loss strictly trailed to cost.';
+                }
+                else if (pnlPct < 15 && pnlPct >= -5) {
+                    carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.';
+                }
+                else {
+                    carryForwardSuggestion = 'Strict Intraday Exit: Stop Loss / loss management rule. Do NOT average or carry losers overnight.';
+                }
+            }
             const updated = {
                 ...prev,
                 currentLtp,
                 pnlPoints,
                 pnlPct,
-                actionabilityStatus
+                pnlRupees,
+                actionabilityStatus,
+                status,
+                bookedTime,
+                bookedTimeFormatted,
+                carryForwardTime,
+                carryForwardTimeFormatted: carryForwardTimeFormatted || effectiveCarryForwardTimeFormatted,
+                carryForwardSuggestion,
+                isCarriedForward: status === 'CARRIED_FORWARD',
+                carriedFromSession: prev.sessionName
             };
-            // Check Target / SL triggers
-            if (currentLtp >= prev.target2Price) {
-                updated.status = 'TARGET2_HIT';
-                if (!updated.bookedTimeFormatted) {
-                    updated.bookedTime = new Date().toISOString();
-                    updated.bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else if (currentLtp >= prev.target1Price && (updated.status === 'ACTIVE' || updated.status === 'CARRIED_FORWARD')) {
-                updated.status = 'TARGET1_HIT';
-                if (!updated.bookedTimeFormatted) {
-                    updated.bookedTime = new Date().toISOString();
-                    updated.bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else if (currentLtp <= prev.stoplossPrice) {
-                updated.status = 'SL_HIT';
-                if (!updated.bookedTimeFormatted) {
-                    updated.bookedTime = new Date().toISOString();
-                    updated.bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else {
-                updated.status = 'CARRIED_FORWARD';
-                updated.isCarriedForward = true;
-                updated.carriedFromSession = prev.sessionName;
-                if (!updated.carryForwardTimeFormatted) {
-                    updated.carryForwardTime = new Date().toISOString();
-                    updated.carryForwardTimeFormatted = timeFormatted;
-                }
-            }
             if (updated.status === 'CARRIED_FORWARD' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
                 carriedForwardTrades.push(updated);
             }
@@ -1129,7 +1199,7 @@ export class ConfluenceEngine {
         const existingTrade = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
         const entryPrice = existingTrade ? existingTrade.entryPrice : currentLtp;
         const entryTime = existingTrade ? existingTrade.entryTime : new Date().toISOString();
-        const entryTimeFormatted = existingTrade ? existingTrade.entryTimeFormatted : timeFormatted;
+        const entryTimeFormatted = existingTrade ? existingTrade.entryTimeFormatted : effectiveEntryTimeFormatted;
         let bookedTime = existingTrade?.bookedTime;
         let bookedTimeFormatted = existingTrade?.bookedTimeFormatted;
         let carryForwardTime = existingTrade?.carryForwardTime;
@@ -1170,11 +1240,11 @@ export class ConfluenceEngine {
                 bookedTimeFormatted = timeFormatted;
             }
         }
-        else if (existingTrade?.isCarriedForward) {
+        else if (isPast340Pm || existingTrade?.isCarriedForward) {
             primStatus = 'CARRIED_FORWARD';
             if (!carryForwardTimeFormatted) {
                 carryForwardTime = new Date().toISOString();
-                carryForwardTimeFormatted = timeFormatted;
+                carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
             }
         }
         else if (pnlPct >= 1.5) {
@@ -1185,6 +1255,33 @@ export class ConfluenceEngine {
         }
         else {
             actionabilityStatus = 'AT_TRIGGER';
+        }
+        // Calculate Rupee P&L based on status
+        let primPnlRupees = 0;
+        if (primStatus === 'TARGET1_HIT') {
+            primPnlRupees = Math.round((t1Price - entryPrice) * instrumentLot);
+        }
+        else if (primStatus === 'TARGET2_HIT') {
+            primPnlRupees = Math.round((t2Price - entryPrice) * instrumentLot);
+        }
+        else if (primStatus === 'SL_HIT') {
+            primPnlRupees = Math.round((slPrice - entryPrice) * instrumentLot);
+        }
+        else {
+            primPnlRupees = Math.round(pnlPoints * instrumentLot);
+        }
+        // Carry forward suggestion
+        let primCarrySuggestion = existingTrade?.carryForwardSuggestion;
+        if (!primCarrySuggestion) {
+            if (primStatus === 'TARGET1_HIT' || primStatus === 'TARGET2_HIT' || pnlPct >= 15) {
+                primCarrySuggestion = 'Carry Forward (BTST): Lock 50% profit today; carry remaining runner lot overnight with Stop Loss strictly trailed to cost.';
+            }
+            else if (pnlPct < 15 && pnlPct >= -5) {
+                primCarrySuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.';
+            }
+            else {
+                primCarrySuggestion = 'Strict Intraday Exit: Stop Loss / loss management rule. Do NOT average or carry losers overnight.';
+            }
         }
         const stratId = faydaStrategy?.strategyName || 'Fayda Pivot Strategy (CPR & 20 EMA Confluence)';
         const patternName = patternBreakout?.activePattern?.patternName || 'Ascending Momentum';
@@ -1209,7 +1306,9 @@ export class ConfluenceEngine {
             bookedTime,
             bookedTimeFormatted,
             carryForwardTime,
-            carryForwardTimeFormatted,
+            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+            carryForwardSuggestion: primCarrySuggestion,
+            isCarriedForward: primStatus === 'CARRIED_FORWARD',
             entryPrice,
             entryRange,
             triggerPrice,
@@ -1219,6 +1318,7 @@ export class ConfluenceEngine {
             actionabilityStatus,
             pnlPoints,
             pnlPct,
+            pnlRupees: primPnlRupees,
             currentLtp,
             stoplossPrice: slPrice,
             stoplossPct: 20,
@@ -1306,21 +1406,52 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
-            else if (activeCall.isCarriedForward && !carryForwardTimeFormatted) {
-                carryForwardTime = new Date().toISOString();
-                carryForwardTimeFormatted = timeFormatted;
+            else if (isPast340Pm || activeCall.isCarriedForward) {
+                status = 'CARRIED_FORWARD';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
+            let callPnlRupees = 0;
+            if (status === 'TARGET1_HIT') {
+                callPnlRupees = Math.round((activeCall.target1Price - activeCall.entryPrice) * instrumentLot);
+            }
+            else if (status === 'TARGET2_HIT') {
+                callPnlRupees = Math.round(((activeCall.target2Price || activeCall.target1Price) - activeCall.entryPrice) * instrumentLot);
+            }
+            else if (status === 'SL_HIT') {
+                callPnlRupees = Math.round((activeCall.stoplossPrice - activeCall.entryPrice) * instrumentLot);
+            }
+            else {
+                callPnlRupees = Math.round(pnlPoints * instrumentLot);
+            }
+            let callCarrySuggestion = activeCall.carryForwardSuggestion;
+            if (!callCarrySuggestion) {
+                if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT' || pnlPct >= 15) {
+                    callCarrySuggestion = 'Carry Forward (BTST): Lock 50% profit today; carry remaining runner lot overnight with Stop Loss strictly trailed to cost.';
+                }
+                else if (pnlPct < 15 && pnlPct >= -5) {
+                    callCarrySuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.';
+                }
+                else {
+                    callCarrySuggestion = 'Strict Intraday Exit: Stop Loss / loss management rule. Do NOT average or carry losers overnight.';
+                }
             }
             topCallTrade = {
                 ...activeCall,
                 currentLtp,
                 pnlPoints,
                 pnlPct,
+                pnlRupees: callPnlRupees,
+                carryForwardSuggestion: callCarrySuggestion,
                 actionabilityStatus,
                 status,
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                isCarriedForward: status === 'CARRIED_FORWARD'
             };
             slotEntry.calls[0] = topCallTrade;
         }
@@ -1344,6 +1475,7 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * 1.55).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
+                const callStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
                 topCallTrade = {
                     id: `call-prime-${symbol}-${hourlySlotId}-${bestCeStrike.strikePrice}`,
                     symbol,
@@ -1358,7 +1490,10 @@ export class ConfluenceEngine {
                     strikePrice: bestCeStrike.strikePrice,
                     optionType: 'CE',
                     entryTime: new Date().toISOString(),
-                    entryTimeFormatted: timeFormatted,
+                    entryTimeFormatted: effectiveEntryTimeFormatted,
+                    carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+                    carryForwardSuggestion: isPast340Pm ? 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.' : undefined,
+                    isCarriedForward: callStatus === 'CARRIED_FORWARD',
                     entryPrice,
                     entryRange: `₹${dipMin.toFixed(2)} - ₹${entryPrice.toFixed(2)}`,
                     triggerPrice: entryPrice,
@@ -1368,6 +1503,7 @@ export class ConfluenceEngine {
                     actionabilityStatus: 'IN_ENTRY_ZONE',
                     pnlPoints: 0,
                     pnlPct: 0,
+                    pnlRupees: 0,
                     currentLtp: entryPrice,
                     stoplossPrice: slPrice,
                     stoplossPct: 18,
@@ -1378,7 +1514,7 @@ export class ConfluenceEngine {
                     riskReward: '1:2.5',
                     confluenceScore: callProb,
                     confluenceBreakdown: callConfluence,
-                    status: 'ACTIVE',
+                    status: callStatus,
                     strategyMatches: {
                         faydaRadarConfluence: true,
                         oiActivitySurge: true,
@@ -1444,21 +1580,52 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
-            else if (activePut.isCarriedForward && !carryForwardTimeFormatted) {
-                carryForwardTime = new Date().toISOString();
-                carryForwardTimeFormatted = timeFormatted;
+            else if (isPast340Pm || activePut.isCarriedForward) {
+                status = 'CARRIED_FORWARD';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
+            let putPnlRupees = 0;
+            if (status === 'TARGET1_HIT') {
+                putPnlRupees = Math.round((activePut.target1Price - activePut.entryPrice) * instrumentLot);
+            }
+            else if (status === 'TARGET2_HIT') {
+                putPnlRupees = Math.round(((activePut.target2Price || activePut.target1Price) - activePut.entryPrice) * instrumentLot);
+            }
+            else if (status === 'SL_HIT') {
+                putPnlRupees = Math.round((activePut.stoplossPrice - activePut.entryPrice) * instrumentLot);
+            }
+            else {
+                putPnlRupees = Math.round(pnlPoints * instrumentLot);
+            }
+            let putCarrySuggestion = activePut.carryForwardSuggestion;
+            if (!putCarrySuggestion) {
+                if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT' || pnlPct >= 15) {
+                    putCarrySuggestion = 'Carry Forward (BTST): Lock 50% profit today; carry remaining runner lot overnight with Stop Loss strictly trailed to cost.';
+                }
+                else if (pnlPct < 15 && pnlPct >= -5) {
+                    putCarrySuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.';
+                }
+                else {
+                    putCarrySuggestion = 'Strict Intraday Exit: Stop Loss / loss management rule. Do NOT average or carry losers overnight.';
+                }
             }
             topPutTrade = {
                 ...activePut,
                 currentLtp,
                 pnlPoints,
                 pnlPct,
+                pnlRupees: putPnlRupees,
+                carryForwardSuggestion: putCarrySuggestion,
                 actionabilityStatus,
                 status,
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                isCarriedForward: status === 'CARRIED_FORWARD'
             };
             slotEntry.puts[0] = topPutTrade;
         }
@@ -1482,6 +1649,7 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * 1.55).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
+                const putStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
                 topPutTrade = {
                     id: `put-prime-${symbol}-${hourlySlotId}-${bestPeStrike.strikePrice}`,
                     symbol,
@@ -1496,7 +1664,10 @@ export class ConfluenceEngine {
                     strikePrice: bestPeStrike.strikePrice,
                     optionType: 'PE',
                     entryTime: new Date().toISOString(),
-                    entryTimeFormatted: timeFormatted,
+                    entryTimeFormatted: effectiveEntryTimeFormatted,
+                    carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+                    carryForwardSuggestion: isPast340Pm ? 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.' : undefined,
+                    isCarriedForward: putStatus === 'CARRIED_FORWARD',
                     entryPrice,
                     entryRange: `₹${dipMin.toFixed(2)} - ₹${entryPrice.toFixed(2)}`,
                     triggerPrice: entryPrice,
@@ -1506,6 +1677,7 @@ export class ConfluenceEngine {
                     actionabilityStatus: 'IN_ENTRY_ZONE',
                     pnlPoints: 0,
                     pnlPct: 0,
+                    pnlRupees: 0,
                     currentLtp: entryPrice,
                     stoplossPrice: slPrice,
                     stoplossPct: 18,
@@ -1516,7 +1688,7 @@ export class ConfluenceEngine {
                     riskReward: '1:2.5',
                     confluenceScore: putProb,
                     confluenceBreakdown: putConfluence,
-                    status: 'ACTIVE',
+                    status: putStatus,
                     strategyMatches: {
                         faydaRadarConfluence: true,
                         oiActivitySurge: true,
@@ -1536,9 +1708,7 @@ export class ConfluenceEngine {
             }
         }
         // ── 2C. HIGH-PROBABILITY HOURLY OPTION SELLER TRADES (HEDGED CREDIT SPREADS & CONDORS) ──
-        const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const strikeStep = symCfg?.step || 50;
-        const instrumentLot = symCfg?.lot || 50;
         // 1) Top Option Seller PUT Trade: Bull Put Credit Spread (Sell OTM PE + Buy Far OTM PE)
         let topSellerPutTrade = null;
         if (slotEntry.sellerPuts.length > 0) {
@@ -1588,21 +1758,37 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
-            else if (activeSellerPut.isCarriedForward && !carryForwardTimeFormatted) {
-                carryForwardTime = new Date().toISOString();
-                carryForwardTimeFormatted = timeFormatted;
+            else if (isPast340Pm || activeSellerPut.isCarriedForward) {
+                status = 'CARRIED_FORWARD';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
+            let sellerPutPnlRupees = 0;
+            if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
+                sellerPutPnlRupees = Math.round(activeSellerPut.sellerMetrics?.maxProfitRupees || (activeSellerPut.entryPrice * 0.65 * instrumentLot));
+            }
+            else if (status === 'SL_HIT') {
+                sellerPutPnlRupees = -Math.round(activeSellerPut.sellerMetrics?.maxLossRupees || (activeSellerPut.entryPrice * 0.90 * instrumentLot));
+            }
+            else {
+                sellerPutPnlRupees = Math.round(pnlPoints * instrumentLot);
             }
             topSellerPutTrade = {
                 ...activeSellerPut,
                 currentLtp: currentSpreadLtp,
                 pnlPoints,
                 pnlPct,
+                pnlRupees: sellerPutPnlRupees,
+                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
                 actionabilityStatus,
                 status,
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                isCarriedForward: status === 'CARRIED_FORWARD'
             };
             slotEntry.sellerPuts[0] = topSellerPutTrade;
         }
@@ -1637,6 +1823,7 @@ export class ConfluenceEngine {
                 hedgeLegSymbol: `${symbol} ${hedgePutStrike} PE (Buy Hedge)`,
                 lowerBreakeven
             };
+            const sellerPutStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
             topSellerPutTrade = {
                 id: `seller-put-${symbol}-${hourlySlotId}-${soldPutStrike}`,
                 symbol,
@@ -1651,35 +1838,41 @@ export class ConfluenceEngine {
                 strikePrice: soldPutStrike,
                 optionType: 'SPREAD',
                 entryTime: new Date().toISOString(),
-                entryTimeFormatted: timeFormatted,
+                entryTimeFormatted: effectiveEntryTimeFormatted,
+                carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                isCarriedForward: sellerPutStatus === 'CARRIED_FORWARD',
                 entryPrice: netCreditPts,
                 entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
                 triggerPrice: netCreditPts,
                 currentLtp: netCreditPts,
+                pnlPoints: 0,
+                pnlPct: 0,
+                pnlRupees: 0,
                 stoplossPrice: +(netCreditPts * 1.9).toFixed(2),
                 stoplossPct: 90,
                 target1Price: +(netCreditPts * 0.35).toFixed(2),
                 target1Pct: 65,
                 target2Price: +(netCreditPts * 0.10).toFixed(2),
                 target2Pct: 90,
-                riskReward: `1:${(maxLossRupees > 0 ? (maxProfitRupees / maxLossRupees) : 1.2).toFixed(2)}`,
-                confluenceScore: sellerPutConfluence.totalConfluenceScore,
-                status: 'ACTIVE',
+                riskReward: '1:0.35',
+                confluenceScore: Math.round(sellerPutConfluence.totalConfluenceScore),
+                confluenceBreakdown: sellerPutConfluence,
+                status: sellerPutStatus,
+                sellerMetrics,
                 strategyMatches: {
                     faydaRadarConfluence: true,
                     oiActivitySurge: true,
-                    faydaStrategy9Ema: true,
-                    multiTimeframeBreakout: true,
+                    faydaStrategy9Ema: false,
+                    multiTimeframeBreakout: false,
                     multiLegSpreadConfirmed: true,
                     gammaExplosionConfirmed: false
                 },
-                confluenceBreakdown: sellerPutConfluence,
-                sellerMetrics,
-                strategyTag: 'Institutional Bull Put Credit Spread (High Win Rate)',
+                strategyTag: 'Bull Put Credit Spread (Theta Harvest)',
                 explanations: {
-                    beginner: `🎰 Casino Advantage Setup: You act as the house! Sell ${soldPutStrike} Put and buy ${hedgePutStrike} Put as a risk shield. You pocket ₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} upfront cash per lot into your trading account immediately. As long as ${symbol} stays above ₹${soldPutStrike} by expiry (or even falls slightly up to ${Math.max(0, safetyBufferPts)} pts), you keep 100% of the money! Win probability is ${popPct}% with zero risk of catastrophic loss.`,
-                    intermediate: `Bull Put Credit Spread: Sell ${soldPutStrike} PE @ ₹${sellPrem.toFixed(1)} / Buy ${hedgePutStrike} PE @ ₹${buyPrem.toFixed(1)}. Net Credit: ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot). Required Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (72% hedge reduction). Breakeven: ₹${lowerBreakeven.toFixed(2)}. SL trigger if spread expands to ₹${(netCreditPts * 1.9).toFixed(1)} pts. Target: 65% theta decay at ₹${(netCreditPts * 0.35).toFixed(1)} pts.`,
-                    expert: `Short Put Delta: -0.22, Long Hedge Delta: +0.08 (Net Delta: +0.14). Hourly Theta: +₹${hourlyTheta}/lot. IV: ${soldStrikeObj?.iv || 13.2}%. 1.4σ safety buffer. Defined Max Loss: ₹${maxLossRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vs Max Profit: ₹${maxProfitRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. 10-Indicator Confluence: ${sellerPutConfluence.totalConfluenceScore}%.`
+                    beginner: `Safe Option Selling: Sell ${soldPutStrike} PE and Buy ${hedgePutStrike} PE protection. You collect ₹${netCreditPerLot.toLocaleString('en-IN')} upfront per lot. If ${symbol} stays above ₹${lowerBreakeven} by expiry, you keep 100% of the credit.`,
+                    intermediate: `POP ${popPct}%: Bull Put Spread (${soldPutStrike} PE / ${hedgePutStrike} PE). Safety buffer of ${safetyBufferPts} points. Max profit ₹${maxProfitRupees.toLocaleString('en-IN')} with margin requirement capped at ₹${estimatedMarginRupees.toLocaleString('en-IN')}.`,
+                    expert: `Net Delta: +0.14, Net Theta: +₹${hourlyTheta}/hr. Vega protected with long hedge leg. Exchange SPAN margin benefit active.`
                 },
                 spreadDetails: {
                     legsSummary: `Sell ${soldPutStrike} PE + Buy ${hedgePutStrike} PE`,
@@ -1740,21 +1933,37 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
-            else if (activeSellerCall.isCarriedForward && !carryForwardTimeFormatted) {
-                carryForwardTime = new Date().toISOString();
-                carryForwardTimeFormatted = timeFormatted;
+            else if (isPast340Pm || activeSellerCall.isCarriedForward) {
+                status = 'CARRIED_FORWARD';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
+            let sellerCallPnlRupees = 0;
+            if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
+                sellerCallPnlRupees = Math.round(activeSellerCall.sellerMetrics?.maxProfitRupees || (activeSellerCall.entryPrice * 0.65 * instrumentLot));
+            }
+            else if (status === 'SL_HIT') {
+                sellerCallPnlRupees = -Math.round(activeSellerCall.sellerMetrics?.maxLossRupees || (activeSellerCall.entryPrice * 0.90 * instrumentLot));
+            }
+            else {
+                sellerCallPnlRupees = Math.round(pnlPoints * instrumentLot);
             }
             topSellerCallTrade = {
                 ...activeSellerCall,
                 currentLtp: currentSpreadLtp,
                 pnlPoints,
                 pnlPct,
+                pnlRupees: sellerCallPnlRupees,
+                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
                 actionabilityStatus,
                 status,
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                isCarriedForward: status === 'CARRIED_FORWARD'
             };
             slotEntry.sellerCalls[0] = topSellerCallTrade;
         }
@@ -1789,6 +1998,7 @@ export class ConfluenceEngine {
                 hedgeLegSymbol: `${symbol} ${hedgeCallStrike} CE (Buy Hedge)`,
                 upperBreakeven
             };
+            const sellerCallStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
             topSellerCallTrade = {
                 id: `seller-call-${symbol}-${hourlySlotId}-${soldCallStrike}`,
                 symbol,
@@ -1803,11 +2013,17 @@ export class ConfluenceEngine {
                 strikePrice: soldCallStrike,
                 optionType: 'SPREAD',
                 entryTime: new Date().toISOString(),
-                entryTimeFormatted: timeFormatted,
+                entryTimeFormatted: effectiveEntryTimeFormatted,
+                carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                isCarriedForward: sellerCallStatus === 'CARRIED_FORWARD',
                 entryPrice: netCreditPts,
                 entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
                 triggerPrice: netCreditPts,
                 currentLtp: netCreditPts,
+                pnlPoints: 0,
+                pnlPct: 0,
+                pnlRupees: 0,
                 stoplossPrice: +(netCreditPts * 1.9).toFixed(2),
                 stoplossPct: 90,
                 target1Price: +(netCreditPts * 0.35).toFixed(2),
@@ -1816,7 +2032,7 @@ export class ConfluenceEngine {
                 target2Pct: 90,
                 riskReward: `1:${(maxLossRupees > 0 ? (maxProfitRupees / maxLossRupees) : 1.2).toFixed(2)}`,
                 confluenceScore: sellerCallConfluence.totalConfluenceScore,
-                status: 'ACTIVE',
+                status: sellerCallStatus,
                 strategyMatches: {
                     faydaRadarConfluence: true,
                     oiActivitySurge: true,
@@ -1971,7 +2187,7 @@ export class ConfluenceEngine {
             const existingSpread = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
             const entryPrice = existingSpread ? existingSpread.entryPrice : spreadEntryPts;
             const entryTime = existingSpread ? existingSpread.entryTime : new Date().toISOString();
-            const entryTimeFormatted = existingSpread ? existingSpread.entryTimeFormatted : timeFormatted;
+            const entryTimeFormatted = existingSpread ? existingSpread.entryTimeFormatted : effectiveEntryTimeFormatted;
             let bookedTime = existingSpread?.bookedTime;
             let bookedTimeFormatted = existingSpread?.bookedTimeFormatted;
             let carryForwardTime = existingSpread?.carryForwardTime;
@@ -2003,11 +2219,11 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
-            else if (existingSpread?.isCarriedForward) {
+            else if (isPast340Pm || existingSpread?.isCarriedForward) {
                 spreadStatus = 'CARRIED_FORWARD';
                 if (!carryForwardTimeFormatted) {
                     carryForwardTime = new Date().toISOString();
-                    carryForwardTimeFormatted = timeFormatted;
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
                 }
             }
             const spreadConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, stratAction, spotPrice, buyStrike, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
@@ -2029,7 +2245,9 @@ export class ConfluenceEngine {
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted,
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                carryForwardSuggestion: 'Hedged Carry Forward: Fully defined risk spread. Safe to carry overnight for theta decay harvest.',
+                isCarriedForward: spreadStatus === 'CARRIED_FORWARD',
                 entryPrice,
                 entryRange: `Net Debit ₹${entryPrice.toFixed(2)} pts`,
                 triggerPrice: entryPrice,
@@ -2039,6 +2257,7 @@ export class ConfluenceEngine {
                 actionabilityStatus: pnlPct >= 2.0 ? 'RUNNING_PROFIT' : pnlPct <= -2.0 ? 'DIP_OPPORTUNITY' : 'AT_TRIGGER',
                 pnlPoints,
                 pnlPct,
+                pnlRupees: Math.round(pnlPoints * instrumentLot),
                 currentLtp: spreadEntryPts,
                 stoplossPrice: slSpreadPrice,
                 stoplossPct: 50,
@@ -2047,13 +2266,13 @@ export class ConfluenceEngine {
                 target2Price: t2SpreadPrice,
                 target2Pct: 100,
                 riskReward: riskRewardStr,
-                confluenceScore: spreadConfluence.totalConfluenceScore,
+                confluenceScore: Math.round(spreadConfluence.totalConfluenceScore),
                 confluenceBreakdown: spreadConfluence,
                 status: spreadStatus,
                 strategyMatches: {
                     faydaRadarConfluence: true,
                     oiActivitySurge: true,
-                    faydaStrategy9Ema: true,
+                    faydaStrategy9Ema: false,
                     multiTimeframeBreakout: true,
                     multiLegSpreadConfirmed: true,
                     gammaExplosionConfirmed: false
@@ -2081,7 +2300,7 @@ export class ConfluenceEngine {
             const existingGamma = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
             const entryPrice = existingGamma ? existingGamma.entryPrice : topHz.ltp;
             const entryTime = existingGamma ? existingGamma.entryTime : new Date().toISOString();
-            const entryTimeFormatted = existingGamma ? existingGamma.entryTimeFormatted : timeFormatted;
+            const entryTimeFormatted = existingGamma ? existingGamma.entryTimeFormatted : effectiveEntryTimeFormatted;
             let bookedTime = existingGamma?.bookedTime;
             let bookedTimeFormatted = existingGamma?.bookedTimeFormatted;
             let carryForwardTime = existingGamma?.carryForwardTime;
@@ -2110,6 +2329,13 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
+            else if (isPast340Pm) {
+                gammaStatus = 'EXPIRED';
+                if (!carryForwardTimeFormatted) {
+                    carryForwardTime = new Date().toISOString();
+                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                }
+            }
             else if (existingGamma?.isCarriedForward) {
                 gammaStatus = 'CARRIED_FORWARD';
                 if (!carryForwardTimeFormatted) {
@@ -2133,7 +2359,9 @@ export class ConfluenceEngine {
                 bookedTime,
                 bookedTimeFormatted,
                 carryForwardTime,
-                carryForwardTimeFormatted,
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                carryForwardSuggestion: '0DTE Expiry Warning: All same-day expiry options expired at 03:30 PM. Never carry 0DTE options overnight.',
+                isCarriedForward: gammaStatus === 'CARRIED_FORWARD',
                 entryPrice,
                 entryRange: `₹${(entryPrice * 0.90).toFixed(2)} - ₹${entryPrice.toFixed(2)}`,
                 triggerPrice: entryPrice,
@@ -2143,6 +2371,7 @@ export class ConfluenceEngine {
                 actionabilityStatus: pnlPct >= 5.0 ? 'RUNNING_PROFIT' : 'AT_TRIGGER',
                 pnlPoints,
                 pnlPct,
+                pnlRupees: Math.round(pnlPoints * instrumentLot),
                 currentLtp: topHz.ltp,
                 stoplossPrice: topHz.stoploss,
                 stoplossPct: topHz.stoplossPct,
