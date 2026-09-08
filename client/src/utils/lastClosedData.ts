@@ -17,7 +17,7 @@ export const LAST_CLOSED_DATA: Record<string, SymbolClosedData> = {
   SENSEX:     { spotPrice: 76152.86, change: 0, pctChange: 0 },
   BANKEX:     { spotPrice: 64745.71, change: 0, pctChange: 0 },
   FINNIFTY:   { spotPrice: 25923.05, change: 0, pctChange: 0 },
-  MIDCPNIFTY: { spotPrice: 14760.00, change: 0, pctChange: 0 },
+  MIDCPNIFTY: { spotPrice: 18069.25, change: 0, pctChange: 0 },
   NIFTYNXT50: { spotPrice: 73051.85, change: 0, pctChange: 0 },
 
   // ─── MCX Commodities (Live Session / Benchmark Close) ──────────────────────

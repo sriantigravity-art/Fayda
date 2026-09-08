@@ -7,6 +7,7 @@ import {
   ExternalLink, 
   CheckCircle2, 
   AlertCircle, 
+  AlertTriangle,
   Zap, 
   Sparkles, 
   Lock, 

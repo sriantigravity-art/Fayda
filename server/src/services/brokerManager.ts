@@ -50,14 +50,14 @@ export class BrokerManager {
    * Get the primary live broker that currently has an active connection
    */
   public getEffectiveLiveBroker(): 'DHAN' | 'FYERS' | 'SIMULATOR' {
-    if (this.activeBroker === 'DHAN' && dhanService.getConfig().isConnected) {
+    if (this.activeBroker === 'DHAN' && dhanService.getConfig().isConnected && dhanService.hasDataApi()) {
       return 'DHAN';
     }
     if (this.activeBroker === 'FYERS' && fyersService.getConfig().isConnected) {
       return 'FYERS';
     }
-    // Auto-fallback to any connected broker
-    if (dhanService.getConfig().isConnected) return 'DHAN';
+    // Auto-fallback to any connected broker with live data
+    if (dhanService.getConfig().isConnected && dhanService.hasDataApi()) return 'DHAN';
     if (fyersService.getConfig().isConnected) return 'FYERS';
 
     return 'SIMULATOR';

@@ -61,7 +61,7 @@ const YAHOO_SPOT_MAP: Record<string, { ticker: string; convert: ConvertType }> =
   BANKNIFTY:  { ticker: '^NSEBANK',               convert: 'DIRECT'         },
   FINNIFTY:   { ticker: 'NIFTY_FIN_SERVICE.NS',   convert: 'DIRECT'         },
   MIDCPNIFTY: { ticker: '^NSEMDCP50',             convert: 'DIRECT'         },
-  NIFTYNXT50: { ticker: 'NIFTY_NEXT_50.NS',       convert: 'DIRECT'         },
+  NIFTYNXT50: { ticker: '^NSMIDCP',               convert: 'DIRECT'         },
   SENSEX:     { ticker: '^BSESN',                 convert: 'DIRECT'         },
   BANKEX:     { ticker: 'BSE-BANK.BO',            convert: 'DIRECT'         },
   CRUDEOIL:   { ticker: 'CL=F',                   convert: 'USD_INR_CRUDE'  },
@@ -77,26 +77,26 @@ const YAHOO_SPOT_MAP: Record<string, { ticker: string; convert: ConvertType }> =
 
 /**
  * Absolute emergency fallback — used ONLY when Fyers + NSE + Yahoo ALL fail simultaneously.
- * These are rough order-of-magnitude numbers, NOT precise prices.
- * They exist solely to prevent a crash / blank screen, not to be accurate.
+ * These are realistic order-of-magnitude levels aligned with current market structure.
+ * They exist solely to prevent a crash / blank screen.
  */
 const EMERGENCY_FALLBACK_SPOT: Record<string, number> = {
-  NIFTY:      24500,
-  BANKNIFTY:  51500,
-  FINNIFTY:   23500,
-  MIDCPNIFTY: 12500,
-  NIFTYNXT50: 68000,
-  SENSEX:     77000,
-  BANKEX:     65000,
-  CRUDEOIL:   7000,
-  NATURALGAS: 240,
-  GOLD:       75000,
-  SILVER:     95000,
-  RELIANCE:   2950,
-  HDFCBANK:   1650,
-  ICICIBANK:  1200,
-  INFY:       1850,
-  TCS:        4200,
+  NIFTY:      23800,
+  BANKNIFTY:  57000,
+  FINNIFTY:   25800,
+  MIDCPNIFTY: 18050,
+  NIFTYNXT50: 72800,
+  SENSEX:     75800,
+  BANKEX:     64300,
+  CRUDEOIL:   8900,
+  NATURALGAS: 280,
+  GOLD:       152700,
+  SILVER:     231500,
+  RELIANCE:   1290,
+  HDFCBANK:   705,
+  ICICIBANK:  1400,
+  INFY:       1085,
+  TCS:        2270,
 };
 
 export class NseService {

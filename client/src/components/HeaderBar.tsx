@@ -285,6 +285,8 @@ export const HeaderBar: React.FC = () => {
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                   : effectiveBroker === 'FYERS'
                   ? 'bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400'
+                  : dhanConfig.isConnected
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                   : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
                 }`}
               title={
@@ -292,6 +294,8 @@ export const HeaderBar: React.FC = () => {
                   ? 'DhanHQ API Connected (25 req/s Live)'
                   : effectiveBroker === 'FYERS'
                   ? 'Fyers API v3 Connected'
+                  : dhanConfig.isConnected
+                  ? 'DhanHQ Connected (Trading Execution Ready • Live Data via NSE Feed)'
                   : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
               }
             >
@@ -300,6 +304,8 @@ export const HeaderBar: React.FC = () => {
                   ? 'text-emerald-500 animate-pulse'
                   : effectiveBroker === 'FYERS'
                   ? 'text-sky-500 animate-pulse'
+                  : dhanConfig.isConnected
+                  ? 'text-emerald-500'
                   : 'text-accent-sky'
               }`} />
               <span className="hidden xl:inline">
@@ -307,6 +313,8 @@ export const HeaderBar: React.FC = () => {
                   ? 'Dhan Live'
                   : effectiveBroker === 'FYERS'
                   ? 'Fyers Live'
+                  : dhanConfig.isConnected
+                  ? (dhanConfig.hasDataApi === false ? 'Dhan (Trading)' : 'Dhan Live')
                   : 'Connect Broker'}
               </span>
             </button>

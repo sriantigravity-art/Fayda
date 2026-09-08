@@ -895,7 +895,7 @@ app.post('/api/broker/select', requireAdminAuth, (req, res) => {
   if (broker === 'DHAN' || broker === 'FYERS' || broker === 'SIMULATOR') {
     brokerManager.setActiveBroker(broker);
     if (broker === 'DHAN' && dhanService.getConfig().isConnected) {
-      currentDataSource = 'DHAN_LIVE';
+      currentDataSource = dhanService.hasDataApi() ? 'DHAN_LIVE' : 'NSE_LIVE';
     } else if (broker === 'FYERS' && fyersService.getConfig().isConnected) {
       currentDataSource = 'FYERS_LIVE';
     } else {
