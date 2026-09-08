@@ -267,57 +267,35 @@ export const GlobalMarketContextBanner: React.FC = () => {
       onTouchStart={() => setIsHovered(true)}
       onTouchEnd={() => setIsHovered(false)}
     >
-      {/* Primary World Market Ticker Ribbon - Left Aligned */}
-      <div className="max-w-[1840px] mx-auto px-2 sm:px-4 py-1.5 flex items-center justify-between gap-2.5 sm:gap-3">
-        {/* Left Section: Macro Badge + Category + Data Chips ALL FLUSH TO LEFT */}
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0 overflow-hidden">
-          {/* Setup Badge */}
-          {setupBadge}
+      {/* Mobile/Tablet: 2-row layout. Desktop: single-row layout */}
+      <div className="max-w-[1840px] mx-auto px-2 sm:px-4">
 
-          {/* Active Slide Category Pill (Visible in slide mode) */}
-          {!isAllView && (
-            <span className="hidden lg:inline-flex px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-terminal-panel/90 border border-terminal-border text-terminal-muted shrink-0">
-              {slides[currentSlide]?.categoryBadge}
-            </span>
-          )}
+        {/* ── ROW 1 (always): Badge + Slide Controls ── */}
+        <div className="flex items-center justify-between gap-2 py-1.5">
+          {/* Left: Macro Setup Badge + Category pill (desktop only) */}
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            {setupBadge}
+            {/* Active Category Pill — desktop only */}
+            {!isAllView && (
+              <span className="hidden lg:inline-flex px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-terminal-panel/90 border border-terminal-border text-terminal-muted shrink-0">
+                {slides[currentSlide]?.categoryBadge}
+              </span>
+            )}
+          </div>
 
-          {/* Subtle Vertical Divider */}
-          <span className="hidden md:inline-block w-px h-4 bg-terminal-border/60 shrink-0" />
-
-          {/* Active Slide Data Chips - Left Aligned */}
-          {isAllView ? (
-            <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 text-[11px] font-sans overflow-x-auto no-scrollbar py-0.5 min-w-0 justify-start">
-              {slides.map(s => (
-                <React.Fragment key={s.id}>
-                  {s.items}
-                </React.Fragment>
-              ))}
-            </div>
-          ) : (
-            <div 
-              key={currentSlide} 
-              className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 text-[11px] font-sans transition-all duration-300 ease-out animate-in fade-in slide-in-from-left-2 py-0.5 min-w-0 justify-start"
-            >
-              {slides[currentSlide]?.items}
-            </div>
-          )}
-        </div>
-
-        {/* Right Section: Compact Slide Controls */}
-        <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-terminal-border/60">
+          {/* Right: Slide Controls — always on Row 1 */}
+          <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-terminal-border/60">
             {!isAllView && (
               <>
-                {/* Previous Slide */}
                 <button
                   type="button"
                   onClick={handlePrev}
                   className="p-1 rounded-md hover:bg-terminal-panel border border-transparent hover:border-terminal-border text-terminal-muted hover:text-terminal-text transition-colors cursor-pointer"
-                  title="Previous market group (or wait for 5s auto-slide)"
+                  title="Previous market group"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Slide Indicator Dots */}
                 <div className="flex items-center gap-1 px-1">
                   {slides.map((s, idx) => (
                     <button
@@ -325,8 +303,8 @@ export const GlobalMarketContextBanner: React.FC = () => {
                       type="button"
                       onClick={() => handleSelectSlide(idx)}
                       className={`transition-all duration-200 cursor-pointer rounded-full ${
-                        currentSlide === idx 
-                          ? 'w-3.5 h-1.5 bg-accent-cyan shadow-xs shadow-accent-cyan/50' 
+                        currentSlide === idx
+                          ? 'w-3.5 h-1.5 bg-accent-cyan shadow-xs shadow-accent-cyan/50'
                           : 'w-1.5 h-1.5 bg-slate-400/40 hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500'
                       }`}
                       title={`Slide ${idx + 1}/${slides.length}: ${s.categoryTitle}`}
@@ -334,47 +312,82 @@ export const GlobalMarketContextBanner: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Next Slide */}
                 <button
                   type="button"
                   onClick={handleNext}
                   className="p-1 rounded-md hover:bg-terminal-panel border border-transparent hover:border-terminal-border text-terminal-muted hover:text-terminal-text transition-colors cursor-pointer"
-                  title="Next market group (or wait for 5s auto-slide)"
+                  title="Next market group"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Play / Pause Toggle */}
                 <button
                   type="button"
                   onClick={() => setIsPaused(prev => !prev)}
                   className={`p-1 rounded-md transition-colors cursor-pointer border ${
-                    isPaused 
-                      ? 'bg-amber-500/20 text-amber border-amber-500/40' 
+                    isPaused
+                      ? 'bg-amber-500/20 text-amber border-amber-500/40'
                       : 'hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-transparent hover:border-terminal-border'
                   }`}
-                  title={isPaused ? 'Resume 5-second slide loop' : 'Pause 5-second slide loop'}
+                  title={isPaused ? 'Resume auto-slide' : 'Pause auto-slide'}
                 >
                   {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
                 </button>
               </>
             )}
 
-            {/* Toggle All Data vs 5s Slider */}
             <button
               type="button"
               onClick={() => setIsAllView(prev => !prev)}
               className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-colors cursor-pointer border ${
-                isAllView 
-                  ? 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/40' 
+                isAllView
+                  ? 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/40'
                   : 'hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-transparent hover:border-terminal-border'
               }`}
-              title={isAllView ? 'Switch to 5-second automated slide loop' : 'Expand all world market indicators at once'}
+              title={isAllView ? 'Switch to 5s loop' : 'Expand all indicators'}
             >
               {isAllView ? '5s Loop' : 'All'}
             </button>
           </div>
+
+          {/* Desktop only: Data chips inline on Row 1 (after divider) */}
+          <div className="hidden lg:flex items-center gap-2 flex-1 min-w-0 overflow-hidden pl-3 border-l border-terminal-border/40">
+            {isAllView ? (
+              <div className="flex items-center flex-wrap gap-1.5 text-[11px] font-sans overflow-x-auto no-scrollbar py-0.5">
+                {slides.map(s => (
+                  <React.Fragment key={s.id}>{s.items}</React.Fragment>
+                ))}
+              </div>
+            ) : (
+              <div
+                key={currentSlide}
+                className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 text-[11px] font-sans transition-all duration-300 ease-out animate-in fade-in slide-in-from-left-2 py-0.5"
+              >
+                {slides[currentSlide]?.items}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ── ROW 2 (mobile/tablet only, hidden on lg+): Data Chips scrollable ticker ── */}
+        <div className="lg:hidden pb-1.5">
+          {isAllView ? (
+            <div className="flex items-center flex-wrap gap-1.5 text-[11px] font-sans overflow-x-auto no-scrollbar py-0.5">
+              {slides.map(s => (
+                <React.Fragment key={s.id}>{s.items}</React.Fragment>
+              ))}
+            </div>
+          ) : (
+            <div
+              key={`mob-${currentSlide}`}
+              className="flex items-center flex-nowrap overflow-x-auto no-scrollbar gap-1.5 text-[11px] font-sans animate-in fade-in slide-in-from-left-2 py-0.5"
+            >
+              {slides[currentSlide]?.items}
+            </div>
+          )}
+        </div>
+
+      </div>
       </div>
     );
   };
