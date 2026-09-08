@@ -242,10 +242,18 @@ export const HeaderBar: React.FC = () => {
           {/* Quick Stock / Index Selector Dropdown */}
           <StockSelectorDropdown />
 
-          {/* Live / Closed Market Indicator (Visible on mobile & desktop) */}
-          <div className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0" title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}`}>
+          {/* Live / Closed Market & Data Feed Indicator */}
+          <div 
+            className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0" 
+            title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Data Feed: ${effectiveBroker === 'FYERS' ? 'Fyers API v3' : effectiveBroker === 'DHAN' ? 'DhanHQ Live' : 'NSE Official Feed'}`}
+          >
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
-            <span className="text-terminal-muted hidden md:inline">{isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}</span>
+            <span className="text-terminal-muted font-bold">
+              {isConnected ? (isLiveMarketOpen ? 'MKT LIVE' : 'CLOSED') : 'OFFLINE'}
+            </span>
+            <span className="text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted hidden sm:inline">
+              {effectiveBroker === 'FYERS' ? 'FYERS' : effectiveBroker === 'DHAN' ? 'DHAN' : 'NSE'}
+            </span>
           </div>
         </div>
 
