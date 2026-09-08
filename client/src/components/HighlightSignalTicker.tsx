@@ -4,7 +4,7 @@ import { useTerminalMode } from '../context/TerminalModeContext';
 import { calculateTargetHorizon, calculateDynamicTarget } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice } from '../utils/signalTimeHelper';
 import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { IndexSymbol } from '../types';
+import type { IndexSymbol, OngoingProfitBoxData, MarketMomentumRegime } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
@@ -107,6 +107,23 @@ export const HighlightSignalTicker: React.FC = () => {
       // 1. Absolute Priority: Mirror the Prime High-Probability Tip so there is ONE single source of truth
       if (primePick) {
         const isBull = primePick.contractSymbol.includes('CE');
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === sym);
+        const lot = primePick.lotSize || cfg?.lot || 50;
+        const entryPriceNum = typeof primePick.entryPrice === 'number' ? primePick.entryPrice : (parseFloat(String(primePick.entryPrice).replace(/[^0-9.]/g, '')) || primePick.currentLtp);
+        const ltp = primePick.currentLtp || entryPriceNum;
+        const pnlPoints = primePick.pnlPoints ?? +(ltp - entryPriceNum).toFixed(2);
+        const pnlPct = primePick.pnlPct ?? (entryPriceNum > 0 ? +((pnlPoints / entryPriceNum) * 100).toFixed(2) : 0);
+        const pnlRupees = primePick.pnlRupees ?? Math.round(pnlPoints * lot);
+
+        const ongoingProfitBox: OngoingProfitBoxData = primePick.ongoingProfitBox || {
+          pnlPoints,
+          pnlPct,
+          pnlRupees,
+          decisionTag: pnlPct >= 25 ? 'BOOK_HALF' : pnlPct >= 15 ? 'TRAIL_SL' : pnlPct <= -8 ? 'EXIT_SL' : 'HOLD',
+          decisionText: pnlPct >= 25 ? `🎯 Target Reached (+${pnlPct}%)` : `P&L: ${pnlPct >= 0 ? '+' : ''}₹${pnlRupees.toLocaleString('en-IN')}`,
+          isProfit: pnlPoints >= 0
+        };
+
         return {
           symbol: sym,
           strike: primePick.contractSymbol,
@@ -115,13 +132,39 @@ export const HighlightSignalTicker: React.FC = () => {
           isLiveSignal: true,
           ltp: primePick.currentLtp,
           entry: primePick.entryRange || `₹${primePick.entryPrice.toFixed(2)}`,
+          entryPriceNum,
           exitSL: `₹${primePick.stoplossPrice.toFixed(2)}`,
           target: `₹${primePick.target1Price.toFixed(2)}`,
+          target2: primePick.target2Price ? `₹${primePick.target2Price.toFixed(2)}` : undefined,
           riskReward: primePick.riskReward || '1:2.5',
           score: primePick.confluenceScore,
           rawTimestamp: primePick.entryTimeFormatted || lastUpdated || new Date().toISOString(),
           time: primePick.entryTimeFormatted || fallbackTime,
           isStoplossHit: primePick.status === 'SL_HIT',
+          status: primePick.status,
+          ongoingProfitBox,
+          marketRegime: primePick.marketRegime,
+          momentumDescription: primePick.momentumDescription,
+          isExpiryDay: primePick.isExpiryDay,
+          callGivenTime: primePick.callGivenTime,
+          callGivenTimeFormatted: primePick.callGivenTimeFormatted || primePick.entryTimeFormatted || fallbackTime,
+          entryPriceTime: primePick.entryPriceTime,
+          entryPriceTimeFormatted: primePick.entryPriceTimeFormatted || primePick.entryTimeFormatted || fallbackTime,
+          target1HitTime: primePick.target1HitTime,
+          target1HitTimeFormatted: primePick.target1HitTimeFormatted,
+          target2HitTime: primePick.target2HitTime,
+          target2HitTimeFormatted: primePick.target2HitTimeFormatted,
+          stoplossTime: primePick.stoplossTime,
+          stoplossTimeFormatted: primePick.stoplossTimeFormatted,
+          halfProfitBookTime: primePick.halfProfitBookTime,
+          halfProfitBookTimeFormatted: primePick.halfProfitBookTimeFormatted,
+          carryForwardAdvice: primePick.carryForwardAdvice,
+          carryForwardSuggestion: primePick.carryForwardSuggestion,
+          carryForwardTimeFormatted: primePick.carryForwardTimeFormatted,
+          pnlPoints,
+          pnlPct,
+          pnlRupees,
+          lotSize: lot,
           horizon: undefined,
           breakoutStatus: primePick.strategyTag,
           faydaStrategyMatch: `🎯 ${primePick.confluenceScore}% Confluence Prime`,
@@ -252,12 +295,17 @@ export const HighlightSignalTicker: React.FC = () => {
         } : undefined
       };
     });
+
+    // Clear stopped-out positions from the live signal area to the Trade Journal
+    return rawList.filter(item => item && !item.isStoplossHit);
   }, [symbolsToScan, indices, isBeginner, isIntermediate, isExpert, isLiveNseMarket, currentTime]);
 
   const renderSetupItem = (item: (typeof activeSetups)[0], uniquePrefix: string) => {
     const isSl = item.isStoplossHit;
     const isBull = item.isBull;
     const isMarketOpen = isMarketOpenForSymbol(item.symbol);
+    const profitBox = (item as any).ongoingProfitBox as OngoingProfitBoxData | undefined;
+    const isProfit = profitBox ? profitBox.isProfit : (item.ltp >= (parseFloat(String(item.entry).replace(/[^0-9.]/g, '')) || item.ltp));
 
     const timing = getSignalTimingData(
       item.rawTimestamp,
@@ -281,16 +329,39 @@ export const HighlightSignalTicker: React.FC = () => {
         optionType: item.strike.includes('PE') ? 'PE' : 'CE',
         action: item.isBull ? 'BUY_CALL' : 'BUY_PUT',
         strikePrice: parseInt(item.strike.replace(/[^0-9]/g, '')) || 0,
-        entryPrice: typeof item.ltp === 'number' ? item.ltp : 0,
+        entryPrice: (item as any).entryPriceNum ?? (typeof item.ltp === 'number' ? item.ltp : 0),
         entryRange: item.entry,
         target1Price: parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3),
-        target2Price: (parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3)) * 1.25,
+        target2Price: (item as any).target2 ? parseFloat(String((item as any).target2).replace(/[^0-9.]/g, '')) : (parseFloat(String(item.target).replace(/[^0-9.]/g, '')) || (item.ltp * 1.3)) * 1.25,
         stoplossPrice: parseFloat(String(item.exitSL).replace(/[^0-9.]/g, '')) || (item.ltp * 0.8),
         riskReward: item.riskReward,
         confluenceScore: item.score,
         currentLtp: item.ltp,
-        status: isSl ? 'SL_HIT' : 'ACTIVE',
+        status: (item as any).status || (isSl ? 'SL_HIT' : 'ACTIVE'),
         givenTimeFormatted: item.time,
+        callGivenTime: (item as any).callGivenTime,
+        callGivenTimeFormatted: (item as any).callGivenTimeFormatted || item.time,
+        entryPriceTime: (item as any).entryPriceTime,
+        entryPriceTimeFormatted: (item as any).entryPriceTimeFormatted || item.time,
+        target1HitTime: (item as any).target1HitTime,
+        target1HitTimeFormatted: (item as any).target1HitTimeFormatted,
+        target2HitTime: (item as any).target2HitTime,
+        target2HitTimeFormatted: (item as any).target2HitTimeFormatted,
+        stoplossTime: (item as any).stoplossTime,
+        stoplossTimeFormatted: (item as any).stoplossTimeFormatted,
+        halfProfitBookTime: (item as any).halfProfitBookTime,
+        halfProfitBookTimeFormatted: (item as any).halfProfitBookTimeFormatted,
+        carryForwardAdvice: (item as any).carryForwardAdvice,
+        carryForwardSuggestion: (item as any).carryForwardSuggestion,
+        carryForwardTimeFormatted: (item as any).carryForwardTimeFormatted,
+        marketRegime: (item as any).marketRegime,
+        momentumDescription: (item as any).momentumDescription,
+        isExpiryDay: (item as any).isExpiryDay,
+        ongoingProfitBox: (item as any).ongoingProfitBox,
+        pnlPoints: (item as any).pnlPoints,
+        pnlPct: (item as any).pnlPct,
+        pnlRupees: (item as any).pnlRupees,
+        lotSize: (item as any).lotSize,
         title: item.strike,
         subtitle: `${item.action} • ${item.faydaStrategyMatch || 'Momentum Breakout'}`
       });
@@ -354,6 +425,26 @@ export const HighlightSignalTicker: React.FC = () => {
           <span className="text-emerald-700 dark:text-emerald-400 text-[9px] uppercase font-bold">Target:</span>
           <span className="font-bold">{item.target}</span>
         </div>
+
+        {/* ONGOING LIVE PROFIT BOX */}
+        {profitBox && (
+          <div className={`px-2 py-0.5 rounded-lg border font-mono flex items-center gap-1.5 shrink-0 transition-all ${
+            isProfit
+              ? 'bg-emerald-500/20 text-emerald-950 dark:text-emerald-300 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+              : 'bg-rose-500/20 text-rose-950 dark:text-rose-300 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+          }`} title={profitBox.decisionText}>
+            <span className="text-[10px] font-black">{isProfit ? '🟢' : '🔴'}</span>
+            <div className="flex flex-col text-left leading-tight">
+              <span className="text-[8px] uppercase font-black text-slate-700 dark:text-slate-300">
+                {profitBox.decisionTag === 'BOOK_HALF' ? 'BOOK 50%' : profitBox.decisionTag === 'TRAIL_SL' ? 'TRAIL SL' : profitBox.decisionTag === 'ENTER' ? 'ENTRY' : 'P&L'}
+              </span>
+              <span className="font-black text-[10.5px]">
+                {isProfit ? '+' : ''}₹{Math.abs(profitBox.pnlRupees).toLocaleString('en-IN')}
+                <span className="text-[9px] font-semibold ml-1 opacity-90">({isProfit ? '+' : ''}{profitBox.pnlPct}%)</span>
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Timing */}
         <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-500 dark:text-slate-400 shrink-0">
@@ -528,6 +619,19 @@ export const HighlightSignalTicker: React.FC = () => {
               {safeIndex + 1} of {activeSetups.length}
             </span>
           </div>
+
+          {/* Active Momentum Regime Pill */}
+          {(currentSetup as any)?.marketRegime && (
+            <div className={`hidden md:flex items-center space-x-1 px-2 py-1 rounded-lg border font-mono text-[9.5px] font-black uppercase tracking-wider shrink-0 ${
+              (currentSetup as any).isExpiryDay 
+                ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                : (currentSetup as any).marketRegime === 'SIDEWAYS_CHOP'
+                ? 'bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/40'
+                : 'bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/40'
+            }`}>
+              <span>{(currentSetup as any).isExpiryDay ? '⚡ 0DTE EXPIRY' : (currentSetup as any).marketRegime === 'SIDEWAYS_CHOP' ? '🐢 SIDEWAYS SCALP' : '⚡ FAST MOMENTUM'}</span>
+            </div>
+          )}
 
           {/* Quick Prev Tip Button */}
           <button

@@ -934,7 +934,8 @@ export class OIEngine {
           indiaVix,
           prevTrades,
           technicalIndicators,
-          maxPain
+          maxPain,
+          daysToExpiry
         );
 
         // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)

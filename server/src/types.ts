@@ -922,6 +922,20 @@ export interface WebSocketMessage {
 export type AssetCategory = 'ALL' | 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
 export type TradeCallStatus = 'TARGET_HIT' | 'STOPLOSS_HIT' | 'NEAR_TARGET' | 'ACTIVE' | 'EXPIRED';
 
+export type MarketMomentumRegime = 
+  | 'SIDEWAYS_CHOP'             // Low ATR, narrow range, balanced PCR -> Small Scalp Targets (10% - 15%)
+  | 'TRENDING_NORMAL'           // Directional drift, steady OI buildup -> Standard Targets (22% - 28%)
+  | 'FAST_MOMENTUM_EXPANSION';  // High velocity, expiry gamma surge, post-CAS volatility expansion -> Long Runner Targets (35% - 75%+)
+
+export interface OngoingProfitBoxData {
+  pnlPoints: number;
+  pnlPct: number;
+  pnlRupees: number;
+  decisionTag: 'ENTER' | 'HOLD' | 'BOOK_HALF' | 'TRAIL_SL' | 'EXIT_SL';
+  decisionText: string;
+  isProfit: boolean;
+}
+
 export interface JournalTradeCall {
   id: string;
   date: string; // 'YYYY-MM-DD'
@@ -951,8 +965,23 @@ export interface JournalTradeCall {
   status: TradeCallStatus;
   pointsPnl: number; // Positive for profit, negative for loss
   pnlPct: number; // Percentage gain/loss from entry
-  nearTargetPct: number; // 0% to 100%+ (% of target distance achieved)
-  nearTargetDescription: string; // '100% Hit' or 'Reached 94% of Target (Peak ₹148 vs ₹150)'
+  nearTargetPct?: number; // 0% to 100%+ (% of target distance achieved)
+  nearTargetDescription?: string; // '100% Hit' or 'Reached 94% of Target'
+  // Timing Milestones
+  callGivenTime?: string;
+  entryPriceTime?: string;
+  entryPriceTimeFormatted?: string;
+  target1HitTime?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTime?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTime?: string;
+  halfProfitBookTime?: string;
+  halfProfitBookTimeFormatted?: string;
+  carryForwardTime?: string;
+  carryForwardAdvice?: string;
+  marketRegime?: MarketMomentumRegime;
+  momentumDescription?: string;
   targetHitTime?: string; // IST time when target was reached
   stoplossHitTime?: string;
   notes?: string;
@@ -1082,6 +1111,24 @@ export interface UnifiedSmartTip {
   carryForwardTime?: string;
   carryForwardTimeFormatted?: string;
   carryForwardSuggestion?: string;
+  carryForwardAdvice?: string;
+  // 6-Stage Lifecycle Timestamps
+  callGivenTime?: string;
+  callGivenTimeFormatted?: string;
+  entryPriceTime?: string;
+  entryPriceTimeFormatted?: string;
+  target1HitTime?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTime?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTime?: string;
+  stoplossTimeFormatted?: string;
+  halfProfitBookTime?: string;
+  halfProfitBookTimeFormatted?: string;
+  marketRegime?: MarketMomentumRegime;
+  momentumDescription?: string;
+  isExpiryDay?: boolean;
+  ongoingProfitBox?: OngoingProfitBoxData;
   strategyMatches: {
     faydaRadarConfluence: boolean;
     oiActivitySurge: boolean;

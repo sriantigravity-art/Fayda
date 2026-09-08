@@ -756,7 +756,7 @@ export class OIEngine {
             unifiedTipsPackage: (() => {
                 const mc = ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternBreakout);
                 const prevTrades = this.sessionTradesHistory.get(symbol) || [];
-                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain);
+                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain, daysToExpiry);
                 // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
                 const activeToKeep = [];
                 const seenContractSymbols = new Set();

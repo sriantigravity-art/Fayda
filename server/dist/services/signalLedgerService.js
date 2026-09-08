@@ -282,7 +282,7 @@ class SignalLedgerService {
                     return false;
                 if (statusFilter === 'LOSS' && c.status !== 'STOPLOSS_HIT')
                     return false;
-                if (statusFilter === 'NEAR_TARGET' && c.status !== 'NEAR_TARGET' && c.nearTargetPct < 80)
+                if (statusFilter === 'NEAR_TARGET' && c.status !== 'NEAR_TARGET' && (c.nearTargetPct ?? 0) < 80)
                     return false;
                 if (statusFilter === 'ACTIVE' && c.status !== 'ACTIVE')
                     return false;
@@ -310,7 +310,7 @@ class SignalLedgerService {
                 profitableCount++;
             else if (c.status === 'STOPLOSS_HIT')
                 lossCount++;
-            else if (c.status === 'NEAR_TARGET' || c.nearTargetPct >= 80)
+            else if (c.status === 'NEAR_TARGET' || (c.nearTargetPct ?? 0) >= 80)
                 nearTargetCount++;
             else
                 activeCount++;
