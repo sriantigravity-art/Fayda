@@ -44,3 +44,12 @@ Thumbs.db
 *brokerPreference.json
 *.local.json
 server/globalQuotesCache.json
+
+# Subscriber database & notification credentials (contain PII + API secrets)
+server/data/subscribers.json
+server/data/signals_ledger.json
+server/notificationConfig.json
+
+# Local notes / scratch files with credentials — never commit these
+*.txt
+OI\ RADAR.txt

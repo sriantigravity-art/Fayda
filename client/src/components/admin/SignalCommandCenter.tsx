@@ -407,7 +407,8 @@ const NotifConfigPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <Phone className="w-3.5 h-3.5" /> Twilio SMS
               </div>
               <div className="text-[10px] text-terminal-muted font-sans bg-orange-500/5 border border-orange-500/20 rounded-lg px-3 py-2">
-                API Key Name: <span className="font-mono text-orange-300">Fayda</span> · SID: <span className="font-mono text-orange-300">REDACTED_TWILIO_API_KEY</span>
+                Enter your Twilio Account SID, Auth Token, and From Number below. Find these in your{' '}
+                <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Twilio Console</a>.
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <F label="Account SID" value={cfg.twilio?.accountSid} onChange={(v: string) => setCfg(p => ({ ...p, twilio: { ...p.twilio!, accountSid: v } }))} placeholder="ACxxxxxxxx" />

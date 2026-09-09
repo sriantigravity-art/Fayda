@@ -15,7 +15,7 @@ import {
   AuthToken
 } from '../types.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fayda_pro_jwt_secret_2026_change_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-use-env-var';
 const JWT_EXPIRES = '30d';
 const BCRYPT_ROUNDS = 10;
 
@@ -70,7 +70,8 @@ class SubscriberService {
   /** Seed the SuperAdmin account if no subscribers exist */
   private seed() {
     if (this.subscribers.size > 0) return;
-    const passwordHash = bcrypt.hashSync('REDACTED_PASSWORD', BCRYPT_ROUNDS);
+    const initPassword = process.env.SUPERADMIN_INIT_PASSWORD || 'ChangeMe@FirstLogin';
+    const passwordHash = bcrypt.hashSync(initPassword, BCRYPT_ROUNDS);
     const superAdmin: Subscriber = {
       id: 'ADM-SRIKANT-007',
       fullName: 'Srikant SR',
@@ -184,11 +185,8 @@ class SubscriberService {
     if (!found) return { success: false, error: 'No account found with this email or mobile.' };
     if (!found.isActive) return { success: false, error: 'Your account has been deactivated. Please contact support.' };
 
-    // Also allow the legacy plain-text SuperAdmin password directly for backwards compat
-    const legacyMatch = found.role === 'SUPERADMIN' && password === 'REDACTED_PASSWORD';
     const hashMatch = await bcrypt.compare(password, found.passwordHash);
-
-    if (!legacyMatch && !hashMatch) return { success: false, error: 'Incorrect password. Please try again.' };
+    if (!hashMatch) return { success: false, error: 'Incorrect password. Please try again.' };
 
     // Update lastLoginAt
     found.lastLoginAt = getIST();
