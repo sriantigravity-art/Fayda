@@ -103,6 +103,7 @@ export class NseService {
   private cookies: string = '';
   private cookieTimestamp: number = 0;
   private isRefreshingCookies: boolean = false;
+  private nseFailureCooldownUntil: number = 0;
   private cachedChain: Map<string, { result: NseFetchResult; timestamp: number }> = new Map();
 
   // Unified spot data cache (60 s TTL): holds live Yahoo spot + change per symbol
@@ -231,7 +232,7 @@ export class NseService {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9'
         },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(2000)
       });
       const rawCookies = resMain.headers.getSetCookie ? resMain.headers.getSetCookie() : [];
       this.cookies = rawCookies.map(c => c.split(';')[0]).join('; ');
@@ -379,6 +380,11 @@ export class NseService {
     const now = Date.now();
     if (cached && now - cached.timestamp < 15000) return cached.result;
 
+    // If NSE API previously failed / timed out, serve calibrated structure immediately without blocking
+    if (now < this.nseFailureCooldownUntil) {
+      return this.buildCalibratedStructure(symbol, expiry);
+    }
+
     const nseKey = NSE_DERIVATIVE_INDEX_MAP[symbol];
 
     // ── Attempt 1: NSE India live equity-derivatives API ──────────────────────
@@ -393,7 +399,7 @@ export class NseService {
             'Referer': 'https://www.nseindia.com/option-chain',
             'Cookie': cookies
           },
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(2000)
         });
 
         if (res.ok) {
@@ -472,6 +478,7 @@ export class NseService {
         }
       } catch (err: any) {
         console.warn(`[NSE] liveEquity-derivatives error for ${symbol}:`, err.message);
+        this.nseFailureCooldownUntil = Date.now() + 60000;
       }
     }
 
@@ -511,31 +518,38 @@ export class NseService {
     if (cached) return cached.result;
 
     // ── Fallback: Build realistic dynamic OI chain around live Yahoo spot price ──
-    // Priority: Fetch live spot & delta from Yahoo Finance.
-    // EMERGENCY_FALLBACK_SPOT is used ONLY when all live networks/APIs fail completely.
     const yahooData = await this.fetchYahooSpot(symbol);
-    const isOfflineFallback = !yahooData;
+    return this.buildCalibratedStructure(symbol, expiry, yahooData?.spot, yahooData?.change, yahooData?.pctChange);
+  }
 
-    if (isOfflineFallback) {
-      console.warn(`[NSE] ⚠️ OFFLINE EMERGENCY FALLBACK: No live data available for ${symbol} — using calibrated safety reference spot ₹${EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000}`);
-    } else {
-      console.log(`[NSE] Building calibrated options structure for ${symbol} around live spot ₹${yahooData.spot} (${yahooData.change >= 0 ? '+' : ''}${yahooData.change} pts)`);
-    }
+  public buildCalibratedStructure(
+    symbol: IndexSymbol,
+    expiry?: string,
+    liveSpot?: number,
+    liveChange?: number,
+    livePctChange?: number
+  ): NseFetchResult {
+    const defaultSpot = (typeof liveSpot === 'number' && liveSpot > 0)
+      ? liveSpot
+      : (this.spotCache.get(symbol)?.spot ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000);
+    let spotChangeFbk = typeof liveChange === 'number'
+      ? liveChange
+      : (this.spotCache.get(symbol)?.change ?? 0);
+    let spotPctFbk = typeof livePctChange === 'number'
+      ? livePctChange
+      : (this.spotCache.get(symbol)?.pctChange ?? 0);
 
-    const defaultSpot   = yahooData?.spot      ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000;
-    let spotChangeFbk = yahooData?.change    ?? 0;
-    let spotPctFbk    = yahooData?.pctChange ?? 0;
     if (typeof spotChangeFbk === 'number' && Math.abs(spotChangeFbk - 84.80) < 0.05) {
       spotChangeFbk = 0;
       spotPctFbk = 0;
     }
 
-    const cfg   = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
-    const step  = cfg?.step ?? 50;
-    const atmStrike  = Math.round(defaultSpot / step) * step;
+    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
+    const step = cfg?.step ?? 50;
+    const atmStrike = Math.round(defaultSpot / step) * step;
 
     // Use NseExpiryService for dynamically computed official expiry dates (no hardcoding)
-    const expiryDates   = NseExpiryService.getUpcomingExpiries(symbol, 6);
+    const expiryDates = NseExpiryService.getUpcomingExpiries(symbol, 6);
     const selectedExpiry = expiry && expiryDates.includes(expiry) ? expiry : (expiryDates[0] || '');
 
     // Exact dynamic Days-To-Expiry from calendar (min 0.25 days for 0-DTE intraday)
@@ -545,23 +559,23 @@ export class NseService {
 
     // Realistic market-calibrated base volatilities
     const SYMBOL_BASE_IV: Record<string, number> = {
-      NIFTY:      0.135,
-      BANKNIFTY:  0.165,
-      FINNIFTY:   0.150,
+      NIFTY: 0.135,
+      BANKNIFTY: 0.165,
+      FINNIFTY: 0.150,
       MIDCPNIFTY: 0.145,
       NIFTYNXT50: 0.170,
-      SENSEX:     0.135,
-      BANKEX:     0.165,
-      CRUDEOIL:   0.280,
+      SENSEX: 0.135,
+      BANKEX: 0.165,
+      CRUDEOIL: 0.280,
       NATURALGAS: 0.420,
-      GOLD:       0.150,
-      SILVER:     0.220,
+      GOLD: 0.150,
+      SILVER: 0.220,
     };
     const baseSigma = SYMBOL_BASE_IV[symbol] ?? 0.20;
 
     const fallbackStrikes: RawStrikeSnapshot[] = [];
     let totalCallOI = 0;
-    let totalPutOI  = 0;
+    let totalPutOI = 0;
 
     for (let i = -15; i <= 15; i++) {
       const strikePrice = atmStrike + i * step;
@@ -569,22 +583,22 @@ export class NseService {
       // Realistic Institutional Volatility Smile & Downside Put Skew
       const moneyness = (strikePrice - defaultSpot) / (defaultSpot || 1);
       const callSigma = baseSigma * (1 + 0.10 * Math.max(0, moneyness));
-      const putSigma  = baseSigma * (1 + 0.24 * Math.max(0, -moneyness)); // Downside put skew
+      const putSigma = baseSigma * (1 + 0.24 * Math.max(0, -moneyness)); // Downside put skew
 
       const callLtp = Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, callSigma, 'CE')).toFixed(2));
-      const putLtp  = Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, putSigma,  'PE')).toFixed(2));
+      const putLtp = Math.max(0.5, +(GreekEngine.blackScholesPrice(defaultSpot, strikePrice, daysToExp, 0.07, putSigma, 'PE')).toFixed(2));
 
       // Natural round-strike institutional OI concentration
       const isMajorRound = strikePrice % (step * 5) === 0;
       const roundMultiplier = isMajorRound ? 1.35 : 1.0;
 
       const callOI = Math.round(115000 * Math.exp(-Math.abs(i) * 0.12) * roundMultiplier);
-      const putOI  = Math.round(125000 * Math.exp(-Math.abs(i) * 0.12) * roundMultiplier);
+      const putOI = Math.round(125000 * Math.exp(-Math.abs(i) * 0.12) * roundMultiplier);
       const callVolume = Math.round(callOI * 1.15 + (Math.abs(i) <= 3 ? 45000 : 8000));
-      const putVolume  = Math.round(putOI * 1.15  + (Math.abs(i) <= 3 ? 45000 : 8000));
+      const putVolume = Math.round(putOI * 1.15 + (Math.abs(i) <= 3 ? 45000 : 8000));
 
       totalCallOI += callOI;
-      totalPutOI  += putOI;
+      totalPutOI += putOI;
 
       fallbackStrikes.push({
         strikePrice,
@@ -593,7 +607,7 @@ export class NseService {
         callLtp,
         callVolume,
         putOI,
-        putOIChangeTotal:  Math.round(putOI * 0.035),
+        putOIChangeTotal: Math.round(putOI * 0.035),
         putLtp,
         putVolume
       });

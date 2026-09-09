@@ -63,6 +63,7 @@ export class NseService {
     cookies = '';
     cookieTimestamp = 0;
     isRefreshingCookies = false;
+    nseFailureCooldownUntil = 0;
     cachedChain = new Map();
     // Unified spot data cache (60 s TTL): holds live Yahoo spot + change per symbol
     spotCache = new Map();
@@ -178,7 +179,7 @@ export class NseService {
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language': 'en-US,en;q=0.9'
                 },
-                signal: AbortSignal.timeout(4000)
+                signal: AbortSignal.timeout(2000)
             });
             const rawCookies = resMain.headers.getSetCookie ? resMain.headers.getSetCookie() : [];
             this.cookies = rawCookies.map(c => c.split(';')[0]).join('; ');
@@ -309,6 +310,10 @@ export class NseService {
         const now = Date.now();
         if (cached && now - cached.timestamp < 15000)
             return cached.result;
+        // If NSE API previously failed / timed out, serve calibrated structure immediately without blocking
+        if (now < this.nseFailureCooldownUntil) {
+            return this.buildCalibratedStructure(symbol, expiry);
+        }
         const nseKey = NSE_DERIVATIVE_INDEX_MAP[symbol];
         // ── Attempt 1: NSE India live equity-derivatives API ──────────────────────
         if (nseKey) {
@@ -322,7 +327,7 @@ export class NseService {
                         'Referer': 'https://www.nseindia.com/option-chain',
                         'Cookie': cookies
                     },
-                    signal: AbortSignal.timeout(5000)
+                    signal: AbortSignal.timeout(2000)
                 });
                 if (res.ok) {
                     const json = (await res.json());
@@ -396,6 +401,7 @@ export class NseService {
             }
             catch (err) {
                 console.warn(`[NSE] liveEquity-derivatives error for ${symbol}:`, err.message);
+                this.nseFailureCooldownUntil = Date.now() + 60000;
             }
         }
         // ── Attempt 2: NSE option-chain-indices API (NIFTYNXT50) ──────────────────
@@ -431,19 +437,19 @@ export class NseService {
         if (cached)
             return cached.result;
         // ── Fallback: Build realistic dynamic OI chain around live Yahoo spot price ──
-        // Priority: Fetch live spot & delta from Yahoo Finance.
-        // EMERGENCY_FALLBACK_SPOT is used ONLY when all live networks/APIs fail completely.
         const yahooData = await this.fetchYahooSpot(symbol);
-        const isOfflineFallback = !yahooData;
-        if (isOfflineFallback) {
-            console.warn(`[NSE] ⚠️ OFFLINE EMERGENCY FALLBACK: No live data available for ${symbol} — using calibrated safety reference spot ₹${EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000}`);
-        }
-        else {
-            console.log(`[NSE] Building calibrated options structure for ${symbol} around live spot ₹${yahooData.spot} (${yahooData.change >= 0 ? '+' : ''}${yahooData.change} pts)`);
-        }
-        const defaultSpot = yahooData?.spot ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000;
-        let spotChangeFbk = yahooData?.change ?? 0;
-        let spotPctFbk = yahooData?.pctChange ?? 0;
+        return this.buildCalibratedStructure(symbol, expiry, yahooData?.spot, yahooData?.change, yahooData?.pctChange);
+    }
+    buildCalibratedStructure(symbol, expiry, liveSpot, liveChange, livePctChange) {
+        const defaultSpot = (typeof liveSpot === 'number' && liveSpot > 0)
+            ? liveSpot
+            : (this.spotCache.get(symbol)?.spot ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000);
+        let spotChangeFbk = typeof liveChange === 'number'
+            ? liveChange
+            : (this.spotCache.get(symbol)?.change ?? 0);
+        let spotPctFbk = typeof livePctChange === 'number'
+            ? livePctChange
+            : (this.spotCache.get(symbol)?.pctChange ?? 0);
         if (typeof spotChangeFbk === 'number' && Math.abs(spotChangeFbk - 84.80) < 0.05) {
             spotChangeFbk = 0;
             spotPctFbk = 0;

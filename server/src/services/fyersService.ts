@@ -426,6 +426,16 @@ export class FyersService {
   }
 
   private rateLimitUntil: number = 0;
+  private cachedOptionChain: Map<string, { result: FyersOptionChainResult; ts: number }> = new Map();
+
+  public getCachedOptionChain(symbol: string): FyersOptionChainResult | null {
+    const direct = this.cachedOptionChain.get(symbol);
+    if (direct) return direct.result;
+    for (const [k, v] of this.cachedOptionChain.entries()) {
+      if (k.startsWith(`${symbol}_`)) return v.result;
+    }
+    return null;
+  }
 
   public async validateConnection(): Promise<{ success: boolean; message: string; userName?: string }> {
     if (!this.config.appId || !this.config.accessToken) {
@@ -520,8 +530,18 @@ export class FyersService {
       return null;
     }
 
-    if (Date.now() < this.rateLimitUntil) {
-      return null;
+    const cacheKey = `${symbol}_${expiryTimestamp || 'default'}`;
+    const cached = this.cachedOptionChain.get(cacheKey) || this.cachedOptionChain.get(symbol);
+    const now = Date.now();
+
+    // Cache TTL check: serve cached chain for 2.5s to prevent hammering Fyers API
+    if (cached && (now - cached.ts < 2500)) {
+      return cached.result;
+    }
+
+    // If currently rate limited (429 cooldown active), return cached chain rather than failing
+    if (now < this.rateLimitUntil) {
+      return cached ? cached.result : null;
     }
 
     try {
@@ -529,7 +549,7 @@ export class FyersService {
       const fyersSymbol = cfg ? cfg.fyersSymbol : (this.symbolMap[symbol] || `NSE:${symbol}-EQ`);
       const authHeader = `${this.config.appId}:${this.config.accessToken}`;
       
-      let url = `https://api-t1.fyers.in/data/options-chain-v3?symbol=${encodeURIComponent(fyersSymbol)}&strikecount=30`;
+      let url = `https://api-t1.fyers.in/data/options-chain-v3?symbol=${encodeURIComponent(fyersSymbol)}&strikecount=20`;
       if (expiryTimestamp) {
         let epochSec = 0;
         if (/^\d+$/.test(expiryTimestamp)) {
@@ -545,25 +565,32 @@ export class FyersService {
 
       const response = await fetch(url, {
         headers: {
-          'Authorization': authHeader
-        }
+          'Authorization': authHeader,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*'
+        },
+        signal: AbortSignal.timeout(3500)
       });
 
       if (!response.ok) {
         if (response.status === 429) {
-          this.rateLimitUntil = Date.now() + 15000;
+          this.rateLimitUntil = Date.now() + 45000;
+          console.warn(`[Fyers] options-chain rate limit reached (429) for ${symbol} — backing off for 45s, serving cache`);
         }
-        return null;
+        return cached ? cached.result : null;
       }
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        return null;
+        return cached ? cached.result : null;
       }
 
       const json: any = await response.json();
       if (json.s !== 'ok' || !json.data) {
-        return null;
+        if (json.code === 429 || json.message?.includes('limit')) {
+          this.rateLimitUntil = Date.now() + 45000;
+        }
+        return cached ? cached.result : null;
       }
 
       const data = json.data;
@@ -657,7 +684,7 @@ export class FyersService {
         }))
         .sort((a, b) => a.strikePrice - b.strikePrice);
 
-      return {
+      const result: FyersOptionChainResult = {
         symbol,
         spotPrice,
         spotChange,
@@ -669,30 +696,64 @@ export class FyersService {
         totalPutOI: data.putOi || 0,
         indiaVix: data.indiavixData?.ltp || 0
       };
+
+      // Cache the good result
+      this.cachedOptionChain.set(cacheKey, { result, ts: now });
+      this.cachedOptionChain.set(symbol, { result, ts: now });
+
+      return result;
     } catch (err: any) {
       console.warn(`[Fyers] Fetch error for ${symbol}:`, err.message);
-      return null;
+      return cached ? cached.result : null;
     }
   }
 
   public async fetchQuotes(symbols: string[]): Promise<any[]> {
-    if (!this.config.appId || !this.config.accessToken) return [];
+    if (!this.config.appId || !this.config.accessToken || symbols.length === 0) return [];
+    
+    const symList = symbols.join(',');
+    const authHeader = `${this.config.appId}:${this.config.accessToken}`;
+    const standardHeaders = {
+      'Authorization': authHeader,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*'
+    };
+
+    // Primary: AWS Mumbai endpoint (api.fyers.in/api/v2/quotes) — no Cloudflare rate limit, low latency (<200ms)
     try {
-      const symList = symbols.join(',');
-      const response = await fetch(`https://api-t1.fyers.in/data/quotes?symbols=${encodeURIComponent(symList)}`, {
-        headers: {
-          'Authorization': `${this.config.appId}:${this.config.accessToken}`
-        }
+      const response = await fetch(`https://api.fyers.in/api/v2/quotes?symbols=${encodeURIComponent(symList)}`, {
+        headers: standardHeaders,
+        signal: AbortSignal.timeout(3000)
       });
-      if (!response.ok) return [];
-      const json = await response.json();
-      if (json && json.s === 'ok' && Array.isArray(json.d)) {
-        return json.d;
+      if (response.ok) {
+        const json = await response.json() as any;
+        if (json && json.s === 'ok' && Array.isArray(json.d)) {
+          return json.d;
+        }
       }
-      return [];
-    } catch {
-      return [];
+    } catch {}
+
+    // Fallback: api-t1 endpoint (if not currently in 429 rate limit cooldown)
+    if (Date.now() >= this.rateLimitUntil) {
+      try {
+        const response = await fetch(`https://api-t1.fyers.in/data/quotes?symbols=${encodeURIComponent(symList)}`, {
+          headers: standardHeaders,
+          signal: AbortSignal.timeout(3000)
+        });
+        if (!response.ok) {
+          if (response.status === 429) {
+            this.rateLimitUntil = Date.now() + 30000;
+          }
+          return [];
+        }
+        const json = await response.json() as any;
+        if (json && json.s === 'ok' && Array.isArray(json.d)) {
+          return json.d;
+        }
+      } catch {}
     }
+
+    return [];
   }
 
   public async fetchBatchQuotes(symbolConfigs: { symbol: string; fyersSymbol: string }[]): Promise<Map<string, FyersQuoteItem>> {

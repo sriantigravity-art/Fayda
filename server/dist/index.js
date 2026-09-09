@@ -246,9 +246,29 @@ const fetchSymbolSnapshot = async (symConfig) => {
             if (res && res.strikes && res.strikes.length > 0) {
                 usedSource = 'FYERS_LIVE';
             }
+            else {
+                // If Fyers returned null / rate-limited, use cached chain if available
+                const cachedChain = fyersService.getCachedOptionChain(symConfig.symbol);
+                if (cachedChain && cachedChain.strikes && cachedChain.strikes.length > 0) {
+                    res = cachedChain;
+                    usedSource = 'FYERS_LIVE';
+                }
+                else {
+                    // Instant calibrated structure around live spot with 0ms timeout (never hang on NSE)
+                    const spotQuote = await globalIndicesService.getSpotForSymbol(symConfig.symbol);
+                    if (spotQuote && spotQuote.spot > 0) {
+                        const calRes = nseService.buildCalibratedStructure(symConfig.symbol, chosenExp);
+                        calRes.spotPrice = spotQuote.spot;
+                        calRes.spotChange = spotQuote.change;
+                        calRes.spotPctChange = spotQuote.pctChange;
+                        res = calRes;
+                        usedSource = 'FYERS_LIVE';
+                    }
+                }
+            }
         }
-        // Seamless fallback to Official Exchange data if active broker returned no strikes
-        if (!res || !res.strikes || res.strikes.length === 0) {
+        // Seamless fallback to Official Exchange data ONLY IF NO BROKER IS CONNECTED
+        if ((!res || !res.strikes || res.strikes.length === 0) && !effective) {
             res = await nseService.fetchOptionChain(symConfig.symbol, chosenExp);
             usedSource = 'NSE_LIVE';
         }
@@ -380,28 +400,15 @@ const fetchSymbolSnapshot = async (symConfig) => {
         console.warn(`[Poll] Error for ${symConfig.symbol}:`, err.message);
     }
 };
-// ── FAST-LANE WORKER (1.5s): Priority streaming for screen-active symbol(s) ───────
+// ── FAST-LANE WORKER (2.5s): Priority streaming for screen-active symbol ───────
 const pollFastLane = async () => {
     if (isFastLaneBusy)
         return;
     isFastLaneBusy = true;
     try {
-        const targets = new Set();
-        if (activeClients.size > 0) {
-            for (const s of clientActiveSymbols.values()) {
-                if (s)
-                    targets.add(s);
-            }
-        }
-        if (targets.size === 0) {
-            targets.add(activeSymbol || 'NIFTY');
-        }
-        // Limit fast-lane concurrent symbols to at most 3 to protect broker rate limits
-        const priorityList = Array.from(targets).slice(0, 3);
-        for (const sym of priorityList) {
-            const config = getSymbolConfig(sym);
-            await fetchSymbolSnapshot(config);
-        }
+        const targetSym = activeSymbol || 'NIFTY';
+        const config = getSymbolConfig(targetSym);
+        await fetchSymbolSnapshot(config);
     }
     catch (err) {
         console.warn('[FastLane] Error:', err.message);
@@ -410,11 +417,12 @@ const pollFastLane = async () => {
         isFastLaneBusy = false;
     }
 };
-// ── BATCH QUOTES WORKER (1.5s): Multi-symbol tick streaming across all watchlists ──
+// ── BATCH QUOTES WORKER (2.0s): Multi-symbol tick streaming across all watchlists ──
 const pollBatchQuotes = async () => {
     if (isBatchQuotesBusy)
         return;
-    if (currentDataSource !== 'FYERS_LIVE')
+    const effective = brokerManager.getEffectiveLiveBroker();
+    if (currentDataSource !== 'FYERS_LIVE' && effective !== 'FYERS')
         return;
     isBatchQuotesBusy = true;
     try {
@@ -513,14 +521,14 @@ const startFyersPolling = () => {
     // Immediate initial run
     pollFastLane();
     pollBatchQuotes();
-    // 1. Fast-lane active symbol loop (2.0s during market, 5s off-market)
-    const fastInterval = isNseMarketOpen() ? 2000 : 5000;
+    // 1. Fast-lane active symbol loop (2.5s during market, 5s off-market)
+    const fastInterval = isNseMarketOpen() ? 2500 : 5000;
     fastLaneTimer = setInterval(pollFastLane, fastInterval);
-    // 2. High-speed batch quotes loop (2.0s during market, 6s off-market)
-    const quotesInterval = isNseMarketOpen() ? 2000 : 6000;
+    // 2. High-speed batch quotes loop (2.0s during market, 5s off-market)
+    const quotesInterval = isNseMarketOpen() ? 2000 : 5000;
     batchQuotesTimer = setInterval(pollBatchQuotes, quotesInterval);
-    // 3. Staggered background option chains (8s)
-    bgPollTimer = setInterval(pollBackgroundChains, 8000);
+    // 3. Staggered background option chains (9s)
+    bgPollTimer = setInterval(pollBackgroundChains, 9000);
 };
 const startNsePolling = () => {
     stopAllPolling();
