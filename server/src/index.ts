@@ -809,6 +809,25 @@ setInterval(() => {
   }
 }, 4000);
 
+
+// ── Admin: Reset all cached tips & ledger — forces fresh re-evaluation ──────
+app.post('/api/admin/reset-session', requireAdminAuth, (req, res) => {
+  try {
+    // 1. Clear in-memory index state cache (holds yesterday's unifiedTipsPackage)
+    cachedIndexStates.clear();
+    flashedHighProbTipIds.clear();
+
+    // 2. Clear the signals ledger (in-memory + file)
+    signalLedgerService.clearAll();
+
+    console.log('[Admin] Session reset: cleared cachedIndexStates, flashedHighProbTipIds, and signals ledger.');
+    res.json({ success: true, message: 'Session reset complete. Fresh tips will generate on next market poll.' });
+  } catch (err: any) {
+    console.error('[Admin] Reset failed:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/datasource', requireAdminAuth, (req, res) => {
   const { mode } = req.body as { mode: DataSourceMode };
   if (mode === 'NSE_LIVE' || mode === 'FYERS_LIVE') {

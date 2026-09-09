@@ -136,6 +136,22 @@ class SignalLedgerService {
     }, 2500);
   }
 
+  /** Wipe all in-memory state AND the ledger file. Used for day-start reset. */
+  public clearAll(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    this.calls.clear();
+    this.datesSet.clear();
+    try {
+      fs.writeFileSync(this.dataFilePath, '[]', 'utf-8');
+    } catch (err: any) {
+      // ignore transient lock
+    }
+    console.log('[SignalLedgerService] clearAll() — ledger wiped for fresh session.');
+  }
+
   public recordSignal(signal: {
     symbol: string;
     strikePrice: number;
