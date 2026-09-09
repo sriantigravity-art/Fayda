@@ -206,12 +206,16 @@ globalMarketFeedService.onUpdate((globalMarketContext: GlobalMarketContextData) 
 // Hook FyersService auto-renewal callback — broadcast new token state to all clients
 fyersService.onTokenRenewed = () => {
   console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
+  brokerManager.setActiveBroker('FYERS');
   broadcast({
-    type: 'FYERS_STATUS',
+    type: 'BROKER_UPDATE',
     fyersConfig: fyersService.getPublicConfig(),
-    dataSource:  currentDataSource,
+    dhanConfig: dhanService.getPublicConfig(),
+    activeBroker: brokerManager.getActiveBroker(),
+    effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+    dataSource: currentDataSource,
     isMarketOpen: isNseMarketOpen(),
-    timestamp:   new Date().toISOString()
+    timestamp: new Date().toISOString()
   });
 };
 
@@ -956,12 +960,16 @@ app.post('/api/fyers/connect', requireAdminAuth, async (req, res) => {
   const result = await fyersService.validateConnection();
 
   if (result.success) {
+    brokerManager.setActiveBroker('FYERS');
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
 
     broadcast({
-      type: 'FYERS_STATUS',
+      type: 'BROKER_UPDATE',
       fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
       dataSource: currentDataSource,
       isMarketOpen: isNseMarketOpen(),
       timestamp: new Date().toISOString()
@@ -999,12 +1007,16 @@ app.get('/api/fyers/callback', async (req, res) => {
   const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
 
   if (result.success) {
+    brokerManager.setActiveBroker('FYERS');
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
 
     broadcast({
-      type: 'FYERS_STATUS',
+      type: 'BROKER_UPDATE',
       fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
       dataSource: currentDataSource,
       isMarketOpen: isNseMarketOpen(),
       timestamp: new Date().toISOString()
@@ -1050,12 +1062,16 @@ app.post('/api/fyers/exchange-authcode', requireAdminAuth, async (req, res) => {
   const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
 
   if (result.success) {
+    brokerManager.setActiveBroker('FYERS');
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
 
     broadcast({
-      type: 'FYERS_STATUS',
+      type: 'BROKER_UPDATE',
       fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
       dataSource: currentDataSource,
       isMarketOpen: isNseMarketOpen(),
       timestamp: new Date().toISOString()
@@ -1071,13 +1087,17 @@ app.post('/api/fyers/refresh-token', requireAdminAuth, async (req, res) => {
   const result = await fyersService.refreshAccessToken(pin);
 
   if (result.success) {
+    brokerManager.setActiveBroker('FYERS');
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
     fyersService.scheduleNextDailyRenewal();
 
     broadcast({
-      type: 'FYERS_STATUS',
+      type: 'BROKER_UPDATE',
       fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
       dataSource: currentDataSource,
       isMarketOpen: isNseMarketOpen(),
       timestamp: new Date().toISOString()
@@ -1112,6 +1132,40 @@ server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT} (0.0.0.0)`);
   console.log(`📡 WebSocket stream active at ws://localhost:${PORT}/ws`);
   console.log(`📊 Data source: ${currentDataSource}`);
+
+  // After services have had time to auto-connect (async), resolve the true active broker
+  // and broadcast an authoritative BROKER_UPDATE to all connected clients.
+  brokerManager.initPostServices().then(() => {
+    const resolvedBroker = brokerManager.getActiveBroker();
+    const effectiveBroker = brokerManager.getEffectiveLiveBroker();
+
+    // Sync currentDataSource with the resolved broker
+    if (resolvedBroker === 'FYERS' && fyersService.getConfig().isConnected) {
+      if (currentDataSource !== 'FYERS_LIVE') {
+        currentDataSource = 'FYERS_LIVE';
+        startFyersPolling();
+      }
+    } else if (resolvedBroker === 'DHAN' && dhanService.getConfig().isConnected) {
+      if (currentDataSource !== 'DHAN_LIVE') {
+        currentDataSource = dhanService.hasDataApi() ? 'DHAN_LIVE' : 'NSE_LIVE';
+      }
+    }
+
+    console.log(`[BrokerManager] Post-init resolved broker: ${resolvedBroker} (effective: ${effectiveBroker})`);
+
+    // Broadcast to any clients that connected before this resolved
+    broadcast({
+      type: 'BROKER_UPDATE',
+      fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: resolvedBroker,
+      effectiveBroker,
+      dataSource: currentDataSource,
+      timestamp: new Date().toISOString()
+    });
+  }).catch((err) => {
+    console.error('[BrokerManager] initPostServices error:', err);
+  });
 });
 
 // Prevent unhandled promise rejections from crashing the process

@@ -466,6 +466,12 @@ export interface FyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  /** ISO timestamp when the current access token was issued — used for expiry countdown */
+  tokenIssuedAt?: string;
+  /** ISO timestamp when the access token expires (decoded from JWT) */
+  tokenExpiresAt?: string;
+  /** True if server has a refresh token — will auto-renew daily at 6:30 AM IST */
+  hasRefreshToken?: boolean;
   pin?: string;
   refreshToken?: string;
   tokenRefreshedAt?: string;
@@ -481,6 +487,8 @@ export interface DhanConfig {
   hasDataApi?: boolean;
   userName?: string;
   lastConnected?: string;
+  /** ISO timestamp when the current access token was issued */
+  tokenIssuedAt?: string;
   tokenExpiresAt?: string;
 }
 

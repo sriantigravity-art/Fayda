@@ -8,6 +8,7 @@ const BROKER_PREF_PATH = path.resolve(process.cwd(), 'server', 'brokerPreference
 
 export class BrokerManager {
   private activeBroker: ActiveBroker = 'DHAN';
+  private preferenceFileExisted = false;
 
   constructor() {
     this.loadPreference();
@@ -16,6 +17,7 @@ export class BrokerManager {
   private loadPreference() {
     try {
       if (fs.existsSync(BROKER_PREF_PATH)) {
+        this.preferenceFileExisted = true;
         const raw = fs.readFileSync(BROKER_PREF_PATH, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed.activeBroker) {
@@ -23,7 +25,7 @@ export class BrokerManager {
         }
       }
     } catch {
-      // default to DHAN or FYERS based on connection
+      // default to DHAN
     }
   }
 
@@ -44,6 +46,34 @@ export class BrokerManager {
     this.activeBroker = broker;
     this.persistPreference();
     console.log(`[BrokerManager] Switched active broker to: ${broker}`);
+  }
+
+  /**
+   * Called after all services have initialized (async auto-connect may have completed).
+   * If the saved preference was FYERS but Fyers failed to auto-connect, falls back gracefully.
+   * If no preference file existed and Fyers is connected, auto-selects FYERS.
+   */
+  public async initPostServices(): Promise<void> {
+    // Give async auto-connect a moment to settle
+    await new Promise(r => setTimeout(r, 3000));
+
+    if (this.activeBroker === 'FYERS') {
+      // Preference says FYERS — check if fyers actually connected
+      if (!fyersService.getConfig().isConnected) {
+        // Fyers failed to auto-connect — fall back to DHAN or SIMULATOR
+        const fallback: ActiveBroker = dhanService.getConfig().isConnected ? 'DHAN' : 'SIMULATOR';
+        console.log(`[BrokerManager] Preference was FYERS but Fyers is not connected. Falling back to ${fallback}.`);
+        this.activeBroker = fallback;
+        // Don't persist this fallback — keep the FYERS preference for next boot
+      } else {
+        console.log('[BrokerManager] FYERS preference confirmed — Fyers is connected.');
+      }
+    } else if (!this.preferenceFileExisted && fyersService.getConfig().isConnected) {
+      // No saved preference, but Fyers auto-connected from saved credentials
+      // Switch to FYERS automatically
+      console.log('[BrokerManager] No saved preference found but Fyers is connected — auto-selecting FYERS.');
+      this.setActiveBroker('FYERS');
+    }
   }
 
   /**

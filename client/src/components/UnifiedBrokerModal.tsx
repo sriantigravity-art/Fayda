@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { 
@@ -18,9 +18,40 @@ import {
   Radio,
   Sliders,
   ShieldCheck,
-  Check
+  Check,
+  Clock,
+  CalendarClock,
+  Repeat2
 } from 'lucide-react';
 import type { ActiveBroker } from '../types';
+
+// ── Token expiry helpers ──────────────────────────────────────────────────────
+
+/** Formats time remaining until an ISO date string as "Xh Ym" or "Expired" */
+function formatTimeRemaining(isoExpiry: string | undefined): { label: string; urgent: boolean; expired: boolean } {
+  if (!isoExpiry) return { label: 'Unknown', urgent: false, expired: false };
+  const msRemaining = new Date(isoExpiry).getTime() - Date.now();
+  if (msRemaining <= 0) return { label: 'EXPIRED', urgent: true, expired: true };
+  const totalMinutes = Math.floor(msRemaining / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const urgent = totalMinutes < 120; // < 2 hours
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remH = hours % 24;
+    return { label: `${days}d ${remH}h`, urgent: false, expired: false };
+  }
+  return { label: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, urgent, expired: false };
+}
+
+/** Returns a Dhan token expiry ISO (30 days from issuedAt for Data API, 1 day for free) */
+function dhanTokenExpiresAt(issuedAt: string | undefined, hasDataApi: boolean | undefined): string | undefined {
+  if (!issuedAt) return undefined;
+  const issued = new Date(issuedAt).getTime();
+  // Dhan free tokens ~1 day, Data API tokens up to 30 days
+  const validityMs = hasDataApi ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  return new Date(issued + validityMs).toISOString();
+}
 
 interface UnifiedBrokerModalProps {
   isOpen: boolean;
@@ -90,6 +121,13 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   useEffect(() => {
     if (fyersConfig.appId) setFyersAppId(fyersConfig.appId);
   }, [fyersConfig]);
+
+  // ── Live countdown ticker (updates every minute) ──
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -353,7 +391,6 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
           {selectedTab === 'DHAN' && (
             <div className="space-y-4">
               {/* Dhan Active Status Banner */}
-              {/* Dhan Active Status Banner */}
               {dhanConfig.isConnected ? (
                 <div className="space-y-2">
                   <div className={`p-4 rounded-xl ${dhanConfig.hasDataApi === false ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-emerald-500/10 border border-emerald-500/30'} flex items-center justify-between flex-wrap gap-3`}>
@@ -369,11 +406,32 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                           <span className={`px-2 py-0.2 rounded-full text-[10px] font-mono font-bold ${dhanConfig.hasDataApi === false ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'}`}>
                             {dhanConfig.hasDataApi === false ? 'TRADING ONLY' : 'LIVE 25 REQ/S'}
                           </span>
+                          {/* Token validity badge */}
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                            dhanConfig.hasDataApi
+                              ? 'bg-blue-500/10 text-blue-500 border border-blue-500/25'
+                              : 'bg-orange-500/10 text-orange-500 border border-orange-500/25'
+                          }`}>
+                            {dhanConfig.hasDataApi ? '30-DAY TOKEN' : '1-DAY TOKEN'}
+                          </span>
                         </div>
                         <p className="text-xs text-terminal-muted mt-0.5">
                           Client ID: <strong className="text-terminal-text font-mono">{dhanConfig.clientId}</strong> • 
                           User: <strong className="text-terminal-text">{dhanConfig.userName || 'Active'}</strong>
                         </p>
+                        {/* Expiry countdown */}
+                        {(() => {
+                          const expiresAt = dhanConfig.tokenExpiresAt || dhanTokenExpiresAt(dhanConfig.tokenIssuedAt, dhanConfig.hasDataApi);
+                          const { label, urgent, expired } = formatTimeRemaining(expiresAt);
+                          return (
+                            <div className={`flex items-center gap-1 mt-1 text-[10px] font-mono font-semibold ${
+                              expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-terminal-muted'
+                            }`}>
+                              <Clock className="w-3 h-3" />
+                              {expired ? '⚠️ Token expired — please reconnect' : `Token expires in: ${label}`}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -395,6 +453,27 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Expired token warning */}
+                  {(() => {
+                    const expiresAt = dhanConfig.tokenExpiresAt || dhanTokenExpiresAt(dhanConfig.tokenIssuedAt, dhanConfig.hasDataApi);
+                    const { expired, urgent } = formatTimeRemaining(expiresAt);
+                    if (!expired && !urgent) return null;
+                    return (
+                      <div className={`p-3 rounded-xl border text-xs font-mono flex items-start gap-2 ${
+                        expired 
+                          ? 'bg-red-500/10 border-red-500/30 text-red-500'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                      }`}>
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          {expired
+                            ? '⛔ Dhan token has expired. Please generate a new access token from web.dhan.co and reconnect.'
+                            : '⚠️ Dhan token expiring soon. Generate a fresh token before market open tomorrow.'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {dhanConfig.hasDataApi === false && (
                     <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-terminal-text space-y-1.5 font-mono">
@@ -485,6 +564,17 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                     <li>Click your Profile icon on top right &gt; Select <strong>"DhanHQ Trading APIs"</strong>.</li>
                     <li>Click <strong>"Generate Access Token"</strong>, copy it, and paste it in the box above!</li>
                   </ol>
+                  {/* Token lifetime info */}
+                  <div className="pt-1 border-t border-terminal-border/50 space-y-1 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-orange-500 font-semibold">
+                      <Clock className="w-3 h-3" />
+                      <span>Free tier tokens expire in ~1 day — regenerate daily for uninterrupted access.</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-blue-500 font-semibold">
+                      <CalendarClock className="w-3 h-3" />
+                      <span>Data API subscribers (₹499/mo) get 30-day tokens — set and forget!</span>
+                    </div>
+                  </div>
                 </div>
 
                 {dhanStatusMsg && (
@@ -525,34 +615,87 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
             <div className="space-y-4">
               {/* Fyers Status Banner */}
               {fyersConfig.isConnected ? (
-                <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5" />
+                <div className="space-y-2">
+                  <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40 flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2 flex-wrap gap-1">
+                          <span className="font-bold text-sm text-terminal-text">Fyers API v3 Connected</span>
+                          <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40">
+                            ACTIVE
+                          </span>
+                          {/* Daily token badge */}
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-orange-500/10 text-orange-500 border border-orange-500/25">
+                            1-DAY TOKEN
+                          </span>
+                          {/* Auto-renewal badge */}
+                          {fyersConfig.hasRefreshToken && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 flex items-center gap-1">
+                              <Repeat2 className="w-2.5 h-2.5" />
+                              AUTO-RENEW ON
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-terminal-muted mt-0.5">
+                          App ID: <strong className="text-terminal-text font-mono">{fyersConfig.appId}</strong> • User: <strong className="text-terminal-text">{fyersConfig.userName || 'Trader'}</strong>
+                        </p>
+                        {/* Expiry countdown */}
+                        {(() => {
+                          const { label, urgent, expired } = formatTimeRemaining(fyersConfig.tokenExpiresAt);
+                          if (!fyersConfig.tokenExpiresAt) return null;
+                          return (
+                            <div className={`flex items-center gap-1 mt-1 text-[10px] font-mono font-semibold ${
+                              expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-terminal-muted'
+                            }`}>
+                              <Clock className="w-3 h-3" />
+                              {expired 
+                                ? fyersConfig.hasRefreshToken 
+                                  ? '⏳ Token expired — auto-renewal pending at 6:32 AM IST'
+                                  : '⚠️ Token expired — please reconnect'
+                                : `Token expires in: ${label}${fyersConfig.hasRefreshToken ? ' (auto-renewal active)' : ''}`
+                              }
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-sm text-terminal-text">Fyers API v3 Connected</span>
-                        <span className="px-2 py-0.2 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/40">
-                          ACTIVE
+                    <div className="flex items-center gap-2">
+                      {activeBroker !== 'FYERS' && (
+                        <button
+                          type="button"
+                          onClick={() => selectBroker('FYERS')}
+                          className="px-3 py-1.5 rounded-lg bg-sky-500 text-white font-bold text-xs hover:bg-sky-600 transition cursor-pointer"
+                        >
+                          Set as Active
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expired token warning */}
+                  {(() => {
+                    const { expired, urgent } = formatTimeRemaining(fyersConfig.tokenExpiresAt);
+                    if (!fyersConfig.tokenExpiresAt || (!expired && !urgent)) return null;
+                    return (
+                      <div className={`p-3 rounded-xl border text-xs font-mono flex items-start gap-2 ${
+                        expired
+                          ? 'bg-red-500/10 border-red-500/30 text-red-500'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                      }`}>
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          {expired
+                            ? fyersConfig.hasRefreshToken
+                              ? '⏳ Access token expired. Server will auto-renew at 6:32 AM IST using your saved refresh token. No action needed.'
+                              : '⛔ Access token expired. Please generate a new token using the Auth Code flow below.'
+                            : '⚠️ Fyers access token expiring soon. It will auto-renew at 6:32 AM IST if refresh token is available.'}
                         </span>
                       </div>
-                      <p className="text-xs text-terminal-muted mt-0.5">
-                        App ID: <strong className="text-terminal-text font-mono">{fyersConfig.appId}</strong> • User: <strong className="text-terminal-text">{fyersConfig.userName || 'Trader'}</strong>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {activeBroker !== 'FYERS' && (
-                      <button
-                        type="button"
-                        onClick={() => selectBroker('FYERS')}
-                        className="px-3 py-1.5 rounded-lg bg-sky-500 text-white font-bold text-xs hover:bg-sky-600 transition cursor-pointer"
-                      >
-                        Set as Active
-                      </button>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               ) : null}
 

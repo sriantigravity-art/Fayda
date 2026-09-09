@@ -394,6 +394,8 @@ export interface FyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  /** ISO timestamp when the current access token was issued (i.e. when connect/refresh succeeded) */
+  tokenIssuedAt?: string;
   /** Fyers 4-digit account PIN for seamless validate-refresh-token renewal */
   pin?: string;
   /** Fyers refresh token — valid for 15 days. Used for daily auto-renewal at 6:30 AM IST. */
@@ -409,6 +411,12 @@ export interface PublicFyersConfig {
   isConnected: boolean;
   userName?: string;
   lastConnected?: string;
+  /** ISO timestamp when the current access token was issued — used for expiry countdown */
+  tokenIssuedAt?: string;
+  /** ISO timestamp when the access token JWT expires (decoded from JWT exp claim) */
+  tokenExpiresAt?: string;
+  /** True if a refresh token is stored — server will auto-renew daily at 6:30 AM IST */
+  hasRefreshToken?: boolean;
   tokenRefreshedAt?: string;
   refreshTokenExpiresAt?: string;
 }
@@ -431,6 +439,8 @@ export interface PublicDhanConfig {
   hasDataApi?: boolean;
   userName?: string;
   lastConnected?: string;
+  /** ISO timestamp when the current access token was issued */
+  tokenIssuedAt?: string;
   tokenExpiresAt?: string;
 }
 

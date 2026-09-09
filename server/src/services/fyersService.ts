@@ -78,6 +78,7 @@ export class FyersService {
             isConnected:          false,
             userName:             parsed.userName,
             lastConnected:        parsed.lastConnected,
+            tokenIssuedAt:        parsed.tokenIssuedAt,
             pin:                  parsed.pin,
             refreshToken:         parsed.refreshToken,
             tokenRefreshedAt:     parsed.tokenRefreshedAt,
@@ -129,6 +130,7 @@ export class FyersService {
         isConnected:          this.config.isConnected,
         userName:             this.config.userName,
         lastConnected:        this.config.lastConnected,
+        tokenIssuedAt:        this.config.tokenIssuedAt,
         pin:                  this.config.pin,
         refreshToken:         this.config.refreshToken,
         tokenRefreshedAt:     this.config.tokenRefreshedAt,
@@ -269,6 +271,7 @@ export class FyersService {
         }
         this.config.isConnected      = true;
         this.config.tokenRefreshedAt = new Date().toISOString();
+        this.config.tokenIssuedAt    = new Date().toISOString(); // new daily token issued now
         this.config.lastConnected    = new Date().toISOString();
 
         const validateRes = await this.validateConnection();
@@ -310,11 +313,26 @@ export class FyersService {
   }
 
   public getPublicConfig(): PublicFyersConfig {
+    // Decode JWT exp claim to compute tokenExpiresAt
+    let tokenExpiresAt: string | undefined;
+    try {
+      const parts = this.config.accessToken?.split('.');
+      if (parts && parts.length >= 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        if (payload.exp) {
+          tokenExpiresAt = new Date(payload.exp * 1000).toISOString();
+        }
+      }
+    } catch {}
+
     return {
       appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
       isConnected: this.config.isConnected,
       userName: this.config.userName,
       lastConnected: this.config.lastConnected,
+      tokenIssuedAt: this.config.tokenIssuedAt,
+      tokenExpiresAt,
+      hasRefreshToken: !!this.config.refreshToken && this.isRefreshTokenValid(),
       tokenRefreshedAt: this.config.tokenRefreshedAt,
       refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
     };
@@ -474,6 +492,10 @@ export class FyersService {
         const rawName = json.data.name || json.data.fy_id || 'SRS';
         this.config.userName = rawName;
         this.config.lastConnected = new Date().toISOString();
+        // Record when this token was issued (now, on successful connect)
+        if (!this.config.tokenIssuedAt) {
+          this.config.tokenIssuedAt = new Date().toISOString();
+        }
         this.savePersistedConfig();
         return {
           success: true,
