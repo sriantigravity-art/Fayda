@@ -599,6 +599,7 @@ const startNsePolling = () => {
 const hasFyersConfig = !!fyersService.getConfig().appId && !!fyersService.getConfig().accessToken;
 if (hasFyersConfig) {
   currentDataSource = 'FYERS_LIVE';
+  brokerManager.setActiveBroker('FYERS');
   startFyersPolling();
 } else {
   currentDataSource = 'NSE_LIVE';

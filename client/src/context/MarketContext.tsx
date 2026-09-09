@@ -141,8 +141,28 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     accessToken: '',
     isConnected: false
   });
-  const [activeBroker, setActiveBroker] = useState<ActiveBroker>('DHAN');
+  const [activeBroker, setActiveBroker] = useState<ActiveBroker>(() => {
+    try {
+      const saved = localStorage.getItem('fayda_active_broker');
+      if (saved === 'FYERS' || saved === 'DHAN' || saved === 'SIMULATOR') return saved;
+    } catch {}
+    return 'FYERS';
+  });
   const [effectiveBroker, setEffectiveBroker] = useState<'DHAN' | 'FYERS' | 'SIMULATOR'>('SIMULATOR');
+
+  // Detect Fyers OAuth redirect query param (?fyers_connected=true)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('fyers_connected') === 'true') {
+        setActiveBroker('FYERS');
+        setEffectiveBroker('FYERS');
+        try { localStorage.setItem('fayda_active_broker', 'FYERS'); } catch {}
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch {}
+  }, []);
 
   const [latestExtremeSurge, setLatestExtremeSurge] = useState<SurgeEvent | null>(null);
 
@@ -512,12 +532,18 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.dataSource) setDataSourceState(msg.dataSource);
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
           if (msg.dhanConfig) setDhanConfig(msg.dhanConfig);
-          if (msg.activeBroker) setActiveBroker(msg.activeBroker);
+          if (msg.activeBroker) {
+            setActiveBroker(msg.activeBroker);
+            try { localStorage.setItem('fayda_active_broker', msg.activeBroker); } catch {}
+          }
           if (msg.effectiveBroker) setEffectiveBroker(msg.effectiveBroker);
         } else if (msg.type === 'BROKER_UPDATE') {
           if (msg.dhanConfig) setDhanConfig(msg.dhanConfig);
           if (msg.fyersConfig) setFyersConfig(msg.fyersConfig);
-          if (msg.activeBroker) setActiveBroker(msg.activeBroker);
+          if (msg.activeBroker) {
+            setActiveBroker(msg.activeBroker);
+            try { localStorage.setItem('fayda_active_broker', msg.activeBroker); } catch {}
+          }
           if (msg.effectiveBroker) setEffectiveBroker(msg.effectiveBroker);
           if (msg.dataSource) setDataSourceState(msg.dataSource);
         } else if (msg.type === 'GLOBAL_INDICES_UPDATE') {
@@ -1245,6 +1271,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           isConnected: true,
           userName: json.userName
         });
+        setActiveBroker('FYERS');
+        setEffectiveBroker('FYERS');
+        try { localStorage.setItem('fayda_active_broker', 'FYERS'); } catch {}
       }
       return json;
     } catch (err: any) {
@@ -1263,6 +1292,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           isConnected: true,
           userName: json.userName
         });
+        setActiveBroker('FYERS');
+        setEffectiveBroker('FYERS');
+        try { localStorage.setItem('fayda_active_broker', 'FYERS'); } catch {}
       }
       return json;
     } catch (err: any) {
@@ -1309,6 +1341,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const selectBroker = async (broker: ActiveBroker) => {
     setActiveBroker(broker);
+    try { localStorage.setItem('fayda_active_broker', broker); } catch {}
     try {
       await fetchBackendJson('/api/broker/select', 'POST', { broker });
     } catch (err) {

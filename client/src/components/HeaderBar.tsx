@@ -249,11 +249,12 @@ export const HeaderBar: React.FC = () => {
           {(() => {
             const symCfg = ALL_SYMBOLS_CONFIG.find(s => s.symbol === selectedIndex);
             const exchange = symCfg?.exchange === 'BSE' ? 'BSE' : symCfg?.exchange === 'MCX' || symCfg?.category === 'COMMODITIES' ? 'MCX' : 'NSE';
-            const brokerLabel = activeBroker === 'FYERS' ? 'FYERS' : activeBroker === 'DHAN' ? 'DHAN' : 'PAPER';
-            const feedLabel = activeBroker === 'FYERS' ? 'Fyers API v3' : activeBroker === 'DHAN' ? 'DhanHQ Live' : `${exchange} Official Feed (Simulator)`;
-            const brokerColor = activeBroker === 'FYERS'
+            const resolvedBroker = effectiveBroker && effectiveBroker !== 'SIMULATOR' ? effectiveBroker : activeBroker;
+            const brokerLabel = resolvedBroker === 'FYERS' ? 'FYERS' : resolvedBroker === 'DHAN' ? 'DHAN' : 'PAPER';
+            const feedLabel = resolvedBroker === 'FYERS' ? 'Fyers API v3' : resolvedBroker === 'DHAN' ? 'DhanHQ Live' : `${exchange} Official Feed (Simulator)`;
+            const brokerColor = resolvedBroker === 'FYERS'
               ? 'text-sky-400 bg-sky-500/15 border-sky-500/40'
-              : activeBroker === 'DHAN'
+              : resolvedBroker === 'DHAN'
               ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40'
               : 'text-slate-400 bg-slate-500/15 border-slate-500/30';
             return (

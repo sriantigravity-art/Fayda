@@ -4,10 +4,16 @@ import { ActiveBroker, IndexSymbol } from '../types.js';
 import { dhanService } from './dhanService.js';
 import { fyersService, type FyersOptionChainResult } from './fyersService.js';
 
-const BROKER_PREF_PATH = path.resolve(process.cwd(), 'server', 'brokerPreference.json');
+const findBrokerPrefPath = (): string => {
+  const p1 = path.resolve(process.cwd(), 'brokerPreference.json');
+  if (fs.existsSync(p1)) return p1;
+  const p2 = path.resolve(process.cwd(), 'server', 'brokerPreference.json');
+  if (fs.existsSync(p2)) return p2;
+  return path.basename(process.cwd()) === 'server' ? p1 : p2;
+};
 
 export class BrokerManager {
-  private activeBroker: ActiveBroker = 'DHAN';
+  private activeBroker: ActiveBroker = 'FYERS';
   private preferenceFileExisted = false;
 
   constructor() {
@@ -16,24 +22,36 @@ export class BrokerManager {
 
   private loadPreference() {
     try {
-      if (fs.existsSync(BROKER_PREF_PATH)) {
+      const prefPath = findBrokerPrefPath();
+      if (fs.existsSync(prefPath)) {
         this.preferenceFileExisted = true;
-        const raw = fs.readFileSync(BROKER_PREF_PATH, 'utf-8');
+        const raw = fs.readFileSync(prefPath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed.activeBroker) {
           this.activeBroker = parsed.activeBroker;
+          return;
         }
       }
     } catch {
-      // default to DHAN
+      // ignore
+    }
+
+    // Default to the broker that is actually configured
+    if (fyersService.getConfig().appId && fyersService.getConfig().accessToken) {
+      this.activeBroker = 'FYERS';
+    } else if (dhanService.getConfig().clientId && dhanService.getConfig().accessToken) {
+      this.activeBroker = 'DHAN';
+    } else {
+      this.activeBroker = 'SIMULATOR';
     }
   }
 
   private persistPreference() {
     try {
-      fs.writeFileSync(BROKER_PREF_PATH, JSON.stringify({ activeBroker: this.activeBroker }, null, 2), 'utf-8');
-    } catch {
-      // ignore
+      const prefPath = findBrokerPrefPath();
+      fs.writeFileSync(prefPath, JSON.stringify({ activeBroker: this.activeBroker }, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn('[BrokerManager] Error saving preference:', err);
     }
   }
 
