@@ -1,5 +1,42 @@
 export type IndexSymbol = string;
 
+// ── Subscriber / User System ─────────────────────────────────────────────────
+export type SubscriberRole = 'USER' | 'ADMIN' | 'SUPERADMIN';
+export type SubscriptionPlan = 'FREE' | 'BASIC' | 'PRO' | 'PREMIUM';
+
+export interface Subscriber {
+  id: string;                    // e.g. USR-2026-001
+  fullName: string;
+  email: string;
+  mobile: string;                // Indian mobile, used for WhatsApp + SMS
+  passwordHash: string;          // bcrypt
+  role: SubscriberRole;
+  plan: SubscriptionPlan;
+  planExpiry?: string;           // ISO date
+  isActive: boolean;
+  isVerified: boolean;
+  // Notification opt-ins
+  emailOptIn: boolean;
+  whatsappOptIn: boolean;
+  smsOptIn: boolean;
+  // Metadata
+  createdAt: string;
+  lastLoginAt?: string;
+  notes?: string;                // Admin notes
+}
+
+export interface SubscriberPublic extends Omit<Subscriber, 'passwordHash'> {}
+
+export interface AuthToken {
+  subscriberId: string;
+  role: SubscriberRole;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
+
+
 export interface SymbolConfig {
   symbol: string;
   name: string;
@@ -930,7 +967,72 @@ export interface WebSocketMessage {
 }
 
 export type AssetCategory = 'ALL' | 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
-export type TradeCallStatus = 'TARGET_HIT' | 'STOPLOSS_HIT' | 'NEAR_TARGET' | 'ACTIVE' | 'EXPIRED';
+export type TradeCallStatus =
+  | 'TARGET_HIT'
+  | 'STOPLOSS_HIT'
+  | 'NEAR_TARGET'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  // Admin-applied outcomes
+  | 'PROFIT_BOOKED'      // Admin manually booked full profit
+  | 'PARTIAL_PROFIT'     // Admin booked partial profit (e.g. 50%)
+  | 'LOSS_BOOKED'        // Admin manually exited at a loss
+  | 'BTST'               // Buy Today Sell Tomorrow — carry to next day
+  | 'CARRY_FORWARD';     // Positional carry — multi-day hold
+
+export type AdminTradeAction =
+  | 'BOOK_PROFIT'
+  | 'BOOK_PARTIAL_PROFIT'
+  | 'BOOK_LOSS'
+  | 'BTST'
+  | 'CARRY_FORWARD'
+  | 'DELETE';
+
+export interface NotificationChannel {
+  type: 'EMAIL' | 'WHATSAPP' | 'SMS' | 'INSTAGRAM';
+  enabled: boolean;
+}
+
+export interface NotificationConfig {
+  /** Custom SMTP for email */
+  smtp?: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    pass: string;
+    fromName: string;
+    fromEmail: string;
+  };
+  /** Twilio SMS */
+  twilio?: {
+    accountSid: string;
+    authToken: string;
+    fromNumber: string;  // Twilio phone number
+    toNumbers: string[]; // Subscriber list
+  };
+  /** Meta WhatsApp Cloud API */
+  whatsapp?: {
+    phoneNumberId: string;
+    accessToken: string;
+    toNumbers: string[];  // Subscriber WhatsApp numbers
+  };
+  /** Instagram (open-browser compose — no API DM support) */
+  instagram?: {
+    profileUrl: string;
+    caption: string;
+  };
+  /** Default recipient email list */
+  emailRecipients?: string[];
+}
+
+export interface BroadcastPayload {
+  subject: string;     // Email subject / WhatsApp header
+  message: string;     // Body text
+  channels: ('EMAIL' | 'WHATSAPP' | 'SMS' | 'INSTAGRAM')[];
+  signalId?: string;
+  actionType?: AdminTradeAction;
+}
 
 export type MarketMomentumRegime = 
   | 'SIDEWAYS_CHOP'             // Low ATR, narrow range, balanced PCR -> Small Scalp Targets (10% - 15%)
@@ -995,6 +1097,11 @@ export interface JournalTradeCall {
   targetHitTime?: string; // IST time when target was reached
   stoplossHitTime?: string;
   notes?: string;
+  /** Admin-applied action metadata */
+  adminAction?: AdminTradeAction;
+  adminActionTime?: string;     // IST timestamp
+  adminExitPrice?: number;      // Price at which admin action was applied
+  adminNotes?: string;          // Admin's custom note
 }
 
 export interface JournalSummaryMetrics {

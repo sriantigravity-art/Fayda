@@ -14,6 +14,8 @@ import { globalIndicesService } from './services/globalIndicesService.js';
 import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
+import { subscriberService } from './services/subscriberService.js';
+import { notificationService, composeMessage } from './services/notificationService.js';
 import { bseService } from './services/bseService.js';
 import { 
   IndexSymbol, 
@@ -23,7 +25,10 @@ import {
   ALL_SYMBOLS_CONFIG, 
   SymbolConfig,
   AssetCategory,
-  GlobalMarketContextData
+  GlobalMarketContextData,
+  AdminTradeAction,
+  BroadcastPayload,
+  SubscriptionPlan
 } from './types.js';
 
 const app = express();
@@ -875,6 +880,233 @@ app.post('/api/datasource', requireAdminAuth, (req, res) => {
     res.json({ success: true, dataSource: currentDataSource });
   } else {
     res.status(400).json({ error: 'Invalid mode. Use NSE_LIVE or FYERS_LIVE' });
+  }
+});
+
+// ── SUBSCRIBER AUTH ENDPOINTS ─────────────────────────────────────────────────
+
+/** JWT middleware for protected subscriber routes */
+const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers['authorization'] as string;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, error: 'Authentication required.' });
+  const payload = subscriberService.verifyToken(token);
+  if (!payload) return res.status(401).json({ success: false, error: 'Invalid or expired session. Please sign in again.' });
+  (req as any).authPayload = payload;
+  next();
+};
+
+const requireSuperAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const payload = (req as any).authPayload;
+  if (!payload || payload.role !== 'SUPERADMIN') return res.status(403).json({ success: false, error: 'SuperAdmin access required.' });
+  next();
+};
+
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { fullName, email, mobile, password, plan } = req.body;
+    if (!fullName || !email || !mobile || !password) {
+      return res.status(400).json({ success: false, error: 'Full name, email, mobile, and password are required.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 8 characters.' });
+    }
+    const result = await subscriberService.register({ fullName, email, mobile, password, plan });
+    if (!result.success) return res.status(409).json(result);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { emailOrMobile, password } = req.body;
+    if (!emailOrMobile || !password) {
+      return res.status(400).json({ success: false, error: 'Email/mobile and password are required.' });
+    }
+    const result = await subscriberService.login(emailOrMobile, password);
+    if (!result.success) return res.status(401).json(result);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/auth/me — fetch own profile
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  const payload = (req as any).authPayload;
+  const sub = subscriberService.getById(payload.subscriberId);
+  if (!sub) return res.status(404).json({ success: false, error: 'User not found.' });
+  res.json({ success: true, subscriber: sub });
+});
+
+// PATCH /api/auth/me — update own profile (name, optins)
+app.patch('/api/auth/me', requireAuth, (req, res) => {
+  const payload = (req as any).authPayload;
+  const { fullName, emailOptIn, whatsappOptIn, smsOptIn } = req.body;
+  const updated = subscriberService.update(payload.subscriberId, { fullName, emailOptIn, whatsappOptIn, smsOptIn });
+  if (!updated) return res.status(404).json({ success: false, error: 'User not found.' });
+  res.json({ success: true, subscriber: updated });
+});
+
+// ── SUPERADMIN: SUBSCRIBER MANAGEMENT ────────────────────────────────────────
+
+// GET /api/admin/subscribers — list all
+app.get('/api/admin/subscribers', requireAuth, requireSuperAdmin, (req, res) => {
+  res.json({ success: true, subscribers: subscriberService.getAll(), stats: subscriberService.getStats() });
+});
+
+// PATCH /api/admin/subscribers/:id — update any field
+app.patch('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, res) => {
+  const updated = subscriberService.update(req.params.id, req.body);
+  if (!updated) return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+  res.json({ success: true, subscriber: updated });
+});
+
+// POST /api/admin/subscribers/:id/reset-password
+app.post('/api/admin/subscribers/:id/reset-password', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ success: false, error: 'New password must be at least 8 characters.' });
+  }
+  const ok = await subscriberService.resetPassword(req.params.id, newPassword);
+  if (!ok) return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+  res.json({ success: true, message: 'Password reset successfully.' });
+});
+
+// DELETE /api/admin/subscribers/:id
+app.delete('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, res) => {
+  const ok = subscriberService.delete(req.params.id);
+  if (!ok) return res.status(400).json({ success: false, error: 'Cannot delete this subscriber.' });
+  res.json({ success: true });
+});
+
+// ── SUPERADMIN: SIGNAL MANAGEMENT ─────────────────────────────────────────────
+
+// GET /api/admin/signals
+app.get('/api/admin/signals', requireAuth, requireSuperAdmin, (req, res) => {
+  const date = req.query.date as string | undefined;
+  const signals = signalLedgerService.getAllSignals(date);
+  res.json({ success: true, signals });
+});
+
+// DELETE /api/admin/signal/:id
+app.delete('/api/admin/signal/:id', requireAuth, requireSuperAdmin, (req, res) => {
+  const ok = signalLedgerService.deleteSignal(req.params.id);
+  if (!ok) return res.status(404).json({ success: false, error: 'Signal not found.' });
+  broadcast({ type: 'SIGNAL_DELETED', signalId: req.params.id, timestamp: new Date().toISOString() });
+  res.json({ success: true });
+});
+
+// PATCH /api/admin/signal/:id/action
+app.patch('/api/admin/signal/:id/action', requireAuth, requireSuperAdmin, (req, res) => {
+  const { action, exitPrice, adminNotes } = req.body as { action: AdminTradeAction; exitPrice?: number; adminNotes?: string };
+  if (!action) return res.status(400).json({ success: false, error: 'Action is required.' });
+  const updated = signalLedgerService.applyAdminAction(req.params.id, action, exitPrice, adminNotes);
+  if (!updated) return res.status(404).json({ success: false, error: 'Signal not found.' });
+  broadcast({ type: 'SIGNAL_UPDATED', signal: updated, timestamp: new Date().toISOString() });
+  res.json({ success: true, signal: updated });
+});
+
+// ── BROADCAST ─────────────────────────────────────────────────────────────────
+
+// POST /api/admin/broadcast
+app.post('/api/admin/broadcast', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const payload = req.body as BroadcastPayload & { signalId?: string; planFilter?: SubscriptionPlan[] };
+    if (!payload.channels || payload.channels.length === 0) {
+      return res.status(400).json({ success: false, error: 'Select at least one broadcast channel.' });
+    }
+
+    // Fetch signal if signalId provided
+    let signal: any = {};
+    if (payload.signalId) {
+      const signals = signalLedgerService.getAllSignals();
+      signal = signals.find(s => s.id === payload.signalId) || {};
+    }
+
+    // Override toNumbers from subscriber opt-in list
+    const config = notificationService.getConfig();
+    const planFilter = payload.planFilter && payload.planFilter.length > 0 ? payload.planFilter : undefined;
+
+    if (payload.channels.includes('WHATSAPP')) {
+      const waSubscribers = subscriberService.getOptedIn('WHATSAPP', planFilter);
+      config.whatsapp = { ...config.whatsapp, phoneNumberId: config.whatsapp?.phoneNumberId || '', accessToken: config.whatsapp?.accessToken || '', toNumbers: waSubscribers.map(s => s.mobile) };
+    }
+    if (payload.channels.includes('SMS')) {
+      const smsSubscribers = subscriberService.getOptedIn('SMS', planFilter);
+      config.twilio = { ...config.twilio, accountSid: config.twilio?.accountSid || '', authToken: config.twilio?.authToken || '', fromNumber: config.twilio?.fromNumber || '', toNumbers: smsSubscribers.map(s => s.mobile) };
+    }
+    if (payload.channels.includes('EMAIL')) {
+      const emailSubs = subscriberService.getOptedIn('EMAIL', planFilter);
+      config.emailRecipients = emailSubs.map(s => s.email);
+    }
+
+    // Temporarily merge subscriber recipient lists
+    notificationService.saveConfig(config);
+
+    const results = await notificationService.broadcast(payload, signal);
+    res.json({ success: true, results });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET/POST /api/admin/notification-config
+app.get('/api/admin/notification-config', requireAuth, requireSuperAdmin, (req, res) => {
+  const cfg = notificationService.getConfig();
+  // Mask sensitive fields before sending to client
+  const masked = {
+    smtp: cfg.smtp ? { host: cfg.smtp.host, port: cfg.smtp.port, secure: cfg.smtp.secure, user: cfg.smtp.user, pass: cfg.smtp.pass ? '••••••••' : '', fromName: cfg.smtp.fromName, fromEmail: cfg.smtp.fromEmail } : null,
+    twilio: cfg.twilio ? { accountSid: cfg.twilio.accountSid, authToken: cfg.twilio.authToken ? '••••••••' : '', fromNumber: cfg.twilio.fromNumber } : null,
+    whatsapp: cfg.whatsapp ? { phoneNumberId: cfg.whatsapp.phoneNumberId, accessToken: cfg.whatsapp.accessToken ? '••••••••' : '' } : null,
+    emailRecipients: cfg.emailRecipients ?? []
+  };
+  res.json({ success: true, config: masked });
+});
+
+app.post('/api/admin/notification-config', requireAuth, requireSuperAdmin, (req, res) => {
+  try {
+    const { smtp, twilio, whatsapp, emailRecipients } = req.body;
+    // Only update fields that are not masked (i.e. not '••••••••')
+    const patch: any = {};
+    if (smtp) {
+      patch.smtp = { ...notificationService.getConfig().smtp, ...smtp };
+      if (smtp.pass === '••••••••') patch.smtp.pass = notificationService.getConfig().smtp?.pass;
+    }
+    if (twilio) {
+      patch.twilio = { ...notificationService.getConfig().twilio, ...twilio };
+      if (twilio.authToken === '••••••••') patch.twilio.authToken = notificationService.getConfig().twilio?.authToken;
+    }
+    if (whatsapp) {
+      patch.whatsapp = { ...notificationService.getConfig().whatsapp, ...whatsapp };
+      if (whatsapp.accessToken === '••••••••') patch.whatsapp.accessToken = notificationService.getConfig().whatsapp?.accessToken;
+    }
+    if (emailRecipients) patch.emailRecipients = emailRecipients;
+    notificationService.saveConfig(patch);
+    res.json({ success: true, message: 'Notification config saved.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/notification-config/test-sms — send a test SMS to verify Twilio config
+app.post('/api/admin/notification-config/test-sms', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { toNumber } = req.body;
+    if (!toNumber) return res.status(400).json({ success: false, error: 'toNumber required for test.' });
+    const cfg = notificationService.getConfig();
+    if (!cfg.twilio?.accountSid) return res.status(400).json({ success: false, error: 'Twilio not configured.' });
+    // Temporarily override toNumbers for this test
+    const testConfig = { ...cfg, twilio: { ...cfg.twilio, toNumbers: [toNumber] } };
+    notificationService.saveConfig(testConfig);
+    const result = await notificationService.sendSms({ subject: 'Test', message: '✅ Fayda Pro: SMS notification test successful! Your Twilio integration is working.', channels: ['SMS'] }, { action: 'BOOK_PROFIT', signal: {} });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

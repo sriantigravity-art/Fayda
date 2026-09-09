@@ -45,9 +45,9 @@ pre-market preparation radar & market intelligence
 central pivot range (CPR) & Floor Pivots
 
 Dhan
-1111033009
+USER : 1111033009
 
-eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJ1c2VyUmVnaW9uIjoiUjEiLCJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg4NjgwNDIyLCJpYXQiOjE3ODg1OTQwMjIsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTExMDMzMDA5In0.P0hgOo0WLpot2XjZCJx3V3s8yBtH-aFOiBa3ojDrJ7FvBRdilqm3yn6gGNldMgqIUO5y7Hj-uhTX4RbNYd6ZZQ
+API ID : eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJ1c2VyUmVnaW9uIjoiUjEiLCJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg4OTI4NjI5LCJpYXQiOjE3ODg4NDIyMjksInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTExMDMzMDA5In0.69mjruF98cORwmnxPJGerBuEwEWgdNiVp98-_8TCLU840vVP2j23m73yFQTk-6fjPo2ELMM1Cff4aEPXj74FBg
 
 Moving Averages (EMA): 
 Relative Strength Index (RSI): 
@@ -63,4 +63,13 @@ Indiavix:
 72435/- 1 yrs
 85052/- 1 yrs
 
+twilio : REDACTED_TWILIO_ACCOUNT_SID
+srikantsr@gmail.com
+REDACTED_PASSWORD
+twilio
+Api Key name : Fayda
+SID : REDACTED_TWILIO_API_KEY
+Client secret : REDACTED_TWILIO_SECRET
 
+SuperAdmin: srikantsr@vertexinfo.co.in / REDACTED_PASSWORD — now verified against the real server subscriber DB
+Sample users: arjun.mehta@gmail.com, priya.sharma@yahoo.com / password: Trader@123

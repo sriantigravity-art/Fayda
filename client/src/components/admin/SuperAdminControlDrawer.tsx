@@ -25,6 +25,9 @@ import {
   Check
 } from 'lucide-react';
 import { useTheme, type DarkPreset, type LightPreset } from '../../context/ThemeContext';
+import { SubscriberManagementPanel } from './SubscriberManagementPanel';
+import { SignalCommandCenter } from './SignalCommandCenter';
+import { Target, Send } from 'lucide-react';
 
 interface SuperAdminControlDrawerProps {
   isOpen: boolean;
@@ -47,7 +50,7 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
 
   const { theme, toggleTheme, darkPreset, setDarkPreset, lightPreset, setLightPreset } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'PANELS' | 'THEMES' | 'AUDIT_LOGS' | 'LEGAL_DOCS'>('PANELS');
+  const [activeTab, setActiveTab] = useState<'PANELS' | 'THEMES' | 'AUDIT_LOGS' | 'LEGAL_DOCS' | 'SUBSCRIBERS' | 'SIGNALS'>('PANELS');
 
   if (!isOpen) return null;
 
@@ -212,7 +215,33 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Legal Version Manager (v{currentLegalVersion})</span>
+            <span>Legal (v{currentLegalVersion})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('SUBSCRIBERS')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'SUBSCRIBERS'
+                ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 shadow-sm'
+                : 'text-terminal-muted hover:text-terminal-text'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Subscribers</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('SIGNALS')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'SIGNALS'
+                ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400 shadow-sm'
+                : 'text-terminal-muted hover:text-terminal-text'
+            }`}
+          >
+            <Target className="w-3.5 h-3.5" />
+            <span>Signals & Broadcast</span>
           </button>
         </div>
 
@@ -642,6 +671,34 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 5: SUBSCRIBER MANAGEMENT */}
+          {activeTab === 'SUBSCRIBERS' && (
+            <div>
+              <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-emerald-400 font-mono">Subscriber Management</div>
+                  <div className="text-[10px] text-terminal-muted font-sans">Manage subscriber accounts, plans, opt-in preferences, and passwords.</div>
+                </div>
+              </div>
+              <SubscriberManagementPanel />
+            </div>
+          )}
+
+          {/* TAB 6: SIGNAL COMMAND CENTER */}
+          {activeTab === 'SIGNALS' && (
+            <div>
+              <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                <Target className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-amber-400 font-mono">Signal Command Center</div>
+                  <div className="text-[10px] text-terminal-muted font-sans">Delete signals, apply trade actions, compose professional messages, and broadcast to subscribers.</div>
+                </div>
+              </div>
+              <SignalCommandCenter />
             </div>
           )}
         </div>

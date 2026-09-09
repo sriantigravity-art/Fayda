@@ -1,4 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+
+const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const port = host === 'localhost' || host === '127.0.0.1' ? '3001' : '';
+    return port ? `http://${host}:${port}` : '';
+  }
+  return 'http://localhost:3001';
+};
+
 
 export type UserRole = 'USER' | 'SUPERADMIN';
 
@@ -81,7 +91,7 @@ interface AuthContextType {
   setAllPanelsVisibility: (visible: boolean) => void;
   resetPanelVisibility: () => void;
   login: (emailOrMobile: string, password: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { fullName: string; email: string; mobile: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { fullName: string; email: string; mobile: string; password: string; plan?: string }) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (otp: string) => Promise<{ success: boolean; error?: string }>;
   resendOtp: () => Promise<{ success: boolean }>;
@@ -95,6 +105,9 @@ interface AuthContextType {
   pendingConsent: boolean;
   setPendingConsent: (val: boolean) => void;
   consentAuditLogs: ConsentRecord[];
+  jwtToken: string | null;
+  setJwtToken: (token: string | null) => void;
+  apiFetch: (path: string, options?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -107,6 +120,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return null;
   });
+
+  const [jwtToken, setJwtTokenState] = useState<string | null>(() =>
+    localStorage.getItem('fayda_jwt') ?? null
+  );
+
+  const setJwtToken = useCallback((token: string | null) => {
+    setJwtTokenState(token);
+    if (token) localStorage.setItem('fayda_jwt', token);
+    else localStorage.removeItem('fayda_jwt');
+  }, []);
+
+  const apiFetch = useCallback((path: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('fayda_jwt');
+    return fetch(`${getApiBase()}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...((options.headers as Record<string, string>) || {})
+      }
+    });
+  }, []);
 
   const [hasCompletedFirstLoginConsent, setHasCompletedFirstLoginConsentState] = useState<boolean>(() => {
     return localStorage.getItem('fayda_first_login_consent_completed') === 'true';
@@ -215,120 +250,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (emailOrMobile: string, password: string, forceRole?: UserRole) => {
-    // Simulated institutional authentication
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    const cleanUser = emailOrMobile.trim().toLowerCase();
-    const cleanPass = password.trim();
-
-    // 1. Direct Super Admin Master Login (Username: srikantsr or official admin email, Password: REDACTED_PASSWORD)
-    const isSuperAdminIdentity = cleanUser === 'srikantsr' || cleanUser === 'admin@vertexinfo.co.in' || cleanUser === 'srikantsr@vertexinfo.co.in';
-
-    if (isSuperAdminIdentity || forceRole === 'SUPERADMIN') {
-      if (cleanPass === 'REDACTED_PASSWORD') {
-        const superAdminUser: UserProfile = {
-          id: 'ADM-SRIKANT-007',
-          fullName: 'Srikant SR (SuperAdmin)',
-          email: 'srikantsr@vertexinfo.co.in',
-          mobile: '+91 98765 00700',
-          role: 'SUPERADMIN',
-          avatarUrl: user?.avatarUrl,
-          address: user?.address || {
-            street: 'Dalal Street Master Desk, 14th Floor',
-            city: 'Mumbai',
-            state: 'Maharashtra',
-            pincode: '400001'
-          },
-          traderExperience: 'EXPERT',
-          isVerified: true,
-          createdAt: user?.createdAt || new Date().toISOString(),
-          consentRecord: {
-            userId: 'ADM-SRIKANT-007',
-            userEmail: 'srikantsr@vertexinfo.co.in',
-            riskDisclosureAccepted: true,
-            noGuaranteedProfitAccepted: true,
-            termsAccepted: true,
-            privacyAccepted: true,
-            jurisdictionAgeAccepted: true,
-            marketingAccepted: true,
-            legalVersion: CURRENT_LEGAL_VERSION,
-            timestamp: new Date().toISOString(),
-            ipAddress: '103.212.144.1 (SuperAdmin Master Session)'
-          }
-        };
-
-        setUser(superAdminUser);
-        setHasCompletedFirstLoginConsent(true);
-        return { success: true };
-      } else {
-        return { success: false, error: 'Invalid credentials for administrative access. Access denied.' };
-      }
+  const login = async (emailOrMobile: string, password: string, _forceRole?: UserRole) => {
+    try {
+      const resp = await fetch(`${getApiBase()}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailOrMobile: emailOrMobile.trim(), password: password.trim() })
+      });
+      const data = await resp.json();
+      if (!data.success) return { success: false, error: data.error || 'Login failed.' };
+      const sub = data.subscriber;
+      const profile: UserProfile = {
+        id: sub.id,
+        fullName: sub.fullName,
+        email: sub.email,
+        mobile: sub.mobile,
+        role: sub.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'USER',
+        isVerified: sub.isVerified,
+        createdAt: sub.createdAt,
+        traderExperience: 'INTERMEDIATE',
+        address: { city: '', state: '' }
+      };
+      setUser(profile);
+      setJwtToken(data.token);
+      setHasCompletedFirstLoginConsent(true);
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Connection error. Is the server running?' };
     }
-
-    // 2. Standard User Authentication (Strictly assigns USER role, prevents privilege escalation)
-    const assignedRole: UserRole = 'USER';
-
-    const loggedUser: UserProfile = {
-      id: `USR-${Math.floor(100000 + Math.random() * 900000)}`,
-      fullName: user?.fullName || 'Trader',
-      email: emailOrMobile.includes('@') ? emailOrMobile : `${emailOrMobile}@vertexinfo.co.in`,
-      mobile: emailOrMobile.replace(/[^0-9]/g, '') || (user?.mobile || '+91 98765 43210'),
-      role: assignedRole,
-      avatarUrl: user?.avatarUrl,
-      address: user?.address || {
-        street: 'Dalal Street Fort, 4th Floor',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '400001'
-      },
-      traderExperience: user?.traderExperience || 'INTERMEDIATE',
-      isVerified: true,
-      createdAt: user?.createdAt || new Date().toISOString(),
-      consentRecord: {
-        userId: 'USR-CURRENT',
-        userEmail: emailOrMobile,
-        riskDisclosureAccepted: true,
-        noGuaranteedProfitAccepted: true,
-        termsAccepted: true,
-        privacyAccepted: true,
-        jurisdictionAgeAccepted: true,
-        marketingAccepted: false,
-        legalVersion: CURRENT_LEGAL_VERSION,
-        timestamp: new Date().toISOString(),
-        ipAddress: '103.212.144.18 (India - Active Session)'
-      }
-    };
-
-    setUser(loggedUser);
-    setHasCompletedFirstLoginConsent(true);
-    return { success: true };
   };
 
-  const register = async (data: { fullName: string; email: string; mobile: string; password: string }) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Create pre-verified user waiting for OTP
-    const newUser: UserProfile = {
-      id: `USR-${Math.floor(100000 + Math.random() * 900000)}`,
-      fullName: data.fullName,
-      email: data.email,
-      mobile: data.mobile,
-      role: data.email.toLowerCase().includes('admin') ? 'SUPERADMIN' : 'USER',
-      isVerified: false,
-      createdAt: new Date().toISOString(),
-      address: {
-        street: '',
-        city: '',
-        state: '',
-        pincode: ''
-      },
-      traderExperience: 'BEGINNER'
-    };
-
-    setUser(newUser);
-    setHasCompletedFirstLoginConsent(true);
-    return { success: true };
+  const register = async (data: { fullName: string; email: string; mobile: string; password: string; plan?: string }) => {
+    try {
+      const resp = await fetch(`${getApiBase()}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await resp.json();
+      if (!result.success) return { success: false, error: result.error || 'Registration failed.' };
+      const sub = result.subscriber;
+      const profile: UserProfile = {
+        id: sub.id,
+        fullName: sub.fullName,
+        email: sub.email,
+        mobile: sub.mobile,
+        role: 'USER',
+        isVerified: sub.isVerified,
+        createdAt: sub.createdAt,
+        traderExperience: 'BEGINNER',
+        address: { city: '', state: '' }
+      };
+      setUser(profile);
+      setJwtToken(result.token);
+      setHasCompletedFirstLoginConsent(true);
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Connection error. Is the server running?' };
+    }
   };
 
   const updateProfile = async (data: Partial<UserProfile>) => {
@@ -388,6 +367,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
+    setJwtToken(null);
   };
 
   const hasValidConsent = Boolean(user?.consentRecord && user.consentRecord.legalVersion === CURRENT_LEGAL_VERSION);
@@ -417,7 +397,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setHasCompletedFirstLoginConsent,
         pendingConsent,
         setPendingConsent,
-        consentAuditLogs
+        consentAuditLogs,
+        jwtToken,
+        setJwtToken,
+        apiFetch
       }}
     >
       {children}
@@ -448,7 +431,10 @@ const defaultAuthContext: AuthContextType = {
   setHasCompletedFirstLoginConsent: () => {},
   pendingConsent: false,
   setPendingConsent: () => {},
-  consentAuditLogs: []
+  consentAuditLogs: [],
+  jwtToken: null,
+  setJwtToken: () => {},
+  apiFetch: (path: string, options?: RequestInit) => fetch(path, options)
 };
 
 export const useAuth = (): AuthContextType => {

@@ -152,6 +152,80 @@ class SignalLedgerService {
     console.log('[SignalLedgerService] clearAll() — ledger wiped for fresh session.');
   }
 
+  /** Delete a single signal by ID. Returns true if found & deleted. */
+  public deleteSignal(id: string): boolean {
+    if (!this.calls.has(id)) return false;
+    this.calls.delete(id);
+    this.saveToFile();
+    console.log(`[SignalLedgerService] deleteSignal: removed ${id}`);
+    return true;
+  }
+
+  /** Apply an admin trade action to an existing signal. */
+  public applyAdminAction(
+    id: string,
+    action: import('../types.js').AdminTradeAction,
+    exitPrice?: number,
+    adminNotes?: string
+  ): import('../types.js').JournalTradeCall | null {
+    const call = this.calls.get(id);
+    if (!call) return null;
+
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const timeStr = ist.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' IST';
+
+    call.adminAction = action;
+    call.adminActionTime = timeStr;
+    if (exitPrice !== undefined && exitPrice > 0) {
+      call.adminExitPrice = exitPrice;
+      call.exitLtp = exitPrice;
+      call.pointsPnl = +(exitPrice - call.entryPrice).toFixed(2);
+      call.pnlPct = +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1);
+    }
+    if (adminNotes) call.adminNotes = adminNotes;
+
+    // Update status based on action
+    switch (action) {
+      case 'BOOK_PROFIT':
+        call.status = 'PROFIT_BOOKED';
+        if (!call.targetHitTime) call.targetHitTime = timeStr;
+        break;
+      case 'BOOK_PARTIAL_PROFIT':
+        call.status = 'PARTIAL_PROFIT';
+        call.halfProfitBookTime = timeStr;
+        break;
+      case 'BOOK_LOSS':
+        call.status = 'LOSS_BOOKED';
+        if (!call.stoplossHitTime) call.stoplossHitTime = timeStr;
+        break;
+      case 'BTST':
+        call.status = 'BTST';
+        call.carryForwardTime = timeStr;
+        call.carryForwardAdvice = 'BTST — Hold overnight. Exit at open tomorrow.';
+        break;
+      case 'CARRY_FORWARD':
+        call.status = 'CARRY_FORWARD';
+        call.carryForwardTime = timeStr;
+        call.carryForwardAdvice = 'Carry Forward — Positional hold. Review pre-market next session.';
+        break;
+    }
+
+    this.saveToFile();
+    console.log(`[SignalLedgerService] applyAdminAction: ${action} on ${id}`);
+    return call;
+  }
+
+  /** Return all signals across all dates, sorted newest-first (for admin panel). */
+  public getAllSignals(dateFilter?: string): import('../types.js').JournalTradeCall[] {
+    const all = Array.from(this.calls.values());
+    const filtered = dateFilter ? all.filter(c => c.date === dateFilter) : all;
+    return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+
+
   public recordSignal(signal: {
     symbol: string;
     strikePrice: number;
