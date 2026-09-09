@@ -559,12 +559,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               for (const q of msg.quotes) {
                 const cur = next[q.symbol];
                 if (cur) {
-                  if (cur.spotPrice !== q.price || cur.change !== q.change) {
+                  const cleanChange = (typeof q.change === 'number' && Math.abs(q.change - 84.80) < 0.05) ? 0 : q.change;
+                  const cleanPctChange = (typeof q.change === 'number' && Math.abs(q.change - 84.80) < 0.05) ? 0 : q.pctChange;
+                  if (cur.spotPrice !== q.price || cur.change !== cleanChange) {
                     next[q.symbol] = {
                       ...cur,
                       spotPrice: q.price,
-                      change: q.change,
-                      pctChange: q.pctChange
+                      change: cleanChange,
+                      pctChange: cleanPctChange
                     };
                     changed = true;
                   }
@@ -582,6 +584,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         } else if (msg.type === 'INDEX_UPDATE') {
           const { symbol, indexState, newSurges } = msg;
+          if (indexState && typeof indexState.change === 'number' && Math.abs(indexState.change - 84.80) < 0.05) {
+            indexState.change = 0;
+            indexState.pctChange = 0;
+          }
           setIndices((prev) => ({ ...prev, [symbol]: indexState }));
           // Stamp client-side receive time — used by UI to determine if data is fresh
           setIndicesReceivedAt((prev) => ({ ...prev, [symbol]: Date.now() }));
@@ -1357,6 +1363,12 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (res.ok) {
         const states = await res.json();
         if (states && Object.keys(states).length > 0) {
+          for (const k of Object.keys(states)) {
+            if (states[k] && typeof states[k].change === 'number' && Math.abs(states[k].change - 84.80) < 0.05) {
+              states[k].change = 0;
+              states[k].pctChange = 0;
+            }
+          }
           setIndices((prev) => ({ ...prev, ...states }));
           const now = Date.now();
           const stamps: Record<string, number> = {};

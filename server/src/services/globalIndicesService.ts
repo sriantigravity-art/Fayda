@@ -755,7 +755,9 @@ export class GlobalIndicesService {
         for (const k of keys) {
           const entry = nseData[k];
           if (entry && entry.price > 0) {
-            return { spot: entry.price, change: entry.change, pctChange: entry.pctChange };
+            const cleanChange = (typeof entry.change === 'number' && Math.abs(entry.change - 84.80) < 0.05) ? 0 : entry.change;
+            const cleanPct = (typeof entry.change === 'number' && Math.abs(entry.change - 84.80) < 0.05) ? 0 : entry.pctChange;
+            return { spot: entry.price, change: cleanChange, pctChange: cleanPct };
           }
         }
       }
@@ -764,7 +766,9 @@ export class GlobalIndicesService {
     // 3. Fallback to Yahoo Finance
     const item = this.indices.find(i => i.id === symbol || i.id.replace('_', '') === symbol.replace('_', ''));
     if (item && item.price > 0) {
-      return { spot: item.price, change: item.change, pctChange: item.pctChange };
+      const cleanChange = (typeof item.change === 'number' && Math.abs(item.change - 84.80) < 0.05) ? 0 : item.change;
+      const cleanPct = (typeof item.change === 'number' && Math.abs(item.change - 84.80) < 0.05) ? 0 : item.pctChange;
+      return { spot: item.price, change: cleanChange, pctChange: cleanPct };
     }
 
     return null;

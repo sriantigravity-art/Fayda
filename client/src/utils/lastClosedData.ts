@@ -115,7 +115,17 @@ export function sanitizeSpotData(
   const isLegacyPlaceholder = Math.abs(candidate.spotPrice - 24175.65) < 0.01 && symbol !== 'NIFTY';
   const effectiveSpot = isLegacyPlaceholder ? fallback.spotPrice : candidate.spotPrice;
 
-  // 2. If market is closed for this asset (e.g. NSE equity after 15:40 IST), suppress stale intraday delta
+  // 2. Detect and purge stale ghost delta: 84.80 (+0.35%) legacy artifact
+  const isGhostDelta = typeof candidate.change === 'number' && Math.abs(candidate.change - 84.80) < 0.05;
+  if (isGhostDelta) {
+    return {
+      spotPrice: effectiveSpot,
+      change: fallback.change,
+      pctChange: fallback.pctChange
+    };
+  }
+
+  // 3. If market is closed for this asset (e.g. NSE equity after 15:40 IST), suppress stale intraday delta
   if (!isOpen) {
     return {
       spotPrice: effectiveSpot,

@@ -1,5 +1,6 @@
 import { ALL_SYMBOLS_CONFIG } from '../types.js';
 import { signalLedgerService } from '../services/signalLedgerService.js';
+import { NseExpiryService } from '../services/nseExpiryService.js';
 export class ConfluenceEngine {
     // In-memory hourly slot cache for high-probability Buyer & Seller tips (strictly 1-2 calls/puts/credit-spreads per hour)
     static hourlyTradesMap = new Map();
@@ -1027,27 +1028,30 @@ export class ConfluenceEngine {
      * Analyzes ongoing market momentum, expiry gamma dynamics, and post-CAS fluctuations
      * to dynamically calibrate targets: Small targets for sideways chop, Long targets for fast momentum.
      */
-    static detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, tech, cprData, indiaVix, daysToExpiry = 2) {
+    static detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, tech, cprData, indiaVix, daysToExpiry = 2, activeExpiryDate) {
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const ist = new Date(utc + (3600000 * 5.5));
         const totalMinutes = ist.getHours() * 60 + ist.getMinutes();
         const dayOfWeek = ist.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
         // Expiry Day Detection in Indian Markets:
-        // NIFTY: Thu (4), BANKNIFTY: Wed (3) or Thu (4), FINNIFTY: Tue (2), MIDCPNIFTY: Mon (1), SENSEX: Fri (5)
-        let isExpiryDay = daysToExpiry <= 0;
+        // Check if activeExpiryDate matches today's date in IST
+        const todayStr = NseExpiryService.formatDate(ist);
+        const isDateMatchToday = activeExpiryDate ? activeExpiryDate.trim().toUpperCase() === todayStr.toUpperCase() : false;
+        const officialExpiryDay = NseExpiryService.getOfficialExpiryDay(symbol);
+        let isExpiryDay = isDateMatchToday || daysToExpiry <= 0;
         if (!isExpiryDay) {
-            if (symbol === 'NIFTY' && dayOfWeek === 4)
+            if (symbol === 'NIFTY' && (dayOfWeek === 2 || dayOfWeek === 4) && daysToExpiry <= 1)
                 isExpiryDay = true;
-            else if (symbol === 'BANKNIFTY' && (dayOfWeek === 3 || dayOfWeek === 4))
+            else if (symbol === 'FINNIFTY' && dayOfWeek === 2 && daysToExpiry <= 1)
                 isExpiryDay = true;
-            else if (symbol === 'FINNIFTY' && dayOfWeek === 2)
+            else if (symbol === 'BANKNIFTY' && (dayOfWeek === 3 || dayOfWeek === 4) && daysToExpiry <= 1)
                 isExpiryDay = true;
-            else if (symbol === 'MIDCPNIFTY' && dayOfWeek === 1)
+            else if (symbol === 'MIDCPNIFTY' && dayOfWeek === 1 && daysToExpiry <= 1)
                 isExpiryDay = true;
-            else if (symbol === 'SENSEX' && dayOfWeek === 5)
+            else if (symbol === 'SENSEX' && dayOfWeek === 5 && daysToExpiry <= 1)
                 isExpiryDay = true;
-            else if (daysToExpiry === 1)
+            else if (dayOfWeek === officialExpiryDay && daysToExpiry <= 1)
                 isExpiryDay = true;
         }
         const vixVal = tech?.indiaVix?.value || indiaVix || 13.8;
@@ -1101,10 +1105,14 @@ export class ConfluenceEngine {
      * Helper to compute Ongoing Profit Box & Market-Tailored Carry Forward Advice
      */
     static calculateProfitBoxAndAdvice(params) {
-        const { status, pnlPoints, pnlPct, pnlRupees, currentLtp, t1Pct, isExpiryDay, isCommodity } = params;
+        const { status, pnlPoints, pnlPct, pnlRupees, currentLtp, t1Pct, isExpiryDay, isCommodity, nextExpiryDate } = params;
         let decisionTag = 'HOLD';
         let decisionText = `⏸️ Holding above SL (LTP ₹${currentLtp.toFixed(1)}) — Maintain position towards Target 1.`;
-        if (status === 'TARGET2_HIT') {
+        if (status === 'EXPIRED' || (isExpiryDay && !isCommodity && currentLtp <= 0.05)) {
+            decisionTag = 'EXPIRED';
+            decisionText = `🛑 Contract Expired (₹${currentLtp.toFixed(2)}) — 0DTE contract expired at 03:30 PM IST with zero value. Cannot be held or entered.`;
+        }
+        else if (status === 'TARGET2_HIT') {
             decisionTag = 'BOOK_HALF';
             decisionText = `🎯 Target 2 Reached (+${pnlPct}%) — Book full profit or leave trailing runner.`;
         }
@@ -1127,20 +1135,21 @@ export class ConfluenceEngine {
         let carryForwardAdvice = '';
         let carryForwardSuggestion = '';
         if (isExpiryDay && !isCommodity) {
-            carryForwardAdvice = '⚠️ NO CARRY FORWARD (0DTE Weekly Expiry Contract) — Mandatory square-off before 03:25 PM IST to prevent 100% expiry cash settlement decay.';
-            carryForwardSuggestion = 'Mandatory 03:25 PM Square-off: Expiry contract expires at 03:30 PM.';
+            const nextExpText = nextExpiryDate ? ` (${nextExpiryDate})` : '';
+            carryForwardAdvice = `⚠️ 0DTE — NO OVERNIGHT HOLD ALLOWED (SEBI Rules) — Options CANNOT be carried forward automatically. You MUST: (1) Square off this contract before 03:25 PM IST, then (2) Manually open a fresh contract in the NEXT EXPIRY${nextExpText} if you wish to continue the trade.`;
+            carryForwardSuggestion = `SEBI Mandatory: Square off 0DTE contract by 03:25 PM. To continue overnight, manually open a new Next Expiry${nextExpText} contract separately.`;
         }
         else if (isCommodity) {
-            carryForwardAdvice = '⚡ OVERNIGHT COMMODITY (MCX) — Active until 11:30 PM IST. Eligible for carry forward with trailing stoploss.';
-            carryForwardSuggestion = 'Overnight Commodity: Active till 11:30 PM IST. Hold with hedged stoploss.';
+            carryForwardAdvice = '⚡ MCX FUTURES — Eligible for Overnight Hold & Monthly Rollover: Active until 11:30 PM IST (MCX evening session). Unlike options, futures CAN be rolled over to the next month via a spread order. Rollover = (1) Close/sell this month\'s contract, (2) Open/buy the same direction in next month\'s contract. Note: Brokerage + charges apply TWICE on rollover. MCX monthly expiry: last business day of the month (around 23rd-25th). Trail stoploss if holding overnight.';
+            carryForwardSuggestion = 'MCX Futures (Rollover Eligible): Hold overnight till 11:30 PM IST with trailing SL. To roll to next month: close this month + open next month via spread order. Brokerage charged twice on rollover.';
         }
         else if (pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
-            carryForwardAdvice = '🌙 CARRY FORWARD (BTST / NEXT EXPIRY) — Lock 50% profit today; carry remaining runner lot with SL strictly trailed to entry cost. Carry window: 03:15 - 03:25 PM IST.';
-            carryForwardSuggestion = 'Carry Forward (BTST): Lock 50% profit; carry runner lot with SL trailed to cost.';
+            carryForwardAdvice = '🌙 BTST (Manual Roll — SEBI Compliant) — Options CANNOT be auto-carried. To continue overnight: (1) Square off this contract today by 03:25 PM IST, then (2) Open a fresh next-expiry contract separately. Lock 50% profit today; trail SL to entry cost on the new position.';
+            carryForwardSuggestion = 'BTST Manual Roll: Square off today + Open fresh next-expiry contract. Lock 50% profit; trail SL to cost on new lot.';
         }
         else {
-            carryForwardAdvice = 'Strict Intraday Exit at 03:25 PM IST — Avoid overnight carry due to rapid time decay (Theta erosion) and gap risk.';
-            carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay.';
+            carryForwardAdvice = 'Strict Intraday Exit at 03:25 PM IST — Avoid overnight hold; options CANNOT be carried forward (SEBI rules). Rapid Theta decay and gap risk will erode premium overnight.';
+            carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Do NOT carry overnight. Square off fully to avoid Theta decay loss.';
         }
         return {
             ongoingProfitBox: {
@@ -1158,7 +1167,7 @@ export class ConfluenceEngine {
     /**
      * Synthesizes all 6 Platform Engines into a Curated 3-Tier Call Tips Cockpit with Carry-Forward
      */
-    static generateUnifiedTipsPackage(symbol, spotPrice, strikes, masterConfluence, faydaStrategy, allFaydaStrategies, multiLegStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, previousSessionTrades = [], technicalIndicators, maxPain, daysToExpiry = 2) {
+    static generateUnifiedTipsPackage(symbol, spotPrice, strikes, masterConfluence, faydaStrategy, allFaydaStrategies, multiLegStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, previousSessionTrades = [], technicalIndicators, maxPain, daysToExpiry = 2, activeExpiryDate, upcomingExpiries = []) {
         const sessionInfo = this.getMarketSession(symbol);
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -1169,6 +1178,13 @@ export class ConfluenceEngine {
         hours = hours % 12 || 12;
         const minsStr = mins < 10 ? '0' + mins : mins;
         const timeFormatted = `${hours}:${minsStr} ${ampm} IST`;
+        if (!upcomingExpiries || upcomingExpiries.length === 0) {
+            upcomingExpiries = NseExpiryService.getUpcomingExpiries(symbol, 4);
+        }
+        if (!activeExpiryDate) {
+            activeExpiryDate = upcomingExpiries[0] || 'Current Weekly';
+        }
+        const nextExpiryDate = upcomingExpiries.find(e => e !== activeExpiryDate) || upcomingExpiries[1] || 'Next Weekly';
         const atmStrike = strikes.find(s => s.isAtm)?.strikePrice || Math.round(spotPrice / 50) * 50;
         const isBull = masterConfluence.overallSignal.includes('BUY_CALL') || masterConfluence.masterDecision === 'BUY_CALL';
         const isBear = masterConfluence.overallSignal.includes('BUY_PUT') || masterConfluence.masterDecision === 'BUY_PUT';
@@ -1184,7 +1200,7 @@ export class ConfluenceEngine {
         const effectiveEntryTimeFormatted = isPast340Pm ? '03:15 PM IST' : timeFormatted;
         const effectiveCarryForwardTimeFormatted = isPast340Pm ? '03:20 PM IST' : (isOffMarket ? '03:20 PM IST' : timeFormatted);
         // Dynamic Market Momentum, Expiry Gamma & CAS Volatility Fluctuation Detection
-        const momentumInfo = ConfluenceEngine.detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, technicalIndicators, cprData, indiaVix, daysToExpiry ?? 2);
+        const momentumInfo = ConfluenceEngine.detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, technicalIndicators, cprData, indiaVix, daysToExpiry ?? 2, activeExpiryDate);
         // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
         if (isOffMarket) {
             if (isCommodity) {
@@ -1252,7 +1268,7 @@ export class ConfluenceEngine {
                 }
             }
             else {
-                const isEligibleToCarry = isSeller || pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT';
+                const isEligibleToCarry = !momentumInfo.isExpiryDay && (isSeller || pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT');
                 if (isEligibleToCarry) {
                     status = 'CARRIED_FORWARD';
                     if (!carryForwardTimeFormatted) {
@@ -1294,21 +1310,29 @@ export class ConfluenceEngine {
             // Carry forward suggestion
             let carryForwardSuggestion = prev.carryForwardSuggestion;
             if (!carryForwardSuggestion) {
-                if (isSeller) {
-                    carryForwardSuggestion = 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.';
+                if (momentumInfo.isExpiryDay && !isCommodity) {
+                    carryForwardSuggestion = `SEBI Rule: 0DTE expires at 03:30 PM. (1) Square off by 03:25 PM. (2) Open fresh Next Expiry (${nextExpiryDate}) contract manually if continuing the trade. Options CANNOT be auto-rolled.`;
+                }
+                else if (isSeller) {
+                    carryForwardSuggestion = 'Option Seller (STBT/BTST): Short position benefits from Theta decay. You may hold overnight — but note options expire on expiry day; settlement is automatic at intrinsic value. Maintain defined risk buffer (>75% POP) and hedge.';
                 }
                 else if (pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
-                    carryForwardSuggestion = 'Carry Forward (BTST): Lock 50% profit today; carry remaining runner lot overnight with Stop Loss strictly trailed to cost.';
+                    carryForwardSuggestion = 'BTST Manual Roll (SEBI Compliant): (1) Square off this contract by 03:25 PM today. (2) Open a fresh next-expiry contract separately. Lock 50% profit; trail SL to entry cost on new lot.';
                 }
                 else if (pnlPct < 15 && pnlPct >= -5) {
-                    carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay (Theta erosion) and gap-risk.';
+                    carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Options CANNOT be carried overnight (SEBI rules). Square off fully; do not average or hold losers.';
                 }
                 else {
-                    carryForwardSuggestion = 'Strict Intraday Exit: Stop Loss / loss management rule. Do NOT average or carry losers overnight.';
+                    carryForwardSuggestion = 'Strict Intraday Exit: SL hit / loss discipline. Do NOT average or attempt overnight hold — options expire worthless at 0 value if OTM at expiry.';
                 }
             }
             const updated = {
                 ...prev,
+                expiryDate: prev.expiryDate || activeExpiryDate,
+                daysToExpiry: prev.daysToExpiry !== undefined ? prev.daysToExpiry : daysToExpiry,
+                isExpiryDay: momentumInfo.isExpiryDay,
+                nextExpiryDate,
+                nextExpiryContractSymbol: prev.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${prev.strikePrice} ${prev.optionType}`,
                 currentLtp,
                 pnlPoints,
                 pnlPct,
@@ -1320,6 +1344,9 @@ export class ConfluenceEngine {
                 carryForwardTime,
                 carryForwardTimeFormatted: carryForwardTimeFormatted || effectiveCarryForwardTimeFormatted,
                 carryForwardSuggestion,
+                carryForwardAdvice: prev.carryForwardAdvice || (momentumInfo.isExpiryDay && !isCommodity
+                    ? `⚠️ 0DTE — NO OVERNIGHT HOLD (SEBI Rules): Options cannot be auto-rolled. (1) Square off by 03:25 PM IST. (2) Open fresh NEXT EXPIRY (${nextExpiryDate}) contract manually if continuing overnight.`
+                    : undefined),
                 isCarriedForward: status === 'CARRIED_FORWARD',
                 carriedFromSession: prev.sessionName
             };
@@ -1393,6 +1420,14 @@ export class ConfluenceEngine {
                 halfProfitBookTime = target1HitTime;
                 halfProfitBookTimeFormatted = timeFormatted;
             }
+        }
+        else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < entryPrice))) {
+            actionabilityStatus = 'SL_HIT';
+            primStatus = 'EXPIRED';
+            if (!stoplossTimeFormatted) {
+                stoplossTime = new Date().toISOString();
+                stoplossTimeFormatted = timeFormatted;
+            }
             if (!bookedTimeFormatted) {
                 bookedTime = new Date().toISOString();
                 bookedTimeFormatted = timeFormatted;
@@ -1428,7 +1463,7 @@ export class ConfluenceEngine {
             catch (e) { }
         }
         else if (isPast340Pm || existingTrade?.isCarriedForward) {
-            const isEligibleToCarry = pnlPct >= 15;
+            const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
             if (isEligibleToCarry) {
                 primStatus = 'CARRIED_FORWARD';
                 if (!carryForwardTimeFormatted) {
@@ -1437,11 +1472,15 @@ export class ConfluenceEngine {
                 }
             }
             else {
-                primStatus = 'INTRADAY_CLOSED';
+                primStatus = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
             }
         }
         else if (pnlPct >= 1.5) {
             actionabilityStatus = 'RUNNING_PROFIT';
+        }
+        else if (pnlPct <= -2.0 && momentumInfo.isExpiryDay && currentLtp <= 0.5) {
+            actionabilityStatus = 'SL_HIT';
+            primStatus = 'EXPIRED';
         }
         else if (pnlPct <= -1.5) {
             actionabilityStatus = 'DIP_OPPORTUNITY';
@@ -1467,25 +1506,29 @@ export class ConfluenceEngine {
         let primCarryAdvice = '';
         let primCarrySuggestion = existingTrade?.carryForwardSuggestion;
         if (momentumInfo.isExpiryDay && !isCommodity) {
-            primCarryAdvice = '⚠️ NO CARRY FORWARD (0DTE Weekly Expiry Contract) — Mandatory square-off before 03:25 PM IST to prevent 100% expiry cash settlement decay.';
-            primCarrySuggestion = 'Mandatory 03:25 PM Square-off: Expiry contract expires at 03:30 PM.';
+            const nextExpText = nextExpiryDate ? ` (${nextExpiryDate})` : '';
+            primCarryAdvice = `⚠️ 0DTE — NO OVERNIGHT HOLD ALLOWED (SEBI Rules) — Options CANNOT be carried forward automatically. You MUST: (1) Square off this contract before 03:25 PM IST, then (2) Manually open a fresh contract in the NEXT EXPIRY${nextExpText} if you wish to continue the trade.`;
+            primCarrySuggestion = `SEBI Mandatory: Square off 0DTE contract by 03:25 PM. To continue overnight, manually open a new Next Expiry${nextExpText} contract separately.`;
         }
         else if (isCommodity) {
-            primCarryAdvice = '⚡ OVERNIGHT COMMODITY (MCX) — Active until 11:30 PM IST. Eligible for carry forward with trailing stoploss.';
-            primCarrySuggestion = 'Overnight Commodity: Active till 11:30 PM IST. Hold with hedged stoploss.';
+            primCarryAdvice = '⚡ MCX FUTURES — Eligible for Overnight Hold & Monthly Rollover: Active until 11:30 PM IST (MCX evening session). Unlike options, futures CAN be rolled over to the next month via a spread order. Rollover = (1) Close/sell this month\'s contract, (2) Open/buy the same direction in next month\'s contract. Note: Brokerage + charges apply TWICE on rollover. MCX monthly expiry: last business day of the month. Trail stoploss if holding overnight.';
+            primCarrySuggestion = 'MCX Futures (Rollover Eligible): Hold overnight till 11:30 PM IST with trailing SL. To roll to next month: close this month + open next month via spread order. Brokerage charged twice on rollover.';
         }
         else if (pnlPct >= 15 || primStatus === 'TARGET1_HIT' || primStatus === 'TARGET2_HIT') {
-            primCarryAdvice = '🌙 CARRY FORWARD (BTST / NEXT EXPIRY) — Lock 50% profit today; carry remaining runner lot with SL strictly trailed to entry cost. Carry window: 03:15 - 03:25 PM IST.';
-            primCarrySuggestion = 'Carry Forward (BTST): Lock 50% profit; carry runner lot with SL trailed to cost.';
+            primCarryAdvice = '🌙 BTST via Manual Roll (SEBI Compliant) — Options CANNOT be auto-carried overnight. To continue: (1) Square off this contract by 03:25 PM IST today, then (2) Open a fresh next-expiry contract separately. Lock 50% profit today; trail SL to entry cost on the new position.';
+            primCarrySuggestion = 'BTST Manual Roll: Square off today by 03:25 PM + Open fresh next-expiry contract. Lock 50% profit; trail SL to cost on new lot.';
         }
         else {
-            primCarryAdvice = 'Strict Intraday Exit at 03:25 PM IST — Avoid overnight carry due to rapid time decay (Theta erosion) and gap risk.';
-            primCarrySuggestion = 'Intraday Exit at 03:25 PM: Avoid overnight carry due to rapid time decay.';
+            primCarryAdvice = 'Strict Intraday Exit at 03:25 PM IST — Options CANNOT be carried overnight (SEBI rules). Rapid Theta decay and gap risk will erode premium. Square off fully before 03:25 PM.';
+            primCarrySuggestion = 'Intraday Exit at 03:25 PM: Do NOT carry overnight. Options cannot be auto-rolled; Theta erodes premium rapidly.';
         }
-        // Ongoing Profit Box Decision Calculation
         let primDecisionTag = 'HOLD';
         let primDecisionText = `⏸️ Holding above stoploss (LTP ₹${currentLtp.toFixed(1)}) — Maintain position towards Target 1.`;
-        if (primStatus === 'TARGET2_HIT') {
+        if (primStatus === 'EXPIRED' || (momentumInfo.isExpiryDay && !isCommodity && currentLtp <= 0.05)) {
+            primDecisionTag = 'EXPIRED';
+            primDecisionText = `🛑 Contract Expired (₹${currentLtp.toFixed(2)}) — 0DTE contract expired at 03:30 PM IST with zero value. Cannot be held or entered.`;
+        }
+        else if (primStatus === 'TARGET2_HIT') {
             primDecisionTag = 'BOOK_HALF';
             primDecisionText = `🎯 Target 2 Reached (+${pnlPct}%) — Book full profit or leave trailing runner.`;
         }
@@ -1552,7 +1595,11 @@ export class ConfluenceEngine {
             carryForwardAdvice: primCarryAdvice,
             marketRegime: momentumInfo.regime,
             momentumDescription: momentumInfo.description,
+            expiryDate: activeExpiryDate,
+            daysToExpiry,
             isExpiryDay: momentumInfo.isExpiryDay,
+            nextExpiryDate,
+            nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${targetStrike} ${optType}`,
             ongoingProfitBox: primOngoingProfitBox,
             isCarriedForward: primStatus === 'CARRIED_FORWARD',
             entryPrice,
@@ -1661,6 +1708,18 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
+            else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activeCall.entryPrice))) {
+                status = 'EXPIRED';
+                actionabilityStatus = 'SL_HIT';
+                if (!stoplossTimeFormatted) {
+                    stoplossTime = new Date().toISOString();
+                    stoplossTimeFormatted = timeFormatted;
+                }
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
             else if (currentLtp <= activeCall.stoplossPrice) {
                 status = 'SL_HIT';
                 if (!activeCall.stoplossTimeFormatted) {
@@ -1689,7 +1748,7 @@ export class ConfluenceEngine {
                 catch (e) { }
             }
             else if (isPast340Pm || activeCall.isCarriedForward) {
-                const isEligibleToCarry = pnlPct >= 15;
+                const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
                 if (isEligibleToCarry) {
                     status = 'CARRIED_FORWARD';
                     if (!carryForwardTimeFormatted) {
@@ -1698,11 +1757,14 @@ export class ConfluenceEngine {
                     }
                 }
                 else {
-                    status = 'INTRADAY_CLOSED';
+                    status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
                 }
             }
             let callPnlRupees = 0;
-            if (status === 'TARGET1_HIT') {
+            if (status === 'EXPIRED') {
+                callPnlRupees = -Math.round(activeCall.entryPrice * instrumentLot);
+            }
+            else if (status === 'TARGET1_HIT') {
                 callPnlRupees = Math.round((activeCall.target1Price - activeCall.entryPrice) * instrumentLot);
             }
             else if (status === 'TARGET2_HIT') {
@@ -1722,7 +1784,8 @@ export class ConfluenceEngine {
                 currentLtp,
                 t1Pct: activeCall.target1Pct || momentumInfo.t1Pct,
                 isExpiryDay: momentumInfo.isExpiryDay,
-                isCommodity
+                isCommodity,
+                nextExpiryDate
             });
             topCallTrade = {
                 ...activeCall,
@@ -1741,20 +1804,106 @@ export class ConfluenceEngine {
                 isCarriedForward: status === 'CARRIED_FORWARD',
                 marketRegime: activeCall.marketRegime || momentumInfo.regime,
                 momentumDescription: activeCall.momentumDescription || momentumInfo.description,
+                expiryDate: activeCall.expiryDate || activeExpiryDate,
+                daysToExpiry,
                 isExpiryDay: momentumInfo.isExpiryDay,
+                nextExpiryDate,
+                nextExpiryContractSymbol: activeCall.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activeCall.strikePrice} CE`,
                 ongoingProfitBox: callAdvice.ongoingProfitBox
             };
             slotEntry.calls[0] = topCallTrade;
         }
         else {
-            const ceCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.callLtp > 0).sort((a, b) => b.callOIChange1m - a.callOIChange1m);
-            let bestCeStrike = ceCandidates[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            const minViableLtp = (momentumInfo.isExpiryDay && !isCommodity) ? 2.5 : 0.5;
+            const ceCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.callLtp >= minViableLtp).sort((a, b) => b.callOIChange1m - a.callOIChange1m);
+            let bestCeStrike = ceCandidates[0] || strikes.find(s => s.strikePrice === atmStrike && s.callLtp >= minViableLtp);
             if (primaryTrade && primaryTrade.optionType === 'CE' && bestCeStrike && primaryTrade.strikePrice === bestCeStrike.strikePrice && ceCandidates.length > 1) {
                 const alt = ceCandidates.find(s => s.strikePrice !== primaryTrade?.strikePrice);
                 if (alt)
                     bestCeStrike = alt;
             }
-            if (bestCeStrike && bestCeStrike.callLtp > 0) {
+            if (!bestCeStrike || bestCeStrike.callLtp < minViableLtp || (momentumInfo.isExpiryDay && isPast340Pm)) {
+                const fallbackStrike = strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+                const strikeNum = fallbackStrike?.strikePrice || atmStrike;
+                const indicativeEntry = 35;
+                topCallTrade = {
+                    id: `call-expired-${symbol}-${hourlySlotId}-${strikeNum}`,
+                    symbol,
+                    tier: 'PRIMARY_MOMENTUM',
+                    tierLabel: '🛑 0DTE Weekly Expiry Contract (Expired)',
+                    tradingRole: 'BUYER',
+                    executionType: 'NET_DEBIT',
+                    session: sessionInfo.session,
+                    sessionName: sessionInfo.sessionName,
+                    action: 'BUY_CALL',
+                    contractSymbol: `${symbol} ${strikeNum} CE (Expired 0DTE)`,
+                    strikePrice: strikeNum,
+                    optionType: 'CE',
+                    entryTime: new Date().toISOString(),
+                    entryTimeFormatted: effectiveEntryTimeFormatted,
+                    callGivenTime: new Date().toISOString(),
+                    callGivenTimeFormatted: effectiveEntryTimeFormatted,
+                    entryPriceTime: new Date().toISOString(),
+                    entryPriceTimeFormatted: effectiveEntryTimeFormatted,
+                    carryForwardTimeFormatted: '03:20 PM IST',
+                    carryForwardSuggestion: `0DTE Expired: Settled at ₹0.00. Trade Next Expiry (${nextExpiryDate}).`,
+                    carryForwardAdvice: `🛑 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active calls, select the Next Expiry (${nextExpiryDate}).`,
+                    marketRegime: momentumInfo.regime,
+                    momentumDescription: momentumInfo.description,
+                    expiryDate: activeExpiryDate,
+                    daysToExpiry: 0,
+                    isExpiryDay: true,
+                    nextExpiryDate,
+                    nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${strikeNum} CE`,
+                    ongoingProfitBox: {
+                        pnlPoints: -indicativeEntry,
+                        pnlPct: -100,
+                        pnlRupees: -Math.round(indicativeEntry * instrumentLot),
+                        decisionTag: 'EXPIRED',
+                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:30 PM IST. Cannot be held or entered.',
+                        isProfit: false
+                    },
+                    isCarriedForward: false,
+                    entryPrice: indicativeEntry,
+                    entryRange: 'Expired at 03:30 PM',
+                    triggerPrice: indicativeEntry,
+                    dipEntryMin: indicativeEntry,
+                    dipEntryMax: indicativeEntry,
+                    breakoutEntryPrice: indicativeEntry,
+                    actionabilityStatus: 'SL_HIT',
+                    pnlPoints: -indicativeEntry,
+                    pnlPct: -100,
+                    pnlRupees: -Math.round(indicativeEntry * instrumentLot),
+                    currentLtp: 0,
+                    stoplossPrice: 0,
+                    stoplossPct: 100,
+                    target1Price: +(indicativeEntry * 1.25).toFixed(2),
+                    target1Pct: 25,
+                    target2Price: +(indicativeEntry * 1.5).toFixed(2),
+                    target2Pct: 50,
+                    strategyMatches: {
+                        faydaRadarConfluence: false,
+                        oiActivitySurge: false,
+                        faydaStrategy9Ema: false,
+                        multiTimeframeBreakout: false,
+                        multiLegSpreadConfirmed: false,
+                        gammaExplosionConfirmed: false
+                    },
+                    riskReward: '1:0',
+                    confluenceScore: 50,
+                    status: 'EXPIRED',
+                    strategyTag: '0DTE Expired (Worthless Settlement)',
+                    explanations: {
+                        beginner: `🛑 Contract Expired: This 0DTE weekly contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held. Please trade the Next Expiry (${nextExpiryDate}) contract.`,
+                        intermediate: `🛑 0DTE Expiry Invalidation: Contract reached terminal cash settlement at 03:30 PM IST. 100% time decay realized. Roll over to Next Expiry (${nextExpiryDate}).`,
+                        expert: `🛑 0DTE Terminal Settlement: Exchange settlement completed. Theta burn 100%, Greeks terminated. Re-deploy delta into Next Expiry (${nextExpiryDate}).`
+                    }
+                };
+                if (topCallTrade) {
+                    slotEntry.calls[0] = topCallTrade;
+                }
+            }
+            else if (bestCeStrike && bestCeStrike.callLtp > 0) {
                 const callConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_CALL', spotPrice, bestCeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let callProb = callConfluence.totalConfluenceScore;
                 if (isBull)
@@ -1766,7 +1915,7 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * (1 + momentumInfo.t2Pct / 100)).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
-                const callStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
+                const callStatus = (isPast340Pm && !momentumInfo.isExpiryDay) ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
                 const newCallAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status: callStatus,
                     pnlPoints: 0,
@@ -1775,7 +1924,8 @@ export class ConfluenceEngine {
                     currentLtp: entryPrice,
                     t1Pct: momentumInfo.t1Pct,
                     isExpiryDay: momentumInfo.isExpiryDay,
-                    isCommodity
+                    isCommodity,
+                    nextExpiryDate
                 });
                 topCallTrade = {
                     id: `call-prime-${symbol}-${hourlySlotId}-${bestCeStrike.strikePrice}`,
@@ -1801,7 +1951,11 @@ export class ConfluenceEngine {
                     carryForwardAdvice: newCallAdvice.carryForwardAdvice,
                     marketRegime: momentumInfo.regime,
                     momentumDescription: momentumInfo.description,
+                    expiryDate: activeExpiryDate,
+                    daysToExpiry,
                     isExpiryDay: momentumInfo.isExpiryDay,
+                    nextExpiryDate,
+                    nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${bestCeStrike.strikePrice} CE`,
                     ongoingProfitBox: newCallAdvice.ongoingProfitBox,
                     isCarriedForward: callStatus === 'CARRIED_FORWARD',
                     entryPrice,
@@ -1899,6 +2053,18 @@ export class ConfluenceEngine {
                     bookedTimeFormatted = timeFormatted;
                 }
             }
+            else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activePut.entryPrice))) {
+                status = 'EXPIRED';
+                actionabilityStatus = 'SL_HIT';
+                if (!stoplossTimeFormatted) {
+                    stoplossTime = new Date().toISOString();
+                    stoplossTimeFormatted = timeFormatted;
+                }
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
             else if (currentLtp <= activePut.stoplossPrice) {
                 status = 'SL_HIT';
                 if (!activePut.stoplossTimeFormatted) {
@@ -1927,7 +2093,7 @@ export class ConfluenceEngine {
                 catch (e) { }
             }
             else if (isPast340Pm || activePut.isCarriedForward) {
-                const isEligibleToCarry = pnlPct >= 15;
+                const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
                 if (isEligibleToCarry) {
                     status = 'CARRIED_FORWARD';
                     if (!carryForwardTimeFormatted) {
@@ -1936,11 +2102,14 @@ export class ConfluenceEngine {
                     }
                 }
                 else {
-                    status = 'INTRADAY_CLOSED';
+                    status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
                 }
             }
             let putPnlRupees = 0;
-            if (status === 'TARGET1_HIT') {
+            if (status === 'EXPIRED') {
+                putPnlRupees = -Math.round(activePut.entryPrice * instrumentLot);
+            }
+            else if (status === 'TARGET1_HIT') {
                 putPnlRupees = Math.round((activePut.target1Price - activePut.entryPrice) * instrumentLot);
             }
             else if (status === 'TARGET2_HIT') {
@@ -1960,7 +2129,8 @@ export class ConfluenceEngine {
                 currentLtp,
                 t1Pct: activePut.target1Pct || momentumInfo.t1Pct,
                 isExpiryDay: momentumInfo.isExpiryDay,
-                isCommodity
+                isCommodity,
+                nextExpiryDate
             });
             topPutTrade = {
                 ...activePut,
@@ -1979,20 +2149,106 @@ export class ConfluenceEngine {
                 isCarriedForward: status === 'CARRIED_FORWARD',
                 marketRegime: activePut.marketRegime || momentumInfo.regime,
                 momentumDescription: activePut.momentumDescription || momentumInfo.description,
+                expiryDate: activePut.expiryDate || activeExpiryDate,
+                daysToExpiry,
                 isExpiryDay: momentumInfo.isExpiryDay,
+                nextExpiryDate,
+                nextExpiryContractSymbol: activePut.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activePut.strikePrice} PE`,
                 ongoingProfitBox: putAdvice.ongoingProfitBox
             };
             slotEntry.puts[0] = topPutTrade;
         }
         else {
-            const peCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.putLtp > 0).sort((a, b) => b.putOIChange1m - a.putOIChange1m);
-            let bestPeStrike = peCandidates[0] || strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+            const minViableLtp = (momentumInfo.isExpiryDay && !isCommodity) ? 2.5 : 0.5;
+            const peCandidates = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= 250 && s.putLtp >= minViableLtp).sort((a, b) => b.putOIChange1m - a.putOIChange1m);
+            let bestPeStrike = peCandidates[0] || strikes.find(s => s.strikePrice === atmStrike && s.putLtp >= minViableLtp);
             if (primaryTrade && primaryTrade.optionType === 'PE' && bestPeStrike && primaryTrade.strikePrice === bestPeStrike.strikePrice && peCandidates.length > 1) {
                 const alt = peCandidates.find(s => s.strikePrice !== primaryTrade?.strikePrice);
                 if (alt)
                     bestPeStrike = alt;
             }
-            if (bestPeStrike && bestPeStrike.putLtp > 0) {
+            if (!bestPeStrike || bestPeStrike.putLtp < minViableLtp || (momentumInfo.isExpiryDay && isPast340Pm)) {
+                const fallbackStrike = strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
+                const strikeNum = fallbackStrike?.strikePrice || atmStrike;
+                const indicativeEntry = 35;
+                topPutTrade = {
+                    id: `put-expired-${symbol}-${hourlySlotId}-${strikeNum}`,
+                    symbol,
+                    tier: 'PRIMARY_MOMENTUM',
+                    tierLabel: '🛑 0DTE Weekly Expiry Contract (Expired)',
+                    tradingRole: 'BUYER',
+                    executionType: 'NET_DEBIT',
+                    session: sessionInfo.session,
+                    sessionName: sessionInfo.sessionName,
+                    action: 'BUY_PUT',
+                    contractSymbol: `${symbol} ${strikeNum} PE (Expired 0DTE)`,
+                    strikePrice: strikeNum,
+                    optionType: 'PE',
+                    entryTime: new Date().toISOString(),
+                    entryTimeFormatted: effectiveEntryTimeFormatted,
+                    callGivenTime: new Date().toISOString(),
+                    callGivenTimeFormatted: effectiveEntryTimeFormatted,
+                    entryPriceTime: new Date().toISOString(),
+                    entryPriceTimeFormatted: effectiveEntryTimeFormatted,
+                    carryForwardTimeFormatted: '03:20 PM IST',
+                    carryForwardSuggestion: `0DTE Expired: Settled at ₹0.00. Trade Next Expiry (${nextExpiryDate}).`,
+                    carryForwardAdvice: `🛑 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active puts, select the Next Expiry (${nextExpiryDate}).`,
+                    marketRegime: momentumInfo.regime,
+                    momentumDescription: momentumInfo.description,
+                    expiryDate: activeExpiryDate,
+                    daysToExpiry: 0,
+                    isExpiryDay: true,
+                    nextExpiryDate,
+                    nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${strikeNum} PE`,
+                    ongoingProfitBox: {
+                        pnlPoints: -indicativeEntry,
+                        pnlPct: -100,
+                        pnlRupees: -Math.round(indicativeEntry * instrumentLot),
+                        decisionTag: 'EXPIRED',
+                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:30 PM IST. Cannot be held or entered.',
+                        isProfit: false
+                    },
+                    isCarriedForward: false,
+                    entryPrice: indicativeEntry,
+                    entryRange: 'Expired at 03:30 PM',
+                    triggerPrice: indicativeEntry,
+                    dipEntryMin: indicativeEntry,
+                    dipEntryMax: indicativeEntry,
+                    breakoutEntryPrice: indicativeEntry,
+                    actionabilityStatus: 'SL_HIT',
+                    pnlPoints: -indicativeEntry,
+                    pnlPct: -100,
+                    pnlRupees: -Math.round(indicativeEntry * instrumentLot),
+                    currentLtp: 0,
+                    stoplossPrice: 0,
+                    stoplossPct: 100,
+                    target1Price: +(indicativeEntry * 1.25).toFixed(2),
+                    target1Pct: 25,
+                    target2Price: +(indicativeEntry * 1.5).toFixed(2),
+                    target2Pct: 50,
+                    strategyMatches: {
+                        faydaRadarConfluence: false,
+                        oiActivitySurge: false,
+                        faydaStrategy9Ema: false,
+                        multiTimeframeBreakout: false,
+                        multiLegSpreadConfirmed: false,
+                        gammaExplosionConfirmed: false
+                    },
+                    riskReward: '1:0',
+                    confluenceScore: 50,
+                    status: 'EXPIRED',
+                    strategyTag: '0DTE Expired (Worthless Settlement)',
+                    explanations: {
+                        beginner: `🛑 Contract Expired: This 0DTE weekly contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held. Please trade the Next Expiry (${nextExpiryDate}) contract.`,
+                        intermediate: `🛑 0DTE Expiry Invalidation: Contract reached terminal cash settlement at 03:30 PM IST. 100% time decay realized. Roll over to Next Expiry (${nextExpiryDate}).`,
+                        expert: `🛑 0DTE Terminal Settlement: Exchange settlement completed. Theta burn 100%, Greeks terminated. Re-deploy delta into Next Expiry (${nextExpiryDate}).`
+                    }
+                };
+                if (topPutTrade) {
+                    slotEntry.puts[0] = topPutTrade;
+                }
+            }
+            else if (bestPeStrike && bestPeStrike.putLtp > 0) {
                 const putConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_PUT', spotPrice, bestPeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let putProb = putConfluence.totalConfluenceScore;
                 if (isBear)
@@ -2004,7 +2260,7 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * (1 + momentumInfo.t2Pct / 100)).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
-                const putStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
+                const putStatus = (isPast340Pm && !momentumInfo.isExpiryDay) ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
                 const newPutAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status: putStatus,
                     pnlPoints: 0,
@@ -2013,7 +2269,8 @@ export class ConfluenceEngine {
                     currentLtp: entryPrice,
                     t1Pct: momentumInfo.t1Pct,
                     isExpiryDay: momentumInfo.isExpiryDay,
-                    isCommodity
+                    isCommodity,
+                    nextExpiryDate
                 });
                 topPutTrade = {
                     id: `put-prime-${symbol}-${hourlySlotId}-${bestPeStrike.strikePrice}`,
@@ -2039,7 +2296,11 @@ export class ConfluenceEngine {
                     carryForwardAdvice: newPutAdvice.carryForwardAdvice,
                     marketRegime: momentumInfo.regime,
                     momentumDescription: momentumInfo.description,
+                    expiryDate: activeExpiryDate,
+                    daysToExpiry,
                     isExpiryDay: momentumInfo.isExpiryDay,
+                    nextExpiryDate,
+                    nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${bestPeStrike.strikePrice} PE`,
                     ongoingProfitBox: newPutAdvice.ongoingProfitBox,
                     isCarriedForward: putStatus === 'CARRIED_FORWARD',
                     entryPrice,
@@ -2155,7 +2416,7 @@ export class ConfluenceEngine {
                 pnlPoints,
                 pnlPct,
                 pnlRupees: sellerPutPnlRupees,
-                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
                 actionabilityStatus,
                 status,
                 bookedTime,
@@ -2214,7 +2475,7 @@ export class ConfluenceEngine {
                 entryTime: new Date().toISOString(),
                 entryTimeFormatted: effectiveEntryTimeFormatted,
                 carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
-                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
                 isCarriedForward: sellerPutStatus === 'CARRIED_FORWARD',
                 entryPrice: netCreditPts,
                 entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
@@ -2330,7 +2591,7 @@ export class ConfluenceEngine {
                 pnlPoints,
                 pnlPct,
                 pnlRupees: sellerCallPnlRupees,
-                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
                 actionabilityStatus,
                 status,
                 bookedTime,
@@ -2389,7 +2650,7 @@ export class ConfluenceEngine {
                 entryTime: new Date().toISOString(),
                 entryTimeFormatted: effectiveEntryTimeFormatted,
                 carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
-                carryForwardSuggestion: 'Carry Forward (STBT/BTST): Favorable theta decay with defined buffer (>75% POP). Safe to hold overnight till next morning 09:20 AM.',
+                carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
                 isCarriedForward: sellerCallStatus === 'CARRIED_FORWARD',
                 entryPrice: netCreditPts,
                 entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
@@ -2620,7 +2881,7 @@ export class ConfluenceEngine {
                 bookedTimeFormatted,
                 carryForwardTime,
                 carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-                carryForwardSuggestion: 'Hedged Carry Forward: Fully defined risk spread. Safe to carry overnight for theta decay harvest.',
+                carryForwardSuggestion: 'Hedged Spread Overnight Hold: Fully defined risk spread. Both legs hold overnight for Theta decay harvest — but both legs MUST be closed by expiry; options do NOT auto-roll.',
                 isCarriedForward: spreadStatus === 'CARRIED_FORWARD',
                 entryPrice,
                 entryRange: `Net Debit ₹${entryPrice.toFixed(2)} pts`,
@@ -2857,6 +3118,10 @@ export class ConfluenceEngine {
             hedgedSpreadTrade,
             gammaTrade,
             carriedForwardTrades: deduplicatedCarriedForward,
+            activeExpiryDate,
+            upcomingExpiries,
+            nextExpiryDate,
+            isExpiryDay: momentumInfo.isExpiryDay,
             regimeWarning: masterConfluence.marketRegime === 'RANGE_BOUND_CHOP' || masterConfluence.marketRegime === 'IV_CRUSH_ZONE'
                 ? `⚠️ ${masterConfluence.regimeLabel}: High choppy risk. Use Hedged Spreads or hold capital.`
                 : undefined,

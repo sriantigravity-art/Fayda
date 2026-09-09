@@ -122,6 +122,87 @@ class SignalLedgerService {
             }
         }, 2500);
     }
+    /** Wipe all in-memory state AND the ledger file. Used for day-start reset. */
+    clearAll() {
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+            this.saveTimeout = null;
+        }
+        this.calls.clear();
+        this.datesSet.clear();
+        try {
+            fs.writeFileSync(this.dataFilePath, '[]', 'utf-8');
+        }
+        catch (err) {
+            // ignore transient lock
+        }
+        console.log('[SignalLedgerService] clearAll() — ledger wiped for fresh session.');
+    }
+    /** Delete a single signal by ID. Returns true if found & deleted. */
+    deleteSignal(id) {
+        if (!this.calls.has(id))
+            return false;
+        this.calls.delete(id);
+        this.saveToFile();
+        console.log(`[SignalLedgerService] deleteSignal: removed ${id}`);
+        return true;
+    }
+    /** Apply an admin trade action to an existing signal. */
+    applyAdminAction(id, action, exitPrice, adminNotes) {
+        const call = this.calls.get(id);
+        if (!call)
+            return null;
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const ist = new Date(utc + (3600000 * 5.5));
+        const timeStr = ist.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' IST';
+        call.adminAction = action;
+        call.adminActionTime = timeStr;
+        if (exitPrice !== undefined && exitPrice > 0) {
+            call.adminExitPrice = exitPrice;
+            call.exitLtp = exitPrice;
+            call.pointsPnl = +(exitPrice - call.entryPrice).toFixed(2);
+            call.pnlPct = +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1);
+        }
+        if (adminNotes)
+            call.adminNotes = adminNotes;
+        // Update status based on action
+        switch (action) {
+            case 'BOOK_PROFIT':
+                call.status = 'PROFIT_BOOKED';
+                if (!call.targetHitTime)
+                    call.targetHitTime = timeStr;
+                break;
+            case 'BOOK_PARTIAL_PROFIT':
+                call.status = 'PARTIAL_PROFIT';
+                call.halfProfitBookTime = timeStr;
+                break;
+            case 'BOOK_LOSS':
+                call.status = 'LOSS_BOOKED';
+                if (!call.stoplossHitTime)
+                    call.stoplossHitTime = timeStr;
+                break;
+            case 'BTST':
+                call.status = 'BTST';
+                call.carryForwardTime = timeStr;
+                call.carryForwardAdvice = 'BTST — Hold overnight. Exit at open tomorrow.';
+                break;
+            case 'CARRY_FORWARD':
+                call.status = 'CARRY_FORWARD';
+                call.carryForwardTime = timeStr;
+                call.carryForwardAdvice = 'Carry Forward — Positional hold. Review pre-market next session.';
+                break;
+        }
+        this.saveToFile();
+        console.log(`[SignalLedgerService] applyAdminAction: ${action} on ${id}`);
+        return call;
+    }
+    /** Return all signals across all dates, sorted newest-first (for admin panel). */
+    getAllSignals(dateFilter) {
+        const all = Array.from(this.calls.values());
+        const filtered = dateFilter ? all.filter(c => c.date === dateFilter) : all;
+        return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
     recordSignal(signal) {
         const today = this.getTodayDateStr();
         const timeFormatted = this.getIstTimeFormatted();

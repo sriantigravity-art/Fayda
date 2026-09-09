@@ -14,6 +14,8 @@ import { globalIndicesService } from './services/globalIndicesService.js';
 import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
+import { subscriberService } from './services/subscriberService.js';
+import { notificationService } from './services/notificationService.js';
 import { bseService } from './services/bseService.js';
 import { ALL_SYMBOLS_CONFIG } from './types.js';
 const app = express();
@@ -168,9 +170,13 @@ globalMarketFeedService.onUpdate((globalMarketContext) => {
 // Hook FyersService auto-renewal callback — broadcast new token state to all clients
 fyersService.onTokenRenewed = () => {
     console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
+    brokerManager.setActiveBroker('FYERS');
     broadcast({
-        type: 'FYERS_STATUS',
+        type: 'BROKER_UPDATE',
         fyersConfig: fyersService.getPublicConfig(),
+        dhanConfig: dhanService.getPublicConfig(),
+        activeBroker: brokerManager.getActiveBroker(),
+        effectiveBroker: brokerManager.getEffectiveLiveBroker(),
         dataSource: currentDataSource,
         isMarketOpen: isNseMarketOpen(),
         timestamp: new Date().toISOString()
@@ -259,11 +265,27 @@ const fetchSymbolSnapshot = async (symConfig) => {
                     spotPctChange = liveQuote.pctChange;
                 }
             }
+            // Purge ghost 84.80 delta across all assets
+            if (typeof spotChange === 'number' && Math.abs(spotChange - 84.80) < 0.05) {
+                spotChange = 0;
+                spotPctChange = 0;
+            }
             // Zero out change values if market is closed for this symbol
             const isOpen = isMarketOpenForSymbol(symConfig.symbol);
             if (!isOpen) {
                 spotChange = 0;
                 spotPctChange = 0;
+            }
+            // ── Sticky change: if market is open but new poll returned change=0,
+            //    keep the last known non-zero value from cache to prevent flickering.
+            //    Fyers options-chain v3 sometimes returns ltpch=null on the first
+            //    fetch or when data is partially populated, causing a brief 0 flash.
+            if (isOpen && spotChange === 0 && spotPctChange === 0) {
+                const prev = cachedIndexStates.get(symConfig.symbol);
+                if (prev && typeof prev.change === 'number' && prev.change !== 0 && Math.abs(prev.change - 84.80) >= 0.05) {
+                    spotChange = prev.change;
+                    spotPctChange = prev.pctChange ?? 0;
+                }
             }
             // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
             let indiaVix = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
@@ -407,12 +429,24 @@ const pollBatchQuotes = async () => {
             });
             // Update spot prices and timestamps in cached states
             for (const q of quotesList) {
+                if (typeof q.change === 'number' && Math.abs(q.change - 84.80) < 0.05) {
+                    q.change = 0;
+                    q.pctChange = 0;
+                }
                 const cached = cachedIndexStates.get(q.symbol);
                 if (cached) {
                     const isOpen = isMarketOpenForSymbol(q.symbol);
                     cached.spotPrice = q.price;
-                    cached.change = isOpen ? q.change : 0;
-                    cached.pctChange = isOpen ? q.pctChange : 0;
+                    // Sticky change: if market is open but quotes returned change=0, keep last known value
+                    if (isOpen && q.change !== 0 && Math.abs(q.change - 84.80) >= 0.05) {
+                        cached.change = q.change;
+                        cached.pctChange = q.pctChange;
+                    }
+                    else if (!isOpen) {
+                        cached.change = 0;
+                        cached.pctChange = 0;
+                    }
+                    // If isOpen && q.change === 0: leave cached.change as-is (sticky)
                     cached.updatedAtIso = new Date().toISOString();
                 }
             }
@@ -500,6 +534,7 @@ const startNsePolling = () => {
 const hasFyersConfig = !!fyersService.getConfig().appId && !!fyersService.getConfig().accessToken;
 if (hasFyersConfig) {
     currentDataSource = 'FYERS_LIVE';
+    brokerManager.setActiveBroker('FYERS');
     startFyersPolling();
 }
 else {
@@ -608,7 +643,12 @@ app.get('/api/index-state', async (req, res) => {
 app.get('/api/index-states', (req, res) => {
     const obj = {};
     for (const [sym, st] of cachedIndexStates.entries()) {
-        obj[sym] = st;
+        if (st && typeof st.change === 'number' && Math.abs(st.change - 84.80) < 0.05) {
+            obj[sym] = { ...st, change: 0, pctChange: 0 };
+        }
+        else {
+            obj[sym] = st;
+        }
     }
     res.json(obj);
 });
@@ -720,6 +760,22 @@ setInterval(() => {
         });
     }
 }, 4000);
+// ── Admin: Reset all cached tips & ledger — forces fresh re-evaluation ──────
+app.post('/api/admin/reset-session', requireAdminAuth, (req, res) => {
+    try {
+        // 1. Clear in-memory index state cache (holds yesterday's unifiedTipsPackage)
+        cachedIndexStates.clear();
+        flashedHighProbTipIds.clear();
+        // 2. Clear the signals ledger (in-memory + file)
+        signalLedgerService.clearAll();
+        console.log('[Admin] Session reset: cleared cachedIndexStates, flashedHighProbTipIds, and signals ledger.');
+        res.json({ success: true, message: 'Session reset complete. Fresh tips will generate on next market poll.' });
+    }
+    catch (err) {
+        console.error('[Admin] Reset failed:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 app.post('/api/datasource', requireAdminAuth, (req, res) => {
     const { mode } = req.body;
     if (mode === 'NSE_LIVE' || mode === 'FYERS_LIVE') {
@@ -741,6 +797,231 @@ app.post('/api/datasource', requireAdminAuth, (req, res) => {
     }
     else {
         res.status(400).json({ error: 'Invalid mode. Use NSE_LIVE or FYERS_LIVE' });
+    }
+});
+// ── SUBSCRIBER AUTH ENDPOINTS ─────────────────────────────────────────────────
+/** JWT middleware for protected subscriber routes */
+const requireAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token)
+        return res.status(401).json({ success: false, error: 'Authentication required.' });
+    const payload = subscriberService.verifyToken(token);
+    if (!payload)
+        return res.status(401).json({ success: false, error: 'Invalid or expired session. Please sign in again.' });
+    req.authPayload = payload;
+    next();
+};
+const requireSuperAdmin = (req, res, next) => {
+    const payload = req.authPayload;
+    if (!payload || payload.role !== 'SUPERADMIN')
+        return res.status(403).json({ success: false, error: 'SuperAdmin access required.' });
+    next();
+};
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { fullName, email, mobile, password, plan } = req.body;
+        if (!fullName || !email || !mobile || !password) {
+            return res.status(400).json({ success: false, error: 'Full name, email, mobile, and password are required.' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ success: false, error: 'Password must be at least 8 characters.' });
+        }
+        const result = await subscriberService.register({ fullName, email, mobile, password, plan });
+        if (!result.success)
+            return res.status(409).json(result);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { emailOrMobile, password } = req.body;
+        if (!emailOrMobile || !password) {
+            return res.status(400).json({ success: false, error: 'Email/mobile and password are required.' });
+        }
+        const result = await subscriberService.login(emailOrMobile, password);
+        if (!result.success)
+            return res.status(401).json(result);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// GET /api/auth/me — fetch own profile
+app.get('/api/auth/me', requireAuth, (req, res) => {
+    const payload = req.authPayload;
+    const sub = subscriberService.getById(payload.subscriberId);
+    if (!sub)
+        return res.status(404).json({ success: false, error: 'User not found.' });
+    res.json({ success: true, subscriber: sub });
+});
+// PATCH /api/auth/me — update own profile (name, optins)
+app.patch('/api/auth/me', requireAuth, (req, res) => {
+    const payload = req.authPayload;
+    const { fullName, emailOptIn, whatsappOptIn, smsOptIn } = req.body;
+    const updated = subscriberService.update(payload.subscriberId, { fullName, emailOptIn, whatsappOptIn, smsOptIn });
+    if (!updated)
+        return res.status(404).json({ success: false, error: 'User not found.' });
+    res.json({ success: true, subscriber: updated });
+});
+// ── SUPERADMIN: SUBSCRIBER MANAGEMENT ────────────────────────────────────────
+// GET /api/admin/subscribers — list all
+app.get('/api/admin/subscribers', requireAuth, requireSuperAdmin, (req, res) => {
+    res.json({ success: true, subscribers: subscriberService.getAll(), stats: subscriberService.getStats() });
+});
+// PATCH /api/admin/subscribers/:id — update any field
+app.patch('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, res) => {
+    const updated = subscriberService.update(req.params.id, req.body);
+    if (!updated)
+        return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+    res.json({ success: true, subscriber: updated });
+});
+// POST /api/admin/subscribers/:id/reset-password
+app.post('/api/admin/subscribers/:id/reset-password', requireAuth, requireSuperAdmin, async (req, res) => {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ success: false, error: 'New password must be at least 8 characters.' });
+    }
+    const ok = await subscriberService.resetPassword(req.params.id, newPassword);
+    if (!ok)
+        return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+    res.json({ success: true, message: 'Password reset successfully.' });
+});
+// DELETE /api/admin/subscribers/:id
+app.delete('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, res) => {
+    const ok = subscriberService.delete(req.params.id);
+    if (!ok)
+        return res.status(400).json({ success: false, error: 'Cannot delete this subscriber.' });
+    res.json({ success: true });
+});
+// ── SUPERADMIN: SIGNAL MANAGEMENT ─────────────────────────────────────────────
+// GET /api/admin/signals
+app.get('/api/admin/signals', requireAuth, requireSuperAdmin, (req, res) => {
+    const date = req.query.date;
+    const signals = signalLedgerService.getAllSignals(date);
+    res.json({ success: true, signals });
+});
+// DELETE /api/admin/signal/:id
+app.delete('/api/admin/signal/:id', requireAuth, requireSuperAdmin, (req, res) => {
+    const ok = signalLedgerService.deleteSignal(req.params.id);
+    if (!ok)
+        return res.status(404).json({ success: false, error: 'Signal not found.' });
+    broadcast({ type: 'SIGNAL_DELETED', signalId: req.params.id, timestamp: new Date().toISOString() });
+    res.json({ success: true });
+});
+// PATCH /api/admin/signal/:id/action
+app.patch('/api/admin/signal/:id/action', requireAuth, requireSuperAdmin, (req, res) => {
+    const { action, exitPrice, adminNotes } = req.body;
+    if (!action)
+        return res.status(400).json({ success: false, error: 'Action is required.' });
+    const updated = signalLedgerService.applyAdminAction(req.params.id, action, exitPrice, adminNotes);
+    if (!updated)
+        return res.status(404).json({ success: false, error: 'Signal not found.' });
+    broadcast({ type: 'SIGNAL_UPDATED', signal: updated, timestamp: new Date().toISOString() });
+    res.json({ success: true, signal: updated });
+});
+// ── BROADCAST ─────────────────────────────────────────────────────────────────
+// POST /api/admin/broadcast
+app.post('/api/admin/broadcast', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+        const payload = req.body;
+        if (!payload.channels || payload.channels.length === 0) {
+            return res.status(400).json({ success: false, error: 'Select at least one broadcast channel.' });
+        }
+        // Fetch signal if signalId provided
+        let signal = {};
+        if (payload.signalId) {
+            const signals = signalLedgerService.getAllSignals();
+            signal = signals.find(s => s.id === payload.signalId) || {};
+        }
+        // Override toNumbers from subscriber opt-in list
+        const config = notificationService.getConfig();
+        const planFilter = payload.planFilter && payload.planFilter.length > 0 ? payload.planFilter : undefined;
+        if (payload.channels.includes('WHATSAPP')) {
+            const waSubscribers = subscriberService.getOptedIn('WHATSAPP', planFilter);
+            config.whatsapp = { ...config.whatsapp, phoneNumberId: config.whatsapp?.phoneNumberId || '', accessToken: config.whatsapp?.accessToken || '', toNumbers: waSubscribers.map(s => s.mobile) };
+        }
+        if (payload.channels.includes('SMS')) {
+            const smsSubscribers = subscriberService.getOptedIn('SMS', planFilter);
+            config.twilio = { ...config.twilio, accountSid: config.twilio?.accountSid || '', authToken: config.twilio?.authToken || '', fromNumber: config.twilio?.fromNumber || '', toNumbers: smsSubscribers.map(s => s.mobile) };
+        }
+        if (payload.channels.includes('EMAIL')) {
+            const emailSubs = subscriberService.getOptedIn('EMAIL', planFilter);
+            config.emailRecipients = emailSubs.map(s => s.email);
+        }
+        // Temporarily merge subscriber recipient lists
+        notificationService.saveConfig(config);
+        const results = await notificationService.broadcast(payload, signal);
+        res.json({ success: true, results });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// GET/POST /api/admin/notification-config
+app.get('/api/admin/notification-config', requireAuth, requireSuperAdmin, (req, res) => {
+    const cfg = notificationService.getConfig();
+    // Mask sensitive fields before sending to client
+    const masked = {
+        smtp: cfg.smtp ? { host: cfg.smtp.host, port: cfg.smtp.port, secure: cfg.smtp.secure, user: cfg.smtp.user, pass: cfg.smtp.pass ? '••••••••' : '', fromName: cfg.smtp.fromName, fromEmail: cfg.smtp.fromEmail } : null,
+        twilio: cfg.twilio ? { accountSid: cfg.twilio.accountSid, authToken: cfg.twilio.authToken ? '••••••••' : '', fromNumber: cfg.twilio.fromNumber } : null,
+        whatsapp: cfg.whatsapp ? { phoneNumberId: cfg.whatsapp.phoneNumberId, accessToken: cfg.whatsapp.accessToken ? '••••••••' : '' } : null,
+        emailRecipients: cfg.emailRecipients ?? []
+    };
+    res.json({ success: true, config: masked });
+});
+app.post('/api/admin/notification-config', requireAuth, requireSuperAdmin, (req, res) => {
+    try {
+        const { smtp, twilio, whatsapp, emailRecipients } = req.body;
+        // Only update fields that are not masked (i.e. not '••••••••')
+        const patch = {};
+        if (smtp) {
+            patch.smtp = { ...notificationService.getConfig().smtp, ...smtp };
+            if (smtp.pass === '••••••••')
+                patch.smtp.pass = notificationService.getConfig().smtp?.pass;
+        }
+        if (twilio) {
+            patch.twilio = { ...notificationService.getConfig().twilio, ...twilio };
+            if (twilio.authToken === '••••••••')
+                patch.twilio.authToken = notificationService.getConfig().twilio?.authToken;
+        }
+        if (whatsapp) {
+            patch.whatsapp = { ...notificationService.getConfig().whatsapp, ...whatsapp };
+            if (whatsapp.accessToken === '••••••••')
+                patch.whatsapp.accessToken = notificationService.getConfig().whatsapp?.accessToken;
+        }
+        if (emailRecipients)
+            patch.emailRecipients = emailRecipients;
+        notificationService.saveConfig(patch);
+        res.json({ success: true, message: 'Notification config saved.' });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// POST /api/admin/notification-config/test-sms — send a test SMS to verify Twilio config
+app.post('/api/admin/notification-config/test-sms', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+        const { toNumber } = req.body;
+        if (!toNumber)
+            return res.status(400).json({ success: false, error: 'toNumber required for test.' });
+        const cfg = notificationService.getConfig();
+        if (!cfg.twilio?.accountSid)
+            return res.status(400).json({ success: false, error: 'Twilio not configured.' });
+        // Temporarily override toNumbers for this test
+        const testConfig = { ...cfg, twilio: { ...cfg.twilio, toNumbers: [toNumber] } };
+        notificationService.saveConfig(testConfig);
+        const result = await notificationService.sendSms({ subject: 'Test', message: '✅ Fayda Pro: SMS notification test successful! Your Twilio integration is working.', channels: ['SMS'] }, { action: 'BOOK_PROFIT', signal: {} });
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 // ── DHAN API ENDPOINTS ───────────────────────────────────────────────────────
@@ -833,11 +1114,15 @@ app.post('/api/fyers/connect', requireAdminAuth, async (req, res) => {
     fyersService.setConfig(appId, accessToken, secretKey);
     const result = await fyersService.validateConnection();
     if (result.success) {
+        brokerManager.setActiveBroker('FYERS');
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
-            type: 'FYERS_STATUS',
+            type: 'BROKER_UPDATE',
             fyersConfig: fyersService.getPublicConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            activeBroker: brokerManager.getActiveBroker(),
+            effectiveBroker: brokerManager.getEffectiveLiveBroker(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
@@ -869,11 +1154,15 @@ app.get('/api/fyers/callback', async (req, res) => {
     }
     const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
     if (result.success) {
+        brokerManager.setActiveBroker('FYERS');
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
-            type: 'FYERS_STATUS',
+            type: 'BROKER_UPDATE',
             fyersConfig: fyersService.getPublicConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            activeBroker: brokerManager.getActiveBroker(),
+            effectiveBroker: brokerManager.getEffectiveLiveBroker(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
@@ -916,11 +1205,15 @@ app.post('/api/fyers/exchange-authcode', requireAdminAuth, async (req, res) => {
     }
     const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
     if (result.success) {
+        brokerManager.setActiveBroker('FYERS');
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         broadcast({
-            type: 'FYERS_STATUS',
+            type: 'BROKER_UPDATE',
             fyersConfig: fyersService.getPublicConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            activeBroker: brokerManager.getActiveBroker(),
+            effectiveBroker: brokerManager.getEffectiveLiveBroker(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
@@ -933,12 +1226,16 @@ app.post('/api/fyers/refresh-token', requireAdminAuth, async (req, res) => {
     const { pin } = req.body || {};
     const result = await fyersService.refreshAccessToken(pin);
     if (result.success) {
+        brokerManager.setActiveBroker('FYERS');
         currentDataSource = 'FYERS_LIVE';
         startFyersPolling();
         fyersService.scheduleNextDailyRenewal();
         broadcast({
-            type: 'FYERS_STATUS',
+            type: 'BROKER_UPDATE',
             fyersConfig: fyersService.getPublicConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            activeBroker: brokerManager.getActiveBroker(),
+            effectiveBroker: brokerManager.getEffectiveLiveBroker(),
             dataSource: currentDataSource,
             isMarketOpen: isNseMarketOpen(),
             timestamp: new Date().toISOString()
@@ -970,6 +1267,37 @@ server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`⚡ 100% Live Options OI Surge Radar Server listening on port ${PORT} (0.0.0.0)`);
     console.log(`📡 WebSocket stream active at ws://localhost:${PORT}/ws`);
     console.log(`📊 Data source: ${currentDataSource}`);
+    // After services have had time to auto-connect (async), resolve the true active broker
+    // and broadcast an authoritative BROKER_UPDATE to all connected clients.
+    brokerManager.initPostServices().then(() => {
+        const resolvedBroker = brokerManager.getActiveBroker();
+        const effectiveBroker = brokerManager.getEffectiveLiveBroker();
+        // Sync currentDataSource with the resolved broker
+        if (resolvedBroker === 'FYERS' && fyersService.getConfig().isConnected) {
+            if (currentDataSource !== 'FYERS_LIVE') {
+                currentDataSource = 'FYERS_LIVE';
+                startFyersPolling();
+            }
+        }
+        else if (resolvedBroker === 'DHAN' && dhanService.getConfig().isConnected) {
+            if (currentDataSource !== 'DHAN_LIVE') {
+                currentDataSource = dhanService.hasDataApi() ? 'DHAN_LIVE' : 'NSE_LIVE';
+            }
+        }
+        console.log(`[BrokerManager] Post-init resolved broker: ${resolvedBroker} (effective: ${effectiveBroker})`);
+        // Broadcast to any clients that connected before this resolved
+        broadcast({
+            type: 'BROKER_UPDATE',
+            fyersConfig: fyersService.getPublicConfig(),
+            dhanConfig: dhanService.getPublicConfig(),
+            activeBroker: resolvedBroker,
+            effectiveBroker,
+            dataSource: currentDataSource,
+            timestamp: new Date().toISOString()
+        });
+    }).catch((err) => {
+        console.error('[BrokerManager] initPostServices error:', err);
+    });
 });
 // Prevent unhandled promise rejections from crashing the process
 process.on('unhandledRejection', (reason, promise) => {

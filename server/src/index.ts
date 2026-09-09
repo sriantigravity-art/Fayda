@@ -318,6 +318,12 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
         }
       }
 
+      // Purge ghost 84.80 delta across all assets
+      if (typeof spotChange === 'number' && Math.abs(spotChange - 84.80) < 0.05) {
+        spotChange = 0;
+        spotPctChange = 0;
+      }
+
       // Zero out change values if market is closed for this symbol
       const isOpen = isMarketOpenForSymbol(symConfig.symbol);
       if (!isOpen) {
@@ -331,7 +337,7 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       //    fetch or when data is partially populated, causing a brief 0 flash.
       if (isOpen && spotChange === 0 && spotPctChange === 0) {
         const prev = cachedIndexStates.get(symConfig.symbol);
-        if (prev && typeof prev.change === 'number' && prev.change !== 0) {
+        if (prev && typeof prev.change === 'number' && prev.change !== 0 && Math.abs(prev.change - 84.80) >= 0.05) {
           spotChange = prev.change;
           spotPctChange = prev.pctChange ?? 0;
         }
@@ -497,13 +503,17 @@ const pollBatchQuotes = async () => {
 
       // Update spot prices and timestamps in cached states
       for (const q of quotesList) {
+        if (typeof q.change === 'number' && Math.abs(q.change - 84.80) < 0.05) {
+          q.change = 0;
+          q.pctChange = 0;
+        }
         const cached = cachedIndexStates.get(q.symbol);
         if (cached) {
           const isOpen = isMarketOpenForSymbol(q.symbol);
           cached.spotPrice = q.price;
 
           // Sticky change: if market is open but quotes returned change=0, keep last known value
-          if (isOpen && q.change !== 0) {
+          if (isOpen && q.change !== 0 && Math.abs(q.change - 84.80) >= 0.05) {
             cached.change = q.change;
             cached.pctChange = q.pctChange;
           } else if (!isOpen) {
@@ -715,7 +725,11 @@ app.get('/api/index-state', async (req, res) => {
 app.get('/api/index-states', (req, res) => {
   const obj: Record<string, any> = {};
   for (const [sym, st] of cachedIndexStates.entries()) {
-    obj[sym] = st;
+    if (st && typeof st.change === 'number' && Math.abs(st.change - 84.80) < 0.05) {
+      obj[sym] = { ...st, change: 0, pctChange: 0 };
+    } else {
+      obj[sym] = st;
+    }
   }
   res.json(obj);
 });

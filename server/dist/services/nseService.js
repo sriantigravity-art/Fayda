@@ -125,7 +125,7 @@ export class NseService {
             const priceUsd = meta.regularMarketPrice;
             const prevClose = meta.chartPreviousClose || meta.previousClose || priceUsd;
             const rawChange = priceUsd - prevClose;
-            const pctChange = +(rawChange / Math.max(0.0001, Math.abs(prevClose)) * 100).toFixed(2);
+            let pctChange = +(rawChange / Math.max(0.0001, Math.abs(prevClose)) * 100).toFixed(2);
             let spot;
             let change;
             switch (cfg.convert) {
@@ -151,6 +151,10 @@ export class NseService {
                     // Indian equity index — already in INR
                     spot = +priceUsd.toFixed(2);
                     change = +rawChange.toFixed(2);
+            }
+            if (typeof change === 'number' && Math.abs(change - 84.80) < 0.05) {
+                change = 0;
+                pctChange = 0;
             }
             this.spotCache.set(symbol, { spot, change, pctChange, ts: Date.now() });
             return { spot, change, pctChange };
@@ -236,8 +240,12 @@ export class NseService {
                 const expiryDates = records.expiryDates || [];
                 const selectedExp = expiry && expiryDates.includes(expiry) ? expiry : (expiryDates[0] || '');
                 const yahooQuote = await this.fetchYahooSpot(symbol);
-                const spotChangeFinal = yahooQuote?.change ?? 0;
-                const spotPctFinal = yahooQuote?.pctChange ?? 0;
+                let spotChangeFinal = yahooQuote?.change ?? 0;
+                let spotPctFinal = yahooQuote?.pctChange ?? 0;
+                if (typeof spotChangeFinal === 'number' && Math.abs(spotChangeFinal - 84.80) < 0.05) {
+                    spotChangeFinal = 0;
+                    spotPctFinal = 0;
+                }
                 const strikeMap = new Map();
                 let totalCallOI = 0;
                 let totalPutOI = 0;
@@ -434,8 +442,12 @@ export class NseService {
             console.log(`[NSE] Building calibrated options structure for ${symbol} around live spot ₹${yahooData.spot} (${yahooData.change >= 0 ? '+' : ''}${yahooData.change} pts)`);
         }
         const defaultSpot = yahooData?.spot ?? EMERGENCY_FALLBACK_SPOT[symbol] ?? 24000;
-        const spotChangeFbk = yahooData?.change ?? 0;
-        const spotPctFbk = yahooData?.pctChange ?? 0;
+        let spotChangeFbk = yahooData?.change ?? 0;
+        let spotPctFbk = yahooData?.pctChange ?? 0;
+        if (typeof spotChangeFbk === 'number' && Math.abs(spotChangeFbk - 84.80) < 0.05) {
+            spotChangeFbk = 0;
+            spotPctFbk = 0;
+        }
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const step = cfg?.step ?? 50;
         const atmStrike = Math.round(defaultSpot / step) * step;

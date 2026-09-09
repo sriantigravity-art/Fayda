@@ -51,6 +51,7 @@ export class FyersService {
                         isConnected: false,
                         userName: parsed.userName,
                         lastConnected: parsed.lastConnected,
+                        tokenIssuedAt: parsed.tokenIssuedAt,
                         pin: parsed.pin,
                         refreshToken: parsed.refreshToken,
                         tokenRefreshedAt: parsed.tokenRefreshedAt,
@@ -104,6 +105,7 @@ export class FyersService {
                 isConnected: this.config.isConnected,
                 userName: this.config.userName,
                 lastConnected: this.config.lastConnected,
+                tokenIssuedAt: this.config.tokenIssuedAt,
                 pin: this.config.pin,
                 refreshToken: this.config.refreshToken,
                 tokenRefreshedAt: this.config.tokenRefreshedAt,
@@ -234,6 +236,7 @@ export class FyersService {
                 }
                 this.config.isConnected = true;
                 this.config.tokenRefreshedAt = new Date().toISOString();
+                this.config.tokenIssuedAt = new Date().toISOString(); // new daily token issued now
                 this.config.lastConnected = new Date().toISOString();
                 const validateRes = await this.validateConnection();
                 const userName = validateRes.userName || this.config.userName || 'SRS';
@@ -272,11 +275,26 @@ export class FyersService {
         return this.config;
     }
     getPublicConfig() {
+        // Decode JWT exp claim to compute tokenExpiresAt
+        let tokenExpiresAt;
+        try {
+            const parts = this.config.accessToken?.split('.');
+            if (parts && parts.length >= 2) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                if (payload.exp) {
+                    tokenExpiresAt = new Date(payload.exp * 1000).toISOString();
+                }
+            }
+        }
+        catch { }
         return {
             appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
             isConnected: this.config.isConnected,
             userName: this.config.userName,
             lastConnected: this.config.lastConnected,
+            tokenIssuedAt: this.config.tokenIssuedAt,
+            tokenExpiresAt,
+            hasRefreshToken: !!this.config.refreshToken && this.isRefreshTokenValid(),
             tokenRefreshedAt: this.config.tokenRefreshedAt,
             refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
         };
@@ -421,6 +439,10 @@ export class FyersService {
                 const rawName = json.data.name || json.data.fy_id || 'SRS';
                 this.config.userName = rawName;
                 this.config.lastConnected = new Date().toISOString();
+                // Record when this token was issued (now, on successful connect)
+                if (!this.config.tokenIssuedAt) {
+                    this.config.tokenIssuedAt = new Date().toISOString();
+                }
                 this.savePersistedConfig();
                 return {
                     success: true,
@@ -491,12 +513,17 @@ export class FyersService {
             const spotRecord = optionsData.find((item) => item.strike_price === -1);
             const spotPrice = spotRecord ? spotRecord.ltp : (data.underlyingValue || 0);
             const prevClose = spotRecord?.prev_close_price || (spotPrice - (spotRecord?.ltpch ?? 0));
-            const spotChange = spotRecord && typeof spotRecord.ltpch === 'number'
+            let spotChange = spotRecord && typeof spotRecord.ltpch === 'number'
                 ? spotRecord.ltpch
                 : (prevClose > 0 && spotPrice > 0 ? +(spotPrice - prevClose).toFixed(2) : 0);
-            const spotPctChange = spotRecord && typeof spotRecord.ltpchp === 'number'
+            let spotPctChange = spotRecord && typeof spotRecord.ltpchp === 'number'
                 ? spotRecord.ltpchp
                 : (prevClose > 0 ? +((spotChange / prevClose) * 100).toFixed(2) : 0);
+            // Blacklist ghost 84.80 artifact
+            if (typeof spotChange === 'number' && Math.abs(spotChange - 84.80) < 0.05) {
+                spotChange = 0;
+                spotPctChange = 0;
+            }
             // Extract expiry dates in format DD-MMM-YYYY directly from Fyers exchange data
             const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const rawExpiryList = data.expiryData || [];
@@ -614,8 +641,12 @@ export class FyersService {
                 const v = item.v;
                 if (appSym && v && typeof v.lp === 'number') {
                     const prevClose = v.prev_close_price || (v.lp - (v.ch ?? 0));
-                    const change = typeof v.ch === 'number' ? v.ch : +(v.lp - prevClose).toFixed(2);
-                    const pctChange = typeof v.chp === 'number' ? v.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
+                    let change = typeof v.ch === 'number' ? v.ch : +(v.lp - prevClose).toFixed(2);
+                    let pctChange = typeof v.chp === 'number' ? v.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
+                    if (typeof change === 'number' && Math.abs(change - 84.80) < 0.05) {
+                        change = 0;
+                        pctChange = 0;
+                    }
                     resultMap.set(appSym, {
                         symbol: appSym,
                         fyersSymbol: fyersSym,

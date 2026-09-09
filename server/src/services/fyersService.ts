@@ -573,12 +573,18 @@ export class FyersService {
       const spotRecord = optionsData.find((item: any) => item.strike_price === -1);
       const spotPrice = spotRecord ? spotRecord.ltp : (data.underlyingValue || 0);
       const prevClose = spotRecord?.prev_close_price || (spotPrice - (spotRecord?.ltpch ?? 0));
-      const spotChange = spotRecord && typeof spotRecord.ltpch === 'number'
+      let spotChange = spotRecord && typeof spotRecord.ltpch === 'number'
         ? spotRecord.ltpch
         : (prevClose > 0 && spotPrice > 0 ? +(spotPrice - prevClose).toFixed(2) : 0);
-      const spotPctChange = spotRecord && typeof spotRecord.ltpchp === 'number'
+      let spotPctChange = spotRecord && typeof spotRecord.ltpchp === 'number'
         ? spotRecord.ltpchp
         : (prevClose > 0 ? +((spotChange / prevClose) * 100).toFixed(2) : 0);
+
+      // Blacklist ghost 84.80 artifact
+      if (typeof spotChange === 'number' && Math.abs(spotChange - 84.80) < 0.05) {
+        spotChange = 0;
+        spotPctChange = 0;
+      }
 
       // Extract expiry dates in format DD-MMM-YYYY directly from Fyers exchange data
       const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -710,8 +716,13 @@ export class FyersService {
         const v = item.v;
         if (appSym && v && typeof v.lp === 'number') {
           const prevClose = v.prev_close_price || (v.lp - (v.ch ?? 0));
-          const change = typeof v.ch === 'number' ? v.ch : +(v.lp - prevClose).toFixed(2);
-          const pctChange = typeof v.chp === 'number' ? v.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
+          let change = typeof v.ch === 'number' ? v.ch : +(v.lp - prevClose).toFixed(2);
+          let pctChange = typeof v.chp === 'number' ? v.chp : (prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0);
+
+          if (typeof change === 'number' && Math.abs(change - 84.80) < 0.05) {
+            change = 0;
+            pctChange = 0;
+          }
 
           resultMap.set(appSym, {
             symbol: appSym,
