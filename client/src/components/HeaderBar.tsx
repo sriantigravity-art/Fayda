@@ -205,8 +205,11 @@ export const HeaderBar: React.FC = () => {
   
   const sanitizedCurrent = sanitizeSpotData(selectedIndex, currentIndexState);
   const selectedReceivedAt = indicesReceivedAt[selectedIndex] ?? 0;
-  const isStateFresh = selectedReceivedAt > 0 && (Date.now() - selectedReceivedAt) <= 60000;
-  const spotPrice = sanitizedCurrent.spotPrice;
+  // For the change value: show it as long as we've received data at least once
+  // (even if slightly stale). Only hide it on the very first load before any data arrives.
+  // Using a generous 5-minute window prevents the +84.80 from disappearing during broker
+  // switches or the brief gap between Fyers polls (which run every 2s).
+  const isStateFresh = selectedReceivedAt > 0 && (Date.now() - selectedReceivedAt) <= 300000;
   const netChange = isStateFresh ? sanitizedCurrent.change : 0;
   const pctChange = isStateFresh ? sanitizedCurrent.pctChange : 0;
   const isPositive = netChange >= 0;
@@ -616,7 +619,7 @@ export const HeaderBar: React.FC = () => {
             const receivedAt = sym === selectedIndex
               ? (indicesReceivedAt[selectedIndex] ?? 0)
               : (indicesReceivedAt[sym] ?? 0);
-            const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 60000;
+            const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 300000;
 
             const pts = isFresh ? sanitized.change : null;
             const pct = isFresh ? sanitized.pctChange : null;

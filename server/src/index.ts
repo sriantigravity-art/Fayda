@@ -320,6 +320,18 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
         spotPctChange = 0;
       }
 
+      // ── Sticky change: if market is open but new poll returned change=0,
+      //    keep the last known non-zero value from cache to prevent flickering.
+      //    Fyers options-chain v3 sometimes returns ltpch=null on the first
+      //    fetch or when data is partially populated, causing a brief 0 flash.
+      if (isOpen && spotChange === 0 && spotPctChange === 0) {
+        const prev = cachedIndexStates.get(symConfig.symbol);
+        if (prev && typeof prev.change === 'number' && prev.change !== 0) {
+          spotChange = prev.change;
+          spotPctChange = prev.pctChange ?? 0;
+        }
+      }
+
       // Resolve India VIX: prefer Fyers feed, then globalIndicesService (NSE allIndices / Yahoo)
       let indiaVix: number | undefined = res.indiaVix && res.indiaVix > 0 ? res.indiaVix : undefined;
       if (!indiaVix) {
@@ -484,8 +496,17 @@ const pollBatchQuotes = async () => {
         if (cached) {
           const isOpen = isMarketOpenForSymbol(q.symbol);
           cached.spotPrice = q.price;
-          cached.change = isOpen ? q.change : 0;
-          cached.pctChange = isOpen ? q.pctChange : 0;
+
+          // Sticky change: if market is open but quotes returned change=0, keep last known value
+          if (isOpen && q.change !== 0) {
+            cached.change = q.change;
+            cached.pctChange = q.pctChange;
+          } else if (!isOpen) {
+            cached.change = 0;
+            cached.pctChange = 0;
+          }
+          // If isOpen && q.change === 0: leave cached.change as-is (sticky)
+
           cached.updatedAtIso = new Date().toISOString();
         }
       }

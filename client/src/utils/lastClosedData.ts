@@ -124,12 +124,9 @@ export function sanitizeSpotData(
     };
   }
 
-  // 3. Detect cloned/stale delta: 84.80 (+0.35%) was an old server artifact
-  const isClonedDelta = typeof candidate.change === 'number' && Math.abs(candidate.change - 84.80) < 0.05 && symbol !== 'NIFTY';
-
   return {
     spotPrice: effectiveSpot,
-    change: isClonedDelta ? fallback.change : (candidate.change ?? 0),
-    pctChange: isClonedDelta ? fallback.pctChange : (candidate.pctChange ?? 0)
+    change: candidate.change ?? 0,
+    pctChange: candidate.pctChange ?? 0
   };
 }
