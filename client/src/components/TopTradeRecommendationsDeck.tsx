@@ -229,50 +229,29 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const items: RecommendationTableItem[] = useMemo(() => {
     if (!currentIndexState) return [];
 
-    // ── Today's IST date (YYYY-MM-DD) — used to purge stale prior-day signals ──
-    const getTodayISTDate = (): string => {
-      const now = new Date();
-      const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-      const ist = new Date(utcMs + 3600000 * 5.5);
-      return ist.toISOString().split('T')[0];
-    };
-    const todayIST = getTodayISTDate();
 
-    /** Returns the IST date string (YYYY-MM-DD) for an ISO timestamp */
-    const getISTDate = (isoTs?: string): string | null => {
-      if (!isoTs) return null;
-      try {
-        const tsMs = new Date(isoTs).getTime();
-        const utcMs = tsMs + new Date(isoTs).getTimezoneOffset() * 60000;
-        return new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
-      } catch { return null; }
-    };
 
-    /** Returns true if the ISO timestamp belongs to a prior IST trading day */
-    const isFromPriorDay = (isoTs?: string): boolean => {
-      const d = getISTDate(isoTs);
-      return d !== null && d < todayIST;
-    };
-
-    /**
-     * Prior-day signal visibility rule:
-     * The authoritative staleness check uses pkg.lastEvaluatedAt (an ISO timestamp set
-     * by the server on every computation cycle). If the whole package is from a prior IST
-     * day, ALL its tips are stale EXCEPT explicitly marked carry-forwards.
-     * Per-tip rawTip.entryTime is a formatted string ("11:15 AM") — NOT a reliable date.
-     */
     const pkg = currentIndexState.unifiedTipsPackage;
     const heroZeroSignals = currentIndexState.heroZeroSignals;
     const patternBreakout = currentIndexState.patternBreakout;
     const multiLegStrategy = currentIndexState.multiLegStrategy;
 
-    // Is the tips package from a prior trading day?
-    const isPkgStale = isFromPriorDay(pkg?.lastEvaluatedAt);
+    // ── Off-market / stale tips guard ─────────────────────────────────
+    // pkg.currentSession === 'OFF_MARKET' is the ONLY reliable signal that tips
+    // are from a prior session. lastEvaluatedAt is stamped to NOW on every server
+    // push — so it cannot detect staleness. tip.entryTime is "11:15 AM" (formatted
+    // display string) — not an ISO date.
+    //
+    // Rule: when OFF_MARKET, hide all pkg tips EXCEPT explicitly carried-forward
+    // positions (status=CARRIED_FORWARD or isCarriedForward=true). These persist
+    // until the system issues a square-off directive (TARGET_HIT / SL_HIT today).
+    const isPkgOffMarket = pkg?.currentSession === 'OFF_MARKET';
 
-    /** For a stale pkg, only allow tips explicitly marked as carry-forward */
+    /** Returns true if a tip from a stale off-market pkg should be shown */
     const isPkgTipAllowed = (t: { isCarriedForward?: boolean; status?: string } | null | undefined): boolean => {
-      if (!isPkgStale) return true; // pkg is fresh — allow all
+      if (!isPkgOffMarket) return true;       // live market — show everything
       if (!t) return false;
+      // Off-market: only carry-forwards survive
       return t.isCarriedForward === true || t.status === 'CARRIED_FORWARD';
     };
 

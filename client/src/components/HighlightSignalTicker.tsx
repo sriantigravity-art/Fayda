@@ -102,26 +102,17 @@ export const HighlightSignalTicker: React.FC = () => {
       const primeCall = idxState?.sessionTips?.topCallTrade;
       const primePut = idxState?.sessionTips?.topPutTrade;
 
-      // ── Guard: use pkg.lastEvaluatedAt (real ISO timestamp) for staleness ──
-      // tip.entryTime is a formatted string ("11:15 AM") — NOT a date.
-      // lastEvaluatedAt is set by the server on every computation cycle.
-      const pkgLastEval = idxState?.unifiedTipsPackage?.lastEvaluatedAt;
-      const isPkgStale = (() => {
-        if (!pkgLastEval) return false;
-        try {
-          const nowUtc = Date.now() + new Date().getTimezoneOffset() * 60000;
-          const todayIST = new Date(nowUtc + 3600000 * 5.5).toISOString().split('T')[0];
-          const tsMs = new Date(pkgLastEval).getTime();
-          const utcMs = tsMs + new Date(pkgLastEval).getTimezoneOffset() * 60000;
-          const pkgDate = new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
-          return pkgDate < todayIST;
-        } catch { return false; }
-      })();
+      // ── Off-market guard: pkg.currentSession is the only reliable stale flag ──
+      // lastEvaluatedAt is always stamped to NOW on every server push — unusable.
+      // tip.entryTime is a display string ("11:15 AM") — not an ISO date.
+      // When OFF_MARKET: only carry-forward tips are eligible to show.
+      const pkgSession = idxState?.unifiedTipsPackage?.currentSession;
+      const isPkgOffMarket = pkgSession === 'OFF_MARKET';
 
       const isTipEligible = (tip: typeof primeCall): boolean => {
         if (!tip) return false;
-        if (!isPkgStale) return true; // pkg is fresh — show all tips
-        // Stale pkg: only show explicitly carried-forward tips
+        if (!isPkgOffMarket) return true; // live market — show all
+        // Off-market: only explicitly carried-forward tips
         return tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD';
       };
 
