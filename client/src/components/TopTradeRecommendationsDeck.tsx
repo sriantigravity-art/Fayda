@@ -256,33 +256,25 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
     /**
      * Prior-day signal visibility rule:
-     * - ONLY show if explicitly marked as carry-forward (status=CARRIED_FORWARD OR isCarriedForward=true)
-     * - Plain ACTIVE, TARGET_HIT, SL_HIT, EXPIRED, INTRADAY_CLOSED, etc. → Journal only
-     * - A carried tip that already booked today (bookedTime is today) stays visible for exit directive
+     * The authoritative staleness check uses pkg.lastEvaluatedAt (an ISO timestamp set
+     * by the server on every computation cycle). If the whole package is from a prior IST
+     * day, ALL its tips are stale EXCEPT explicitly marked carry-forwards.
+     * Per-tip rawTip.entryTime is a formatted string ("11:15 AM") — NOT a reliable date.
      */
-    const shouldHidePriorDayTip = (rawItem: {
-      status?: string;
-      rawTip?: { entryTime?: string; timestamp?: string; status?: string; isCarriedForward?: boolean; bookedTime?: string };
-      isCarriedForward?: boolean;
-    }): boolean => {
-      const tipEntryTime = rawItem.rawTip?.entryTime || rawItem.rawTip?.timestamp;
-      if (!isFromPriorDay(tipEntryTime)) return false; // today's tip — always show
-
-      // Explicitly carried-forward tips are allowed
-      const isCarried = rawItem.isCarriedForward === true || rawItem.rawTip?.isCarriedForward === true;
-      const tipStatus = rawItem.status || rawItem.rawTip?.status || 'ACTIVE';
-      const isCarriedStatus = tipStatus === 'CARRIED_FORWARD';
-
-      if (isCarried || isCarriedStatus) return false; // carry-forward: show
-
-      // Everything else from prior day → hide (goes to Journal)
-      return true;
-    };
-
     const pkg = currentIndexState.unifiedTipsPackage;
     const heroZeroSignals = currentIndexState.heroZeroSignals;
     const patternBreakout = currentIndexState.patternBreakout;
     const multiLegStrategy = currentIndexState.multiLegStrategy;
+
+    // Is the tips package from a prior trading day?
+    const isPkgStale = isFromPriorDay(pkg?.lastEvaluatedAt);
+
+    /** For a stale pkg, only allow tips explicitly marked as carry-forward */
+    const isPkgTipAllowed = (t: { isCarriedForward?: boolean; status?: string } | null | undefined): boolean => {
+      if (!isPkgStale) return true; // pkg is fresh — allow all
+      if (!t) return false;
+      return t.isCarriedForward === true || t.status === 'CARRIED_FORWARD';
+    };
 
     const list: RecommendationTableItem[] = [];
     const seenContracts = new Set<string>();
@@ -331,11 +323,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Deduplicate: Skip duplicate recommendation
       }
 
-      // ── Prior-day signal visibility guard ────────────────────────────────────
-      // Only CARRIED_FORWARD (overnight hold) tips from prior days are shown.
-      // All other prior-day signals (TARGET_HIT, SL_HIT, plain ACTIVE, EXPIRED,
-      // INTRADAY_CLOSED) are hidden here — they live in the Trade Journal.
-      if (shouldHidePriorDayTip(rawItem)) {
+      // ── Prior-day package guard ───────────────────────────────────────────────
+      // If the pkg was computed on a prior IST day (pkg.lastEvaluatedAt is stale),
+      // hide this tip unless it is explicitly a carry-forward.
+      if (!isPkgTipAllowed(rawItem.rawTip)) {
         return; // → Trade Journal only
       }
 
@@ -1168,53 +1159,20 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
   // Filtered items based on selected tab
   const filteredItems = useMemo(() => {
-    // ── Secondary prior-day guard (safety net) ────────────────────────────────
-    // Hides any prior-day tip that is not explicitly a carry-forward.
-    const getTodayIST = (): string => {
-      const now = new Date();
-      const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-      return new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
-    };
-    const todayDate = getTodayIST();
-
-    const getISTDate = (isoTs?: string): string | null => {
-      if (!isoTs) return null;
-      try {
-        const tsMs = new Date(isoTs).getTime();
-        const utcMs = tsMs + new Date(isoTs).getTimezoneOffset() * 60000;
-        return new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
-      } catch { return null; }
-    };
-
-    const isStalePriorDayTip = (item: RecommendationTableItem): boolean => {
-      const entryTs = item.rawTip?.entryTime || item.rawTip?.timestamp;
-      const entryDate = getISTDate(entryTs);
-      if (!entryDate || entryDate >= todayDate) return false; // today or no date → keep
-
-      // Allow explicitly carried-forward tips
-      const isCarried = item.isCarriedForward === true || item.rawTip?.isCarriedForward === true;
-      const isCarriedStatus = item.status === 'CARRIED_FORWARD' || item.rawTip?.status === 'CARRIED_FORWARD';
-      if (isCarried || isCarriedStatus) return false;
-
-      return true; // prior-day, not carry-forward → hide
-    };
-
-    const fresh = items.filter(item => !isStalePriorDayTip(item));
-
-    if (activeTab === 'ALL') return fresh;
+    if (activeTab === 'ALL') return items;
     if (activeTab === 'BUYERS') {
-      return fresh.filter(item => item.role === 'BUYER' || item.category === 'BUYERS');
+      return items.filter(item => item.role === 'BUYER' || item.category === 'BUYERS');
     }
     if (activeTab === 'SELLERS') {
-      return fresh.filter(item => item.role === 'SELLER' || item.category === 'SELLERS');
+      return items.filter(item => item.role === 'SELLER' || item.category === 'SELLERS');
     }
     if (activeTab === 'GAMMA') {
-      return fresh.filter(item => item.category === 'GAMMA');
+      return items.filter(item => item.category === 'GAMMA');
     }
     if (activeTab === 'BREAKOUTS') {
-      return fresh.filter(item => item.category === 'BREAKOUTS');
+      return items.filter(item => item.category === 'BREAKOUTS');
     }
-    return fresh.filter(item => item.category === activeTab);
+    return items.filter(item => item.category === activeTab);
   }, [items, activeTab]);
 
   // Counts for each tab badge

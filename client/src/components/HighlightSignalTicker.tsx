@@ -102,20 +102,27 @@ export const HighlightSignalTicker: React.FC = () => {
       const primeCall = idxState?.sessionTips?.topCallTrade;
       const primePut = idxState?.sessionTips?.topPutTrade;
 
-      // ── Guard: only show prior-day tips if explicitly carried forward ──
-      const isTipEligible = (tip: typeof primeCall): boolean => {
-        if (!tip) return false;
-        if (!tip.entryTime) return true; // no timestamp = assume live
+      // ── Guard: use pkg.lastEvaluatedAt (real ISO timestamp) for staleness ──
+      // tip.entryTime is a formatted string ("11:15 AM") — NOT a date.
+      // lastEvaluatedAt is set by the server on every computation cycle.
+      const pkgLastEval = idxState?.unifiedTipsPackage?.lastEvaluatedAt;
+      const isPkgStale = (() => {
+        if (!pkgLastEval) return false;
         try {
           const nowUtc = Date.now() + new Date().getTimezoneOffset() * 60000;
           const todayIST = new Date(nowUtc + 3600000 * 5.5).toISOString().split('T')[0];
-          const tsMs = new Date(tip.entryTime).getTime();
-          const utcMs = tsMs + new Date(tip.entryTime).getTimezoneOffset() * 60000;
-          const tipDate = new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
-          if (tipDate >= todayIST) return true; // today's tip \u2014 always show
-          // Prior-day tip: only allow if explicitly a carry-forward
-          return tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD';
-        } catch { return true; }
+          const tsMs = new Date(pkgLastEval).getTime();
+          const utcMs = tsMs + new Date(pkgLastEval).getTimezoneOffset() * 60000;
+          const pkgDate = new Date(utcMs + 3600000 * 5.5).toISOString().split('T')[0];
+          return pkgDate < todayIST;
+        } catch { return false; }
+      })();
+
+      const isTipEligible = (tip: typeof primeCall): boolean => {
+        if (!tip) return false;
+        if (!isPkgStale) return true; // pkg is fresh — show all tips
+        // Stale pkg: only show explicitly carried-forward tips
+        return tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD';
       };
 
       const primePick = (isTipEligible(primeCall) ? primeCall : null)
