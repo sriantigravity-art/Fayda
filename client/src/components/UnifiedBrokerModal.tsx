@@ -215,7 +215,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
             <Radio className="w-3.5 h-3.5 text-accent-cyan" />
             <span>Active Real-Time Provider:</span>
           </span>
-          <div className="flex items-center gap-1.5 bg-terminal-panel p-1 rounded-xl border border-terminal-border text-xs font-mono font-bold">
+          <div className="flex items-center gap-1.5 bg-terminal-panel p-1 rounded-xl border border-terminal-border text-xs font-mono font-bold flex-wrap">
             <button
               type="button"
               onClick={() => selectBroker('DHAN')}
@@ -240,6 +240,30 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
             >
               <span className={`w-2 h-2 rounded-full ${fyersConfig.isConnected ? 'bg-sky-500 animate-pulse' : 'bg-slate-400'}`} />
               <span>Fyers {fyersConfig.isConnected && '(Live)'}</span>
+            </button>
+
+            {/* Angel One — Coming Soon */}
+            <button
+              type="button"
+              disabled
+              title="Angel One integration coming soon"
+              className="px-3 py-1 rounded-lg flex items-center gap-1.5 text-terminal-muted/50 cursor-not-allowed opacity-60"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500/40" />
+              <span>Angel One</span>
+              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-500/60 border border-amber-500/20 font-bold">SOON</span>
+            </button>
+
+            {/* Zerodha — Coming Soon */}
+            <button
+              type="button"
+              disabled
+              title="Zerodha integration coming soon"
+              className="px-3 py-1 rounded-lg flex items-center gap-1.5 text-terminal-muted/50 cursor-not-allowed opacity-60"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500/40" />
+              <span>Zerodha</span>
+              <span className="text-[9px] px-1 py-0.5 rounded bg-rose-500/10 text-rose-500/60 border border-rose-500/20 font-bold">SOON</span>
             </button>
 
             <button
