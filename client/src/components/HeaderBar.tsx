@@ -54,6 +54,8 @@ import { UserProfileEditModal } from './profile/UserProfileEditModal';
 import { TopSubscribeDropdown } from './subscription/TopSubscribeDropdown';
 import { UserProfileDropdown } from './auth/UserProfileDropdown';
 import { FastSubscriptionModal } from './subscription/FastSubscriptionModal';
+import { ToolsDropdown } from './header/ToolsDropdown';
+import { WorkspaceSettingsDropdown } from './header/WorkspaceSettingsDropdown';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -94,15 +96,11 @@ export const HeaderBar: React.FC = () => {
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>('RISK_DISCLOSURE');
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [profileEditTab, setProfileEditTab] = useState<'PROFILE' | 'PASSWORD' | 'MEMBERSHIP'>('PROFILE');
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [subscribeDefaultPlan, setSubscribeDefaultPlan] = useState<'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND'>('GOLD');
   const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
-  const moreMenuRef = useRef<HTMLDivElement>(null);
-  const mobileModeRef = useRef<HTMLDivElement>(null);
 
   // Global Keyboard Shortcuts: Ctrl+K / Cmd+K (Palette), F11 (Fullscreen), and F (Fullscreen)
   useEffect(() => {
@@ -289,199 +287,90 @@ export const HeaderBar: React.FC = () => {
           <TopSubscribeDropdown />
         </div>
 
-        {/* RIGHT SECTION: RESPONSIVE ACTIONS & TOOLS */}
+        {/* RIGHT SECTION: STREAMLINED & GROUPED ACTIONS & TOOLS */}
         <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
 
-          {/* Command Palette Trigger Button (Ctrl + K) */}
+          {/* 1. Unified Broker Connect Button */}
           <button
             type="button"
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="p-1.5 sm:px-2 sm:py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text transition text-xs font-sans cursor-pointer shadow-subtle flex items-center space-x-1.5"
-            title="Open Command Palette (Ctrl+K or ⌘K)"
+            onClick={() => setIsFyersModalOpen(true)}
+            className={`flex items-center space-x-1.5 px-2 py-1 rounded-xl border text-xs font-sans font-bold transition cursor-pointer shrink-0 shadow-sm ${
+              effectiveBroker === 'DHAN'
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                : effectiveBroker === 'FYERS'
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400'
+                : dhanConfig.isConnected
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
+              }`}
+            title={
+              effectiveBroker === 'DHAN'
+                ? 'DhanHQ API Connected (25 req/s Live)'
+                : effectiveBroker === 'FYERS'
+                ? 'Fyers API v3 Connected'
+                : dhanConfig.isConnected
+                ? 'DhanHQ Connected (Trading Execution Ready • Live Data via NSE Feed)'
+                : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
+            }
           >
-            <Search className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-medium hidden md:inline">Command</span>
-            <kbd className="px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted text-[10px] font-mono border border-terminal-border hidden sm:inline">
-              ⌘K
-            </kbd>
+            <KeyRound className={`w-3.5 h-3.5 ${
+              effectiveBroker === 'DHAN'
+                ? 'text-emerald-500 animate-pulse'
+                : effectiveBroker === 'FYERS'
+                ? 'text-sky-500 animate-pulse'
+                : dhanConfig.isConnected
+                ? 'text-emerald-500'
+                : 'text-accent-sky'
+            }`} />
+            <span className="hidden sm:inline">
+              {effectiveBroker === 'DHAN'
+                ? 'Dhan Live'
+                : effectiveBroker === 'FYERS'
+                ? 'Fyers Live'
+                : dhanConfig.isConnected
+                ? (dhanConfig.hasDataApi === false ? 'Dhan (Trade)' : 'Dhan Live')
+                : 'Connect'}
+            </span>
           </button>
 
-          {/* DESKTOP-ONLY CONTROLS (Hidden on < 1024px, Available in Mobile Menu Dropdown) */}
-          <div className="hidden lg:flex items-center space-x-1 sm:space-x-1.5">
-            {/* Unified Broker Connect Button */}
-            <button
-              type="button"
-              onClick={() => setIsFyersModalOpen(true)}
-              className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border text-xs font-sans font-bold transition cursor-pointer shrink-0 ${
-                effectiveBroker === 'DHAN'
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
-                  : effectiveBroker === 'FYERS'
-                  ? 'bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400'
-                  : dhanConfig.isConnected
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
-                }`}
-              title={
-                effectiveBroker === 'DHAN'
-                  ? 'DhanHQ API Connected (25 req/s Live)'
-                  : effectiveBroker === 'FYERS'
-                  ? 'Fyers API v3 Connected'
-                  : dhanConfig.isConnected
-                  ? 'DhanHQ Connected (Trading Execution Ready • Live Data via NSE Feed)'
-                  : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
-              }
-            >
-              <KeyRound className={`w-3.5 h-3.5 ${
-                effectiveBroker === 'DHAN'
-                  ? 'text-emerald-500 animate-pulse'
-                  : effectiveBroker === 'FYERS'
-                  ? 'text-sky-500 animate-pulse'
-                  : dhanConfig.isConnected
-                  ? 'text-emerald-500'
-                  : 'text-accent-sky'
-              }`} />
-              <span className="hidden xl:inline">
-                {effectiveBroker === 'DHAN'
-                  ? 'Dhan Live'
-                  : effectiveBroker === 'FYERS'
-                  ? 'Fyers Live'
-                  : dhanConfig.isConnected
-                  ? (dhanConfig.hasDataApi === false ? 'Dhan (Trading)' : 'Dhan Live')
-                  : 'Connect Broker'}
-              </span>
-            </button>
+          {/* 2. Grouped Trading Tools Dropdown (Trade Journal, Risk Calc, Command Palette, SEBI Legal) */}
+          <ToolsDropdown
+            onOpenJournal={() => setIsJournalModalOpen(true)}
+            onOpenRiskCalc={() => setIsRiskModalOpen(true)}
+            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+            onOpenLegal={() => {
+              setActiveLegalDoc('RISK_DISCLOSURE');
+              setIsLegalModalOpen(true);
+            }}
+          />
 
-            {/* SuperAdmin Matrix Button (If Active) */}
-            {isSuperAdmin && (
-              <button
-                type="button"
-                onClick={() => setIsAdminDrawerOpen(true)}
-                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-accent-purple/15 border border-accent-purple/40 text-accent-purple hover:bg-accent-purple/25 font-sans text-xs font-bold transition cursor-pointer shrink-0"
-                title="SuperAdmin Live Control"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">Admin</span>
-              </button>
-            )}
+          {/* 3. Grouped Mode & Workspace Settings Dropdown (Beginner/Interm/Expert, Density, Audio, SuperAdmin) */}
+          <WorkspaceSettingsDropdown
+            mode={mode}
+            setMode={setMode}
+            density={density}
+            setDensity={setDensity}
+            isMuted={isMuted}
+            toggleMute={toggleMute}
+            isSuperAdmin={isSuperAdmin}
+            onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+          />
 
-            {/* 3-Mode Trader Toggle */}
-            {panelVisibility.traderModeToggle && (
-              <div className="flex items-center bg-terminal-panel border border-terminal-border rounded-lg p-0.5 text-xs font-sans font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setMode('BEGINNER')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'BEGINNER'
-                      ? 'bg-bull/15 text-bull font-bold shadow-subtle'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                    }`}
-                  title="Beginner Mode"
-                >
-                  Beginner
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode('INTERMEDIATE')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'INTERMEDIATE'
-                      ? 'bg-amber/15 text-amber font-bold shadow-subtle'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                    }`}
-                  title="Intermediate Mode"
-                >
-                  Interm.
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode('EXPERT')}
-                  className={`px-2 py-0.5 rounded transition cursor-pointer text-[11px] ${mode === 'EXPERT'
-                      ? 'bg-accent-purple/15 text-accent-purple font-bold shadow-subtle'
-                      : 'text-terminal-muted hover:text-terminal-text'
-                    }`}
-                  title="Expert Mode"
-                >
-                  Expert
-                </button>
-              </div>
-            )}
-
-            {/* Density Mode Switcher */}
-            <button
-              type="button"
-              onClick={() => setDensity(density === 'COMPACT' ? 'STANDARD' : 'COMPACT')}
-              className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-sans font-medium transition cursor-pointer"
-              title={`Current Density: ${density}. Click to switch.`}
-            >
-              <Activity className="w-3 h-3 text-accent-sky" />
-              <span className="hidden xl:inline">{density === 'COMPACT' ? 'Compact' : 'Standard'}</span>
-            </button>
-
-            {/* SEBI Position Sizing & Risk Calculator Button */}
-            {panelVisibility.riskCalc && (
-              <button
-                type="button"
-                onClick={() => setIsRiskModalOpen(true)}
-                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-accent-sky/15 border border-accent-sky/40 hover:bg-accent-sky/25 text-accent-sky transition font-sans text-xs font-bold shrink-0 cursor-pointer"
-                title="SEBI Position Sizing & Risk Calculator"
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">Risk Calc</span>
-              </button>
-            )}
-
-            {/* Trade Journal & Performance Audit Report Button */}
-            <button
-              type="button"
-              onClick={() => setIsJournalModalOpen(true)}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/40 hover:bg-purple-500/25 text-purple-300 transition font-sans text-xs font-bold shrink-0 cursor-pointer shadow-sm"
-              title="Trade Journal: Date-Wise Prediction Performance, Target Hits & Nearness Audit"
-            >
-              <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden xl:inline">Trade Journal</span>
-            </button>
-
-            {/* Legal / SEBI Compliance Center Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setActiveLegalDoc('RISK_DISCLOSURE');
-                setIsLegalModalOpen(true);
-              }}
-              className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
-              title="SEBI Disclaimers & Legal Compliance Center"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-amber" />
-            </button>
-
-            {/* Audio Chime Toggle */}
-            <button
-              type="button"
-              onClick={toggleMute}
-              title={isMuted ? 'Unmute Audio Alerts' : 'Mute Audio Alerts'}
-              className={`p-1.5 rounded-lg border transition cursor-pointer ${isMuted
-                  ? 'bg-terminal-panel border-terminal-border text-terminal-muted hover:text-terminal-text'
-                  : 'bg-bull/15 border-bull/30 text-bull'
-                }`}
-            >
-              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
-          {/* Light / Dark Theme Toggle (Visible on Mobile & Desktop Top Header) */}
+          {/* 4. Light / Dark Theme Toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0"
+            className="p-1.5 rounded-xl bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 shadow-sm"
             title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
           >
             {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
           </button>
 
-          {/* Fullscreen Toggle (Visible on Mobile & Desktop Top Header) */}
+          {/* 5. Fullscreen Toggle */}
           <button
             type="button"
             onClick={toggleFullscreen}
-            className={`p-1.5 rounded-lg border transition cursor-pointer shrink-0 ${
+            className={`p-1.5 rounded-xl border transition cursor-pointer shrink-0 shadow-sm ${
               isFullscreen
                 ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
                 : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
@@ -491,7 +380,7 @@ export const HeaderBar: React.FC = () => {
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Dedicated User Account Section & Profile / Logout Dropdown */}
+          {/* 6. Dedicated User Account Section & Profile / Password / Logout Dropdown */}
           <UserProfileDropdown
             onOpenAuthModal={() => setIsAuthModalOpen(true)}
             onOpenSubscribeModal={(plan) => {
@@ -504,108 +393,6 @@ export const HeaderBar: React.FC = () => {
             }}
             onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
           />
-
-          {/* ========================================================================= */}
-          {/* MOBILE / TABLET TRADER MODE DROPDOWN TRIGGER (< 1024px) */}
-          {/* ========================================================================= */}
-          {panelVisibility.traderModeToggle && (
-            <div className="relative lg:hidden" ref={mobileModeRef}>
-              <button
-                type="button"
-                onClick={() => setIsMobileModeDropdownOpen(!isMobileModeDropdownOpen)}
-                className={`flex items-center space-x-1 p-1.5 sm:px-2 sm:py-1 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 shadow-sm ${mode === 'BEGINNER'
-                    ? 'bg-bull/15 text-bull border-bull/40 shadow-[0_0_10px_rgba(0,245,155,0.2)]'
-                    : mode === 'INTERMEDIATE'
-                      ? 'bg-amber/15 text-amber border-amber/40 shadow-[0_0_10px_rgba(255,180,0,0.2)]'
-                      : 'bg-accent-purple/15 text-accent-purple border-accent-purple/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                  }`}
-                title={`Mode: ${mode === 'BEGINNER' ? 'Beginner' : mode === 'INTERMEDIATE' ? 'Intermediate' : 'Expert'} - Click to switch`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-sans hidden sm:inline">
-                  {mode === 'BEGINNER' ? 'Beginner' : mode === 'INTERMEDIATE' ? 'Interm.' : 'Expert'}
-                </span>
-                <div className={`transition-transform duration-200 hidden sm:block ${isMobileModeDropdownOpen ? 'rotate-180' : ''}`}>
-                  <ChevronDown className="w-3 h-3" />
-                </div>
-              </button>
-
-              {/* Smooth Animated Dropdown Menu for Mobile Mode Selection */}
-              {isMobileModeDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-52 bg-terminal-card/95 border border-terminal-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col space-y-1 backdrop-blur-xl ring-1 ring-black/40">
-                  <div className="px-2.5 py-1 border-b border-terminal-border/60 text-[10px] font-mono font-bold text-terminal-muted uppercase tracking-wider">
-                    Experience Mode
-                  </div>
-
-                  {/* 1. Beginner Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('BEGINNER');
-                      setIsMobileModeDropdownOpen(false);
-                    }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'BEGINNER'
-                        ? 'bg-bull/20 text-bull font-bold border border-bull/40'
-                        : 'text-terminal-text hover:bg-terminal-panel hover:text-bull'
-                      }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-bull shrink-0" />
-                      <div>
-                        <span className="block leading-tight font-bold">🟢 Beginner</span>
-                        <span className="text-[9px] text-terminal-muted font-normal">Simplified signals & clarity</span>
-                      </div>
-                    </div>
-                    {mode === 'BEGINNER' && <CheckCircle2 className="w-4 h-4 text-bull shrink-0 ml-1" />}
-                  </button>
-
-                  {/* 2. Intermediate Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('INTERMEDIATE');
-                      setIsMobileModeDropdownOpen(false);
-                    }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'INTERMEDIATE'
-                        ? 'bg-amber/20 text-amber font-bold border border-amber/40'
-                        : 'text-terminal-text hover:bg-terminal-panel hover:text-amber'
-                      }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-amber shrink-0" />
-                      <div>
-                        <span className="block leading-tight font-bold">🟡 Intermediate</span>
-                        <span className="text-[9px] text-terminal-muted font-normal">Multi-strike shifts & momentum</span>
-                      </div>
-                    </div>
-                    {mode === 'INTERMEDIATE' && <CheckCircle2 className="w-4 h-4 text-amber shrink-0 ml-1" />}
-                  </button>
-
-                  {/* 3. Expert Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('EXPERT');
-                      setIsMobileModeDropdownOpen(false);
-                    }}
-                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl text-xs font-sans font-semibold transition text-left cursor-pointer ${mode === 'EXPERT'
-                        ? 'bg-accent-purple/20 text-accent-purple font-bold border border-accent-purple/40'
-                        : 'text-terminal-text hover:bg-terminal-panel hover:text-accent-purple'
-                      }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-accent-purple shrink-0" />
-                      <div>
-                        <span className="block leading-tight font-bold">🟣 Expert</span>
-                        <span className="text-[9px] text-terminal-muted font-normal">Gamma, Greeks & orderflow</span>
-                      </div>
-                    </div>
-                    {mode === 'EXPERT' && <CheckCircle2 className="w-4 h-4 text-accent-purple shrink-0 ml-1" />}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
