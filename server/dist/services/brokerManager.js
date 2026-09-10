@@ -71,22 +71,21 @@ export class BrokerManager {
         // Give async auto-connect a moment to settle
         await new Promise(r => setTimeout(r, 3000));
         if (this.activeBroker === 'FYERS') {
-            // Preference says FYERS — check if fyers actually connected
-            if (!fyersService.getConfig().isConnected) {
-                // Fyers failed to auto-connect — fall back to DHAN or SIMULATOR
+            const fyersCfg = fyersService.getConfig();
+            const hasValidToken = !!fyersCfg.accessToken && !fyersService.isAccessTokenExpired();
+            if (!fyersCfg.isConnected && !hasValidToken) {
+                // Fyers failed to auto-connect and has no valid token — fall back to DHAN or SIMULATOR
                 const fallback = dhanService.getConfig().isConnected ? 'DHAN' : 'SIMULATOR';
                 console.log(`[BrokerManager] Preference was FYERS but Fyers is not connected. Falling back to ${fallback}.`);
                 this.activeBroker = fallback;
-                // Don't persist this fallback — keep the FYERS preference for next boot
             }
             else {
-                console.log('[BrokerManager] FYERS preference confirmed — Fyers is connected.');
+                console.log('[BrokerManager] FYERS preference confirmed — Fyers session active.');
             }
         }
-        else if (!this.preferenceFileExisted && fyersService.getConfig().isConnected) {
-            // No saved preference, but Fyers auto-connected from saved credentials
-            // Switch to FYERS automatically
-            console.log('[BrokerManager] No saved preference found but Fyers is connected — auto-selecting FYERS.');
+        else if (!this.preferenceFileExisted && (fyersService.getConfig().isConnected || (!fyersService.isAccessTokenExpired() && !!fyersService.getConfig().accessToken))) {
+            // No saved preference, but Fyers has valid credentials — switch to FYERS automatically
+            console.log('[BrokerManager] No saved preference found but Fyers credentials valid — auto-selecting FYERS.');
             this.setActiveBroker('FYERS');
         }
     }

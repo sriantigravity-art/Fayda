@@ -280,19 +280,17 @@ export class GlobalIndicesService {
     }, msUntilOpen);
   }
 
-  /** Returns milliseconds until the next 9:15 AM IST market open. */
+  /** Returns milliseconds until the next 9:15 AM IST (03:45 UTC) market open. */
   private msUntilMarketOpen(): number {
-    const now    = new Date();
-    const utcMs  = now.getTime() + now.getTimezoneOffset() * 60000;
-    const ist    = new Date(utcMs + 3600000 * 5.5);  // current IST time
-
-    const next915 = new Date(ist);
-    next915.setHours(9, 15, 0, 0);  // 9:15:00 AM IST
-    if (ist >= next915) next915.setDate(next915.getDate() + 1);  // already past today → tomorrow
-
-    // Convert next915 (IST) back to UTC ms
-    const next915Utc = next915.getTime() - 3600000 * 5.5;
-    return Math.max(next915Utc - Date.now(), 5000); // minimum 5 s
+    const now = new Date();
+    // 9:15 AM IST is 03:45 UTC
+    const target = new Date(now);
+    target.setUTCHours(3, 45, 0, 0);
+    if (now.getTime() >= target.getTime()) {
+      // If already past 9:15 AM IST today, schedule for tomorrow
+      target.setUTCDate(target.getUTCDate() + 1);
+    }
+    return Math.max(target.getTime() - now.getTime(), 5000);
   }
 
 

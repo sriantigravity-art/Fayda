@@ -175,12 +175,40 @@ export class PatternEngine {
     const callDelta1m = nearStrikes.reduce((acc, s) => acc + s.callOIChange1m, 0);
     const putDelta1m = nearStrikes.reduce((acc, s) => acc + s.putOIChange1m, 0);
 
-    // Identify nearest overhead resistance and support floor
-    const nearestRes = mtfLevels.filter(l => l.isResistance && l.price >= spotPrice).pop() || mtfLevels[0];
-    const nearestSupp = mtfLevels.filter(l => !l.isResistance && l.price <= spotPrice)[0] || mtfLevels[mtfLevels.length - 1];
+    // Safe defaults in case MTF levels are incomplete or empty
+    const defaultRes: MultiTimeframeLevel = {
+      timeframe: '1D',
+      levelType: 'PDH',
+      price: spotPrice + 50,
+      label: 'Overhead Resistance (R1)',
+      significance: 'MAJOR',
+      distancePts: 50,
+      distancePct: +(50 / (spotPrice || 1) * 100).toFixed(2),
+      isResistance: true
+    };
+    const defaultSupp: MultiTimeframeLevel = {
+      timeframe: '1D',
+      levelType: 'PDL',
+      price: Math.max(1, spotPrice - 50),
+      label: 'Support Floor (S1)',
+      significance: 'MAJOR',
+      distancePts: 50,
+      distancePct: +(50 / (spotPrice || 1) * 100).toFixed(2),
+      isResistance: false
+    };
 
-    const distToResPts = nearestRes ? Math.abs(nearestRes.price - spotPrice) : 80;
-    const distToSuppPts = nearestSupp ? Math.abs(spotPrice - nearestSupp.price) : 80;
+    // Identify nearest overhead resistance and support floor
+    const nearestRes = mtfLevels.filter(l => l.isResistance && l.price >= spotPrice).pop() 
+      || mtfLevels.find(l => l.isResistance) 
+      || mtfLevels[0] 
+      || defaultRes;
+    const nearestSupp = mtfLevels.filter(l => !l.isResistance && l.price <= spotPrice)[0] 
+      || mtfLevels.slice().reverse().find(l => !l.isResistance) 
+      || mtfLevels[mtfLevels.length - 1] 
+      || defaultSupp;
+
+    const distToResPts = Math.abs(nearestRes.price - spotPrice);
+    const distToSuppPts = Math.abs(spotPrice - nearestSupp.price);
 
     // Pattern Recognition Selection based on S/R Proximity, PCR, and Delta OI
     let patternType: ChartPatternType = 'ASCENDING_TRIANGLE';

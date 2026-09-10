@@ -352,15 +352,27 @@ class SignalLedgerService {
         continue;
       }
 
-      // Check Stoploss Hit
-      if (liveLtp <= sl) {
-        call.status = 'STOPLOSS_HIT';
-        call.exitLtp = +liveLtp.toFixed(2);
-        call.pointsPnl = -(+(entry - liveLtp).toFixed(2));
-        call.pnlPct = -Math.abs(+(((entry - liveLtp) / entry) * 100).toFixed(1));
-        call.nearTargetPct = 0;
-        call.nearTargetDescription = `🛑 Stoploss Hit (${call.pointsPnl} pts)`;
-        call.stoplossHitTime = this.getIstTimeFormatted();
+      // Check Stoploss Hit (Downside risk breached below entry)
+      if (liveLtp <= sl && liveLtp < entry) {
+        const achievedDelta = Math.max(0, call.peakLtp - entry);
+        const hadSubstantialGain = targetDelta > 0 && (achievedDelta / targetDelta) >= 0.70;
+
+        if (hadSubstantialGain) {
+          call.status = 'PARTIAL_PROFIT';
+          call.exitLtp = +liveLtp.toFixed(2);
+          call.pointsPnl = +(liveLtp - entry).toFixed(2);
+          call.pnlPct = +(((liveLtp - entry) / entry) * 100).toFixed(1);
+          call.nearTargetDescription = `🛡️ Profit Protected (Peak reached ${Math.round((achievedDelta / targetDelta) * 100)}% of Target)`;
+          call.halfProfitBookTime = this.getIstTimeFormatted();
+        } else {
+          call.status = 'STOPLOSS_HIT';
+          call.exitLtp = +liveLtp.toFixed(2);
+          call.pointsPnl = -(+(entry - liveLtp).toFixed(2));
+          call.pnlPct = -Math.abs(+(((entry - liveLtp) / entry) * 100).toFixed(1));
+          call.nearTargetPct = 0;
+          call.nearTargetDescription = `🛑 Stoploss Hit (${call.pointsPnl} pts)`;
+          call.stoplossHitTime = this.getIstTimeFormatted();
+        }
         hasChanges = true;
         continue;
       }

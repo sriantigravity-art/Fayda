@@ -208,7 +208,24 @@ globalMarketFeedService.onUpdate((globalMarketContext: GlobalMarketContextData) 
   });
 });
 
-// Hook FyersService auto-renewal callback — broadcast new token state to all clients
+// Hook FyersService connection & token callbacks — activate FYERS streaming and broadcast state
+fyersService.onConnected = () => {
+  console.log('[Fyers] Connected / Credentials loaded — activating FYERS streaming...');
+  brokerManager.setActiveBroker('FYERS');
+  currentDataSource = 'FYERS_LIVE';
+  startFyersPolling();
+  broadcast({
+    type: 'BROKER_UPDATE',
+    fyersConfig: fyersService.getPublicConfig(),
+    dhanConfig: dhanService.getPublicConfig(),
+    activeBroker: brokerManager.getActiveBroker(),
+    effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+    dataSource: currentDataSource,
+    isMarketOpen: isNseMarketOpen(),
+    timestamp: new Date().toISOString()
+  });
+};
+
 fyersService.onTokenRenewed = () => {
   console.log('[Fyers] Broadcasting auto-renewed token state to all clients...');
   brokerManager.setActiveBroker('FYERS');
@@ -391,24 +408,49 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       signalLedgerService.updateLivePrices(symConfig.symbol, res.strikes);
 
       // Auto-record high-conviction curated cockpit trades into Signal Ledger during market hours
-      if (isOpen && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET') {
+      // Apply institutional quality gating:
+      // 1. Cooling period: avoid opening auction noise before 09:25 AM IST
+      // 2. High-conviction threshold: confluenceScore >= 80
+      // 3. Minimum premium floor: avoids illiquid penny strikes prone to instant stop-outs
+      // 4. VWAP / Trend alignment check: prevents counter-trend trap entries
+      const nowUtc = Date.now();
+      const istMinutes = Math.floor(((nowUtc + (5.5 * 3600 * 1000)) % 86400000) / 60000);
+      const isPastOpeningNoise = istMinutes >= (9 * 60 + 25); // After 09:25 AM IST
+
+      if (isOpen && isPastOpeningNoise && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET') {
         const utp = indexState.unifiedTipsPackage;
-        if (utp.primaryTrade && utp.primaryTrade.confluenceScore >= 70 && utp.primaryTrade.entryPrice > 0) {
-          signalLedgerService.recordSignal({
-            symbol: symConfig.symbol,
-            strikePrice: utp.primaryTrade.strikePrice,
-            optionType: (utp.primaryTrade.optionType === 'SPREAD' ? 'CE' : utp.primaryTrade.optionType) as any,
-            action: utp.primaryTrade.action as any,
-            signalSource: 'CONFLUENCE',
-            entryPrice: utp.primaryTrade.entryPrice,
-            target1Price: utp.primaryTrade.target1Price,
-            target2Price: utp.primaryTrade.target2Price,
-            stoplossPrice: utp.primaryTrade.stoplossPrice,
-            riskReward: utp.primaryTrade.riskReward,
-            notes: utp.primaryTrade.strategyTag
-          });
+        const minEntryPrice = symConfig.isIndex ? 15 : 2.5;
+
+        if (utp.primaryTrade && utp.primaryTrade.confluenceScore >= 80 && utp.primaryTrade.entryPrice >= minEntryPrice) {
+          const tech = indexState.technicalIndicators;
+          const spot = indexState.spotPrice;
+          const vwap = tech?.vwap?.value;
+          const isCall = utp.primaryTrade.action === 'BUY_CALL';
+          const isPut = utp.primaryTrade.action === 'BUY_PUT';
+
+          let isTrendAligned = true;
+          if (vwap && spot) {
+            if (isCall && spot < vwap * 0.997) isTrendAligned = false; // Spot below VWAP: reject Call
+            if (isPut && spot > vwap * 1.003) isTrendAligned = false;  // Spot above VWAP: reject Put
+          }
+
+          if (isTrendAligned) {
+            signalLedgerService.recordSignal({
+              symbol: symConfig.symbol,
+              strikePrice: utp.primaryTrade.strikePrice,
+              optionType: (utp.primaryTrade.optionType === 'SPREAD' ? 'CE' : utp.primaryTrade.optionType) as any,
+              action: utp.primaryTrade.action as any,
+              signalSource: 'CONFLUENCE',
+              entryPrice: utp.primaryTrade.entryPrice,
+              target1Price: utp.primaryTrade.target1Price,
+              target2Price: utp.primaryTrade.target2Price,
+              stoplossPrice: utp.primaryTrade.stoplossPrice,
+              riskReward: utp.primaryTrade.riskReward,
+              notes: utp.primaryTrade.strategyTag
+            });
+          }
         }
-        if (utp.gammaTrade && utp.gammaTrade.confluenceScore >= 80 && utp.gammaTrade.entryPrice > 0) {
+        if (utp.gammaTrade && utp.gammaTrade.confluenceScore >= 80 && utp.gammaTrade.entryPrice >= minEntryPrice) {
           signalLedgerService.recordSignal({
             symbol: symConfig.symbol,
             strikePrice: utp.gammaTrade.strikePrice,
@@ -470,7 +512,7 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       });
     }
   } catch (err: any) {
-    console.warn(`[Poll] Error for ${symConfig.symbol}:`, err.message);
+    console.warn(`[Poll] Error for ${symConfig.symbol}:`, err.stack || err.message);
   }
 };
 

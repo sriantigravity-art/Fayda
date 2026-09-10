@@ -35,20 +35,49 @@ export class FyersService {
         COPPER: 'MCX:COPPER26SEPFUT',
         ZINC: 'MCX:ZINC26SEPFUT'
     };
+    onConnected = null;
     constructor() {
         this.loadPersistedConfig();
+        this.watchConfigFile();
     }
-    loadPersistedConfig() {
+    lastSavedContent = '';
+    watchConfigFile() {
+        try {
+            if (fs.existsSync(CONFIG_PATH)) {
+                fs.watchFile(CONFIG_PATH, { interval: 2000 }, (curr, prev) => {
+                    if (curr.mtimeMs !== prev.mtimeMs) {
+                        try {
+                            const diskRaw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+                            if (diskRaw === this.lastSavedContent)
+                                return; // ignore our own writes
+                            const parsed = JSON.parse(diskRaw);
+                            // Only reload if actual credentials changed
+                            if (parsed.accessToken !== this.config.accessToken || parsed.appId !== this.config.appId || parsed.refreshToken !== this.config.refreshToken) {
+                                console.log('[Fyers] New credentials detected in config file. Reloading...');
+                                this.loadPersistedConfig(true);
+                            }
+                        }
+                        catch { }
+                    }
+                });
+            }
+        }
+        catch (err) {
+            console.warn('[Fyers] Could not watch config file:', err);
+        }
+    }
+    loadPersistedConfig(triggerCallbacks = false) {
         try {
             if (fs.existsSync(CONFIG_PATH)) {
                 const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
                 const parsed = JSON.parse(raw);
                 if (parsed.appId && parsed.accessToken) {
+                    const expired = this.isAccessTokenExpiredToken(parsed.accessToken);
                     this.config = {
                         appId: parsed.appId,
                         secretKey: parsed.secretKey || '',
                         accessToken: parsed.accessToken,
-                        isConnected: false,
+                        isConnected: !expired && (parsed.isConnected ?? true),
                         userName: parsed.userName,
                         lastConnected: parsed.lastConnected,
                         tokenIssuedAt: parsed.tokenIssuedAt,
@@ -57,14 +86,18 @@ export class FyersService {
                         tokenRefreshedAt: parsed.tokenRefreshedAt,
                         refreshTokenExpiresAt: parsed.refreshTokenExpiresAt,
                     };
+                    // If provisional token is valid, notify listeners immediately
+                    if (this.config.isConnected) {
+                        this.onConnected?.(this.config);
+                    }
                     // Check if access token is already expired — try auto-refresh first
-                    const isExpired = this.isAccessTokenExpired();
-                    if (isExpired && this.config.refreshToken) {
+                    if (expired && this.config.refreshToken) {
                         console.log('[Fyers] Access token expired. Attempting auto-refresh via refresh_token...');
                         this.refreshAccessToken().then(res => {
                             if (res.success) {
                                 console.log(`[Fyers] ✅ Auto-refresh succeeded — connected as ${res.userName}`);
                                 this.scheduleNextDailyRenewal();
+                                this.onConnected?.(this.config);
                             }
                             else {
                                 console.warn(`[Fyers] ⚠️ Auto-refresh failed: ${res.message}. Will retry on next token use.`);
@@ -72,11 +105,12 @@ export class FyersService {
                         });
                     }
                     else {
-                        // Access token looks valid — validate it
+                        // Access token looks valid — validate it against profile endpoint
                         this.validateConnection().then(res => {
                             if (res.success) {
                                 console.log(`[Fyers] Auto-connected as ${res.userName}`);
                                 this.scheduleNextDailyRenewal();
+                                this.onConnected?.(this.config);
                             }
                             else if (this.config.refreshToken) {
                                 // Validation failed (maybe just expired) — try refresh
@@ -84,6 +118,7 @@ export class FyersService {
                                     if (r.success) {
                                         console.log(`[Fyers] ✅ Auto-refresh after failed validation — connected as ${r.userName}`);
                                         this.scheduleNextDailyRenewal();
+                                        this.onConnected?.(this.config);
                                     }
                                 });
                             }
@@ -98,7 +133,7 @@ export class FyersService {
     }
     savePersistedConfig() {
         try {
-            fs.writeFileSync(CONFIG_PATH, JSON.stringify({
+            const content = JSON.stringify({
                 appId: this.config.appId,
                 secretKey: this.config.secretKey,
                 accessToken: this.config.accessToken,
@@ -110,17 +145,19 @@ export class FyersService {
                 refreshToken: this.config.refreshToken,
                 tokenRefreshedAt: this.config.tokenRefreshedAt,
                 refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
-            }, null, 2));
+            }, null, 2);
+            this.lastSavedContent = content;
+            fs.writeFileSync(CONFIG_PATH, content, 'utf-8');
         }
         catch (err) {
             console.warn('[Fyers] Config save error:', err);
         }
     }
     // ── Token expiry helpers ──────────────────────────────────────────────────────
-    /** Returns true if the current access token's JWT `exp` claim has passed. */
-    isAccessTokenExpired() {
+    /** Returns true if the provided access token's JWT `exp` claim has passed. */
+    isAccessTokenExpiredToken(token) {
         try {
-            const parts = this.config.accessToken?.split('.');
+            const parts = (token || this.config.accessToken)?.split('.');
             if (parts && parts.length >= 2) {
                 const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
                 if (payload.exp)
@@ -129,6 +166,10 @@ export class FyersService {
         }
         catch { }
         return false;
+    }
+    /** Returns true if the current access token's JWT `exp` claim has passed. */
+    isAccessTokenExpired() {
+        return this.isAccessTokenExpiredToken(this.config.accessToken);
     }
     /** Returns true if the stored refresh_token is still within its 15-day window. */
     isRefreshTokenValid() {
@@ -170,19 +211,16 @@ export class FyersService {
     }
     /** Callback invoked after a successful auto-renewal (server index.ts wires this up) */
     onTokenRenewed = null;
-    /** Returns milliseconds until the next 6:30 AM IST. */
+    /** Returns milliseconds until the next 6:32 AM IST (01:02 UTC). */
     msUntilNextFyersReset() {
         const now = new Date();
-        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-        const ist = new Date(utc + 3600000 * 5.5);
-        // Next 6:30 AM IST (could be today if not yet passed, otherwise tomorrow)
-        const next630 = new Date(ist);
-        next630.setHours(6, 32, 0, 0); // 6:32 AM for safety margin (not 6:30)
-        if (ist >= next630)
-            next630.setDate(next630.getDate() + 1); // already past — use tomorrow
-        // Convert back to UTC ms
-        const next630Utc = next630.getTime() - 3600000 * 5.5;
-        return Math.max(next630Utc - Date.now(), 60000); // minimum 1 min
+        // 6:32 AM IST is 01:02 UTC
+        const target = new Date(now);
+        target.setUTCHours(1, 2, 0, 0);
+        if (now.getTime() >= target.getTime()) {
+            target.setUTCDate(target.getUTCDate() + 1);
+        }
+        return Math.max(target.getTime() - now.getTime(), 60000); // minimum 1 min
     }
     // ── Refresh Token Exchange ────────────────────────────────────────────────────
     /**

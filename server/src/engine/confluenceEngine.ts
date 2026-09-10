@@ -1153,13 +1153,13 @@ export class ConfluenceEngine {
       return {
         regime: 'FAST_MOMENTUM_EXPANSION',
         isExpiryDay,
-        t1Pct: 35,
-        t2Pct: 70,
-        slPct: 16,
+        t1Pct: 38,
+        t2Pct: 75,
+        slPct: 22,
         momentumScore: isExpiryDay ? 95 : 88,
         description: isExpiryDay 
-          ? '⚡ Expiry Gamma Surge — Fast Momentum Expansion (Long Targets +35% / +70%)'
-          : '⚡ High Volatility Surge (Post-CAS & Auction Momentum — Long Targets +35% / +70%)',
+          ? '⚡ Expiry Gamma Surge — Fast Momentum Expansion (Targets +38% / +75% | 22% SL Cushion)'
+          : '⚡ High Volatility Surge (Auction Momentum — Targets +38% / +75% | 22% SL Cushion)',
         badge: isExpiryDay ? '⚡ 0DTE EXPIRY SURGE' : '⚡ FAST MOMENTUM'
       };
     }
@@ -1169,11 +1169,11 @@ export class ConfluenceEngine {
       return {
         regime: 'SIDEWAYS_CHOP',
         isExpiryDay: false,
-        t1Pct: 14,
-        t2Pct: 22,
-        slPct: 8,
+        t1Pct: 20,
+        t2Pct: 35,
+        slPct: 18,
         momentumScore: 42,
-        description: '⚖️ Sideways Rangebound Chop — Small Scalp Targets (+14% / +22%) with Quick Half-Profit Lock',
+        description: '⚖️ Sideways Rangebound Chop — Scalp Targets (+20% / +35%) with 18% Risk Cushion',
         badge: '🐢 SIDEWAYS SCALP'
       };
     }
@@ -1182,11 +1182,11 @@ export class ConfluenceEngine {
     return {
       regime: 'TRENDING_NORMAL',
       isExpiryDay: false,
-      t1Pct: 25,
-      t2Pct: 48,
-      slPct: 12,
+      t1Pct: 30,
+      t2Pct: 55,
+      slPct: 20,
       momentumScore: 72,
-      description: '📈 Steady Directional Trend — Standard Targets (+25% / +48%) with 1:2+ Risk-Reward',
+      description: '📈 Steady Directional Trend — Standard Targets (+30% / +55%) with 1:2+ Risk-Reward (20% SL)',
       badge: '📈 TRENDING MOMENTUM'
     };
   }
@@ -1483,7 +1483,34 @@ export class ConfluenceEngine {
 
     // ── 2. Tier 1: Primary Directional Momentum Trade ───────────────────────
     let primaryTrade: UnifiedSmartTip | null = null;
-    const preferBull = isBull || (!isBear && (pcr ? pcr.overallPcr >= 1.0 : spotPrice >= atmStrike));
+    
+    // Rigorous Directional Alignment:
+    // 1. Follow masterConfluence if decisive
+    // 2. Check multi-timeframe pattern breakout direction (e.g. Double Top = Bearish, Double Bottom = Bullish)
+    // 3. Confirm with VWAP and EMA trend before choosing Call vs Put
+    const patternRevOrCont = patternBreakout?.activePattern?.reversalOrContinuity;
+    const isPatternBear = patternBreakout?.predictedBreakout?.direction === 'DOWNWARD_BREAKDOWN' || patternRevOrCont === 'BEARISH_REVERSAL' || patternRevOrCont === 'BEARISH_CONTINUATION';
+    const isPatternBull = patternBreakout?.predictedBreakout?.direction === 'UPWARD_BREAKOUT' || patternRevOrCont === 'BULLISH_REVERSAL' || patternRevOrCont === 'BULLISH_CONTINUATION';
+    const vwapVal = technicalIndicators?.vwap?.value ?? spotPrice;
+    const emaTrend = technicalIndicators?.ema?.trend;
+    const pcrVal = pcr?.overallPcr ?? 1.0;
+
+    let preferBull = false;
+    if (isBull && !isBear) {
+      preferBull = true;
+    } else if (isBear && !isBull) {
+      preferBull = false;
+    } else if (isPatternBull && !isPatternBear) {
+      preferBull = true;
+    } else if (isPatternBear && !isPatternBull) {
+      preferBull = false;
+    } else {
+      // Technical fallback: don't default to Bull if spot is below VWAP with Bearish EMA
+      const isTechBull = spotPrice > vwapVal && (emaTrend === 'BULLISH' || pcrVal >= 1.05);
+      const isTechBear = spotPrice < vwapVal && (emaTrend === 'BEARISH' || pcrVal <= 0.95);
+      preferBull = isTechBull ? true : (isTechBear ? false : pcrVal >= 1.0);
+    }
+
     const primAction = preferBull ? 'BUY_CALL' : 'BUY_PUT';
     const optType = preferBull ? 'CE' : 'PE';
     const targetStrike = atmStrike;
@@ -1575,22 +1602,6 @@ export class ConfluenceEngine {
         bookedTime = new Date().toISOString();
         bookedTimeFormatted = timeFormatted;
       }
-      // CRITICAL: Archive stopped-out trade immediately into Trade Journal!
-      try {
-        signalLedgerService.recordSignal({
-          symbol,
-          strikePrice: targetStrike,
-          optionType: optType,
-          action: primAction,
-          signalSource: 'CONFLUENCE',
-          entryPrice,
-          target1Price: t1Price,
-          target2Price: t2Price,
-          stoplossPrice: slPrice,
-          riskReward: '1:2.5',
-          notes: `Stopped out (-${momentumInfo.slPct}%). Capital preserved & archived to Trade Journal.`
-        });
-      } catch (e) {}
     } else if (isPast340Pm || existingTrade?.isCarriedForward) {
       const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
       if (isEligibleToCarry) {
@@ -1691,7 +1702,11 @@ export class ConfluenceEngine {
       indiaVix
     );
 
-    const primScore = Math.max(isDirectional ? 88 : 82, primConfluence.totalConfluenceScore);
+    // Genuine 10-indicator confluence score without artificial score inflation
+    let primScore = primConfluence.totalConfluenceScore;
+    if (isDirectional) {
+      primScore = Math.min(98, primScore + 4);
+    }
 
       primaryTrade = {
         id: `prim-${symbol}-${sessionInfo.session}-${targetStrike}-${optType}`,
@@ -1860,21 +1875,6 @@ export class ConfluenceEngine {
           bookedTime = new Date().toISOString();
           bookedTimeFormatted = timeFormatted;
         }
-        try {
-          signalLedgerService.recordSignal({
-            symbol,
-            strikePrice: activeCall.strikePrice,
-            optionType: 'CE',
-            action: 'BUY_CALL',
-            signalSource: 'CONFLUENCE',
-            entryPrice: activeCall.entryPrice,
-            target1Price: activeCall.target1Price,
-            target2Price: activeCall.target2Price,
-            stoplossPrice: activeCall.stoplossPrice,
-            riskReward: '1:2.5',
-            notes: `Stopped out (-${activeCall.stoplossPct || 16}%). Capital preserved & archived to Trade Journal.`
-          });
-        } catch (e) {}
       } else if (isPast340Pm || activeCall.isCarriedForward) {
         const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
         if (isEligibleToCarry) {
@@ -2044,7 +2044,6 @@ export class ConfluenceEngine {
 
         let callProb = callConfluence.totalConfluenceScore;
         if (isBull) callProb = Math.min(98, callProb + 4);
-        callProb = Math.max(76, callProb);
 
         const entryPrice = bestCeStrike.callLtp > 0 ? bestCeStrike.callLtp : 110;
         const slPrice = +(entryPrice * (1 - momentumInfo.slPct / 100)).toFixed(2);
@@ -2209,21 +2208,6 @@ export class ConfluenceEngine {
           bookedTime = new Date().toISOString();
           bookedTimeFormatted = timeFormatted;
         }
-        try {
-          signalLedgerService.recordSignal({
-            symbol,
-            strikePrice: activePut.strikePrice,
-            optionType: 'PE',
-            action: 'BUY_PUT',
-            signalSource: 'CONFLUENCE',
-            entryPrice: activePut.entryPrice,
-            target1Price: activePut.target1Price,
-            target2Price: activePut.target2Price,
-            stoplossPrice: activePut.stoplossPrice,
-            riskReward: '1:2.5',
-            notes: `Stopped out (-${activePut.stoplossPct || 16}%). Capital preserved & archived to Trade Journal.`
-          });
-        } catch (e) {}
       } else if (isPast340Pm || activePut.isCarriedForward) {
         const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
         if (isEligibleToCarry) {
@@ -2393,7 +2377,6 @@ export class ConfluenceEngine {
 
         let putProb = putConfluence.totalConfluenceScore;
         if (isBear) putProb = Math.min(98, putProb + 4);
-        putProb = Math.max(76, putProb);
 
         const entryPrice = bestPeStrike.putLtp > 0 ? bestPeStrike.putLtp : 110;
         const slPrice = +(entryPrice * (1 - momentumInfo.slPct / 100)).toFixed(2);
