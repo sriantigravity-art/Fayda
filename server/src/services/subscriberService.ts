@@ -357,12 +357,26 @@ class SubscriberService {
     }
   }
 
-  private issueToken(sub: Subscriber): string {
+  public issueToken(sub: Subscriber): string {
     const payload: AuthToken = { subscriberId: sub.id, role: sub.role, email: sub.email };
     return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
+
+  public findByIdOrContact(query: string): Subscriber | null {
+    if (!query) return null;
+    const clean = query.trim().toLowerCase();
+    const cleanDigits = query.replace(/\D/g, '');
+
+    for (const s of this.subscribers.values()) {
+      if (s.id.toLowerCase() === clean) return s;
+      if (s.subscriberId && s.subscriberId.toLowerCase() === clean) return s;
+      if (s.email && s.email.toLowerCase() === clean) return s;
+      if (s.mobile && cleanDigits.length >= 10 && s.mobile.replace(/\D/g, '').endsWith(cleanDigits)) return s;
+    }
+    return null;
+  }
 
   public getAll(): SubscriberPublic[] {
     return Array.from(this.subscribers.values())

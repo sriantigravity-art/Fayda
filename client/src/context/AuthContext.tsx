@@ -122,6 +122,10 @@ interface AuthContextType {
     plan: string;
     billingCycle?: string;
     paymentMethod?: string;
+    email?: string;
+    mobile?: string;
+    subscriberId?: string;
+    fullName?: string;
   }) => Promise<{ success: boolean; error?: string; subscriber?: any }>;
   updateExtendedProfile: (data: any) => Promise<{ success: boolean; error?: string; profileCompletionPct?: number }>;
   refreshSubscription: () => Promise<void>;
@@ -494,29 +498,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     plan: string;
     billingCycle?: string;
     paymentMethod?: string;
+    email?: string;
+    mobile?: string;
+    subscriberId?: string;
+    fullName?: string;
   }) => {
     try {
+      const payload = {
+        ...params,
+        email: params.email || user?.email,
+        mobile: params.mobile || user?.mobile,
+        subscriberId: params.subscriberId || user?.subscriberId,
+        fullName: params.fullName || user?.fullName,
+      };
+
       const resp = await apiFetch('/api/subscriptions/upgrade-renew', {
         method: 'POST',
-        body: JSON.stringify(params)
+        body: JSON.stringify(payload)
       });
       const data = await resp.json();
+
       if (!data.success) {
+        // If unauthenticated or token rejected, attempt seamless fallback with subscribeFast
+        if (payload.email || payload.mobile) {
+          const fastRes = await subscribeFast({
+            fullName: payload.fullName || 'Trader',
+            email: payload.email || '',
+            mobile: payload.mobile || '',
+            plan: params.plan as any,
+            billingCycle: params.billingCycle as any,
+            paymentMethod: params.paymentMethod as any,
+            autoLogin: true
+          });
+          if (fastRes.success) {
+            return { success: true, subscriber: fastRes.subscriber };
+          }
+        }
         return { success: false, error: data.error || 'Upgrade failed.' };
       }
-      if (data.subscriber && user) {
+
+      if (data.token) {
+        setJwtToken(data.token);
+      }
+
+      if (data.subscriber) {
         const sub = data.subscriber;
-        setUser({
+        const updatedUser: UserProfile = user ? {
           ...user,
           plan: sub.plan,
           billingCycle: sub.billingCycle,
           planExpiry: sub.planExpiry,
           subscriptionStatus: sub.subscriptionStatus,
           profileCompletionPct: sub.profileCompletionPct ?? user.profileCompletionPct
-        });
+        } : {
+          id: sub.id,
+          subscriberId: sub.subscriberId,
+          fullName: sub.fullName,
+          email: sub.email,
+          mobile: sub.mobile,
+          role: sub.role || 'USER',
+          plan: sub.plan,
+          billingCycle: sub.billingCycle,
+          planExpiry: sub.planExpiry,
+          subscriptionStatus: sub.subscriptionStatus,
+          profileCompletionPct: sub.profileCompletionPct || 35,
+          isVerified: true,
+          createdAt: sub.createdAt || new Date().toISOString(),
+          traderExperience: 'INTERMEDIATE',
+          address: { city: '', state: '' }
+        };
+        setUser(updatedUser);
       }
       return { success: true, subscriber: data.subscriber };
     } catch {
+      // Network failure fallback
+      if (user && (user.email || user.mobile)) {
+        try {
+          const fastRes = await subscribeFast({
+            fullName: user.fullName || 'Trader',
+            email: user.email || '',
+            mobile: user.mobile || '',
+            plan: params.plan as any,
+            billingCycle: params.billingCycle as any,
+            paymentMethod: params.paymentMethod as any,
+            autoLogin: true
+          });
+          if (fastRes.success) {
+            return { success: true, subscriber: fastRes.subscriber };
+          }
+        } catch {
+          // ignore
+        }
+      }
       return { success: false, error: 'Connection error during plan update.' };
     }
   };

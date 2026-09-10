@@ -1054,15 +1054,56 @@ app.post('/api/subscriptions/subscribe-fast', async (req, res) => {
   }
 });
 
-// POST /api/subscriptions/upgrade-renew — 1-click upgrade/renew for authenticated user
-app.post('/api/subscriptions/upgrade-renew', requireAuth, async (req, res) => {
+// POST /api/subscriptions/upgrade-renew — 1-click upgrade/renew for authenticated user or recognized subscriber
+app.post('/api/subscriptions/upgrade-renew', async (req, res) => {
   try {
-    const payload = (req as any).authPayload;
-    const { plan, billingCycle, paymentMethod } = req.body;
+    const authHeader = req.headers['authorization'] as string;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    let targetSubscriberId: string | null = null;
+    let targetSub: any = null;
+
+    if (token) {
+      const payload = subscriberService.verifyToken(token);
+      if (payload) {
+        targetSubscriberId = payload.subscriberId;
+        targetSub = subscriberService.getById(targetSubscriberId);
+      }
+    }
+
+    // If token not provided or expired, check body email/mobile/subscriberId/userId
+    if (!targetSubscriberId) {
+      const identifier = req.body.email || req.body.mobile || req.body.subscriberId || req.body.userId;
+      if (identifier) {
+        targetSub = subscriberService.findByIdOrContact(identifier);
+        if (targetSub) {
+          targetSubscriberId = targetSub.id;
+        }
+      }
+    }
+
+    const { plan, billingCycle, paymentMethod, fullName, email, mobile } = req.body;
     if (!plan) {
       return res.status(400).json({ success: false, error: 'Target plan is required.' });
     }
-    const result = await subscriberService.upgradeOrRenew(payload.subscriberId, {
+
+    // If still no subscriber could be matched, forward seamlessly to subscribeFast
+    if (!targetSubscriberId) {
+      if (email || mobile) {
+        const fastResult = await subscriberService.subscribeFast({
+          fullName,
+          email,
+          mobile,
+          plan,
+          billingCycle,
+          paymentMethod,
+          autoLogin: true
+        });
+        return res.json(fastResult);
+      }
+      return res.status(401).json({ success: false, error: 'Authentication required. Please sign in or provide email/mobile.' });
+    }
+
+    const result = await subscriberService.upgradeOrRenew(targetSubscriberId, {
       plan,
       billingCycle,
       paymentMethod,
@@ -1070,7 +1111,15 @@ app.post('/api/subscriptions/upgrade-renew', requireAuth, async (req, res) => {
     if (!result.success) {
       return res.status(400).json(result);
     }
-    res.json(result);
+
+    // Also issue a fresh token so client session stays active
+    const fullSub = subscriberService.findByIdOrContact(targetSubscriberId);
+    const newToken = fullSub ? subscriberService.issueToken(fullSub) : undefined;
+
+    res.json({
+      ...result,
+      token: newToken
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

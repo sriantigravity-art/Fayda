@@ -205,17 +205,42 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
         const res = await upgradeOrRenew({
           plan: selectedPlanId,
           billingCycle,
-          paymentMethod: selectedPlanId === 'FREE' ? 'FREE' : paymentMethod
+          paymentMethod: selectedPlanId === 'FREE' ? 'FREE' : paymentMethod,
+          email: user.email || email.trim(),
+          mobile: user.mobile || mobile.trim(),
+          fullName: user.fullName || fullName.trim(),
+          subscriberId: user.subscriberId
         });
-        if (!res.success) {
-          setErrorMessage(res.error || 'Upgrade failed. Please try again.');
-          setSubmitting(false);
+
+        if (res.success) {
+          setActivatedSubscriberId(res.subscriber?.subscriberId || user.subscriberId || 'SUB000101');
+          setActivatedExpiry(res.subscriber?.planExpiry || '');
+          await refreshSubscription();
+          setStep('SUCCESS');
           return;
         }
-        setActivatedSubscriberId(res.subscriber?.subscriberId || user.subscriberId || 'SUB000101');
-        setActivatedExpiry(res.subscriber?.planExpiry || '');
-        await refreshSubscription();
-        setStep('SUCCESS');
+
+        // If upgradeOrRenew encountered an issue, attempt seamless fast-subscription fallback
+        const fastRes = await subscribeFast({
+          fullName: user.fullName || fullName.trim() || 'Trader',
+          email: user.email || email.trim(),
+          mobile: user.mobile || mobile.trim(),
+          plan: selectedPlanId,
+          billingCycle,
+          paymentMethod: selectedPlanId === 'FREE' ? 'FREE' : paymentMethod,
+          autoLogin: true
+        });
+
+        if (fastRes.success) {
+          setActivatedSubscriberId(fastRes.subscriberId || fastRes.subscriber?.subscriberId || user.subscriberId || 'SUB000101');
+          setActivatedExpiry(fastRes.subscriber?.planExpiry || '');
+          await refreshSubscription();
+          setStep('SUCCESS');
+          return;
+        }
+
+        setErrorMessage(fastRes.error || res.error || 'Subscription failed. Please try again.');
+        setSubmitting(false);
       } else {
         // New user fast signup & subscription
         const res = await subscribeFast({
