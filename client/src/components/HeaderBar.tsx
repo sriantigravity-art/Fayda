@@ -52,6 +52,8 @@ import { isBrowserFullscreen, toggleBrowserFullscreen, subscribeToFullscreen } f
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { UserProfileEditModal } from './profile/UserProfileEditModal';
 import { TopSubscribeDropdown } from './subscription/TopSubscribeDropdown';
+import { UserProfileDropdown } from './auth/UserProfileDropdown';
+import { FastSubscriptionModal } from './subscription/FastSubscriptionModal';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -95,6 +97,8 @@ export const HeaderBar: React.FC = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
+  const [subscribeDefaultPlan, setSubscribeDefaultPlan] = useState<'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND'>('GOLD');
   const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const mobileModeRef = useRef<HTMLDivElement>(null);
@@ -486,6 +490,16 @@ export const HeaderBar: React.FC = () => {
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Dedicated User Account Section & Profile / Logout Dropdown */}
+          <UserProfileDropdown
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onOpenSubscribeModal={(plan) => {
+              if (plan) setSubscribeDefaultPlan(plan);
+              setIsSubscribeModalOpen(true);
+            }}
+            onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+          />
+
           {/* ========================================================================= */}
           {/* MOBILE / TABLET TRADER MODE DROPDOWN TRIGGER (< 1024px) */}
           {/* ========================================================================= */}
@@ -747,6 +761,13 @@ export const HeaderBar: React.FC = () => {
 
       {/* User Profile Edit Modal */}
       <UserProfileEditModal isOpen={isProfileEditOpen} onClose={() => setIsProfileEditOpen(false)} />
+
+      {/* Fast Subscription & Upgrade Modal */}
+      <FastSubscriptionModal
+        isOpen={isSubscribeModalOpen}
+        onClose={() => setIsSubscribeModalOpen(false)}
+        defaultPlan={subscribeDefaultPlan}
+      />
 
       {/* Trade Journal & Performance Audit Modal */}
       {isJournalModalOpen && (

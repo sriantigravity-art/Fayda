@@ -34,8 +34,9 @@ export const TopSubscribeDropdown: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const isSuperAdmin = user?.role === 'SUPERADMIN';
   const currentPlan = (user?.plan || 'FREE').toUpperCase() as 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND' | 'BASIC' | 'PRO' | 'PREMIUM';
-  const isPaid = currentPlan !== 'FREE';
+  const isPaid = isSuperAdmin || currentPlan !== 'FREE';
 
   const PLAN_PRICES = {
     FREE: { MONTHLY: 0, ANNUAL: 0, tag: 'Starter' },
@@ -55,11 +56,13 @@ export const TopSubscribeDropdown: React.FC = () => {
   return (
     <>
       <div className="relative inline-block" ref={dropdownRef}>
-        {/* Top Middle Subscribe Button */}
+        {/* Top Middle Subscribe / Access Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={`group flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 shadow-md transform hover:scale-[1.02] active:scale-95 ${
-            isPaid
+            isSuperAdmin
+              ? 'bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-purple-900/40 border border-purple-400/50'
+              : isPaid
               ? currentPlan === 'DIAMOND' || currentPlan === 'PREMIUM'
                 ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 text-white shadow-purple-900/40 border border-purple-400/40'
                 : currentPlan === 'GOLD' || currentPlan === 'PRO'
@@ -73,7 +76,15 @@ export const TopSubscribeDropdown: React.FC = () => {
           }`}
           title="Fayda Membership & Subscription Center"
         >
-          {isPaid ? (
+          {isSuperAdmin ? (
+            <>
+              <Crown className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+              <span>SUPERADMIN DESK</span>
+              <span className="hidden md:inline-block bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold">
+                MASTER
+              </span>
+            </>
+          ) : isPaid ? (
             <>
               {currentPlan === 'DIAMOND' ? <Crown className="w-3.5 h-3.5 text-yellow-300" /> : <Award className="w-3.5 h-3.5 text-current" />}
               <span>{currentPlan} MEMBER</span>
@@ -106,7 +117,7 @@ export const TopSubscribeDropdown: React.FC = () => {
             <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <div>
                 <div className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? 'text-cyan-400' : 'text-blue-600'}`}>
-                  {user ? 'Subscriber 360°' : 'Fayda Terminal Access'}
+                  {isSuperAdmin ? 'SuperAdmin Terminal Control' : user ? 'Subscriber 360°' : 'Fayda Terminal Access'}
                 </div>
                 <div className={`text-sm font-bold flex items-center gap-1.5 mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   <span>{user ? user.fullName : 'Guest Trader'}</span>
@@ -122,7 +133,11 @@ export const TopSubscribeDropdown: React.FC = () => {
 
               <div className="text-right">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  isPaid
+                  isSuperAdmin
+                    ? isDark
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-purple-100 text-purple-800 border border-purple-300 font-bold'
+                    : isPaid
                     ? isDark
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'bg-emerald-50 text-emerald-700 border border-emerald-300 font-semibold'
@@ -130,9 +145,9 @@ export const TopSubscribeDropdown: React.FC = () => {
                     ? 'bg-slate-800 text-slate-300'
                     : 'bg-slate-100 text-slate-700 border border-slate-200'
                 }`}>
-                  {currentPlan} PLAN
+                  {isSuperAdmin ? 'MASTER PRIVILEGE' : `${currentPlan} PLAN`}
                 </span>
-                {user?.planExpiry && (
+                {user?.planExpiry && !isSuperAdmin && (
                   <div className={`text-[10px] mt-1 flex items-center gap-1 justify-end ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     <Clock className="w-3 h-3 text-slate-400" />
                     <span>Exp: {new Date(user.planExpiry).toLocaleDateString('en-IN')}</span>
@@ -141,136 +156,173 @@ export const TopSubscribeDropdown: React.FC = () => {
               </div>
             </div>
 
-            {/* Non-blocking profile progress bar */}
-            {user && (
-              <div className={`py-2.5 px-3 my-2.5 rounded-xl border flex items-center justify-between text-xs ${
-                isDark ? 'bg-slate-900/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div className="flex items-center gap-2">
-                  <UserCheck className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}>
-                    Profile {user.profileCompletionPct || 35}% Complete
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] hover:underline cursor-pointer font-bold ${
-                    isDark ? 'text-cyan-400' : 'text-blue-600'
-                  }`}
-                  onClick={() => handleOpenSubscribe()}
-                >
-                  View Plans & Perks
-                </span>
-              </div>
-            )}
-
-            {/* Quick Plan Switcher & Preview */}
-            <div className="my-3 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Quick Plan Preview</span>
-                <div className={`flex items-center p-0.5 rounded-md border text-[10px] ${
-                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+            {/* SUPERADMIN VIEW: No upgrade prompt, full master admin directives */}
+            {isSuperAdmin ? (
+              <div className="my-3 space-y-3">
+                <div className={`p-3 rounded-xl border space-y-1.5 ${
+                  isDark ? 'bg-purple-500/10 border-purple-500/25 text-purple-200' : 'bg-purple-50 border-purple-200 text-purple-900'
                 }`}>
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <Crown className="w-4 h-4 text-amber-400" />
+                    <span>Master Access Privileges Active</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed opacity-90">
+                    As SuperAdmin, you possess unrestricted access to all 4 tiers (Free, Silver, Gold, Diamond), real-time broker WebSocket feeds, Greeks radar, and proprietary quant models.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
                   <button
-                    onClick={() => setPreviewCycle('MONTHLY')}
-                    className={`px-2 py-0.5 rounded transition ${
-                      previewCycle === 'MONTHLY'
-                        ? isDark
-                          ? 'bg-cyan-500 text-black font-bold'
-                          : 'bg-blue-600 text-white font-bold shadow-sm'
-                        : isDark
-                        ? 'text-slate-400'
-                        : 'text-slate-600 hover:text-slate-900'
+                    onClick={() => handleOpenSubscribe()}
+                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between border transition ${
+                      isDark
+                        ? 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-200'
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
                     }`}
                   >
-                    Monthly
-                  </button>
-                  <button
-                    onClick={() => setPreviewCycle('ANNUAL')}
-                    className={`px-2 py-0.5 rounded transition ${
-                      previewCycle === 'ANNUAL'
-                        ? isDark
-                          ? 'bg-cyan-500 text-black font-bold'
-                          : 'bg-blue-600 text-white font-bold shadow-sm'
-                        : isDark
-                        ? 'text-slate-400'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Annual (-33%)
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Preview Fast Subscription Modal</span>
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                   </button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-4 gap-1.5">
-                {(['FREE', 'SILVER', 'GOLD', 'DIAMOND'] as const).map(p => {
-                  const isSelected = previewPlan === p;
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setPreviewPlan(p)}
-                      className={`p-2 rounded-xl text-center border transition-all ${
-                        isSelected
-                          ? isDark
-                            ? 'bg-gradient-to-b from-slate-900 to-[#101b33] border-cyan-400 text-white shadow-md shadow-cyan-500/10'
-                            : 'bg-blue-50/90 border-blue-500 text-blue-950 font-bold shadow-sm'
-                          : isDark
-                          ? 'bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-700'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+            ) : (
+              /* REGULAR SUBSCRIBER & GUEST VIEW */
+              <>
+                {/* Non-blocking profile progress bar */}
+                {user && (
+                  <div className={`py-2.5 px-3 my-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                    isDark ? 'bg-slate-900/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <UserCheck className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+                      <span className={isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}>
+                        Profile {user.profileCompletionPct || 35}% Complete
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] hover:underline cursor-pointer font-bold ${
+                        isDark ? 'text-cyan-400' : 'text-blue-600'
                       }`}
+                      onClick={() => handleOpenSubscribe()}
                     >
-                      <div className="text-[10px] font-bold">{p}</div>
-                      <div className={`text-xs font-black mt-0.5 ${
-                        isDark ? 'text-cyan-300' : isSelected ? 'text-blue-700' : 'text-slate-800'
-                      }`}>
-                        ₹{PLAN_PRICES[p][previewCycle] === 0 ? '0' : PLAN_PRICES[p][previewCycle].toLocaleString('en-IN')}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                      View Plans & Perks
+                    </span>
+                  </div>
+                )}
 
-            {/* Selected preview highlight */}
-            <div className={`p-2.5 rounded-xl border text-xs space-y-1.5 ${
-              isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className={`flex items-center justify-between font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <span>{previewPlan} {PLAN_PRICES[previewPlan].tag}</span>
-                <span className={isDark ? 'text-emerald-400' : 'text-emerald-600 font-black'}>
-                  ₹{PLAN_PRICES[previewPlan][previewCycle].toLocaleString('en-IN')} /{previewCycle.toLowerCase()}
-                </span>
-              </div>
-              <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                {previewPlan === 'FREE' && 'NSE spot feeds, delayed OI chain matrix, daily CPR checklist.'}
-                {previewPlan === 'SILVER' && 'Live broker feeds, 10-indicator confluence, 1-min surge alerts.'}
-                {previewPlan === 'GOLD' && 'High-Alpha CE/PE recommendations with WhatsApp & SMS trade alerts.'}
-                {previewPlan === 'DIAMOND' && 'VIP desk priority, execution webhooks, 1-on-1 quant strategy desk.'}
-              </p>
-            </div>
+                {/* Quick Plan Switcher & Preview */}
+                <div className="my-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Quick Plan Preview</span>
+                    <div className={`flex items-center p-0.5 rounded-md border text-[10px] ${
+                      isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+                    }`}>
+                      <button
+                        onClick={() => setPreviewCycle('MONTHLY')}
+                        className={`px-2 py-0.5 rounded transition ${
+                          previewCycle === 'MONTHLY'
+                            ? isDark
+                              ? 'bg-cyan-500 text-black font-bold'
+                              : 'bg-blue-600 text-white font-bold shadow-sm'
+                            : isDark
+                            ? 'text-slate-400'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        onClick={() => setPreviewCycle('ANNUAL')}
+                        className={`px-2 py-0.5 rounded transition ${
+                          previewCycle === 'ANNUAL'
+                            ? isDark
+                              ? 'bg-cyan-500 text-black font-bold'
+                              : 'bg-blue-600 text-white font-bold shadow-sm'
+                            : isDark
+                            ? 'text-slate-400'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Annual (-33%)
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Action CTA */}
-            <div className={`mt-3 pt-2 border-t flex items-center gap-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-              <button
-                onClick={() => handleOpenSubscribe(previewPlan)}
-                className={`w-full py-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1.5 transition-all transform active:scale-95 shadow-lg ${
-                  isDark
-                    ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/25'
-                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/30'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-                <span>
-                  {previewPlan === 'FREE'
-                    ? 'Activate Free Starter'
-                    : isPaid && previewPlan === currentPlan
-                    ? 'Renew Membership'
-                    : isPaid
-                    ? `Upgrade to ${previewPlan}`
-                    : `Subscribe to ${previewPlan}`}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['FREE', 'SILVER', 'GOLD', 'DIAMOND'] as const).map(p => {
+                      const isSelected = previewPlan === p;
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPreviewPlan(p)}
+                          className={`p-2 rounded-xl text-center border transition-all ${
+                            isSelected
+                              ? isDark
+                                ? 'bg-gradient-to-b from-slate-900 to-[#101b33] border-cyan-400 text-white shadow-md shadow-cyan-500/10'
+                                : 'bg-blue-50/90 border-blue-500 text-blue-950 font-bold shadow-sm'
+                              : isDark
+                              ? 'bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-700'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="text-[10px] font-bold">{p}</div>
+                          <div className={`text-xs font-black mt-0.5 ${
+                            isDark ? 'text-cyan-300' : isSelected ? 'text-blue-700' : 'text-slate-800'
+                          }`}>
+                            ₹{PLAN_PRICES[p][previewCycle] === 0 ? '0' : PLAN_PRICES[p][previewCycle].toLocaleString('en-IN')}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected preview highlight */}
+                <div className={`p-2.5 rounded-xl border text-xs space-y-1.5 ${
+                  isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className={`flex items-center justify-between font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <span>{previewPlan} {PLAN_PRICES[previewPlan].tag}</span>
+                    <span className={isDark ? 'text-emerald-400' : 'text-emerald-600 font-black'}>
+                      ₹{PLAN_PRICES[previewPlan][previewCycle].toLocaleString('en-IN')} /{previewCycle.toLowerCase()}
+                    </span>
+                  </div>
+                  <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {previewPlan === 'FREE' && 'NSE spot feeds, delayed OI chain matrix, daily CPR checklist.'}
+                    {previewPlan === 'SILVER' && 'Live broker feeds, 10-indicator confluence, 1-min surge alerts.'}
+                    {previewPlan === 'GOLD' && 'High-Alpha CE/PE recommendations with WhatsApp & SMS trade alerts.'}
+                    {previewPlan === 'DIAMOND' && 'VIP desk priority, execution webhooks, 1-on-1 quant strategy desk.'}
+                  </p>
+                </div>
+
+                {/* Action CTA */}
+                <div className={`mt-3 pt-2 border-t flex items-center gap-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <button
+                    onClick={() => handleOpenSubscribe(previewPlan)}
+                    className={`w-full py-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1.5 transition-all transform active:scale-95 shadow-lg ${
+                      isDark
+                        ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/25'
+                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/30'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                    <span>
+                      {previewPlan === 'FREE'
+                        ? 'Activate Free Starter'
+                        : isPaid && previewPlan === currentPlan
+                        ? 'Renew Membership'
+                        : isPaid
+                        ? `Upgrade to ${previewPlan}`
+                        : `Subscribe to ${previewPlan}`}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

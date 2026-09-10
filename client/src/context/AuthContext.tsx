@@ -681,6 +681,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setJwtToken(null);
+    localStorage.removeItem('fayda_auth_user');
+    localStorage.removeItem('fayda_jwt');
   };
 
   const hasValidConsent = Boolean(user?.consentRecord && user.consentRecord.legalVersion === CURRENT_LEGAL_VERSION);
