@@ -44,6 +44,8 @@ interface RecommendationTableItem {
   category: 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS';
   categoryTitle: string;
   contractSymbol: string;
+  assetSymbol?: string;
+  assetName?: string;
   strikePrice?: number;
   optionType: 'CE' | 'PE' | 'SPREAD';
   action: string;
@@ -380,10 +382,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const stoplossTimeFormatted = rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
-      const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : rawItem.actionBadge;
+      const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
+      const matchedSym = ALL_SYMBOLS_CONFIG.find(c => c.symbol.toUpperCase() === rawAssetSymbol.toUpperCase()) || symConfig;
+      const resolvedAssetSymbol = matchedSym?.symbol || rawAssetSymbol || selectedIndex;
+      const resolvedAssetName = matchedSym?.name || resolvedAssetSymbol;
+      const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : (rawItem.actionBadge || rawItem.action || 'SIGNAL');
 
       const fullItem: RecommendationTableItem = {
         ...rawItem,
+        assetSymbol: resolvedAssetSymbol,
+        assetName: resolvedAssetName,
         status: finalStatus,
         actionBadge,
         pnlPoints: points,
@@ -1469,8 +1477,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded-md text-xs font-mono font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/35 flex items-center gap-1 shadow-xs" title={`Underlying Asset: ${selectedItem.assetName || selectedItem.assetSymbol || selectedIndex}`}>
+                  <span>{selectedItem.assetName || selectedItem.assetSymbol || selectedIndex}</span>
+                </span>
                 <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white">
-                  {selectedItem.contractSymbol}
+                  {selectedItem.strikePrice ? `${selectedItem.strikePrice.toLocaleString('en-IN')} ${selectedItem.optionType}` : selectedItem.contractSymbol}
                 </span>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
                   isSeller
@@ -2250,9 +2261,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           </span>
                         )}
 
-                        <span className="text-xl sm:text-2xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
-                          {strikeLabel}
-                        </span>
+                        {/* Asset Title & Strike Price */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/35 flex items-center gap-1.5 shadow-xs" title={`Underlying Asset: ${currentFlashTip.assetName || currentFlashTip.assetSymbol || selectedIndex}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span>{currentFlashTip.assetName || currentFlashTip.assetSymbol || selectedIndex}</span>
+                          </span>
+                          <span className="text-xl sm:text-2xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
+                            {strikeLabel}
+                          </span>
+                        </div>
 
                         <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                           {currentFlashTip.actionBadge}
@@ -2668,6 +2686,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                             </span>
                           )}
 
+                          {/* Asset Title & Strike Price */}
+                          <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/35 flex items-center gap-1 shrink-0" title={`Asset: ${item.assetName || item.assetSymbol || selectedIndex}`}>
+                            <span>{item.assetName || item.assetSymbol || selectedIndex}</span>
+                          </span>
+
                           <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
                             {strikeLabel}
                           </span>
@@ -2975,10 +2998,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
                     {/* Strike Price & Strategy Tag */}
                     <div className="my-2.5">
-                      <div className="flex items-baseline justify-between gap-1">
-                        <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
-                          {strikeLabel}
-                        </span>
+                      <div className="flex items-baseline justify-between gap-1 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/35 flex items-center gap-1 shrink-0" title={`Asset: ${item.assetName || item.assetSymbol || selectedIndex}`}>
+                            <span>{item.assetName || item.assetSymbol || selectedIndex}</span>
+                          </span>
+                          <span className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
+                            {strikeLabel}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                             {item.actionBadge}
@@ -3193,8 +3221,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       <td className="py-3 px-3 sm:px-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/35 flex items-center gap-1 shrink-0" title={`Asset: ${item.assetName || item.assetSymbol || selectedIndex}`}>
+                              <span>{item.assetName || item.assetSymbol || selectedIndex}</span>
+                            </span>
                             <span className="font-mono font-black text-sm text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-accent-gold transition-colors">
-                              {item.contractSymbol}
+                              {item.strikePrice ? `${item.strikePrice.toLocaleString('en-IN')} ${item.optionType}` : item.contractSymbol}
                             </span>
                             {matchingSurge && (
                               <span

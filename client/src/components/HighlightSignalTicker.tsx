@@ -383,29 +383,34 @@ export const HighlightSignalTicker: React.FC = () => {
       });
     };
 
+    const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === item.symbol);
+    const assetTitle = symCfg?.name || item.symbol;
+    const cleanStrike = item.strike ? item.strike.replace(new RegExp(`^${item.symbol}\\s*`, 'i'), '') : item.strike;
+
     return (
       <button 
         key={`${uniquePrefix}-${item.symbol}`} 
         type="button"
         onClick={handleOpenModal}
-        className={`group inline-flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-200 select-none shadow-xs hover:shadow-md shrink-0 cursor-pointer text-left ${
+        className={`group inline-flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-200 select-none shadow-md hover:shadow-lg shrink-0 cursor-pointer text-left ${
+          /* Light theme: Dark background with crisp light text | Dark theme: Light background with crisp dark text */
           isSl 
-            ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/40 hover:border-rose-500' 
+            ? 'bg-slate-900 text-white border-rose-500/70 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:border-rose-400 dark:hover:bg-slate-100 shadow-rose-500/15' 
             : isBull
-              ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 hover:border-emerald-500'
-              : 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 hover:border-rose-500'
+              ? 'bg-slate-900 text-white border-emerald-500/70 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:border-emerald-400 dark:hover:bg-slate-100 shadow-emerald-500/15'
+              : 'bg-slate-900 text-white border-rose-500/70 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:border-rose-400 dark:hover:bg-slate-100 shadow-rose-500/15'
         }`}
         title={`Click to view emergent trade setup details for ${item.strike}`}
       >
         {/* Option Buy / Option Sell Badge */}
         <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
           isSl
-            ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40'
+            ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50 dark:bg-rose-100 dark:text-rose-900 dark:border-rose-300'
             : isBull
-            ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40'
-            : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/40'
+            ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 dark:bg-emerald-100 dark:text-emerald-900 dark:border-emerald-300'
+            : 'bg-rose-500/25 text-rose-300 border border-rose-500/50 dark:bg-rose-100 dark:text-rose-900 dark:border-rose-300'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-600 dark:bg-emerald-400 animate-pulse' : 'bg-rose-600 dark:bg-rose-400 animate-pulse'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-400 dark:bg-emerald-600 animate-pulse' : 'bg-rose-400 dark:bg-rose-600 animate-pulse'}`} />
           <span>
             {!isMarketOpen && isSl
               ? 'SL HIT (CLOSED)'
@@ -419,39 +424,44 @@ export const HighlightSignalTicker: React.FC = () => {
           </span>
         </span>
 
-        {/* Strike Price */}
-        <span className="font-mono font-black text-xs text-slate-900 dark:text-slate-100 group-hover:text-accent-cyan transition-colors shrink-0">
-          {item.strike}
-        </span>
+        {/* Asset Title & Strike Price */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 dark:text-amber-800 border border-amber-400/40 shrink-0" title={`Asset: ${assetTitle} (${item.symbol})`}>
+            {assetTitle}
+          </span>
+          <span className="font-mono font-black text-xs text-white dark:text-slate-950 group-hover:text-accent-cyan dark:group-hover:text-blue-600 transition-colors shrink-0">
+            {cleanStrike || item.strike}
+          </span>
+        </div>
 
         {/* Entry */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-600 dark:text-slate-300 shrink-0">
-          <span className="text-slate-500 dark:text-slate-400 text-[9px] uppercase font-bold">Entry:</span>
-          <span className="font-bold text-sky-700 dark:text-sky-300">{item.entry}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">Entry:</span>
+          <span className="font-bold text-sky-300 dark:text-sky-700">{item.entry}</span>
         </div>
 
         {/* Live LTP */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-slate-700 dark:text-slate-200 shrink-0">
-          <span className="text-slate-500 dark:text-slate-400 text-[9px] uppercase font-bold">LTP:</span>
-          <span className="font-black text-amber-800 dark:text-amber-300">₹{(item.ltp || 0).toFixed(1)}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">LTP:</span>
+          <span className="font-black text-amber-300 dark:text-amber-700">₹{(item.ltp || 0).toFixed(1)}</span>
         </div>
 
         {/* Target */}
-        <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-800 dark:text-emerald-300 shrink-0">
-          <span className="text-emerald-700 dark:text-emerald-400 text-[9px] uppercase font-bold">Target:</span>
-          <span className="font-bold">{item.target}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+          <span className="text-emerald-400 dark:text-emerald-700 text-[9px] uppercase font-bold">Target:</span>
+          <span className="font-bold text-emerald-300 dark:text-emerald-700">{item.target}</span>
         </div>
 
         {/* ONGOING LIVE PROFIT BOX */}
         {profitBox && (
           <div className={`px-2 py-0.5 rounded-lg border font-mono flex items-center gap-1.5 shrink-0 transition-all ${
             isProfit
-              ? 'bg-emerald-500/20 text-emerald-950 dark:text-emerald-300 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
-              : 'bg-rose-500/20 text-rose-950 dark:text-rose-300 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+              ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/40 shadow-[0_0_10px_rgba(16,185,129,0.25)] dark:bg-emerald-100 dark:text-emerald-950 dark:border-emerald-300'
+              : 'bg-rose-500/25 text-rose-200 border-rose-400/40 shadow-[0_0_10px_rgba(244,63,94,0.25)] dark:bg-rose-100 dark:text-rose-950 dark:border-rose-300'
           }`} title={profitBox.decisionText}>
             <span className="text-[10px] font-black">{isProfit ? '🟢' : '🔴'}</span>
             <div className="flex flex-col text-left leading-tight">
-              <span className="text-[8px] uppercase font-black text-slate-700 dark:text-slate-300">
+              <span className="text-[8px] uppercase font-black text-slate-300 dark:text-slate-700">
                 {profitBox.decisionTag === 'BOOK_HALF' ? 'BOOK 50%' : profitBox.decisionTag === 'TRAIL_SL' ? 'TRAIL SL' : profitBox.decisionTag === 'ENTER' ? 'ENTRY' : 'P&L'}
               </span>
               <span className="font-black text-[10.5px]">
@@ -463,13 +473,13 @@ export const HighlightSignalTicker: React.FC = () => {
         )}
 
         {/* Timing */}
-        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-500 dark:text-slate-400 shrink-0">
-          <Clock className="w-2.5 h-2.5 text-accent-cyan" />
+        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-300 dark:text-slate-600 shrink-0">
+          <Clock className="w-2.5 h-2.5 text-accent-cyan dark:text-sky-600" />
           <span>{timing.givenTimeShort}</span>
         </div>
 
         {/* Cue */}
-        <span className="text-[9px] font-mono font-bold text-amber-800 dark:text-accent-gold group-hover:translate-x-0.5 transition-transform flex items-center shrink-0">
+        <span className="text-[9px] font-mono font-bold text-amber-300 dark:text-amber-800 group-hover:translate-x-0.5 transition-transform flex items-center shrink-0">
           Details ↗
         </span>
       </button>

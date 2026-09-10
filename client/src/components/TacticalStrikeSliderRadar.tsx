@@ -453,16 +453,16 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                     onClick={() => setStrikeOffset(item.offset)}
                     className={`flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-lg border transition-all cursor-pointer text-center relative overflow-hidden ${
                       isSelected
-                        ? 'bg-linear-to-b from-accent-cyan/25 to-blue-600/20 border-accent-cyan shadow-[0_0_12px_rgba(0,229,255,0.25)] text-accent-cyan'
+                        ? 'bg-slate-900 border-slate-700 text-white shadow-md dark:bg-white dark:border-slate-200 dark:text-slate-950 dark:shadow-md'
                         : isAtm
-                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 dark:text-amber-300 hover:bg-amber-500/20'
                         : 'bg-terminal-panel hover:bg-terminal-card border-terminal-border text-terminal-muted hover:text-terminal-text'
                     }`}
                   >
-                    <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-tight">
+                    <span className={`text-[9px] sm:text-[10px] font-mono font-bold tracking-tight ${isSelected ? 'text-emerald-300 dark:text-emerald-800' : ''}`}>
                       {item.label}
                     </span>
-                    <span className="text-[11px] sm:text-xs font-mono font-extrabold text-terminal-text">
+                    <span className={`text-[11px] sm:text-xs font-mono font-extrabold ${isSelected ? 'text-white dark:text-slate-950' : 'text-terminal-text'}`}>
                       {item.strikePrice}
                     </span>
                     {/* Small Mini Indicator Dot */}
