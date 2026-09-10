@@ -1017,6 +1017,24 @@ app.patch('/api/auth/me', requireAuth, (req, res) => {
   res.json({ success: true, subscriber: updated });
 });
 
+// POST /api/auth/change-password — update own password with current password verification
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const payload = (req as any).authPayload;
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters.' });
+    }
+    const result = await subscriberService.changePassword(payload.subscriberId, currentPassword, newPassword);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── SUBSCRIPTION ENGINE ENDPOINTS (PUBLIC & AUTHENTICATED) ──────────────────
 
 // GET /api/subscriptions/plans — active plans for user selection

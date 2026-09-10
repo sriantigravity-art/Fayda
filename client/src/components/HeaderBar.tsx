@@ -97,6 +97,7 @@ export const HeaderBar: React.FC = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileModeDropdownOpen, setIsMobileModeDropdownOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [profileEditTab, setProfileEditTab] = useState<'PROFILE' | 'PASSWORD' | 'MEMBERSHIP'>('PROFILE');
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [subscribeDefaultPlan, setSubscribeDefaultPlan] = useState<'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND'>('GOLD');
   const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
@@ -497,6 +498,10 @@ export const HeaderBar: React.FC = () => {
               if (plan) setSubscribeDefaultPlan(plan);
               setIsSubscribeModalOpen(true);
             }}
+            onOpenProfileEdit={(tab) => {
+              setProfileEditTab(tab || 'PROFILE');
+              setIsProfileEditOpen(true);
+            }}
             onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
           />
 
@@ -760,7 +765,15 @@ export const HeaderBar: React.FC = () => {
       <CommandPaletteModal isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
 
       {/* User Profile Edit Modal */}
-      <UserProfileEditModal isOpen={isProfileEditOpen} onClose={() => setIsProfileEditOpen(false)} />
+      <UserProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
+        initialTab={profileEditTab}
+        onOpenSubscribeModal={(plan) => {
+          if (plan) setSubscribeDefaultPlan(plan);
+          setIsSubscribeModalOpen(true);
+        }}
+      />
 
       {/* Fast Subscription & Upgrade Modal */}
       <FastSubscriptionModal

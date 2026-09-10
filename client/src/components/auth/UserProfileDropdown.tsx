@@ -1,21 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   User, LogIn, LogOut, Crown, Shield, Zap, Star, Award,
-  ChevronDown, Check, Copy, Clock, ExternalLink, Sliders,
-  Sparkles, CheckCircle2, AlertCircle
+  ChevronDown, Check, Copy, Clock, KeyRound,
+  Sparkles, ChevronRight, Settings, Edit3
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
-interface UserProfileDropdownProps {
+export interface UserProfileDropdownProps {
   onOpenAuthModal: () => void;
   onOpenSubscribeModal: (plan?: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND') => void;
+  onOpenProfileEdit?: (tab?: 'PROFILE' | 'PASSWORD' | 'MEMBERSHIP') => void;
   onOpenAdminDrawer?: () => void;
 }
 
 export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   onOpenAuthModal,
   onOpenSubscribeModal,
+  onOpenProfileEdit,
   onOpenAdminDrawer
 }) => {
   const { user, isAuthenticated, isSuperAdmin, logout } = useAuth();
@@ -125,7 +127,7 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             ? 'bg-[#0e1626] border-slate-700/80 hover:border-slate-600 text-white hover:bg-slate-800/80'
             : 'bg-white border-slate-200 hover:border-slate-300 text-slate-900 hover:bg-slate-50'
         }`}
-        title={`Logged in as ${user.fullName} (${user.email})`}
+        title={`My Profile & Account (${user.fullName} • ${subscriberId})`}
       >
         {/* Avatar circle */}
         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
@@ -156,12 +158,12 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
 
       {/* Flyout Profile & Logout Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
+        <div className={`absolute right-0 mt-2 w-84 rounded-2xl shadow-2xl p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
           isDark
             ? 'bg-[#0c1220] border-slate-800 text-slate-100 shadow-black/80'
             : 'bg-white border-slate-200 text-slate-800 shadow-slate-400/40'
         }`}>
-          {/* Section 1: User Identity */}
+          {/* Section 1: User Identity Header */}
           <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 ${
@@ -198,9 +200,9 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             </span>
           </div>
 
-          {/* Permanent Subscriber ID */}
+          {/* Permanent Subscriber ID Bar */}
           <div className={`mt-3 p-2.5 rounded-xl border flex items-center justify-between text-xs ${
-            isDark ? 'bg-slate-950/70 border-slate-850' : 'bg-slate-50 border-slate-200'
+            isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}>
             <div>
               <div className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -228,7 +230,7 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             </button>
           </div>
 
-          {/* Section 2: Membership Privileges & Plan Action */}
+          {/* Section 2: Membership Privileges Card */}
           <div className={`mt-3 p-3 rounded-xl border space-y-2 ${
             isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50/80 border-slate-200'
           }`}>
@@ -268,46 +270,93 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                 />
               </div>
             </div>
-
-            {/* Action CTA depending on role */}
-            <div className="pt-2">
-              {isSuperAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    if (onOpenAdminDrawer) onOpenAdminDrawer();
-                  }}
-                  className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md ${
-                    isDark
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-500/20'
-                      : 'bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white shadow-purple-500/25'
-                  }`}
-                >
-                  <Crown className="w-3.5 h-3.5 text-yellow-300" />
-                  <span>Open SuperAdmin Matrix</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    onOpenSubscribeModal();
-                  }}
-                  className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md ${
-                    isDark
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-                  <span>{currentPlan === 'FREE' ? 'Upgrade to Pro Service' : 'Change / Upgrade Plan'}</span>
-                </button>
-              )}
-            </div>
           </div>
 
-          {/* Section 3: Logout Action Button */}
+          {/* Section 3: User Management Navigation Actions */}
+          <div className="mt-3 space-y-1.5">
+            {/* 1. Edit Profile Details & Address */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                if (onOpenProfileEdit) onOpenProfileEdit('PROFILE');
+              }}
+              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between border transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-800 text-slate-200 hover:text-white'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 hover:text-blue-600'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Edit Profile Details & Address</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {/* 2. Update Password & Security */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                if (onOpenProfileEdit) onOpenProfileEdit('PASSWORD');
+              }}
+              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between border transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-800 text-slate-200 hover:text-white'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 hover:text-amber-600'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                <span>Update Password & Security</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {/* 3. Action CTA depending on role */}
+            {isSuperAdmin ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  if (onOpenAdminDrawer) onOpenAdminDrawer();
+                }}
+                className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all shadow-md ${
+                  isDark
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-500/20'
+                    : 'bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white shadow-purple-500/25'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Crown className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>Open SuperAdmin Matrix</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-white/70" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenSubscribeModal();
+                }}
+                className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all shadow-md ${
+                  isDark
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>{currentPlan === 'FREE' ? 'Upgrade to Pro Service' : 'Change / Upgrade Plan'}</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-white/70" />
+              </button>
+            )}
+          </div>
+
+          {/* Section 4: Logout Action Button */}
           <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"

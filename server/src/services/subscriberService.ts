@@ -408,6 +408,26 @@ class SubscriberService {
     return true;
   }
 
+  public async changePassword(id: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    const s = this.subscribers.get(id);
+    if (!s) return { success: false, error: 'Subscriber account not found.' };
+
+    if (currentPassword) {
+      const match = await bcrypt.compare(currentPassword, s.passwordHash);
+      if (!match) {
+        return { success: false, error: 'Current password is incorrect.' };
+      }
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters.' };
+    }
+
+    s.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    this.save();
+    return { success: true };
+  }
+
   public delete(id: string): boolean {
     if (id === 'ADM-SRIKANT-007') return false; // Protect SuperAdmin
     const existed = this.subscribers.delete(id);

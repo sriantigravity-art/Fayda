@@ -133,6 +133,7 @@ interface AuthContextType {
   canAccessFeature: (featureCode: string) => boolean;
   activePlanDetails: any | null;
   updateProfile: (data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (otp: string) => Promise<{ success: boolean; error?: string }>;
   resendOtp: () => Promise<{ success: boolean }>;
   forgotPassword: (emailOrMobile: string) => Promise<{ success: boolean; error?: string }>;
@@ -639,7 +640,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUser(updated);
+
+    // Sync with server if token is present
+    try {
+      if (jwtToken) {
+        apiFetch('/api/auth/extended-profile', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            fullName: data.fullName || user.fullName,
+            mobile: data.mobile || user.mobile,
+            city: data.address?.city || user.address?.city,
+            state: data.address?.state || user.address?.state,
+            pincode: data.address?.pincode || user.address?.pincode,
+            street: data.address?.street || user.address?.street,
+            traderExperience: data.traderExperience || user.traderExperience,
+            avatarUrl: data.avatarUrl
+          })
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+
     return { success: true };
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const resp = await apiFetch('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const res = await resp.json();
+      if (!res.success) {
+        return { success: false, error: res.error || 'Failed to update password.' };
+      }
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error updating password.' };
+    }
   };
 
   const verifyOtp = async (otp: string) => {
@@ -708,6 +747,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         canAccessFeature,
         activePlanDetails,
         updateProfile,
+        changePassword,
         verifyOtp,
         resendOtp,
         forgotPassword,
@@ -749,6 +789,7 @@ const defaultAuthContext: AuthContextType = {
   canAccessFeature: () => true,
   activePlanDetails: null,
   updateProfile: async () => ({ success: true }),
+  changePassword: async () => ({ success: true }),
   verifyOtp: async () => ({ success: true }),
   resendOtp: async () => ({ success: true }),
   forgotPassword: async () => ({ success: true }),
