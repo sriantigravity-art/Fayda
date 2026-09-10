@@ -15,6 +15,8 @@ import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
 import { subscriberService } from './services/subscriberService.js';
+import { subscriptionPlanService } from './services/subscriptionPlanService.js';
+import { subscriptionHistoryService } from './services/subscriptionHistoryService.js';
 import { notificationService, composeMessage } from './services/notificationService.js';
 import { bseService } from './services/bseService.js';
 import { 
@@ -1015,6 +1017,104 @@ app.patch('/api/auth/me', requireAuth, (req, res) => {
   res.json({ success: true, subscriber: updated });
 });
 
+// ── SUBSCRIPTION ENGINE ENDPOINTS (PUBLIC & AUTHENTICATED) ──────────────────
+
+// GET /api/subscriptions/plans — active plans for user selection
+app.get('/api/subscriptions/plans', (_req, res) => {
+  try {
+    const plans = subscriptionPlanService.getActivePlans();
+    res.json({ success: true, plans });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/subscriptions/subscribe-fast — ultra-low-friction signup/checkout
+app.post('/api/subscriptions/subscribe-fast', async (req, res) => {
+  try {
+    const { fullName, email, mobile, plan, billingCycle, autoLogin, paymentMethod } = req.body;
+    if (!email && !mobile) {
+      return res.status(400).json({ success: false, error: 'Mobile or Email is required.' });
+    }
+    const result = await subscriberService.subscribeFast({
+      fullName,
+      email,
+      mobile,
+      plan,
+      billingCycle,
+      autoLogin: autoLogin !== false,
+      paymentMethod,
+    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/subscriptions/upgrade-renew — 1-click upgrade/renew for authenticated user
+app.post('/api/subscriptions/upgrade-renew', requireAuth, async (req, res) => {
+  try {
+    const payload = (req as any).authPayload;
+    const { plan, billingCycle, paymentMethod } = req.body;
+    if (!plan) {
+      return res.status(400).json({ success: false, error: 'Target plan is required.' });
+    }
+    const result = await subscriberService.upgradeOrRenew(payload.subscriberId, {
+      plan,
+      billingCycle,
+      paymentMethod,
+    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/subscriptions/my-subscription — current user's plan, days remaining, history
+app.get('/api/subscriptions/my-subscription', requireAuth, (req, res) => {
+  try {
+    const payload = (req as any).authPayload;
+    const sub = subscriberService.getById(payload.subscriberId);
+    if (!sub) return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+
+    const plan = subscriptionPlanService.getPlanById(sub.plan);
+    const history = subscriptionHistoryService.getBySubscriberId(sub.id);
+    const daysRemaining = sub.planExpiry ? Math.max(0, Math.ceil((new Date(sub.planExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+
+    res.json({
+      success: true,
+      subscriber: sub,
+      planDetails: plan,
+      daysRemaining,
+      history,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/auth/extended-profile — optional post-subscription profile completion
+app.patch('/api/auth/extended-profile', requireAuth, (req, res) => {
+  try {
+    const payload = (req as any).authPayload;
+    const updated = subscriberService.updateExtendedProfile(payload.subscriberId, req.body);
+    if (!updated) return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+    res.json({
+      success: true,
+      subscriber: updated,
+      profileCompletionPct: subscriberService.calculateProfileCompletion(updated),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── SUPERADMIN: SUBSCRIBER MANAGEMENT ────────────────────────────────────────
 
 // GET /api/admin/subscribers — list all
@@ -1045,6 +1145,68 @@ app.delete('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, r
   const ok = subscriberService.delete(req.params.id);
   if (!ok) return res.status(400).json({ success: false, error: 'Cannot delete this subscriber.' });
   res.json({ success: true });
+});
+
+// GET /api/admin/subscription-plans — list all plan configs
+app.get('/api/admin/subscription-plans', requireAuth, requireSuperAdmin, (_req, res) => {
+  res.json({ success: true, plans: subscriptionPlanService.getAllPlans() });
+});
+
+// PUT /api/admin/subscription-plans/:planId — edit plan config (pricing, features, status)
+app.put('/api/admin/subscription-plans/:planId', requireAuth, requireSuperAdmin, (req, res) => {
+  try {
+    const updated = subscriptionPlanService.updatePlan(req.params.planId as any, req.body);
+    if (!updated) return res.status(404).json({ success: false, error: 'Plan not found.' });
+    res.json({ success: true, plan: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/subscription-history — audit trail
+app.get('/api/admin/subscription-history', requireAuth, requireSuperAdmin, (req, res) => {
+  const subscriberId = req.query.subscriberId as string | undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+  if (subscriberId) {
+    res.json({ success: true, history: subscriptionHistoryService.getBySubscriberId(subscriberId) });
+  } else {
+    res.json({ success: true, history: subscriptionHistoryService.getAll(limit) });
+  }
+});
+
+// POST /api/admin/subscribers/:id/manual-subscription — manual plan override/extend
+app.post('/api/admin/subscribers/:id/manual-subscription', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { plan, billingCycle, expiryDate, subscriptionStatus, notes } = req.body;
+    const sub = subscriberService.getById(req.params.id);
+    if (!sub) return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+
+    const updateData: any = {};
+    if (plan) updateData.plan = plan;
+    if (billingCycle) updateData.billingCycle = billingCycle;
+    if (expiryDate) updateData.planExpiry = expiryDate;
+    if (subscriptionStatus) updateData.subscriptionStatus = subscriptionStatus;
+
+    const updated = subscriberService.update(req.params.id, updateData);
+    if (updated) {
+      subscriptionHistoryService.record({
+        subscriberId: updated.subscriberId,
+        userId: updated.id,
+        action: 'ADMIN_OVERRIDE',
+        oldPlan: sub.plan,
+        newPlan: updated.plan,
+        billingCycle: updated.billingCycle || 'MONTHLY',
+        amount: 0,
+        taxAmount: 0,
+        paymentReference: 'ADMIN_MANUAL_OVERRIDE',
+        performedBy: (req as any).authPayload?.subscriberId || 'SUPERADMIN',
+        notes: notes || 'Admin manual subscription adjustment',
+      });
+    }
+    res.json({ success: true, subscriber: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── SUPERADMIN: SIGNAL MANAGEMENT ─────────────────────────────────────────────

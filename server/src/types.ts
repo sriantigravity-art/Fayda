@@ -2,23 +2,45 @@ export type IndexSymbol = string;
 
 // ── Subscriber / User System ─────────────────────────────────────────────────
 export type SubscriberRole = 'USER' | 'ADMIN' | 'SUPERADMIN';
-export type SubscriptionPlan = 'FREE' | 'BASIC' | 'PRO' | 'PREMIUM';
+export type SubscriptionPlan = 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND' | 'BASIC' | 'PRO' | 'PREMIUM';
+export type SubscriptionStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED';
+export type BillingCycle = 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'ANNUAL';
+
+export interface SubscriberExtendedProfile {
+  profilePhoto?: string;         // base64 / uri
+  dateOfBirth?: string;          // YYYY-MM-DD
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  preferredLanguage?: string;
+  marketPreferences?: ('EQUITY' | 'FUTURES' | 'OPTIONS' | 'INVESTING' | 'SWING' | 'INTRADAY')[];
+  traderExperience?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
+  updatedAt?: string;
+}
 
 export interface Subscriber {
-  id: string;                    // e.g. USR-2026-001
+  id: string;                    // e.g. USR-2026-001 or ADM-SRIKANT-007
+  subscriberId: string;          // Permanent e.g. SUB000101, SUB000007
   fullName: string;
   email: string;
   mobile: string;                // Indian mobile, used for WhatsApp + SMS
   passwordHash: string;          // bcrypt
   role: SubscriberRole;
   plan: SubscriptionPlan;
+  billingCycle?: BillingCycle;
   planExpiry?: string;           // ISO date
+  subscriptionStatus?: SubscriptionStatus;
   isActive: boolean;
   isVerified: boolean;
   // Notification opt-ins
   emailOptIn: boolean;
   whatsappOptIn: boolean;
   smsOptIn: boolean;
+  // Optional Extended Profile (completed post-subscription)
+  extendedProfile?: SubscriberExtendedProfile;
+  profileCompletionPct?: number;
   // Metadata
   createdAt: string;
   lastLoginAt?: string;
@@ -26,6 +48,63 @@ export interface Subscriber {
 }
 
 export interface SubscriberPublic extends Omit<Subscriber, 'passwordHash'> {}
+
+export interface PlanPricing {
+  price: number;                 // Base amount in INR
+  discountPct: number;           // Discount percentage
+  taxPct: number;                // GST % (usually 18%)
+  effectiveTotal: number;        // Final payable INR
+}
+
+export interface SubscriptionPlanConfig {
+  id: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND';
+  name: string;
+  tagline: string;
+  badge: string;
+  isPopular?: boolean;
+  isActive: boolean;
+  features: string[];
+  entitlements: string[];        // Feature codes e.g. ['OI_RADAR', 'CONFLUENCE_DECK', 'GAMMA_SNIPER']
+  pricing: {
+    MONTHLY: PlanPricing;
+    QUARTERLY: PlanPricing;
+    ANNUAL: PlanPricing;
+  };
+}
+
+export interface SubscriptionRecord {
+  subscriptionId: string;        // e.g. SUB-TXN-202609-001
+  subscriberId: string;          // Permanent SUB000101
+  userId: string;
+  planId: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND';
+  status: SubscriptionStatus;
+  startDate: string;             // ISO
+  expiryDate: string;            // ISO
+  billingCycle: BillingCycle;
+  amount: number;
+  taxAmount: number;
+  totalAmount: number;
+  paymentReference: string;
+  paymentMethod: 'UPI' | 'QR' | 'NETBANKING' | 'CARD' | 'FREE' | 'ADMIN_OVERRIDE';
+  autoRenewal: boolean;
+  createdAt: string;
+}
+
+export interface SubscriptionHistoryItem {
+  id: string;
+  subscriberId: string;          // Permanent SUB000101
+  userId: string;
+  action: 'NEW_SUBSCRIPTION' | 'RENEWAL' | 'UPGRADE' | 'DOWNGRADE' | 'CANCELLATION' | 'SUSPENSION' | 'ADMIN_OVERRIDE';
+  oldPlan?: SubscriptionPlan;
+  newPlan: SubscriptionPlan;
+  billingCycle: BillingCycle;
+  amount: number;
+  taxAmount: number;
+  paymentReference: string;
+  performedBy: string;           // 'USER' | 'ADMIN' | 'SYSTEM'
+  timestamp: string;             // ISO
+  notes?: string;
+}
 
 export interface AuthToken {
   subscriberId: string;

@@ -1,0 +1,31 @@
+[
+  {
+    "id": "HIST-1789058798096-1323",
+    "timestamp": "2026-09-10T16:46:38.096Z",
+    "subscriberId": "SUB000106",
+    "userId": "USR-2026-006",
+    "action": "UPGRADE",
+    "oldPlan": "GOLD",
+    "newPlan": "DIAMOND",
+    "billingCycle": "ANNUAL",
+    "amount": 21947,
+    "taxAmount": 3348,
+    "paymentReference": "PAY-FAST-1789058798096",
+    "performedBy": "USER",
+    "notes": "User upgraded plan from GOLD to DIAMOND"
+  },
+  {
+    "id": "HIST-1789058750206-9182",
+    "timestamp": "2026-09-10T16:45:50.206Z",
+    "subscriberId": "SUB000106",
+    "userId": "USR-2026-006",
+    "action": "NEW_SUBSCRIPTION",
+    "newPlan": "GOLD",
+    "billingCycle": "MONTHLY",
+    "amount": 2359,
+    "taxAmount": 360,
+    "paymentReference": "PAY-RAZOR-1789058750206",
+    "performedBy": "USER",
+    "notes": "Fast new subscription"
+  }
+]

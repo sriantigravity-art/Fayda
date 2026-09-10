@@ -33,14 +33,31 @@ export interface UserAddress {
   pincode?: string;
 }
 
+export type SubscriptionPlanType = 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND' | 'BASIC' | 'PRO' | 'PREMIUM';
+
 export interface UserProfile {
   id: string;
+  subscriberId?: string; // Permanent formatted ID: SUB000101, SUB000007
   fullName: string;
   email: string;
   mobile: string;
   avatarUrl?: string; // base64 / image uri (strictly under 250kb)
   address?: UserAddress;
   role: UserRole;
+  plan?: SubscriptionPlanType;
+  billingCycle?: 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'ANNUAL';
+  planExpiry?: string;
+  subscriptionStatus?: 'ACTIVE' | 'EXPIRING' | 'EXPIRING_SOON' | 'EXPIRED' | 'SUSPENDED';
+  daysRemaining?: number;
+  profileCompletionPct?: number;
+  extendedProfile?: {
+    city?: string;
+    state?: string;
+    preferredLanguage?: string;
+    marketPreferences?: string[];
+    traderExperience?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
+    avatarUrl?: string;
+  };
   traderExperience?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
   isVerified: boolean;
   createdAt: string;
@@ -92,6 +109,25 @@ interface AuthContextType {
   resetPanelVisibility: () => void;
   login: (emailOrMobile: string, password: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   register: (data: { fullName: string; email: string; mobile: string; password: string; plan?: string }) => Promise<{ success: boolean; error?: string }>;
+  subscribeFast: (params: {
+    fullName?: string;
+    email?: string;
+    mobile?: string;
+    plan: string;
+    billingCycle?: string;
+    paymentMethod?: string;
+    autoLogin?: boolean;
+  }) => Promise<{ success: boolean; error?: string; subscriber?: any; token?: string; subscriberId?: string }>;
+  upgradeOrRenew: (params: {
+    plan: string;
+    billingCycle?: string;
+    paymentMethod?: string;
+  }) => Promise<{ success: boolean; error?: string; subscriber?: any }>;
+  updateExtendedProfile: (data: any) => Promise<{ success: boolean; error?: string; profileCompletionPct?: number }>;
+  refreshSubscription: () => Promise<void>;
+  canAccessPlan: (requiredPlan: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND') => boolean;
+  canAccessFeature: (featureCode: string) => boolean;
+  activePlanDetails: any | null;
   updateProfile: (data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (otp: string) => Promise<{ success: boolean; error?: string }>;
   resendOtp: () => Promise<{ success: boolean }>;
@@ -250,6 +286,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const [activePlanDetails, setActivePlanDetails] = useState<any | null>(null);
+
+  const refreshSubscription = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('fayda_jwt');
+      if (!token) return;
+      const resp = await fetch(`${getApiBase()}/api/subscriptions/my-subscription`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await resp.json();
+      if (data.success && data.subscriber) {
+        const sub = data.subscriber;
+        setActivePlanDetails(data.planDetails);
+        setUser(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            subscriberId: sub.subscriberId || prev.subscriberId,
+            plan: sub.plan || prev.plan,
+            billingCycle: sub.billingCycle || prev.billingCycle,
+            planExpiry: sub.planExpiry,
+            subscriptionStatus: sub.subscriptionStatus || prev.subscriptionStatus,
+            daysRemaining: data.daysRemaining,
+            profileCompletionPct: sub.profileCompletionPct || prev.profileCompletionPct,
+            extendedProfile: sub.extendedProfile || prev.extendedProfile
+          };
+        });
+      }
+    } catch {
+      // silently ignore background sync failure
+    }
+  }, []);
+
+  useEffect(() => {
+    if (jwtToken) {
+      refreshSubscription();
+    }
+  }, [jwtToken, refreshSubscription]);
+
+  const canAccessPlan = useCallback((requiredPlan: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND'): boolean => {
+    if (!user) return requiredPlan === 'FREE';
+    if (user.role === 'SUPERADMIN') return true;
+
+    const PLAN_RANK: Record<string, number> = {
+      FREE: 0,
+      BASIC: 1,
+      SILVER: 1,
+      PRO: 2,
+      GOLD: 2,
+      PREMIUM: 3,
+      DIAMOND: 3
+    };
+
+    const currentRank = PLAN_RANK[user.plan || 'FREE'] ?? 0;
+    const targetRank = PLAN_RANK[requiredPlan] ?? 0;
+    return currentRank >= targetRank;
+  }, [user]);
+
+  const canAccessFeature = useCallback((featureCode: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'SUPERADMIN') return true;
+    if (activePlanDetails?.entitlements?.includes(featureCode)) return true;
+
+    const plan = (user.plan || 'FREE').toUpperCase();
+    if (plan === 'DIAMOND' || plan === 'PREMIUM') return true;
+    if (plan === 'GOLD' || plan === 'PRO') {
+      return !['VIP_1ON1_DESK', 'ALGO_EXECUTION_HOOKS'].includes(featureCode);
+    }
+    if (plan === 'SILVER' || plan === 'BASIC') {
+      return ['BASIC_TRACKING', 'COMMUNITY_ACCESS', 'CPR_CHECKLIST', 'LIVE_FEEDS', 'CONFLUENCE_MATRIX', 'SURGE_ALERTS', 'TELEGRAM_ALERTS'].includes(featureCode);
+    }
+    return ['BASIC_TRACKING', 'COMMUNITY_ACCESS', 'CPR_CHECKLIST'].includes(featureCode);
+  }, [user, activePlanDetails]);
+
   const login = async (emailOrMobile: string, password: string, _forceRole?: UserRole) => {
     try {
       const resp = await fetch(`${getApiBase()}/api/auth/login`, {
@@ -262,14 +372,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sub = data.subscriber;
       const profile: UserProfile = {
         id: sub.id,
+        subscriberId: sub.subscriberId || `SUB${sub.id.replace(/\D/g, '').padStart(6, '0')}`,
         fullName: sub.fullName,
         email: sub.email,
         mobile: sub.mobile,
         role: sub.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'USER',
+        plan: sub.plan || 'FREE',
+        billingCycle: sub.billingCycle || 'MONTHLY',
+        planExpiry: sub.planExpiry,
+        subscriptionStatus: sub.subscriptionStatus || 'ACTIVE',
+        profileCompletionPct: sub.profileCompletionPct || 35,
+        extendedProfile: sub.extendedProfile,
         isVerified: sub.isVerified,
         createdAt: sub.createdAt,
-        traderExperience: 'INTERMEDIATE',
-        address: { city: '', state: '' }
+        traderExperience: sub.extendedProfile?.traderExperience || 'INTERMEDIATE',
+        address: { city: sub.extendedProfile?.city || '', state: sub.extendedProfile?.state || '' }
       };
       setUser(profile);
       setJwtToken(data.token);
@@ -292,10 +409,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sub = result.subscriber;
       const profile: UserProfile = {
         id: sub.id,
+        subscriberId: sub.subscriberId || `SUB${sub.id.replace(/\D/g, '').padStart(6, '0')}`,
         fullName: sub.fullName,
         email: sub.email,
         mobile: sub.mobile,
         role: 'USER',
+        plan: sub.plan || (data.plan as any) || 'FREE',
+        billingCycle: sub.billingCycle || 'MONTHLY',
+        planExpiry: sub.planExpiry,
+        subscriptionStatus: sub.subscriptionStatus || 'ACTIVE',
+        profileCompletionPct: sub.profileCompletionPct || 35,
+        extendedProfile: sub.extendedProfile,
         isVerified: sub.isVerified,
         createdAt: sub.createdAt,
         traderExperience: 'BEGINNER',
@@ -307,6 +431,122 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true };
     } catch {
       return { success: false, error: 'Connection error. Is the server running?' };
+    }
+  };
+
+  const subscribeFast = async (params: {
+    fullName?: string;
+    email?: string;
+    mobile?: string;
+    plan: string;
+    billingCycle?: string;
+    paymentMethod?: string;
+    autoLogin?: boolean;
+  }) => {
+    try {
+      const resp = await fetch(`${getApiBase()}/api/subscriptions/subscribe-fast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        return { success: false, error: data.error || 'Subscription failed.' };
+      }
+      if (data.token) {
+        setJwtToken(data.token);
+      }
+      if (data.subscriber) {
+        const sub = data.subscriber;
+        const profile: UserProfile = {
+          id: sub.id,
+          subscriberId: sub.subscriberId || `SUB${sub.id.replace(/\D/g, '').padStart(6, '0')}`,
+          fullName: sub.fullName,
+          email: sub.email,
+          mobile: sub.mobile,
+          role: sub.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'USER',
+          plan: sub.plan || (params.plan as any),
+          billingCycle: sub.billingCycle || (params.billingCycle as any) || 'MONTHLY',
+          planExpiry: sub.planExpiry,
+          subscriptionStatus: sub.subscriptionStatus || 'ACTIVE',
+          profileCompletionPct: sub.profileCompletionPct || 35,
+          extendedProfile: sub.extendedProfile,
+          isVerified: true,
+          createdAt: sub.createdAt || new Date().toISOString(),
+          traderExperience: sub.extendedProfile?.traderExperience || 'INTERMEDIATE',
+          address: { city: sub.extendedProfile?.city || '', state: sub.extendedProfile?.state || '' }
+        };
+        setUser(profile);
+      }
+      setHasCompletedFirstLoginConsent(true);
+      return {
+        success: true,
+        subscriber: data.subscriber,
+        token: data.token,
+        subscriberId: data.subscriber?.subscriberId
+      };
+    } catch {
+      return { success: false, error: 'Connection error during subscription.' };
+    }
+  };
+
+  const upgradeOrRenew = async (params: {
+    plan: string;
+    billingCycle?: string;
+    paymentMethod?: string;
+  }) => {
+    try {
+      const resp = await apiFetch('/api/subscriptions/upgrade-renew', {
+        method: 'POST',
+        body: JSON.stringify(params)
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        return { success: false, error: data.error || 'Upgrade failed.' };
+      }
+      if (data.subscriber && user) {
+        const sub = data.subscriber;
+        setUser({
+          ...user,
+          plan: sub.plan,
+          billingCycle: sub.billingCycle,
+          planExpiry: sub.planExpiry,
+          subscriptionStatus: sub.subscriptionStatus,
+          profileCompletionPct: sub.profileCompletionPct ?? user.profileCompletionPct
+        });
+      }
+      return { success: true, subscriber: data.subscriber };
+    } catch {
+      return { success: false, error: 'Connection error during plan update.' };
+    }
+  };
+
+  const updateExtendedProfile = async (data: any) => {
+    try {
+      const resp = await apiFetch('/api/auth/extended-profile', {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      });
+      const res = await resp.json();
+      if (!res.success) {
+        return { success: false, error: res.error || 'Failed to update profile.' };
+      }
+      if (user && res.subscriber) {
+        setUser({
+          ...user,
+          fullName: res.subscriber.fullName || user.fullName,
+          profileCompletionPct: res.profileCompletionPct,
+          extendedProfile: res.subscriber.extendedProfile,
+          traderExperience: res.subscriber.extendedProfile?.traderExperience || user.traderExperience,
+          address: {
+            city: res.subscriber.extendedProfile?.city || user.address?.city || '',
+            state: res.subscriber.extendedProfile?.state || user.address?.state || ''
+          }
+        });
+      }
+      return { success: true, profileCompletionPct: res.profileCompletionPct };
+    } catch {
+      return { success: false, error: 'Connection error updating extended profile.' };
     }
   };
 
@@ -385,6 +625,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPanelVisibility,
         login,
         register,
+        subscribeFast,
+        upgradeOrRenew,
+        updateExtendedProfile,
+        refreshSubscription,
+        canAccessPlan,
+        canAccessFeature,
+        activePlanDetails,
         updateProfile,
         verifyOtp,
         resendOtp,
@@ -419,6 +666,13 @@ const defaultAuthContext: AuthContextType = {
   currentLegalVersion: CURRENT_LEGAL_VERSION,
   login: async () => ({ success: true }),
   register: async () => ({ success: true }),
+  subscribeFast: async () => ({ success: true }),
+  upgradeOrRenew: async () => ({ success: true }),
+  updateExtendedProfile: async () => ({ success: true }),
+  refreshSubscription: async () => {},
+  canAccessPlan: () => true,
+  canAccessFeature: () => true,
+  activePlanDetails: null,
   updateProfile: async () => ({ success: true }),
   verifyOtp: async () => ({ success: true }),
   resendOtp: async () => ({ success: true }),

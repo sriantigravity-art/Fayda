@@ -22,7 +22,7 @@ type TradeCallStatus = 'ACTIVE' | 'NEAR_TARGET' | 'TARGET_HIT' | 'STOPLOSS_HIT' 
   | 'PROFIT_BOOKED' | 'PARTIAL_PROFIT' | 'LOSS_BOOKED' | 'BTST' | 'CARRY_FORWARD';
 type AdminTradeAction = 'BOOK_PROFIT' | 'BOOK_PARTIAL_PROFIT' | 'BOOK_LOSS' | 'BTST' | 'CARRY_FORWARD';
 type Channel = 'EMAIL' | 'WHATSAPP' | 'SMS' | 'INSTAGRAM';
-type SubscriptionPlan = 'FREE' | 'BASIC' | 'PRO' | 'PREMIUM';
+type SubscriptionPlan = 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND' | 'BASIC' | 'PRO' | 'PREMIUM';
 
 interface Signal {
   id: string;
@@ -297,9 +297,9 @@ const ActionFormModal: React.FC<ActionFormProps> = ({ signal, onClose, onSuccess
               <div>
                 <label className="block text-xs text-terminal-muted mb-2 font-mono font-bold">Target Subscribers (blank = all opted-in)</label>
                 <div className="flex gap-2 flex-wrap">
-                  {(['FREE', 'BASIC', 'PRO', 'PREMIUM'] as SubscriptionPlan[]).map(p => {
-                    const planIcons = { FREE: Star, BASIC: Shield, PRO: Zap, PREMIUM: Crown };
-                    const PIcon = planIcons[p];
+                  {(['FREE', 'SILVER', 'GOLD', 'DIAMOND'] as SubscriptionPlan[]).map(p => {
+                    const planIcons: Record<string, any> = { FREE: Star, SILVER: Shield, GOLD: Zap, DIAMOND: Crown };
+                    const PIcon = planIcons[p] || Star;
                     const active = planFilter.includes(p);
                     return (
                       <button key={p} onClick={() => togglePlan(p)}

@@ -51,6 +51,7 @@ import { CommandPaletteModal } from './CommandPaletteModal';
 import { isBrowserFullscreen, toggleBrowserFullscreen, subscribeToFullscreen } from '../utils/fullscreenManager';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { UserProfileEditModal } from './profile/UserProfileEditModal';
+import { TopSubscribeDropdown } from './subscription/TopSubscribeDropdown';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -276,6 +277,11 @@ export const HeaderBar: React.FC = () => {
               </div>
             );
           })()}
+        </div>
+
+        {/* CENTER SECTION: PROMINENT TOP-MIDDLE SUBSCRIBER MANAGEMENT & DROPDOWN */}
+        <div className="flex items-center justify-center shrink-0 z-30">
+          <TopSubscribeDropdown />
         </div>
 
         {/* RIGHT SECTION: RESPONSIVE ACTIONS & TOOLS */}

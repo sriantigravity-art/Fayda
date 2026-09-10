@@ -1,0 +1,188 @@
+[
+  {
+    "id": "FREE",
+    "name": "Free Starter",
+    "tagline": "Essential market tracking & educational tools",
+    "badge": "STARTER",
+    "isActive": true,
+    "features": [
+      "Live NSE / BSE Index Spot Tracking",
+      "Delayed Options Open Interest Matrix",
+      "Daily Pre-Market CPR Checklist",
+      "Public Trading Journal & Prediction Audit",
+      "Community Terminal Access"
+    ],
+    "entitlements": [
+      "BASIC_TRACKING",
+      "COMMUNITY_ACCESS",
+      "CPR_CHECKLIST"
+    ],
+    "pricing": {
+      "MONTHLY": {
+        "price": 0,
+        "discountPct": 0,
+        "taxPct": 0,
+        "effectiveTotal": 0
+      },
+      "QUARTERLY": {
+        "price": 0,
+        "discountPct": 0,
+        "taxPct": 0,
+        "effectiveTotal": 0
+      },
+      "ANNUAL": {
+        "price": 0,
+        "discountPct": 0,
+        "taxPct": 0,
+        "effectiveTotal": 0
+      }
+    }
+  },
+  {
+    "id": "SILVER",
+    "name": "Silver Active",
+    "tagline": "High-frequency OI analytics & live momentum indicators",
+    "badge": "POPULAR",
+    "isPopular": false,
+    "isActive": true,
+    "features": [
+      "Ultra-Low Latency Live Fyers & Dhan Feed",
+      "10 Technical Indicator Confluence Matrix",
+      "Real-Time 1-Minute OI Surge Alerts",
+      "Tactical Strike Slider Radar (ATM ±3 Steps)",
+      "Telegram Priority Signal Notifications",
+      "Interactive Risk-Reward & Payoff Simulator"
+    ],
+    "entitlements": [
+      "BASIC_TRACKING",
+      "COMMUNITY_ACCESS",
+      "CPR_CHECKLIST",
+      "LIVE_FEEDS",
+      "CONFLUENCE_MATRIX",
+      "SURGE_ALERTS",
+      "TELEGRAM_ALERTS"
+    ],
+    "pricing": {
+      "MONTHLY": {
+        "price": 999,
+        "discountPct": 0,
+        "taxPct": 18,
+        "effectiveTotal": 1179
+      },
+      "QUARTERLY": {
+        "price": 2499,
+        "discountPct": 15,
+        "taxPct": 18,
+        "effectiveTotal": 2949
+      },
+      "ANNUAL": {
+        "price": 7999,
+        "discountPct": 33,
+        "taxPct": 18,
+        "effectiveTotal": 9439
+      }
+    }
+  },
+  {
+    "id": "GOLD",
+    "name": "Gold Pro Trader",
+    "tagline": "Institutional confluence signals with SMS & WhatsApp execution",
+    "badge": "BEST VALUE",
+    "isPopular": true,
+    "isActive": true,
+    "features": [
+      "All Silver Features Included",
+      "High Alpha CE / PE Trade Recommendations",
+      "Instant SMS & WhatsApp Trade Directives",
+      "ATM ±3 Strike Cluster Radar & 09:15 Baseline Engine",
+      "Greeks Heatmap & Options Matrix Drill-Down",
+      "Dynamic Profit Target & Trailing SL Engine",
+      "Direct Fyers / Dhan 1-Click Basket Execution"
+    ],
+    "entitlements": [
+      "BASIC_TRACKING",
+      "COMMUNITY_ACCESS",
+      "CPR_CHECKLIST",
+      "LIVE_FEEDS",
+      "CONFLUENCE_MATRIX",
+      "SURGE_ALERTS",
+      "TELEGRAM_ALERTS",
+      "ALPHA_SIGNALS",
+      "WHATSAPP_SMS_ALERTS",
+      "BASKET_ORDERING",
+      "GREEKS_HEATMAP"
+    ],
+    "pricing": {
+      "MONTHLY": {
+        "price": 1999,
+        "discountPct": 0,
+        "taxPct": 18,
+        "effectiveTotal": 2359
+      },
+      "QUARTERLY": {
+        "price": 4999,
+        "discountPct": 17,
+        "taxPct": 18,
+        "effectiveTotal": 5899
+      },
+      "ANNUAL": {
+        "price": 14999,
+        "discountPct": 37,
+        "taxPct": 18,
+        "effectiveTotal": 17699
+      }
+    }
+  },
+  {
+    "id": "DIAMOND",
+    "name": "Diamond Elite / VIP",
+    "tagline": "VIP 0DTE Gamma Sniper, multi-leg spreads & direct desk access",
+    "badge": "MAX ALPHA",
+    "isPopular": false,
+    "isActive": true,
+    "features": [
+      "All Gold Pro Features Included",
+      "0DTE Expiry Gamma Sniper & Hero-or-Zero Radar",
+      "Multi-Leg Spread Builder (Bull Put, Bear Call, Condors)",
+      "VIP Priority WebSocket Streaming Pipeline",
+      "Dedicated Trading Desk Concierge & Support",
+      "Early Beta Access to AI Macro Forecasting Models"
+    ],
+    "entitlements": [
+      "BASIC_TRACKING",
+      "COMMUNITY_ACCESS",
+      "CPR_CHECKLIST",
+      "LIVE_FEEDS",
+      "CONFLUENCE_MATRIX",
+      "SURGE_ALERTS",
+      "TELEGRAM_ALERTS",
+      "ALPHA_SIGNALS",
+      "WHATSAPP_SMS_ALERTS",
+      "BASKET_ORDERING",
+      "GREEKS_HEATMAP",
+      "GAMMA_SNIPER",
+      "MULTI_LEG_SPREADS",
+      "VIP_CONCIERGE"
+    ],
+    "pricing": {
+      "MONTHLY": {
+        "price": 3999,
+        "discountPct": 0,
+        "taxPct": 18,
+        "effectiveTotal": 4719
+      },
+      "QUARTERLY": {
+        "price": 9999,
+        "discountPct": 16,
+        "taxPct": 18,
+        "effectiveTotal": 11799
+      },
+      "ANNUAL": {
+        "price": 29999,
+        "discountPct": 38,
+        "taxPct": 18,
+        "effectiveTotal": 35399
+      }
+    }
+  }
+]
