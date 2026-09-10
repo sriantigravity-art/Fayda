@@ -152,23 +152,7 @@ export const HeaderBar: React.FC = () => {
     toggleBrowserFullscreen();
   };
 
-  // Close more menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setIsMoreMenuOpen(false);
-      }
-      if (mobileModeRef.current && !mobileModeRef.current.contains(e.target as Node)) {
-        setIsMobileModeDropdownOpen(false);
-      }
-    };
-    if (isMoreMenuOpen || isMobileModeDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMoreMenuOpen, isMobileModeDropdownOpen]);
+
 
   // Live real-time clock with seconds strictly formatted in IST
   const [currentTime, setCurrentTime] = useState<string>(() => {
