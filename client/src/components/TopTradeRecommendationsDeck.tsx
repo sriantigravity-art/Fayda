@@ -1390,19 +1390,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
   };
 
-  // Click handler for buttons: select to reveal details (smooth scroll), or toggle if already selected
+  // Click handler for Fayda signals & details: open full interactive trade blueprint modal popup
   const handleButtonClick = (item: RecommendationTableItem) => {
-    if (selectedItemId === item.id) {
-      setSelectedItemId(null);
-    } else {
-      setSelectedItemId(item.id);
-      setTimeout(() => {
-        const el = document.getElementById('emergent-details-panel');
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }, 50);
-    }
+    handleOpenTipModal(item);
   };
 
   // Helper for seller summary in clipboard
@@ -1452,7 +1442,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     setExpandedConfluenceId(prev => prev === id ? null : id);
   };
 
-  // Reusable Emergent Details Panel for both LIST and BUTTONS views
+  // Reusable Emergent Details Modal Box Popup (Fixed Overlay Backdrop, Never Inline)
   const renderEmergentDetailsPanel = () => {
     if (!selectedItem) return null;
 
@@ -1462,7 +1452,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     const isGamma = selectedItem.category === 'GAMMA';
 
     return (
-      <div id="emergent-details-panel" className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-xl shadow-amber-500/10 transition-all duration-300 my-3">
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200 select-text"
+        onClick={() => setSelectedItemId(null)}
+      >
+        <div 
+          id="emergent-details-panel" 
+          className="w-full max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-[#0d1527] dark:via-[#0a1120] dark:to-[#070c17] border-2 border-amber-400/90 dark:border-accent-gold/70 shadow-2xl shadow-amber-500/15 transition-all duration-300 my-auto animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Emergent Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -1804,6 +1802,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             </div>
           </div>
         )}
+        </div>
       </div>
     );
   };
@@ -2619,7 +2618,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => handleButtonClick(item)}
+                    onClick={() => handleOpenTipModal(item)}
                     className={`group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden p-3.5 sm:p-4 pl-4 sm:pl-5 bg-white dark:bg-slate-900/85 select-none shadow-xs hover:shadow-md ${
                       isSelected
                         ? isSeller
@@ -2825,31 +2824,18 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           <Calculator className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Details Toggle */}
-                        <button
-                          type="button"
-                          onClick={() => handleButtonClick(item)}
-                          className={`px-2.5 py-1.5 rounded-lg font-mono text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                            isSelected
-                              ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          <span>{isSelected ? 'Details ▲' : 'Details ▾'}</span>
-                        </button>
-
-                        {/* Full Blueprint Modal */}
+                        {/* Details Modal Popup Button */}
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenTipModal(item);
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black transition flex items-center gap-1 shadow-xs cursor-pointer"
-                          title="Open full strategy blueprint modal"
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                          title="Click to open full trade setup details modal popup"
                         >
-                          <span>Blueprint</span>
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Details ↗</span>
                         </button>
                       </div>
                     </div>
@@ -2858,9 +2844,6 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               })}
             </div>
           )}
-
-          {/* Emergent Details Panel inside LIST view */}
-          {renderEmergentDetailsPanel()}
 
           {/* Quick toggle hint */}
           <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-1">
@@ -2911,7 +2894,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => handleButtonClick(item)}
+                    onClick={() => handleOpenTipModal(item)}
                     className={`group relative text-left p-3.5 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between select-none ${
                       isSelected
                         ? isSeller
@@ -3091,13 +3074,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className={`flex items-center gap-0.5 font-bold ${
-                          isSelected 
-                            ? 'text-amber-600 dark:text-accent-gold' 
-                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
-                        }`}>
-                          <span>{isSelected ? 'Details Active ▲' : 'Click Details ▾'}</span>
-                          <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
+                        <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-accent-gold group-hover:text-amber-500">
+                          <span>Details ↗</span>
+                          <ExternalLink className="w-3 h-3" />
                         </span>
 
                         <span
@@ -3126,9 +3105,6 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               })}
             </div>
           )}
-
-          {/* Emergent Details Panel (Emerges When User Clicks Any Button) */}
-          {renderEmergentDetailsPanel()}
 
           {/* Quick toggle to table */}
           <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-1">
@@ -3626,6 +3602,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           basketItem={activeBasketItem}
         />
       )}
+
+      {/* Emergent Details Modal Box Popup (renders as modal dialog with backdrop overlay, never inline) */}
+      {renderEmergentDetailsPanel()}
     </section>
   );
 });
