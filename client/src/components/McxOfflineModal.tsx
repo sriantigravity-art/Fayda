@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Clock, TrendingUp, TrendingDown, Minus, ExternalLink, RefreshCw, Coins, Droplets, Flame, Zap } from 'lucide-react';
 import { formatISTTime } from '../utils/formatTime';
 
@@ -219,9 +220,11 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
   const clickedCommodity = data?.commodities.find(c => c.symbol === symbol);
   const otherCommodities = data?.commodities.filter(c => c.symbol !== symbol) || [];
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] overflow-y-auto p-3 sm:p-4 flex items-center justify-center"
+      className="fixed inset-0 z-[120000] overflow-y-auto p-3 sm:p-4 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
@@ -422,6 +425,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
