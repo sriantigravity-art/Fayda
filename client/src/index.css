@@ -216,6 +216,19 @@ body {
   background: #94a3b8;
 }
 
+/* Universal Modal & Container Horizontal Scrollbar Prevention */
+.overflow-y-auto:not(.overflow-x-auto):not(.overflow-x-scroll) {
+  overflow-x: hidden;
+}
+
+/* Responsive Modal Dialog containment */
+[role="dialog"] *,
+.modal-box,
+.modal-container {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* Seamless infinite marquee animation for regulatory disclaimer */
 @keyframes marqueeSeamless {
   0% {

@@ -340,8 +340,8 @@ Generated via Fayda Trading Terminal`;
         {/* ========================================================================= */}
         {/* 1. TOP HEADER STRIP: SYMBOL + ASSET BADGE + MODE SELECTOR TABS + CLOSE    */}
         {/* ========================================================================= */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-terminal-panel/90 border-b border-terminal-border gap-2">
-          <div className="flex items-center space-x-2.5 min-w-0">
+        <div className="flex items-center justify-between px-3.5 sm:px-6 py-2.5 sm:py-3 bg-terminal-panel/90 border-b border-terminal-border gap-2 min-w-0">
+          <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
             <div className={`p-2 rounded-xl border shrink-0 ${
               isSl 
                 ? (isMarketOpen ? 'bg-bear/20 border-bear text-bear animate-pulse' : 'bg-bear/20 border-bear text-bear') 
@@ -427,20 +427,21 @@ Generated via Fayda Trading Terminal`;
         </div>
 
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
         {/* 2. MODAL BODY (FIRST GLANCE SIMPLICITY: 4 ESSENTIALS ONLY)                */}
         {/* ========================================================================= */}
-        <div className="p-4 sm:p-5 space-y-3.5 max-h-[calc(85vh-115px)] overflow-y-auto">
+        <div className="p-3.5 sm:p-5 space-y-3.5 max-h-[calc(85vh-115px)] overflow-y-auto overflow-x-hidden min-w-0">
           {/* Main Contract Banner */}
-          <div className="bg-terminal-bg/90 p-3.5 sm:p-4 rounded-xl border border-terminal-border shadow-sm flex flex-col gap-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div>
+          <div className="bg-terminal-bg/90 p-3.5 sm:p-4 rounded-xl border border-terminal-border shadow-sm flex flex-col gap-2.5 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 min-w-0">
+              <div className="min-w-0">
                 <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider block">
                   RECOMMENDED CONTRACT
                 </span>
-                <h3 className="text-base sm:text-lg font-black text-terminal-text font-mono flex items-center gap-2 flex-wrap">
-                  <span>{tip.contractSymbol || tip.title}</span>
+                <h3 className="text-base sm:text-lg font-black text-terminal-text font-mono flex items-center gap-2 flex-wrap min-w-0 break-words">
+                  <span className="break-all sm:break-normal">{tip.contractSymbol || tip.title}</span>
                   {tip.expiryDate && !isCommodity && (
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider ${
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider shrink-0 ${
                       tip.isExpiryDay
                         ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
                         : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
@@ -451,8 +452,8 @@ Generated via Fayda Trading Terminal`;
                 </h3>
               </div>
 
-              <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-1.5">
-                <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider font-mono border shadow-sm ${
+              <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider font-mono border shadow-sm shrink-0 ${
                   isSl
                     ? (isMarketOpen ? 'bg-bear/30 text-bear border-bear animate-pulse' : 'bg-bear/20 text-bear border-bear/50')
                     : isCarriedForward
@@ -467,48 +468,48 @@ Generated via Fayda Trading Terminal`;
                 </span>
 
                 {tip.confluenceScore && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shrink-0">
                     Score {tip.confluenceScore}%
                   </span>
                 )}
 
                 {(tip.callGivenTimeFormatted || tip.givenTimeFormatted) && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-sky-500" />
-                    <span>Given: {tip.callGivenTimeFormatted || tip.givenTimeFormatted}</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
+                    <Clock className="w-3 h-3 text-sky-500 shrink-0" />
+                    <span className="truncate">Given: {tip.callGivenTimeFormatted || tip.givenTimeFormatted}</span>
                   </span>
                 )}
 
                 {tip.isEntryTriggered ? (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                    <span>🟢 Entered: {tip.entryPriceTimeFormatted || tip.givenTimeFormatted} @ ₹{(tip.actualEntryPrice || tip.entryPrice || 0).toFixed(1)}</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                    <span className="truncate">🟢 Entered: {tip.entryPriceTimeFormatted || tip.givenTimeFormatted} @ ₹{(tip.actualEntryPrice || tip.entryPrice || 0).toFixed(1)}</span>
                   </span>
                 ) : (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                    <Timer className="w-3 h-3 text-sky-500" />
-                    <span>⏳ Waiting for Entry Zone</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
+                    <Timer className="w-3 h-3 text-sky-500 shrink-0" />
+                    <span>⏳ Waiting Entry</span>
                   </span>
                 )}
 
                 {tip.target1HitTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                    <Award className="w-3 h-3 text-emerald-500" />
-                    <span>🏆 T1 Hit: {tip.target1HitTimeFormatted}</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                    <Award className="w-3 h-3 text-emerald-500 shrink-0" />
+                    <span className="truncate">🏆 T1 Hit: {tip.target1HitTimeFormatted}</span>
                   </span>
                 )}
 
                 {tip.target2HitTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-cyan-500" />
-                    <span>🚀 T2 Hit: {tip.target2HitTimeFormatted}</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1 shrink-0">
+                    <Sparkles className="w-3 h-3 text-cyan-500 shrink-0" />
+                    <span className="truncate">🚀 T2 Hit: {tip.target2HitTimeFormatted}</span>
                   </span>
                 )}
 
                 {tip.stoplossTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-rose-500" />
-                    <span>🛑 SL Hit: {tip.stoplossTimeFormatted}</span>
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1 shrink-0">
+                    <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                    <span className="truncate">🛑 SL Hit: {tip.stoplossTimeFormatted}</span>
                   </span>
                 )}
               </div>
@@ -516,9 +517,9 @@ Generated via Fayda Trading Terminal`;
 
             {/* 0DTE Expiry Warning Strip & Next Expiry Alternative */}
             {tip.isExpiryDay && !isCommodity && (
-              <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-400 font-bold">
+              <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-red-400 font-bold break-words">
                     ⚠️ 0DTE EXPIRY WARNING: Must exit by 03:25 PM IST.
                   </span>
                   <span className="text-slate-400 text-[11px] hidden md:inline">
@@ -526,7 +527,7 @@ Generated via Fayda Trading Terminal`;
                   </span>
                 </div>
                 {tip.nextExpiryDate && (
-                  <div className="text-[11px] text-indigo-300 bg-indigo-950/60 px-2 py-1 rounded border border-indigo-500/40 font-bold">
+                  <div className="text-[11px] text-indigo-300 bg-indigo-950/60 px-2 py-1 rounded border border-indigo-500/40 font-bold shrink-0">
                     🌙 For BTST / Overnight: Trade Next Expiry ({tip.nextExpiryDate})
                   </div>
                 )}
@@ -537,19 +538,19 @@ Generated via Fayda Trading Terminal`;
           {/* ========================================================================= */}
           {/* ESSENTIAL 1: ONGOING LIVE PROFIT BOX & DECISION COCKPIT                   */}
           {/* ========================================================================= */}
-          <div className={`p-4 rounded-2xl border-2 shadow-md transition-all ${
+          <div className={`p-3.5 sm:p-4 rounded-2xl border-2 shadow-md transition-all min-w-0 ${
             profitBoxData.isProfit
               ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950 border-emerald-500/60 dark:border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
               : 'bg-gradient-to-br from-rose-50 via-white to-rose-50/30 dark:from-rose-950/60 dark:via-slate-900 dark:to-slate-950 border-rose-500/60 dark:border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
           }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-slate-700/60">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-slate-700/60 min-w-0">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     ⚡ {modeLabels.ongoingLabel}
                   </span>
                   {tip.marketRegime && (
-                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase border ${
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase border shrink-0 ${
                       tip.isExpiryDay
                         ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40'
                         : tip.marketRegime === 'SIDEWAYS_CHOP'
@@ -561,14 +562,14 @@ Generated via Fayda Trading Terminal`;
                   )}
                 </div>
 
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 flex-wrap min-w-0">
                   <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
                     profitBoxData.isProfit ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                   }`}>
                     {profitBoxData.isProfit ? '+' : ''}₹{Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')}
                   </span>
                   <span className="text-xs font-mono text-slate-500 dark:text-slate-400">/ lot ({lotSize} units)</span>
-                  <span className={`px-2 py-0.5 rounded-lg text-xs font-mono font-black border ${
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-mono font-black border shrink-0 ${
                     profitBoxData.isProfit 
                       ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40' 
                       : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border-rose-500/40'
@@ -579,7 +580,7 @@ Generated via Fayda Trading Terminal`;
               </div>
 
               {/* Action Decision Pill */}
-              <div className="flex flex-col sm:items-end gap-1 shrink-0">
+              <div className="flex flex-col sm:items-end gap-1 min-w-0 shrink">
                 <span className={`px-3 py-1.5 rounded-xl font-mono font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md border ${
                   profitBoxData.decisionTag === 'BOOK_HALF'
                     ? 'bg-emerald-500/30 text-emerald-900 dark:text-emerald-200 border-emerald-500 dark:border-emerald-400 animate-pulse'
@@ -591,8 +592,8 @@ Generated via Fayda Trading Terminal`;
                     ? 'bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-500/40'
                     : 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/40'
                 }`}>
-                  <span className="w-2 h-2 rounded-full bg-current animate-ping" />
-                  <span>
+                  <span className="w-2 h-2 rounded-full bg-current animate-ping shrink-0" />
+                  <span className="truncate">
                     {modeLabels.decisionTagLabels[profitBoxData.decisionTag] || 
                       (profitBoxData.decisionTag === 'BOOK_HALF' 
                         ? '🎯 BOOK 50% PROFIT' 
@@ -609,9 +610,9 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* Mode-Tailored Decision Instruction Banner */}
-            <div className="pt-2 flex items-start gap-1.5">
+            <div className="pt-2 flex items-start gap-1.5 min-w-0">
               <span className="text-sm shrink-0">💡</span>
-              <p className="text-xs font-mono text-slate-800 dark:text-slate-200 leading-relaxed font-semibold">
+              <p className="text-xs font-mono text-slate-800 dark:text-slate-200 leading-relaxed font-semibold break-words">
                 {modeLabels.decisionAdvice || profitBoxData.decisionText}
               </p>
             </div>
@@ -620,20 +621,20 @@ Generated via Fayda Trading Terminal`;
           {/* ========================================================================= */}
           {/* ESSENTIAL 2: THE 4 CORE EXECUTION BOXES WITH MILESTONE TIMESTAMPS        */}
           {/* ========================================================================= */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 font-mono text-center min-w-0">
             {/* 1. ENTRY ZONE (with Entry Price Time) */}
-            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+            <div className={`p-2.5 sm:p-3 rounded-xl border text-left space-y-1 min-w-0 overflow-hidden ${
               tip.isEntryTriggered
                 ? 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/30'
                 : 'bg-accent-cyan/10 dark:bg-accent-cyan/15 border-accent-cyan/30'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className={`block text-[9.5px] font-black uppercase tracking-wider ${
+              <div className="flex items-center justify-between gap-1">
+                <span className={`block text-[9.5px] font-black uppercase tracking-wider truncate ${
                   tip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-accent-cyan'
                 }`}>
                   {modeLabels.entryLabel}
                 </span>
-                <span className={`text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase ${
+                <span className={`text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase shrink-0 ${
                   tip.isEntryTriggered 
                     ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' 
                     : 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
@@ -641,7 +642,7 @@ Generated via Fayda Trading Terminal`;
                   {tip.isEntryTriggered ? 'TRIGGERED' : 'WAITING'}
                 </span>
               </div>
-              <span className="font-black text-slate-900 dark:text-terminal-text text-sm sm:text-base block">
+              <span className="font-black text-slate-900 dark:text-terminal-text text-sm sm:text-base block truncate">
                 {tip.isEntryTriggered && tip.actualEntryPrice 
                   ? `₹${tip.actualEntryPrice.toFixed(2)}` 
                   : (typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(2)}` : (tip.entryRange || tip.entryPrice || '—'))}
@@ -656,22 +657,22 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* 2. TARGET 1 (with Target 1 Hit Time) */}
-            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+            <div className={`p-2.5 sm:p-3 rounded-xl border text-left space-y-1 min-w-0 overflow-hidden ${
               isTarget1Reached
                 ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
                 : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider truncate">
                   {modeLabels.t1Label}
                 </span>
                 {isTarget1Reached && (
-                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0">
                     HIT
                   </span>
                 )}
               </div>
-              <span className="font-black text-bull text-sm sm:text-base block">
+              <span className="font-black text-bull text-sm sm:text-base block truncate">
                 {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(2)}` : (tip.target1Price || '—')}
               </span>
               <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
@@ -680,22 +681,22 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* 3. TARGET 2 (with Target 2 Hit Time) */}
-            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+            <div className={`p-2.5 sm:p-3 rounded-xl border text-left space-y-1 min-w-0 overflow-hidden ${
               isTarget2Reached
                 ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
                 : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider truncate">
                   {modeLabels.t2Label}
                 </span>
                 {isTarget2Reached && (
-                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0">
                     HIT
                   </span>
                 )}
               </div>
-              <span className="font-black text-bull text-sm sm:text-base block">
+              <span className="font-black text-bull text-sm sm:text-base block truncate">
                 {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
               </span>
               <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
@@ -704,22 +705,22 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* 4. STOP LOSS (with Stoploss Time) */}
-            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+            <div className={`p-2.5 sm:p-3 rounded-xl border text-left space-y-1 min-w-0 overflow-hidden ${
               isStoplossReached
                 ? 'bg-rose-500/15 dark:bg-rose-500/20 border-rose-500/50 shadow-xs'
                 : 'bg-bear/10 dark:bg-bear/15 border-bear/30'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider truncate">
                   {modeLabels.slLabel}
                 </span>
                 {isStoplossReached && (
-                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-rose-500/20 text-rose-700 dark:text-rose-300">
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-rose-500/20 text-rose-700 dark:text-rose-300 shrink-0">
                     HIT
                   </span>
                 )}
               </div>
-              <span className="font-black text-bear text-sm sm:text-base block">
+              <span className="font-black text-bear text-sm sm:text-base block truncate">
                 {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
               </span>
               <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold block truncate">
@@ -729,35 +730,35 @@ Generated via Fayda Trading Terminal`;
           </div>
 
           {/* Compact Reference Metrics: Spot Price, Current LTP, Risk:Reward */}
-          <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs">
-            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border">
-              <span className="text-terminal-muted block text-[9px] font-bold uppercase">ASSET SPOT</span>
-              <span className="font-bold text-terminal-text text-sm">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 font-mono text-center text-xs min-w-0">
+            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border min-w-0 overflow-hidden">
+              <span className="text-terminal-muted block text-[9px] font-bold uppercase truncate">ASSET SPOT</span>
+              <span className="font-bold text-terminal-text text-xs sm:text-sm block truncate">
                 ₹{liveSpot > 0 ? liveSpot.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}
               </span>
             </div>
 
-            <div className="bg-amber-500/15 p-2 rounded-xl border border-amber-500/30">
-              <span className="text-amber-800 dark:text-amber-300 block text-[9px] font-bold uppercase">CURRENT LTP</span>
-              <span className="font-black text-amber-800 dark:text-amber-300 text-sm">
+            <div className="bg-amber-500/15 p-2 rounded-xl border border-amber-500/30 min-w-0 overflow-hidden">
+              <span className="text-amber-800 dark:text-amber-300 block text-[9px] font-bold uppercase truncate">CURRENT LTP</span>
+              <span className="font-black text-amber-800 dark:text-amber-300 text-xs sm:text-sm block truncate">
                 ₹{Number(ltpNum).toFixed(2)}
               </span>
             </div>
 
-            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border">
-              <span className="text-terminal-muted block text-[9px] font-bold uppercase">{modeLabels.riskRewardLabel}</span>
-              <span className="font-black text-slate-800 dark:text-slate-200 text-sm">
+            <div className="bg-terminal-bg p-2 rounded-xl border border-terminal-border min-w-0 overflow-hidden">
+              <span className="text-terminal-muted block text-[9px] font-bold uppercase truncate">{modeLabels.riskRewardLabel}</span>
+              <span className="font-black text-slate-800 dark:text-slate-200 text-xs sm:text-sm block truncate">
                 {tip.riskReward || '1:2.2'}
               </span>
             </div>
           </div>
 
           {/* Mode-Adaptive Strategy Explanation Banner */}
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans min-w-0">
             <div className="flex items-center gap-1.5 font-bold text-accent-cyan font-mono text-[11px] mb-1">
               <span>{modeLabels.tag}</span>
             </div>
-            <p className="text-[11.5px] leading-relaxed">
+            <p className="text-[11.5px] leading-relaxed break-words">
               {modeLabels.desc}
             </p>
           </div>
@@ -765,69 +766,69 @@ Generated via Fayda Trading Terminal`;
           {/* ========================================================================= */}
           {/* ESSENTIAL 3: DEEP DIVE ANALYSIS BUTTONS (OPENS CLEAN DEDICATED MODALS)    */}
           {/* ========================================================================= */}
-          <div className="bg-slate-100 dark:bg-slate-900/80 p-3.5 rounded-xl border border-slate-300 dark:border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono">
+          <div className="bg-slate-100 dark:bg-slate-900/80 p-3 sm:p-3.5 rounded-xl border border-slate-300 dark:border-slate-800 space-y-2 min-w-0">
+            <div className="flex items-center justify-between text-xs font-mono flex-wrap gap-1">
               <span className="font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-[11px]">
                 <span>🔍</span>
-                <span>DEEP DIVE ANALYSIS (Click to open specialized modal):</span>
+                <span>DEEP DIVE ANALYSIS (Click to open):</span>
               </span>
               <span className="text-[9.5px] text-slate-500 dark:text-slate-400 font-bold">On-Demand Quant Data</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 font-mono text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 sm:gap-2 font-mono text-xs min-w-0">
               {/* Button 1: Milestones */}
               <button
                 type="button"
                 onClick={() => setActiveDepthModal('MILESTONES')}
-                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-sky-700 dark:text-sky-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+                className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-sky-700 dark:text-sky-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02] min-w-0 w-full overflow-hidden"
               >
                 <span className="text-base">⏱️</span>
-                <span className="text-[11px] font-black">Milestones</span>
-                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">6-Stage Audit</span>
+                <span className="text-[11px] font-black truncate w-full">Milestones</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal truncate w-full">6-Stage Audit</span>
               </button>
 
               {/* Button 2: Confluence */}
               <button
                 type="button"
                 onClick={() => setActiveDepthModal('CONFLUENCE')}
-                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-amber-700 dark:text-amber-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+                className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-amber-700 dark:text-amber-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02] min-w-0 w-full overflow-hidden"
               >
                 <span className="text-base">📊</span>
-                <span className="text-[11px] font-black">Confluence</span>
-                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">10 Factors ({tip.confluenceScore}%)</span>
+                <span className="text-[11px] font-black truncate w-full">Confluence</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal truncate w-full">10 Factors ({tip.confluenceScore}%)</span>
               </button>
 
               {/* Button 3: Greeks & Payoff */}
               <button
                 type="button"
                 onClick={() => setActiveDepthModal('GREEKS')}
-                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+                className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02] min-w-0 w-full overflow-hidden"
               >
                 <span className="text-base">🔬</span>
-                <span className="text-[11px] font-black">Greeks & Payoff</span>
-                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">Delta, Theta, POP</span>
+                <span className="text-[11px] font-black truncate w-full">Greeks</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal truncate w-full">Delta, θ, POP</span>
               </button>
 
               {/* Button 4: 3-Tier Entry */}
               <button
                 type="button"
                 onClick={() => setActiveDepthModal('ENTRY_TACTICS')}
-                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-emerald-700 dark:text-emerald-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+                className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-emerald-700 dark:text-emerald-400 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02] min-w-0 w-full overflow-hidden"
               >
                 <span className="text-base">🎯</span>
-                <span className="text-[11px] font-black">3-Tier Entry</span>
-                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">Dip, Trigger, Breakout</span>
+                <span className="text-[11px] font-black truncate w-full">3-Tier Entry</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal truncate w-full">Dip, Trg, B/O</span>
               </button>
 
               {/* Button 5: Carry Forward */}
               <button
                 type="button"
                 onClick={() => setActiveDepthModal('CARRY_FORWARD')}
-                className="p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02]"
+                className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-950/80 hover:bg-purple-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700/80 text-purple-700 dark:text-purple-300 font-bold transition flex flex-col items-center justify-center text-center gap-1 cursor-pointer shadow-xs hover:scale-[1.02] min-w-0 w-full overflow-hidden col-span-2 sm:col-span-1"
               >
                 <span className="text-base">🌙</span>
-                <span className="text-[11px] font-black">Carry Forward</span>
-                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal">0DTE vs BTST vs MCX</span>
+                <span className="text-[11px] font-black truncate w-full">Carry Forward</span>
+                <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-normal truncate w-full">0DTE vs BTST</span>
               </button>
             </div>
           </div>
@@ -836,31 +837,31 @@ Generated via Fayda Trading Terminal`;
         {/* ========================================================================= */}
         {/* 3. MODAL FOOTER ACTIONS                                                   */}
         {/* ========================================================================= */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-terminal-panel/90 border-t border-terminal-border gap-2">
+        <div className="flex items-center justify-between px-3.5 sm:px-6 py-2.5 sm:py-3 bg-terminal-panel/90 border-t border-terminal-border gap-2 flex-wrap sm:flex-nowrap min-w-0 shrink-0">
           <button
             type="button"
             onClick={handleCopy}
-            className="px-3 py-1.5 rounded-xl bg-terminal-bg hover:bg-terminal-border border border-terminal-border text-terminal-text font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-terminal-bg hover:bg-terminal-border border border-terminal-border text-terminal-text font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
           >
             {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-bull" /> : <Copy className="w-3.5 h-3.5 text-terminal-muted" />}
             <span>{copied ? 'Copied! ✓' : 'Copy Setup'}</span>
           </button>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap sm:flex-nowrap gap-y-1.5 min-w-0">
             <button
               type="button"
               onClick={handleSwitchToOptionsData}
-              className="px-3.5 py-1.5 rounded-xl bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan border border-accent-cyan/40 font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              className="px-3 py-1.5 rounded-xl bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan border border-accent-cyan/40 font-mono font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm truncate"
               title={`View ${tip.symbol} Live Options Data Table`}
             >
-              <Layers className="w-3.5 h-3.5 text-accent-cyan" />
-              <span>View {tip.symbol} Options Data</span>
+              <Layers className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
+              <span className="truncate">View {tip.symbol} Options Data</span>
             </button>
 
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-1.5 rounded-xl bg-terminal-card hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text font-mono font-bold text-xs transition cursor-pointer"
+              className="px-4 py-1.5 rounded-xl bg-terminal-card hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text font-mono font-bold text-xs transition cursor-pointer shrink-0"
             >
               Close
             </button>
@@ -879,26 +880,26 @@ Generated via Fayda Trading Terminal`;
             className="fixed inset-0 bg-slate-950/85 backdrop-blur-md transition-all animate-modal-backdrop-enter"
           />
 
-          <div className="relative w-full max-w-2xl bg-gradient-to-b from-terminal-card via-terminal-card to-slate-950 border-2 border-accent-cyan/50 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.25)] overflow-hidden flex flex-col z-10 my-auto animate-modal-enter max-h-[85vh]">
+          <div className="relative w-full max-w-2xl bg-gradient-to-b from-terminal-card via-terminal-card to-slate-950 border-2 border-accent-cyan/50 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.25)] overflow-hidden flex flex-col z-10 my-auto animate-modal-enter max-h-[85vh] min-w-0">
             {/* Submodal Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 bg-terminal-panel/95 border-b border-terminal-border">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 bg-terminal-panel/95 border-b border-terminal-border min-w-0">
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shrink-0">
                   {activeDepthModal === 'MILESTONES' && <Clock className="w-4 h-4" />}
                   {activeDepthModal === 'CONFLUENCE' && <Award className="w-4 h-4" />}
                   {activeDepthModal === 'GREEKS' && <ShieldCheck className="w-4 h-4" />}
                   {activeDepthModal === 'ENTRY_TACTICS' && <Target className="w-4 h-4" />}
                   {activeDepthModal === 'CARRY_FORWARD' && <span className="text-base">🌙</span>}
                 </div>
-                <div>
-                  <h4 className="text-sm font-mono font-black text-terminal-text uppercase tracking-wider">
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-mono font-black text-terminal-text uppercase tracking-wider truncate">
                     {activeDepthModal === 'MILESTONES' && '6-Stage Signal Lifecycle Milestones & Audit'}
                     {activeDepthModal === 'CONFLUENCE' && '10-Factor Technical Confluence Checklist'}
                     {activeDepthModal === 'GREEKS' && 'Option Greeks & Risk Payoff Calculator'}
                     {activeDepthModal === 'ENTRY_TACTICS' && '3-Tier Actionable Entry Strategy'}
                     {activeDepthModal === 'CARRY_FORWARD' && 'Market-Tailored Carry-Forward Rules'}
                   </h4>
-                  <p className="text-[10px] text-terminal-muted font-mono">
+                  <p className="text-[10px] text-terminal-muted font-mono truncate">
                     {tip.contractSymbol || tip.title} • {tip.symbol}
                   </p>
                 </div>
@@ -907,7 +908,7 @@ Generated via Fayda Trading Terminal`;
               <button
                 type="button"
                 onClick={() => setActiveDepthModal(null)}
-                className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer"
+                className="p-1.5 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 ml-2"
                 title="Back to Signal Summary (Esc)"
               >
                 <X className="w-4 h-4" />
@@ -915,15 +916,15 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* Submodal Content */}
-            <div className="p-5 overflow-y-auto space-y-4 font-mono text-xs">
+            <div className="p-3.5 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4 font-mono text-xs min-w-0">
               {/* SUBMODAL 1: MILESTONES */}
               {activeDepthModal === 'MILESTONES' && (
-                <div className="space-y-4">
-                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-800 dark:text-sky-300 text-[11px] leading-relaxed">
+                <div className="space-y-4 min-w-0">
+                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-800 dark:text-sky-300 text-[11px] leading-relaxed break-words">
                     ⏱️ <strong>Lifecycle Milestone Tracking:</strong> Real-time institutional timestamps for signal dispatch, execution trigger, profit locking, and risk containment.
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-center text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5 text-center text-xs min-w-0">
                     {/* 1. Call Given Time */}
                     <div className="p-3 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
                       <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
@@ -1055,64 +1056,64 @@ Generated via Fayda Trading Terminal`;
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs pt-1">
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">NET CREDIT / COST</span>
-                        <span className="font-black text-emerald-400 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-center text-xs pt-1 min-w-0">
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30 min-w-0 overflow-hidden">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold truncate">NET CREDIT / COST</span>
+                        <span className="font-black text-emerald-400 text-xs sm:text-sm block truncate">
                           ₹{tip.sellerMetrics?.netCreditPoints?.toFixed(2) || (typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—')} pts
                         </span>
-                        <span className="text-[9px] text-slate-400 block mt-0.5">
+                        <span className="text-[9px] text-slate-400 block mt-0.5 truncate">
                           ₹{tip.sellerMetrics?.maxProfitRupees?.toLocaleString('en-IN') || '—'}/lot
                         </span>
                       </div>
 
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">EXCHANGE MARGIN</span>
-                        <span className="font-black text-slate-200 text-sm">
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30 min-w-0 overflow-hidden">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold truncate">EXCHANGE MARGIN</span>
+                        <span className="font-black text-slate-200 text-xs sm:text-sm block truncate">
                           ₹{tip.sellerMetrics?.marginRequired?.toLocaleString('en-IN') || '₹38,500'}
                         </span>
-                        <span className="text-[9px] text-emerald-400 block mt-0.5">
+                        <span className="text-[9px] text-emerald-400 block mt-0.5 truncate">
                           72% Hedged Benefit
                         </span>
                       </div>
 
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">SAFETY BUFFER</span>
-                        <span className="font-black text-amber-400 text-sm">
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30 min-w-0 overflow-hidden">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold truncate">SAFETY BUFFER</span>
+                        <span className="font-black text-amber-400 text-xs sm:text-sm block truncate">
                           {tip.sellerMetrics?.breakevenBufferPts ? `${tip.sellerMetrics.breakevenBufferPts} pts` : '220 pts'}
                         </span>
-                        <span className="text-[9px] text-slate-400 block mt-0.5">Distance to Loss</span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5 truncate">Distance to Loss</span>
                       </div>
 
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30">
-                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold">THETA DECAY VELOCITY</span>
-                        <span className="font-black text-cyan-400 text-sm">
+                      <div className="bg-slate-900/60 p-2 rounded-lg border border-purple-500/30 min-w-0 overflow-hidden">
+                        <span className="text-purple-300/80 block text-[9px] uppercase font-bold truncate">THETA VELOCITY</span>
+                        <span className="font-black text-cyan-400 text-xs sm:text-sm block truncate">
                           {tip.sellerMetrics?.thetaBurnRate || '+₹140/hr'}
                         </span>
-                        <span className="text-[9px] text-slate-400 block mt-0.5">Hourly θ Inflow</span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5 truncate">Hourly θ Inflow</span>
                       </div>
                     </div>
                   </div>
 
                   {isSpread && (
-                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 space-y-2">
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 space-y-2 min-w-0">
                       <span className="text-[10px] font-bold text-slate-300 block uppercase">Hedged Spread Payoff</span>
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-bear/10 p-2 rounded-lg border border-bear/20">
-                          <span className="text-bear block text-[9px] font-bold">MAX RISK</span>
-                          <span className="font-black text-bear text-sm">
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center text-xs min-w-0">
+                        <div className="bg-bear/10 p-2 rounded-lg border border-bear/20 min-w-0 overflow-hidden">
+                          <span className="text-bear block text-[9px] font-bold truncate">MAX RISK</span>
+                          <span className="font-black text-bear text-xs sm:text-sm block truncate">
                             {tip.maxLossRupees ? `₹${tip.maxLossRupees.toLocaleString('en-IN')}` : '—'}
                           </span>
                         </div>
-                        <div className="bg-bull/10 p-2 rounded-lg border border-bull/20">
-                          <span className="text-bull block text-[9px] font-bold">MAX PROFIT</span>
-                          <span className="font-black text-bull text-sm">
+                        <div className="bg-bull/10 p-2 rounded-lg border border-bull/20 min-w-0 overflow-hidden">
+                          <span className="text-bull block text-[9px] font-bold truncate">MAX PROFIT</span>
+                          <span className="font-black text-bull text-xs sm:text-sm block truncate">
                             {tip.maxProfitRupees ? `₹${tip.maxProfitRupees.toLocaleString('en-IN')}` : '—'}
                           </span>
                         </div>
-                        <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700">
-                          <span className="text-cyan-400 block text-[9px] font-bold">BREAKEVEN</span>
-                          <span className="font-bold text-slate-200 text-sm">
+                        <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700 min-w-0 overflow-hidden">
+                          <span className="text-cyan-400 block text-[9px] font-bold truncate">BREAKEVEN</span>
+                          <span className="font-bold text-slate-200 text-xs sm:text-sm block truncate">
                             {typeof tip.breakeven === 'number' ? `₹${tip.breakeven.toFixed(2)}` : '—'}
                           </span>
                         </div>
@@ -1124,39 +1125,39 @@ Generated via Fayda Trading Terminal`;
 
               {/* SUBMODAL 4: 3-TIER ACTIONABLE ENTRY */}
               {activeDepthModal === 'ENTRY_TACTICS' && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="space-y-3 min-w-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 min-w-0">
                     {/* Limit Dip Entry */}
-                    <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/25 text-left space-y-1">
-                      <div className="text-[9.5px] font-bold text-emerald-400 uppercase flex items-center gap-1">
+                    <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/25 text-left space-y-1 min-w-0 overflow-hidden">
+                      <div className="text-[9.5px] font-bold text-emerald-400 uppercase flex items-center gap-1 truncate">
                         <span>🟢 PULLBACK / LIMIT DIP</span>
                       </div>
-                      <div className="font-black text-slate-100 text-sm font-mono">
+                      <div className="font-black text-slate-100 text-sm font-mono truncate">
                         ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 0.98).toFixed(2) : '—'} - ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : '—'}
                       </div>
-                      <div className="text-[10px] text-slate-400">Best Risk-to-Reward Entry</div>
+                      <div className="text-[10px] text-slate-400 truncate">Best Risk-to-Reward Entry</div>
                     </div>
 
                     {/* Market Trigger */}
-                    <div className="bg-sky-500/10 p-3 rounded-xl border border-sky-500/25 text-left space-y-1">
-                      <div className="text-[9.5px] font-bold text-sky-400 uppercase flex items-center gap-1">
+                    <div className="bg-sky-500/10 p-3 rounded-xl border border-sky-500/25 text-left space-y-1 min-w-0 overflow-hidden">
+                      <div className="text-[9.5px] font-bold text-sky-400 uppercase flex items-center gap-1 truncate">
                         <span>⚡ AT SIGNAL TRIGGER</span>
                       </div>
-                      <div className="font-black text-slate-100 text-sm font-mono">
+                      <div className="font-black text-slate-100 text-sm font-mono truncate">
                         ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : (tip.entryRange || '—')}
                       </div>
-                      <div className="text-[10px] text-slate-400">Benchmark Trigger @ {tip.givenTimeFormatted || 'Live'}</div>
+                      <div className="text-[10px] text-slate-400 truncate">Benchmark Trigger @ {tip.givenTimeFormatted || 'Live'}</div>
                     </div>
 
                     {/* Breakout Confirmation */}
-                    <div className="bg-purple-500/10 p-3 rounded-xl border border-purple-500/25 text-left space-y-1">
-                      <div className="text-[9.5px] font-bold text-purple-300 uppercase flex items-center gap-1">
+                    <div className="bg-purple-500/10 p-3 rounded-xl border border-purple-500/25 text-left space-y-1 min-w-0 overflow-hidden">
+                      <div className="text-[9.5px] font-bold text-purple-300 uppercase flex items-center gap-1 truncate">
                         <span>🚀 BREAKOUT TRIGGER</span>
                       </div>
-                      <div className="font-black text-slate-100 text-sm font-mono">
+                      <div className="font-black text-slate-100 text-sm font-mono truncate">
                         &gt; ₹{typeof tip.entryPrice === 'number' ? (tip.entryPrice * 1.025).toFixed(2) : '—'}
                       </div>
-                      <div className="text-[10px] text-slate-400">Confirmation on 1-min Candle Close</div>
+                      <div className="text-[10px] text-slate-400 truncate">1-min Candle Close Confirmation</div>
                     </div>
                   </div>
                 </div>
@@ -1164,25 +1165,25 @@ Generated via Fayda Trading Terminal`;
 
               {/* SUBMODAL 5: CARRY-FORWARD & BTST */}
               {activeDepthModal === 'CARRY_FORWARD' && (
-                <div className="space-y-3">
-                  <div className={`p-4 rounded-xl border text-xs space-y-2.5 ${
+                <div className="space-y-3 min-w-0">
+                  <div className={`p-4 rounded-xl border text-xs space-y-2.5 min-w-0 ${
                     tip.isExpiryDay && !isCommodity
                       ? 'bg-red-950/40 border-red-500/50'
                       : 'bg-purple-950/40 border-purple-500/40'
                   }`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-1.5 min-w-0">
                       <span className={`text-[11px] font-black uppercase tracking-wider block ${
                         tip.isExpiryDay && !isCommodity ? 'text-red-400' : 'text-purple-300'
                       }`}>
                         {tip.isExpiryDay && !isCommodity ? '⚠️ 0DTE EXPIRY DAY — NO OVERNIGHT HOLD (SEBI RULES)' : '🌙 OVERNIGHT / BTST RULES (SEBI COMPLIANT)'}
                       </span>
                       {tip.expiryDate && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
                           Expiry: {tip.expiryDate}
                         </span>
                       )}
                     </div>
-                    <p className="text-slate-200 text-xs leading-relaxed">
+                    <p className="text-slate-200 text-xs leading-relaxed break-words">
                       {tip.carryForwardAdvice || (tip.isExpiryDay && !isCommodity
                         ? '⚠️ 0DTE EXPIRY CONTRACT (SEBI Rules) — Options CANNOT be carried forward automatically. Any unclosed OTM position will expire WORTHLESS (₹0.00) at 03:30 PM. You MUST: (1) Square off this contract before 03:25 PM IST, and (2) If you wish to continue the trade, MANUALLY open a fresh contract in the NEXT EXPIRY separately.'
                         : isCommodity
@@ -1194,12 +1195,12 @@ Generated via Fayda Trading Terminal`;
 
                     {/* Next Expiry Suggestion if 0DTE */}
                     {tip.isExpiryDay && !isCommodity && tip.nextExpiryDate && (
-                      <div className="p-3 rounded-lg bg-indigo-950/60 border border-indigo-500/40 space-y-1.5 mt-2">
+                      <div className="p-3 rounded-lg bg-indigo-950/60 border border-indigo-500/40 space-y-1.5 mt-2 min-w-0">
                         <span className="text-[11px] font-bold text-indigo-300 uppercase flex items-center gap-1.5">
                           <span>💡</span>
                           <span>HOW TO CONTINUE OVERNIGHT (BTST) — SEBI COMPLIANT</span>
                         </span>
-                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                        <p className="text-[11px] text-slate-300 leading-relaxed break-words">
                           <strong>Step 1:</strong> Square off this expiring contract before <strong>03:25 PM IST</strong> today (all 0DTE contracts expire at 03:30 PM).<br />
                           <strong>Step 2:</strong> Separately open a fresh option contract in the <strong>Next Expiry ({tip.nextExpiryDate})</strong> — symbol: <strong>{tip.nextExpiryContractSymbol || `${tip.symbol} ${tip.strikePrice || ''} ${tip.optionType || ''}`}</strong>.<br />
                           ⚠️ <em>There is no automatic rollover for options. You must manually close the old trade and open a new one (SEBI regulation).</em>
@@ -1209,14 +1210,14 @@ Generated via Fayda Trading Terminal`;
                   </div>
 
                   {/* Standard Expiry & Timing Reference Table */}
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                      <span className="text-[9px] text-slate-500 uppercase block font-bold">{isCommodity ? 'MCX Session Ends' : 'Square-off Cutoff'}</span>
-                      <span className="font-bold text-amber-400">{isCommodity ? '11:30 PM IST' : '03:20 - 03:25 PM IST'}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono min-w-0">
+                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 min-w-0 overflow-hidden">
+                      <span className="text-[9px] text-slate-500 uppercase block font-bold truncate">{isCommodity ? 'MCX Session Ends' : 'Square-off Cutoff'}</span>
+                      <span className="font-bold text-amber-400 block truncate">{isCommodity ? '11:30 PM IST' : '03:20 - 03:25 PM IST'}</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                      <span className="text-[9px] text-slate-500 uppercase block font-bold">Overnight / Rollover</span>
-                      <span className="font-bold text-slate-200">
+                    <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 min-w-0 overflow-hidden">
+                      <span className="text-[9px] text-slate-500 uppercase block font-bold truncate">Overnight / Rollover</span>
+                      <span className="font-bold text-slate-200 block truncate">
                         {isCommodity
                           ? 'Futures Rollover via Spread Order'
                           : tip.isExpiryDay

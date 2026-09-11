@@ -390,7 +390,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
         </div>
 
         {/* Fixed Tab Switcher */}
-        <div className={`shrink-0 flex items-center border-b px-4 sm:px-6 pt-2 gap-2 text-xs font-bold overflow-x-auto ${
+        <div className={`shrink-0 flex items-center border-b px-4 sm:px-6 pt-2 gap-2 text-xs font-bold overflow-x-auto no-scrollbar ${
           isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50/70'
         }`}>
           <button
@@ -463,7 +463,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             
             {/* Scrollable Body with Visible Active Scrollbar */}
             <div 
-              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 profile-modal-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 profile-modal-scrollbar min-w-0"
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'
@@ -859,7 +859,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             
             {/* Scrollable Body with Visible Active Scrollbar */}
             <div 
-              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 profile-modal-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5 profile-modal-scrollbar min-w-0"
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'
@@ -1053,7 +1053,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             
             {/* Scrollable Body with Visible Active Scrollbar */}
             <div 
-              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 profile-modal-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5 profile-modal-scrollbar min-w-0"
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'

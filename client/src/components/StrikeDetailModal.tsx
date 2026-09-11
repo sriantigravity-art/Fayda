@@ -174,7 +174,7 @@ Combined Straddle: ₹${combinedPremium.toFixed(2)} | Range: ${lowerBreakeven.to
         </div>
 
         {/* Modal Scrollable Content */}
-        <div className="p-3.5 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <div className="p-3.5 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4 flex-1 min-w-0">
           {/* Top Combined Straddle / Strangle Snapshot Card */}
           <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-accent-cyan/10 via-terminal-panel to-amber/10 border border-terminal-border flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner">
             <div className="flex items-center space-x-2.5">

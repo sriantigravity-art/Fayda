@@ -266,7 +266,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 min-h-0 scrollbar-thin">
 
           {loading && (
             <div className="flex items-center justify-center py-12 gap-3">

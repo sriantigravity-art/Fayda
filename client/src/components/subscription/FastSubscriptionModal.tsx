@@ -359,7 +359,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
         </div>
 
         {/* Step Indicator */}
-        <div className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
+        <div className={`px-4 sm:px-6 py-2.5 border-b flex items-center justify-between text-xs overflow-x-auto no-scrollbar min-w-0 ${
           isDark
             ? 'bg-slate-950/60 border-slate-800/60'
             : 'bg-slate-50/80 border-slate-200'
@@ -462,7 +462,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
         {/* STEP 1: PLAN SELECTION */}
         {step === 'PLAN' && (
           <>
-            <div className="p-4 sm:p-5 space-y-4 flex-1 overflow-y-auto">
+            <div className="p-3.5 sm:p-5 space-y-4 flex-1 overflow-y-auto overflow-x-hidden min-w-0">
             {/* Billing Cycle Switcher */}
             <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-xl border ${
               isDark
@@ -642,7 +642,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
 
         {/* STEP 2: MINIMAL DETAILS (Full Name, Mobile, Email) */}
         {step === 'DETAILS' && (
-          <div className="p-5 sm:p-6 max-w-md mx-auto space-y-4 flex-1 overflow-y-auto w-full">
+          <div className="p-4 sm:p-6 max-w-md mx-auto space-y-4 flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0">
             <div className="text-center">
               <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Enter Minimum Required Details
@@ -747,7 +747,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
 
         {/* STEP 3: FAST OTP VERIFICATION */}
         {step === 'OTP' && (
-          <div className="p-5 sm:p-6 max-w-sm mx-auto space-y-4 text-center flex-1 overflow-y-auto w-full">
+          <div className="p-4 sm:p-6 max-w-sm mx-auto space-y-4 text-center flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0">
             <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center mx-auto ${
               isDark
                 ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
@@ -835,7 +835,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
 
         {/* STEP 4: ORDER SUMMARY & PAYMENT */}
         {step === 'PAY' && (
-          <div className="p-5 sm:p-6 max-w-2xl mx-auto space-y-4 flex-1 overflow-y-auto w-full">
+          <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4 flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0">
             <div className="text-center">
               <h4 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Order Summary & Fast Checkout
@@ -977,7 +977,7 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
 
         {/* STEP 5: SUCCESS / ACTIVATED & OPTIONAL PROFILE COMPLETION */}
         {step === 'SUCCESS' && (
-          <div className="p-5 sm:p-6 max-w-xl mx-auto space-y-4 text-center flex-1 overflow-y-auto w-full">
+          <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-4 text-center flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0">
             <div className={`w-16 h-16 rounded-3xl border flex items-center justify-center mx-auto shadow-xl ${
               isDark
                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-emerald-500/20'

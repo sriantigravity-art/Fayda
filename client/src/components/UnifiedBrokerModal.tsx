@@ -417,7 +417,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
         </div>
 
         {/* Tab Body */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4 min-w-0">
           {/* ══════════════════════════════════════════════════════════════════ */}
           {/* TAB 1: DHAN (DHANHQ API v2)                                        */}
           {/* ══════════════════════════════════════════════════════════════════ */}
