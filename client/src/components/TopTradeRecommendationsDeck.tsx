@@ -89,6 +89,9 @@ interface RecommendationTableItem {
   gammaScore?: number;
   multiplierTarget?: string;
   // Lifecycle Milestones & Mode Context
+  callGivenTimeFormatted?: string;
+  isEntryTriggered?: boolean;
+  actualEntryPrice?: number;
   entryPriceTimeFormatted?: string;
   target1HitTimeFormatted?: string;
   target2HitTimeFormatted?: string;
@@ -104,6 +107,18 @@ interface RecommendationTableItem {
   rawTip?: UnifiedSmartTip;
   rawHeroSignal?: HeroZeroSignal;
 }
+
+interface LockedDeckMilestone {
+  callGivenTimeFormatted: string;
+  isEntryTriggered: boolean;
+  actualEntryPrice?: number;
+  entryPriceTimeFormatted?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTimeFormatted?: string;
+}
+
+const deckLockedMilestonesMap = new Map<string, LockedDeckMilestone>();
 
 /**
  * High-fidelity Traffic Signal / Traffic Light SVG Icon
@@ -378,12 +393,78 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         }
       }
 
+      const milestoneKey = rawItem.id || key;
+      let mRecord = deckLockedMilestonesMap.get(milestoneKey);
+      
+      const nowFormatted = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const initialGiven = rawItem.callGivenTimeFormatted || rawItem.rawTip?.callGivenTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryTimeFormatted || nowFormatted;
+
+      if (!mRecord) {
+        mRecord = {
+          callGivenTimeFormatted: initialGiven,
+          isEntryTriggered: rawItem.isEntryTriggered ?? rawItem.rawTip?.isEntryTriggered ?? false,
+          actualEntryPrice: rawItem.actualEntryPrice ?? rawItem.rawTip?.actualEntryPrice,
+          entryPriceTimeFormatted: rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted,
+          target1HitTimeFormatted: rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted,
+          target2HitTimeFormatted: rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted,
+          stoplossTimeFormatted: rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted,
+        };
+        deckLockedMilestonesMap.set(milestoneKey, mRecord);
+      } else {
+        if (rawItem.rawTip?.callGivenTimeFormatted) mRecord.callGivenTimeFormatted = rawItem.rawTip.callGivenTimeFormatted;
+        if (rawItem.rawTip?.isEntryTriggered) {
+          mRecord.isEntryTriggered = true;
+          if (rawItem.rawTip.actualEntryPrice) mRecord.actualEntryPrice = rawItem.rawTip.actualEntryPrice;
+          if (rawItem.rawTip.entryPriceTimeFormatted) mRecord.entryPriceTimeFormatted = rawItem.rawTip.entryPriceTimeFormatted;
+        }
+        if (rawItem.rawTip?.target1HitTimeFormatted) mRecord.target1HitTimeFormatted = rawItem.rawTip.target1HitTimeFormatted;
+        if (rawItem.rawTip?.target2HitTimeFormatted) mRecord.target2HitTimeFormatted = rawItem.rawTip.target2HitTimeFormatted;
+        if (rawItem.rawTip?.stoplossTimeFormatted) mRecord.stoplossTimeFormatted = rawItem.rawTip.stoplossTimeFormatted;
+      }
+
+      // Check entry trigger on current tick
+      if (!mRecord.isEntryTriggered && entry > 0 && ltp > 0) {
+        const isWithinEntry = isSeller
+          ? (ltp >= entry * 0.98 && ltp <= entry * 1.05)
+          : (ltp <= entry * 1.015 && ltp >= entry * 0.88);
+        if (isWithinEntry) {
+          mRecord.isEntryTriggered = true;
+          mRecord.actualEntryPrice = ltp;
+          mRecord.entryPriceTimeFormatted = nowFormatted;
+        }
+      }
+
+      // Check Target and Stoploss milestones if entered
+      if (mRecord.isEntryTriggered && ltp > 0) {
+        const target1Price = rawItem.target1Price ?? rawItem.rawTip?.target1Price ?? 0;
+        const target2Price = rawItem.target2Price ?? rawItem.rawTip?.target2Price;
+        const stoplossPrice = rawItem.stoplossPrice ?? rawItem.rawTip?.stoplossPrice ?? 0;
+
+        if (target1Price > 0 && !mRecord.target1HitTimeFormatted) {
+          if ((!isSeller && ltp >= target1Price) || (isSeller && ltp <= target1Price)) {
+            mRecord.target1HitTimeFormatted = nowFormatted;
+          }
+        }
+
+        if (target2Price && target2Price > 0 && !mRecord.target2HitTimeFormatted) {
+          if ((!isSeller && ltp >= target2Price) || (isSeller && ltp <= target2Price)) {
+            mRecord.target2HitTimeFormatted = nowFormatted;
+          }
+        }
+
+        if (stoplossPrice > 0 && !mRecord.stoplossTimeFormatted) {
+          if ((!isSeller && ltp <= stoplossPrice) || (isSeller && ltp >= stoplossPrice)) {
+            mRecord.stoplossTimeFormatted = nowFormatted;
+          }
+        }
+      }
+
       const carryForwardTimeFormatted = rawItem.carryForwardTimeFormatted || rawItem.rawTip?.carryForwardTimeFormatted || '03:20 PM';
 
-      const entryPriceTimeFormatted = rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryTimeFormatted || 'Live';
-      const target1HitTimeFormatted = rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
-      const target2HitTimeFormatted = rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
-      const stoplossTimeFormatted = rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const entryPriceTimeFormatted = mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || mRecord.callGivenTimeFormatted;
+      const target1HitTimeFormatted = mRecord.target1HitTimeFormatted || rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const target2HitTimeFormatted = mRecord.target2HitTimeFormatted || rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const stoplossTimeFormatted = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
       const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
@@ -404,6 +485,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         isProfitable,
         carryForwardSuggestion: suggestion,
         carryForwardTimeFormatted,
+        callGivenTimeFormatted: mRecord.callGivenTimeFormatted,
+        isEntryTriggered: mRecord.isEntryTriggered,
+        actualEntryPrice: mRecord.actualEntryPrice,
         entryPriceTimeFormatted,
         target1HitTimeFormatted,
         target2HitTimeFormatted,
@@ -1309,7 +1393,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Price: t.target2Price,
         target2Pct: t.target2Pct,
         riskReward: t.riskReward,
-        givenTimeFormatted: t.entryTimeFormatted || item.entryTimeFormatted,
+        givenTimeFormatted: item.callGivenTimeFormatted || t.callGivenTimeFormatted || t.entryTimeFormatted || item.entryTimeFormatted,
+        callGivenTimeFormatted: item.callGivenTimeFormatted || t.callGivenTimeFormatted || item.entryTimeFormatted,
+        isEntryTriggered: item.isEntryTriggered ?? t.isEntryTriggered,
+        actualEntryPrice: item.actualEntryPrice ?? t.actualEntryPrice,
         entryPriceTimeFormatted: item.entryPriceTimeFormatted || t.entryPriceTimeFormatted || item.entryTimeFormatted,
         target1HitTimeFormatted: item.target1HitTimeFormatted || t.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted || t.target2HitTimeFormatted,
@@ -1356,7 +1443,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Price: hz.target3x,
         target2Pct: Math.round(((hz.target3x - hz.ltp) / hz.ltp) * 100),
         riskReward: hz.riskReward,
-        givenTimeFormatted: item.entryTimeFormatted || 'Power Hour',
+        givenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted || 'Power Hour',
+        callGivenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted,
+        isEntryTriggered: item.isEntryTriggered,
+        actualEntryPrice: item.actualEntryPrice,
         entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
         target1HitTimeFormatted: item.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted,
@@ -1397,7 +1487,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         target2Price: item.target2Price,
         target2Pct: item.target2Pct,
         riskReward: item.riskReward,
-        givenTimeFormatted: item.entryTimeFormatted,
+        givenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted,
+        callGivenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted,
+        isEntryTriggered: item.isEntryTriggered,
+        actualEntryPrice: item.actualEntryPrice,
         entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
         target1HitTimeFormatted: item.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted,
@@ -1975,9 +2068,38 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <div className="flex items-center gap-1.5 flex-wrap ml-auto sm:ml-0 text-[11px] font-mono">
                 <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-slate-400" />
-                  <span>Given: {item.entryTimeFormatted || '11:15 AM'}</span>
+                  <span>Given: {item.callGivenTimeFormatted || item.entryTimeFormatted || '11:15 AM'}</span>
                 </span>
-                {item.bookedTimeFormatted && (
+                {item.isEntryTriggered ? (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    <span>Entered: {item.entryPriceTimeFormatted || 'Live'} @ ₹{(item.actualEntryPrice || item.entryPrice).toFixed(1)}</span>
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                    <Timer className="w-2.5 h-2.5" />
+                    <span>Waiting for Entry Zone</span>
+                  </span>
+                )}
+                {item.target1HitTimeFormatted && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                    <Award className="w-2.5 h-2.5 text-emerald-500" />
+                    <span>T1 Hit: {item.target1HitTimeFormatted}</span>
+                  </span>
+                )}
+                {item.target2HitTimeFormatted && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/40 flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5 text-purple-500" />
+                    <span>T2 Hit: {item.target2HitTimeFormatted}</span>
+                  </span>
+                )}
+                {item.stoplossTimeFormatted && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40 flex items-center gap-1">
+                    <AlertTriangle className="w-2.5 h-2.5 text-rose-500" />
+                    <span>SL Hit: {item.stoplossTimeFormatted}</span>
+                  </span>
+                )}
+                {item.bookedTimeFormatted && !item.target1HitTimeFormatted && !item.stoplossTimeFormatted && (
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 ${
                     item.status === 'SL_HIT'
                       ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
@@ -2016,6 +2138,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate block">
                 {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
               </span>
+              <span className={`text-[9px] font-mono font-bold mt-0.5 truncate block ${item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {item.isEntryTriggered ? `🟢 Entered: ${item.entryPriceTimeFormatted || 'Live'}` : '⏳ Waiting Zone'}
+              </span>
             </div>
 
             {/* Live LTP & P&L */}
@@ -2041,6 +2166,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400 truncate block">
                 ₹{item.target1Price.toFixed(1)} (+{item.target1Pct}%)
               </span>
+              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 truncate block">
+                {item.target1HitTimeFormatted ? `🏆 Hit: ${item.target1HitTimeFormatted}` : 'Pending Target'}
+              </span>
             </div>
 
             {/* Stop Loss */}
@@ -2048,6 +2176,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               <span className="text-[9px] font-mono text-rose-700 dark:text-rose-400 uppercase block">Stop Loss (SL)</span>
               <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400 truncate block">
                 ₹{item.stoplossPrice.toFixed(1)} (-{item.stoplossPct}%)
+              </span>
+              <span className="text-[9px] font-mono text-rose-600 dark:text-rose-400 font-bold mt-0.5 truncate block">
+                {item.stoplossTimeFormatted ? `🛑 Hit: ${item.stoplossTimeFormatted}` : 'Active Shield'}
               </span>
             </div>
           </div>
@@ -2675,10 +2806,43 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/30 flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-sky-500" />
-                            <span>Given: {currentFlashTip.entryTimeFormatted}</span>
+                            <span>Given: {currentFlashTip.callGivenTimeFormatted || currentFlashTip.entryTimeFormatted}</span>
                           </span>
 
-                          {currentFlashTip.bookedTimeFormatted && (
+                          {currentFlashTip.isEntryTriggered ? (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>Entered: {currentFlashTip.entryPriceTimeFormatted || 'Live'} @ ₹{(currentFlashTip.actualEntryPrice || currentFlashTip.entryPrice).toFixed(1)}</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/40 flex items-center gap-1">
+                              <Timer className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Waiting for Entry Zone</span>
+                            </span>
+                          )}
+
+                          {currentFlashTip.target1HitTimeFormatted && (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                              <Award className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>T1 Hit: {currentFlashTip.target1HitTimeFormatted}</span>
+                            </span>
+                          )}
+
+                          {currentFlashTip.target2HitTimeFormatted && (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/40 flex items-center gap-1">
+                              <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                              <span>T2 Hit: {currentFlashTip.target2HitTimeFormatted}</span>
+                            </span>
+                          )}
+
+                          {currentFlashTip.stoplossTimeFormatted && (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40 flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                              <span>SL Hit: {currentFlashTip.stoplossTimeFormatted}</span>
+                            </span>
+                          )}
+
+                          {currentFlashTip.bookedTimeFormatted && !currentFlashTip.target1HitTimeFormatted && !currentFlashTip.stoplossTimeFormatted && (
                             <span className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold border flex items-center gap-1 ${
                               currentFlashTip.status === 'SL_HIT'
                                 ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
@@ -2733,8 +2897,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         <div className="text-sm font-mono font-black text-sky-600 dark:text-sky-400 mt-0.5">
                           {currentFlashTip.entryRange}
                         </div>
-                        <div className="text-[9px] font-mono text-sky-600 dark:text-sky-400 font-bold mt-0.5 truncate">
-                          ⏱️ Triggered: {currentFlashTip.entryPriceTimeFormatted || currentFlashTip.entryTimeFormatted || 'Live'}
+                        <div className={`text-[9px] font-mono font-bold mt-0.5 truncate ${currentFlashTip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                          {currentFlashTip.isEntryTriggered ? `🟢 Entered: ${currentFlashTip.entryPriceTimeFormatted || 'Live'}` : '⏳ Waiting Zone'}
                         </div>
                       </div>
 
@@ -3181,9 +3345,30 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        <span>{item.entryTimeFormatted || '11:15 AM'}</span>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>Given: {item.callGivenTimeFormatted || item.entryTimeFormatted || '11:15 AM'}</span>
+                        </div>
+                        {item.isEntryTriggered ? (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                            🟢 In: {item.entryPriceTimeFormatted || item.entryTimeFormatted}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 flex items-center gap-0.5">
+                            ⏳ Waiting Zone
+                          </span>
+                        )}
+                        {item.target1HitTimeFormatted && (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                            🏆 T1: {item.target1HitTimeFormatted}
+                          </span>
+                        )}
+                        {item.stoplossTimeFormatted && (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
+                            🛑 SL: {item.stoplossTimeFormatted}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -3221,15 +3406,23 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     {/* Compact Minimalist Key Metrics: Entry, LTP, P&L, Target with Timestamps */}
                     <div className="grid grid-cols-4 gap-1.5 w-full">
                       {/* Entry */}
-                      <div className="bg-slate-50 dark:bg-slate-950/60 p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800/80 flex flex-col">
+                      <div className={`p-1.5 rounded-lg border flex flex-col ${
+                        item.isEntryTriggered
+                          ? 'bg-emerald-50/50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
+                          : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800/80'
+                      }`}>
                         <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">
                           {isBeginner ? 'Buy Zone' : isExpert ? 'Trigger' : 'Entry'}
                         </span>
                         <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
                           {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
                         </span>
-                        <span className="text-[8px] font-mono text-sky-600 dark:text-sky-400 truncate mt-0.5 font-bold">
-                          ⏱️ {item.entryPriceTimeFormatted || item.entryTimeFormatted || 'Live'}
+                        <span className={`text-[8px] font-mono truncate mt-0.5 font-bold ${
+                          item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-400'
+                        }`}>
+                          {item.isEntryTriggered 
+                            ? `🟢 In: ${item.entryPriceTimeFormatted || item.entryTimeFormatted || 'Live'}` 
+                            : '⏳ Waiting Zone'}
                         </span>
                       </div>
 
@@ -3452,9 +3645,33 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1 flex-wrap">
                             <span className="flex items-center gap-1">
                               <Clock className="w-2.5 h-2.5" />
-                              <span>Given: {item.entryTimeFormatted}</span>
+                              <span>Given: {item.callGivenTimeFormatted || item.entryTimeFormatted}</span>
                             </span>
-                            {item.bookedTimeFormatted && (
+                            {item.isEntryTriggered ? (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                                🟢 Entered: {item.entryPriceTimeFormatted || item.entryTimeFormatted} @ ₹{(item.actualEntryPrice || item.entryPrice).toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 flex items-center gap-0.5">
+                                ⏳ Waiting for Entry Zone
+                              </span>
+                            )}
+                            {item.target1HitTimeFormatted && (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                                🏆 T1 Hit: {item.target1HitTimeFormatted}
+                              </span>
+                            )}
+                            {item.target2HitTimeFormatted && (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-0.5">
+                                🚀 T2 Hit: {item.target2HitTimeFormatted}
+                              </span>
+                            )}
+                            {item.stoplossTimeFormatted && (
+                              <span className="px-1.5 py-0.2 rounded font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
+                                🛑 SL Hit: {item.stoplossTimeFormatted}
+                              </span>
+                            )}
+                            {item.bookedTimeFormatted && !item.target1HitTimeFormatted && !item.stoplossTimeFormatted && (
                               <span className={`px-1.5 py-0.2 rounded font-bold border flex items-center gap-0.5 ${
                                 item.status === 'SL_HIT'
                                   ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
@@ -3519,11 +3736,24 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       {/* 3. ENTRY ZONE & LIVE LTP */}
                       <td className="py-3 px-3">
                         <div className="flex flex-col">
-                          <div className="px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 inline-flex items-center gap-1 w-fit">
-                            <span className="text-xs font-mono font-bold text-sky-800 dark:text-sky-300">
+                          <div className={`px-2 py-0.5 rounded border inline-flex items-center gap-1 w-fit ${
+                            item.isEntryTriggered
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
+                              : 'bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800/60'
+                          }`}>
+                            <span className={`text-xs font-mono font-bold ${
+                              item.isEntryTriggered ? 'text-emerald-800 dark:text-emerald-300' : 'text-sky-800 dark:text-sky-300'
+                            }`}>
                               {item.entryRange}
                             </span>
                           </div>
+                          <span className={`text-[9px] font-mono font-bold mt-0.5 ${
+                            item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-400'
+                          }`}>
+                            {item.isEntryTriggered 
+                              ? `🟢 In: ${item.entryPriceTimeFormatted || item.entryTimeFormatted} @ ₹${(item.actualEntryPrice || item.entryPrice).toFixed(1)}` 
+                              : '⏳ Waiting Entry Zone'}
+                          </span>
                           <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono">
                             <span className="text-slate-500 dark:text-slate-400">LTP:</span>
                             <span className="font-black text-slate-900 dark:text-white">
@@ -3580,19 +3810,27 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                                   (+{item.target1Pct}%)
                                 </span>
                               </div>
+                              <span className="text-[8.5px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                ⏱️ {item.target1HitTimeFormatted ? `Hit: ${item.target1HitTimeFormatted}` : 'Pending'}
+                              </span>
 
                               {item.target2Price && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="px-1.5 py-0.2 rounded bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 text-[10px] font-mono font-bold">
-                                    T2
+                                <>
+                                  <div className="flex items-center gap-1.5 pt-0.5">
+                                    <span className="px-1.5 py-0.2 rounded bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 text-[10px] font-mono font-bold">
+                                      T2
+                                    </span>
+                                    <span className="font-mono font-black text-xs text-cyan-700 dark:text-cyan-400">
+                                      ₹{item.target2Price.toFixed(1)}
+                                    </span>
+                                    <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                                      (+{item.target2Pct}%)
+                                    </span>
+                                  </div>
+                                  <span className="text-[8.5px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                                    ⏱️ {item.target2HitTimeFormatted ? `Hit: ${item.target2HitTimeFormatted}` : 'Pending'}
                                   </span>
-                                  <span className="font-mono font-black text-xs text-cyan-700 dark:text-cyan-400">
-                                    ₹{item.target2Price.toFixed(1)}
-                                  </span>
-                                  <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
-                                    (+{item.target2Pct}%)
-                                  </span>
-                                </div>
+                                </>
                               )}
                             </>
                           )}
@@ -3617,15 +3855,20 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                               </span>
                             </>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-[10px] font-mono font-bold">
-                                SL
-                              </span>
-                              <span className="font-mono font-black text-xs text-rose-700 dark:text-rose-400">
-                                ₹{item.stoplossPrice.toFixed(1)}
-                              </span>
-                              <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">
-                                (-{item.stoplossPct}%)
+                            <div className="flex flex-col space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-[10px] font-mono font-bold">
+                                  SL
+                                </span>
+                                <span className="font-mono font-black text-xs text-rose-700 dark:text-rose-400">
+                                  ₹{item.stoplossPrice.toFixed(1)}
+                                </span>
+                                <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                                  (-{item.stoplossPct}%)
+                                </span>
+                              </div>
+                              <span className="text-[8.5px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                                ⏱️ {item.stoplossTimeFormatted ? `Hit: ${item.stoplossTimeFormatted}` : 'Active'}
                               </span>
                             </div>
                           )}

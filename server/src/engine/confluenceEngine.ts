@@ -1265,6 +1265,173 @@ export class ConfluenceEngine {
   }
 
   /**
+   * Evaluates and permanently locks timestamps for the trade lifecycle:
+   * 1. Call Given Time (locked when formulated)
+   * 2. Entry Triggered Time & Price (locked when price enters entry range or touches entry)
+   * 3. Target 1 Hit Time (locked when price reaches T1)
+   * 4. Target 2 Hit Time (locked when price reaches T2)
+   * 5. Stop Loss Hit Time (locked when price breaches SL)
+   */
+  public static evaluateLifecycleMilestones(params: {
+    existingTrade?: UnifiedSmartTip | null;
+    currentLtp: number;
+    entryPrice: number;
+    entryRangeMin?: number;
+    entryRangeMax?: number;
+    target1Price: number;
+    target2Price?: number;
+    stoplossPrice: number;
+    isSeller?: boolean;
+    timeFormatted: string;
+    effectiveEntryTimeFormatted: string;
+  }) {
+    const existing = params.existingTrade;
+    const isSeller = params.isSeller || false;
+
+    // 1. Call Given Time: Permanent creation time
+    const callGivenTime = existing?.callGivenTime || new Date().toISOString();
+    const callGivenTimeFormatted = existing?.callGivenTimeFormatted || existing?.entryTimeFormatted || params.effectiveEntryTimeFormatted;
+
+    // 2. Entry Trigger Check & Time Locking
+    let isEntryTriggered = existing?.isEntryTriggered ?? false;
+    let entryPriceTime = existing?.entryPriceTime || '';
+    let entryPriceTimeFormatted = existing?.entryPriceTimeFormatted || '';
+    let actualEntryPrice = existing?.actualEntryPrice || params.entryPrice;
+
+    if (isEntryTriggered && entryPriceTimeFormatted) {
+      // Already triggered: keep permanently locked
+    } else {
+      // Check if market has touched or entered the entry zone
+      let withinZone = false;
+      if (params.entryRangeMin !== undefined && params.entryRangeMax !== undefined) {
+        withinZone = params.currentLtp >= params.entryRangeMin && params.currentLtp <= params.entryRangeMax;
+      } else {
+        // Within 3% of entry price
+        withinZone = Math.abs(params.currentLtp - params.entryPrice) / (params.entryPrice || 1) <= 0.03;
+      }
+
+      // If price entered zone or crossed entry trigger
+      if (withinZone || (isSeller ? params.currentLtp >= params.entryPrice : params.currentLtp <= params.entryPrice)) {
+        isEntryTriggered = true;
+        entryPriceTime = new Date().toISOString();
+        entryPriceTimeFormatted = params.timeFormatted;
+        actualEntryPrice = params.currentLtp;
+      }
+    }
+
+    // 3. Milestone Targets & Stop Loss (Only triggered if position was entered)
+    let target1HitTime = existing?.target1HitTime;
+    let target1HitTimeFormatted = existing?.target1HitTimeFormatted;
+    let target2HitTime = existing?.target2HitTime;
+    let target2HitTimeFormatted = existing?.target2HitTimeFormatted;
+    let stoplossTime = existing?.stoplossTime;
+    let stoplossTimeFormatted = existing?.stoplossTimeFormatted;
+    let halfProfitBookTime = existing?.halfProfitBookTime;
+    let halfProfitBookTimeFormatted = existing?.halfProfitBookTimeFormatted;
+    let bookedTime = existing?.bookedTime;
+    let bookedTimeFormatted = existing?.bookedTimeFormatted;
+
+    if (isEntryTriggered) {
+      if (isSeller) {
+        // Seller: profit is when price decays down to targets
+        if (params.target2Price && params.currentLtp <= params.target2Price) {
+          if (!target2HitTimeFormatted) {
+            target2HitTime = new Date().toISOString();
+            target2HitTimeFormatted = params.timeFormatted;
+          }
+          if (!target1HitTimeFormatted) {
+            target1HitTime = target2HitTime;
+            target1HitTimeFormatted = params.timeFormatted;
+            halfProfitBookTime = target1HitTime;
+            halfProfitBookTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        } else if (params.currentLtp <= params.target1Price) {
+          if (!target1HitTimeFormatted) {
+            target1HitTime = new Date().toISOString();
+            target1HitTimeFormatted = params.timeFormatted;
+            halfProfitBookTime = target1HitTime;
+            halfProfitBookTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        } else if (params.currentLtp >= params.stoplossPrice) {
+          if (!stoplossTimeFormatted) {
+            stoplossTime = new Date().toISOString();
+            stoplossTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        }
+      } else {
+        // Buyer: profit is when price rallies up to targets
+        if (params.target2Price && params.currentLtp >= params.target2Price) {
+          if (!target2HitTimeFormatted) {
+            target2HitTime = new Date().toISOString();
+            target2HitTimeFormatted = params.timeFormatted;
+          }
+          if (!target1HitTimeFormatted) {
+            target1HitTime = target2HitTime;
+            target1HitTimeFormatted = params.timeFormatted;
+            halfProfitBookTime = target1HitTime;
+            halfProfitBookTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        } else if (params.currentLtp >= params.target1Price) {
+          if (!target1HitTimeFormatted) {
+            target1HitTime = new Date().toISOString();
+            target1HitTimeFormatted = params.timeFormatted;
+            halfProfitBookTime = target1HitTime;
+            halfProfitBookTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        } else if (params.currentLtp <= params.stoplossPrice) {
+          if (!stoplossTimeFormatted) {
+            stoplossTime = new Date().toISOString();
+            stoplossTimeFormatted = params.timeFormatted;
+          }
+          if (!bookedTimeFormatted) {
+            bookedTime = new Date().toISOString();
+            bookedTimeFormatted = params.timeFormatted;
+          }
+        }
+      }
+    }
+
+    return {
+      callGivenTime,
+      callGivenTimeFormatted,
+      isEntryTriggered,
+      actualEntryPrice,
+      entryPriceTime,
+      entryPriceTimeFormatted,
+      target1HitTime,
+      target1HitTimeFormatted,
+      target2HitTime,
+      target2HitTimeFormatted,
+      stoplossTime,
+      stoplossTimeFormatted,
+      halfProfitBookTime,
+      halfProfitBookTimeFormatted,
+      bookedTime,
+      bookedTimeFormatted
+    };
+  }
+
+  /**
    * Synthesizes all 6 Platform Engines into a Curated 3-Tier Call Tips Cockpit with Carry-Forward
    */
   public static generateUnifiedTipsPackage(
@@ -1542,66 +1709,43 @@ export class ConfluenceEngine {
     const pnlPoints = +(currentLtp - entryPrice).toFixed(2);
     const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
 
+    const primMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+      existingTrade,
+      currentLtp,
+      entryPrice,
+      entryRangeMin: dipEntryMin,
+      entryRangeMax: entryPrice,
+      target1Price: t1Price,
+      target2Price: t2Price,
+      stoplossPrice: slPrice,
+      isSeller: false,
+      timeFormatted,
+      effectiveEntryTimeFormatted
+    });
+
     let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
     let primStatus: UnifiedSmartTip['status'] = 'ACTIVE';
 
-    let target1HitTime = existingTrade?.target1HitTime;
-    let target1HitTimeFormatted = existingTrade?.target1HitTimeFormatted;
-    let target2HitTime = existingTrade?.target2HitTime;
-    let target2HitTimeFormatted = existingTrade?.target2HitTimeFormatted;
-    let stoplossTime = existingTrade?.stoplossTime;
-    let stoplossTimeFormatted = existingTrade?.stoplossTimeFormatted;
-    let halfProfitBookTime = existingTrade?.halfProfitBookTime;
-    let halfProfitBookTimeFormatted = existingTrade?.halfProfitBookTimeFormatted;
-
-    if (currentLtp >= t2Price) {
+    if (primMilestones.target2HitTimeFormatted) {
       actionabilityStatus = 'TARGET_HIT';
       primStatus = 'TARGET2_HIT';
-      if (!target2HitTimeFormatted) {
-        target2HitTime = new Date().toISOString();
-        target2HitTimeFormatted = timeFormatted;
-      }
-      if (!target1HitTimeFormatted) {
-        target1HitTime = target2HitTime;
-        target1HitTimeFormatted = timeFormatted;
-        halfProfitBookTime = target1HitTime;
-        halfProfitBookTimeFormatted = timeFormatted;
-      }
-      if (!bookedTimeFormatted) {
-        bookedTime = new Date().toISOString();
-        bookedTimeFormatted = timeFormatted;
-      }
-    } else if (currentLtp >= t1Price) {
+    } else if (primMilestones.target1HitTimeFormatted) {
       actionabilityStatus = 'TRAIL_SL';
       primStatus = 'TARGET1_HIT';
-      if (!target1HitTimeFormatted) {
-        target1HitTime = new Date().toISOString();
-        target1HitTimeFormatted = timeFormatted;
-        halfProfitBookTime = target1HitTime;
-        halfProfitBookTimeFormatted = timeFormatted;
-      }
     } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < entryPrice))) {
       actionabilityStatus = 'SL_HIT';
       primStatus = 'EXPIRED';
-      if (!stoplossTimeFormatted) {
-        stoplossTime = new Date().toISOString();
-        stoplossTimeFormatted = timeFormatted;
+      if (!primMilestones.stoplossTimeFormatted) {
+        primMilestones.stoplossTime = new Date().toISOString();
+        primMilestones.stoplossTimeFormatted = timeFormatted;
       }
-      if (!bookedTimeFormatted) {
-        bookedTime = new Date().toISOString();
-        bookedTimeFormatted = timeFormatted;
+      if (!primMilestones.bookedTimeFormatted) {
+        primMilestones.bookedTime = new Date().toISOString();
+        primMilestones.bookedTimeFormatted = timeFormatted;
       }
-    } else if (currentLtp <= slPrice) {
+    } else if (primMilestones.stoplossTimeFormatted) {
       actionabilityStatus = 'SL_HIT';
       primStatus = 'SL_HIT';
-      if (!stoplossTimeFormatted) {
-        stoplossTime = new Date().toISOString();
-        stoplossTimeFormatted = timeFormatted;
-      }
-      if (!bookedTimeFormatted) {
-        bookedTime = new Date().toISOString();
-        bookedTimeFormatted = timeFormatted;
-      }
     } else if (isPast340Pm || existingTrade?.isCarriedForward) {
       const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
       if (isEligibleToCarry) {
@@ -1620,8 +1764,10 @@ export class ConfluenceEngine {
       primStatus = 'EXPIRED';
     } else if (pnlPct <= -1.5) {
       actionabilityStatus = 'DIP_OPPORTUNITY';
-    } else {
+    } else if (primMilestones.isEntryTriggered) {
       actionabilityStatus = 'AT_TRIGGER';
+    } else {
+      actionabilityStatus = 'IN_ENTRY_ZONE';
     }
 
     // Calculate Rupee P&L based on status
@@ -1721,22 +1867,24 @@ export class ConfluenceEngine {
         contractSymbol,
         strikePrice: targetStrike,
         optionType: optType,
-        entryTime,
-        entryTimeFormatted,
-        callGivenTime: entryTime,
-        callGivenTimeFormatted: entryTimeFormatted,
-        entryPriceTime: entryTime,
-        entryPriceTimeFormatted: entryTimeFormatted,
-        target1HitTime,
-        target1HitTimeFormatted,
-        target2HitTime,
-        target2HitTimeFormatted,
-        stoplossTime,
-        stoplossTimeFormatted,
-        halfProfitBookTime,
-        halfProfitBookTimeFormatted,
-        bookedTime,
-        bookedTimeFormatted,
+        entryTime: primMilestones.callGivenTime,
+        entryTimeFormatted: primMilestones.callGivenTimeFormatted,
+        callGivenTime: primMilestones.callGivenTime,
+        callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
+        isEntryTriggered: primMilestones.isEntryTriggered,
+        actualEntryPrice: primMilestones.actualEntryPrice,
+        entryPriceTime: primMilestones.entryPriceTime,
+        entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
+        target1HitTime: primMilestones.target1HitTime,
+        target1HitTimeFormatted: primMilestones.target1HitTimeFormatted,
+        target2HitTime: primMilestones.target2HitTime,
+        target2HitTimeFormatted: primMilestones.target2HitTimeFormatted,
+        stoplossTime: primMilestones.stoplossTime,
+        stoplossTimeFormatted: primMilestones.stoplossTimeFormatted,
+        halfProfitBookTime: primMilestones.halfProfitBookTime,
+        halfProfitBookTimeFormatted: primMilestones.halfProfitBookTimeFormatted,
+        bookedTime: primMilestones.bookedTime,
+        bookedTimeFormatted: primMilestones.bookedTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         carryForwardSuggestion: primCarrySuggestion,
@@ -1812,69 +1960,45 @@ export class ConfluenceEngine {
       const pnlPoints = +(currentLtp - activeCall.entryPrice).toFixed(2);
       const pnlPct = activeCall.entryPrice > 0 ? +((pnlPoints / activeCall.entryPrice) * 100).toFixed(2) : 0;
 
-      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
-      if (currentLtp >= activeCall.target2Price) actionabilityStatus = 'TARGET_HIT';
-      else if (currentLtp >= activeCall.target1Price) actionabilityStatus = 'TRAIL_SL';
-      else if (currentLtp <= activeCall.stoplossPrice) actionabilityStatus = 'SL_HIT';
-      else if (pnlPct >= 1.5) actionabilityStatus = 'RUNNING_PROFIT';
-      else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
-      else actionabilityStatus = 'AT_TRIGGER';
+      const callMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: activeCall,
+        currentLtp,
+        entryPrice: activeCall.entryPrice,
+        entryRangeMin: activeCall.dipEntryMin,
+        entryRangeMax: activeCall.entryPrice,
+        target1Price: activeCall.target1Price,
+        target2Price: activeCall.target2Price,
+        stoplossPrice: activeCall.stoplossPrice,
+        isSeller: false,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
 
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
       let status = activeCall.status;
-      let bookedTime = activeCall.bookedTime;
-      let bookedTimeFormatted = activeCall.bookedTimeFormatted;
       let carryForwardTime = activeCall.carryForwardTime;
       let carryForwardTimeFormatted = activeCall.carryForwardTimeFormatted;
 
-      if (currentLtp >= activeCall.target2Price) {
+      if (callMilestones.target2HitTimeFormatted) {
         status = 'TARGET2_HIT';
-        if (!activeCall.target2HitTimeFormatted) {
-          activeCall.target2HitTime = new Date().toISOString();
-          activeCall.target2HitTimeFormatted = timeFormatted;
-        }
-        if (!activeCall.target1HitTimeFormatted) {
-          activeCall.target1HitTime = activeCall.target2HitTime;
-          activeCall.target1HitTimeFormatted = timeFormatted;
-          activeCall.halfProfitBookTime = activeCall.target1HitTime;
-          activeCall.halfProfitBookTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentLtp >= activeCall.target1Price) {
+        actionabilityStatus = 'TARGET_HIT';
+      } else if (callMilestones.target1HitTimeFormatted) {
         status = 'TARGET1_HIT';
-        if (!activeCall.target1HitTimeFormatted) {
-          activeCall.target1HitTime = new Date().toISOString();
-          activeCall.target1HitTimeFormatted = timeFormatted;
-          activeCall.halfProfitBookTime = activeCall.target1HitTime;
-          activeCall.halfProfitBookTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'TRAIL_SL';
       } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activeCall.entryPrice))) {
         status = 'EXPIRED';
         actionabilityStatus = 'SL_HIT';
-        if (!stoplossTimeFormatted) {
-          stoplossTime = new Date().toISOString();
-          stoplossTimeFormatted = timeFormatted;
+        if (!callMilestones.stoplossTimeFormatted) {
+          callMilestones.stoplossTime = new Date().toISOString();
+          callMilestones.stoplossTimeFormatted = timeFormatted;
         }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
+        if (!callMilestones.bookedTimeFormatted) {
+          callMilestones.bookedTime = new Date().toISOString();
+          callMilestones.bookedTimeFormatted = timeFormatted;
         }
-      } else if (currentLtp <= activeCall.stoplossPrice) {
+      } else if (callMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
-        if (!activeCall.stoplossTimeFormatted) {
-          activeCall.stoplossTime = new Date().toISOString();
-          activeCall.stoplossTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'SL_HIT';
       } else if (isPast340Pm || activeCall.isCarriedForward) {
         const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
         if (isEligibleToCarry) {
@@ -1886,6 +2010,14 @@ export class ConfluenceEngine {
         } else {
           status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
         }
+      } else if (pnlPct >= 1.5) {
+        actionabilityStatus = 'RUNNING_PROFIT';
+      } else if (pnlPct <= -1.5) {
+        actionabilityStatus = 'DIP_OPPORTUNITY';
+      } else if (callMilestones.isEntryTriggered) {
+        actionabilityStatus = 'AT_TRIGGER';
+      } else {
+        actionabilityStatus = 'IN_ENTRY_ZONE';
       }
 
       let callPnlRupees = 0;
@@ -1923,8 +2055,20 @@ export class ConfluenceEngine {
         carryForwardAdvice: callAdvice.carryForwardAdvice,
         actionabilityStatus,
         status,
-        bookedTime,
-        bookedTimeFormatted,
+        bookedTime: callMilestones.bookedTime,
+        bookedTimeFormatted: callMilestones.bookedTimeFormatted,
+        isEntryTriggered: callMilestones.isEntryTriggered,
+        actualEntryPrice: callMilestones.actualEntryPrice,
+        entryPriceTime: callMilestones.entryPriceTime,
+        entryPriceTimeFormatted: callMilestones.entryPriceTimeFormatted,
+        target1HitTime: callMilestones.target1HitTime,
+        target1HitTimeFormatted: callMilestones.target1HitTimeFormatted,
+        target2HitTime: callMilestones.target2HitTime,
+        target2HitTimeFormatted: callMilestones.target2HitTimeFormatted,
+        stoplossTime: callMilestones.stoplossTime,
+        stoplossTimeFormatted: callMilestones.stoplossTimeFormatted,
+        halfProfitBookTime: callMilestones.halfProfitBookTime,
+        halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD',
@@ -2065,6 +2209,20 @@ export class ConfluenceEngine {
           nextExpiryDate
         });
 
+        const callMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+          existingTrade: null,
+          currentLtp: entryPrice,
+          entryPrice,
+          entryRangeMin: dipMin,
+          entryRangeMax: entryPrice,
+          target1Price: t1Price,
+          target2Price: t2Price,
+          stoplossPrice: slPrice,
+          isSeller: false,
+          timeFormatted,
+          effectiveEntryTimeFormatted
+        });
+
         topCallTrade = {
           id: `call-prime-${symbol}-${hourlySlotId}-${bestCeStrike.strikePrice}`,
           symbol,
@@ -2078,12 +2236,24 @@ export class ConfluenceEngine {
           contractSymbol: `${symbol} ${bestCeStrike.strikePrice} CE`,
           strikePrice: bestCeStrike.strikePrice,
           optionType: 'CE',
-          entryTime: new Date().toISOString(),
-          entryTimeFormatted: effectiveEntryTimeFormatted,
-          callGivenTime: new Date().toISOString(),
-          callGivenTimeFormatted: effectiveEntryTimeFormatted,
-          entryPriceTime: new Date().toISOString(),
-          entryPriceTimeFormatted: effectiveEntryTimeFormatted,
+          entryTime: callMilestones.callGivenTime,
+          entryTimeFormatted: callMilestones.callGivenTimeFormatted,
+          callGivenTime: callMilestones.callGivenTime,
+          callGivenTimeFormatted: callMilestones.callGivenTimeFormatted,
+          isEntryTriggered: callMilestones.isEntryTriggered,
+          actualEntryPrice: callMilestones.actualEntryPrice,
+          entryPriceTime: callMilestones.entryPriceTime,
+          entryPriceTimeFormatted: callMilestones.entryPriceTimeFormatted,
+          target1HitTime: callMilestones.target1HitTime,
+          target1HitTimeFormatted: callMilestones.target1HitTimeFormatted,
+          target2HitTime: callMilestones.target2HitTime,
+          target2HitTimeFormatted: callMilestones.target2HitTimeFormatted,
+          stoplossTime: callMilestones.stoplossTime,
+          stoplossTimeFormatted: callMilestones.stoplossTimeFormatted,
+          halfProfitBookTime: callMilestones.halfProfitBookTime,
+          halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
+          bookedTime: callMilestones.bookedTime,
+          bookedTimeFormatted: callMilestones.bookedTimeFormatted,
           carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
           carryForwardSuggestion: newCallAdvice.carryForwardSuggestion,
           carryForwardAdvice: newCallAdvice.carryForwardAdvice,
@@ -2145,69 +2315,45 @@ export class ConfluenceEngine {
       const pnlPoints = +(currentLtp - activePut.entryPrice).toFixed(2);
       const pnlPct = activePut.entryPrice > 0 ? +((pnlPoints / activePut.entryPrice) * 100).toFixed(2) : 0;
 
-      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
-      if (currentLtp >= activePut.target2Price) actionabilityStatus = 'TARGET_HIT';
-      else if (currentLtp >= activePut.target1Price) actionabilityStatus = 'TRAIL_SL';
-      else if (currentLtp <= activePut.stoplossPrice) actionabilityStatus = 'SL_HIT';
-      else if (pnlPct >= 1.5) actionabilityStatus = 'RUNNING_PROFIT';
-      else if (pnlPct <= -1.5) actionabilityStatus = 'DIP_OPPORTUNITY';
-      else actionabilityStatus = 'AT_TRIGGER';
+      const putMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: activePut,
+        currentLtp,
+        entryPrice: activePut.entryPrice,
+        entryRangeMin: activePut.dipEntryMin,
+        entryRangeMax: activePut.entryPrice,
+        target1Price: activePut.target1Price,
+        target2Price: activePut.target2Price,
+        stoplossPrice: activePut.stoplossPrice,
+        isSeller: false,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
 
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
       let status = activePut.status;
-      let bookedTime = activePut.bookedTime;
-      let bookedTimeFormatted = activePut.bookedTimeFormatted;
       let carryForwardTime = activePut.carryForwardTime;
       let carryForwardTimeFormatted = activePut.carryForwardTimeFormatted;
 
-      if (currentLtp >= activePut.target2Price) {
+      if (putMilestones.target2HitTimeFormatted) {
         status = 'TARGET2_HIT';
-        if (!activePut.target2HitTimeFormatted) {
-          activePut.target2HitTime = new Date().toISOString();
-          activePut.target2HitTimeFormatted = timeFormatted;
-        }
-        if (!activePut.target1HitTimeFormatted) {
-          activePut.target1HitTime = activePut.target2HitTime;
-          activePut.target1HitTimeFormatted = timeFormatted;
-          activePut.halfProfitBookTime = activePut.target1HitTime;
-          activePut.halfProfitBookTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentLtp >= activePut.target1Price) {
+        actionabilityStatus = 'TARGET_HIT';
+      } else if (putMilestones.target1HitTimeFormatted) {
         status = 'TARGET1_HIT';
-        if (!activePut.target1HitTimeFormatted) {
-          activePut.target1HitTime = new Date().toISOString();
-          activePut.target1HitTimeFormatted = timeFormatted;
-          activePut.halfProfitBookTime = activePut.target1HitTime;
-          activePut.halfProfitBookTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'TRAIL_SL';
       } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activePut.entryPrice))) {
         status = 'EXPIRED';
         actionabilityStatus = 'SL_HIT';
-        if (!stoplossTimeFormatted) {
-          stoplossTime = new Date().toISOString();
-          stoplossTimeFormatted = timeFormatted;
+        if (!putMilestones.stoplossTimeFormatted) {
+          putMilestones.stoplossTime = new Date().toISOString();
+          putMilestones.stoplossTimeFormatted = timeFormatted;
         }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
+        if (!putMilestones.bookedTimeFormatted) {
+          putMilestones.bookedTime = new Date().toISOString();
+          putMilestones.bookedTimeFormatted = timeFormatted;
         }
-      } else if (currentLtp <= activePut.stoplossPrice) {
+      } else if (putMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
-        if (!activePut.stoplossTimeFormatted) {
-          activePut.stoplossTime = new Date().toISOString();
-          activePut.stoplossTimeFormatted = timeFormatted;
-        }
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'SL_HIT';
       } else if (isPast340Pm || activePut.isCarriedForward) {
         const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
         if (isEligibleToCarry) {
@@ -2219,6 +2365,14 @@ export class ConfluenceEngine {
         } else {
           status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
         }
+      } else if (pnlPct >= 1.5) {
+        actionabilityStatus = 'RUNNING_PROFIT';
+      } else if (pnlPct <= -1.5) {
+        actionabilityStatus = 'DIP_OPPORTUNITY';
+      } else if (putMilestones.isEntryTriggered) {
+        actionabilityStatus = 'AT_TRIGGER';
+      } else {
+        actionabilityStatus = 'IN_ENTRY_ZONE';
       }
 
       let putPnlRupees = 0;
@@ -2256,8 +2410,20 @@ export class ConfluenceEngine {
         carryForwardAdvice: putAdvice.carryForwardAdvice,
         actionabilityStatus,
         status,
-        bookedTime,
-        bookedTimeFormatted,
+        bookedTime: putMilestones.bookedTime,
+        bookedTimeFormatted: putMilestones.bookedTimeFormatted,
+        isEntryTriggered: putMilestones.isEntryTriggered,
+        actualEntryPrice: putMilestones.actualEntryPrice,
+        entryPriceTime: putMilestones.entryPriceTime,
+        entryPriceTimeFormatted: putMilestones.entryPriceTimeFormatted,
+        target1HitTime: putMilestones.target1HitTime,
+        target1HitTimeFormatted: putMilestones.target1HitTimeFormatted,
+        target2HitTime: putMilestones.target2HitTime,
+        target2HitTimeFormatted: putMilestones.target2HitTimeFormatted,
+        stoplossTime: putMilestones.stoplossTime,
+        stoplossTimeFormatted: putMilestones.stoplossTimeFormatted,
+        halfProfitBookTime: putMilestones.halfProfitBookTime,
+        halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD',
@@ -2398,6 +2564,20 @@ export class ConfluenceEngine {
           nextExpiryDate
         });
 
+        const putMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+          existingTrade: null,
+          currentLtp: entryPrice,
+          entryPrice,
+          entryRangeMin: dipMin,
+          entryRangeMax: entryPrice,
+          target1Price: t1Price,
+          target2Price: t2Price,
+          stoplossPrice: slPrice,
+          isSeller: false,
+          timeFormatted,
+          effectiveEntryTimeFormatted
+        });
+
         topPutTrade = {
           id: `put-prime-${symbol}-${hourlySlotId}-${bestPeStrike.strikePrice}`,
           symbol,
@@ -2411,12 +2591,24 @@ export class ConfluenceEngine {
           contractSymbol: `${symbol} ${bestPeStrike.strikePrice} PE`,
           strikePrice: bestPeStrike.strikePrice,
           optionType: 'PE',
-          entryTime: new Date().toISOString(),
-          entryTimeFormatted: effectiveEntryTimeFormatted,
-          callGivenTime: new Date().toISOString(),
-          callGivenTimeFormatted: effectiveEntryTimeFormatted,
-          entryPriceTime: new Date().toISOString(),
-          entryPriceTimeFormatted: effectiveEntryTimeFormatted,
+          entryTime: putMilestones.callGivenTime,
+          entryTimeFormatted: putMilestones.callGivenTimeFormatted,
+          callGivenTime: putMilestones.callGivenTime,
+          callGivenTimeFormatted: putMilestones.callGivenTimeFormatted,
+          isEntryTriggered: putMilestones.isEntryTriggered,
+          actualEntryPrice: putMilestones.actualEntryPrice,
+          entryPriceTime: putMilestones.entryPriceTime,
+          entryPriceTimeFormatted: putMilestones.entryPriceTimeFormatted,
+          target1HitTime: putMilestones.target1HitTime,
+          target1HitTimeFormatted: putMilestones.target1HitTimeFormatted,
+          target2HitTime: putMilestones.target2HitTime,
+          target2HitTimeFormatted: putMilestones.target2HitTimeFormatted,
+          stoplossTime: putMilestones.stoplossTime,
+          stoplossTimeFormatted: putMilestones.stoplossTimeFormatted,
+          halfProfitBookTime: putMilestones.halfProfitBookTime,
+          halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
+          bookedTime: putMilestones.bookedTime,
+          bookedTimeFormatted: putMilestones.bookedTimeFormatted,
           carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
           carryForwardSuggestion: newPutAdvice.carryForwardSuggestion,
           carryForwardAdvice: newPutAdvice.carryForwardAdvice,
@@ -2486,43 +2678,46 @@ export class ConfluenceEngine {
       const pnlPoints = +(activeSellerPut.entryPrice - currentSpreadLtp).toFixed(2);
       const pnlPct = activeSellerPut.entryPrice > 0 ? +((pnlPoints / activeSellerPut.entryPrice) * 100).toFixed(2) : 0;
 
-      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
-      if (currentSpreadLtp <= activeSellerPut.target2Price) actionabilityStatus = 'TARGET_HIT';
-      else if (currentSpreadLtp <= activeSellerPut.target1Price) actionabilityStatus = 'TRAIL_SL';
-      else if (currentSpreadLtp >= activeSellerPut.stoplossPrice) actionabilityStatus = 'SL_HIT';
-      else if (pnlPct >= 5) actionabilityStatus = 'RUNNING_PROFIT';
-      else actionabilityStatus = 'AT_TRIGGER';
+      const sellerPutMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: activeSellerPut,
+        currentLtp: currentSpreadLtp,
+        entryPrice: activeSellerPut.entryPrice,
+        entryRangeMin: activeSellerPut.entryPrice,
+        entryRangeMax: activeSellerPut.entryPrice,
+        target1Price: activeSellerPut.target1Price,
+        target2Price: activeSellerPut.target2Price,
+        stoplossPrice: activeSellerPut.stoplossPrice,
+        isSeller: true,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
 
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
       let status = activeSellerPut.status;
-      let bookedTime = activeSellerPut.bookedTime;
-      let bookedTimeFormatted = activeSellerPut.bookedTimeFormatted;
       let carryForwardTime = activeSellerPut.carryForwardTime;
       let carryForwardTimeFormatted = activeSellerPut.carryForwardTimeFormatted;
 
-      if (currentSpreadLtp <= activeSellerPut.target2Price) {
+      if (sellerPutMilestones.target2HitTimeFormatted) {
         status = 'TARGET2_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentSpreadLtp <= activeSellerPut.target1Price) {
+        actionabilityStatus = 'TARGET_HIT';
+      } else if (sellerPutMilestones.target1HitTimeFormatted) {
         status = 'TARGET1_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentSpreadLtp >= activeSellerPut.stoplossPrice) {
+        actionabilityStatus = 'TRAIL_SL';
+      } else if (sellerPutMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'SL_HIT';
       } else if (isPast340Pm || activeSellerPut.isCarriedForward) {
         status = 'CARRIED_FORWARD';
         if (!carryForwardTimeFormatted) {
           carryForwardTime = new Date().toISOString();
           carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
         }
+      } else if (pnlPct >= 5) {
+        actionabilityStatus = 'RUNNING_PROFIT';
+      } else if (sellerPutMilestones.isEntryTriggered) {
+        actionabilityStatus = 'AT_TRIGGER';
+      } else {
+        actionabilityStatus = 'IN_ENTRY_ZONE';
       }
 
       let sellerPutPnlRupees = 0;
@@ -2543,8 +2738,18 @@ export class ConfluenceEngine {
         carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
         actionabilityStatus,
         status,
-        bookedTime,
-        bookedTimeFormatted,
+        bookedTime: sellerPutMilestones.bookedTime,
+        bookedTimeFormatted: sellerPutMilestones.bookedTimeFormatted,
+        isEntryTriggered: sellerPutMilestones.isEntryTriggered,
+        actualEntryPrice: sellerPutMilestones.actualEntryPrice,
+        entryPriceTime: sellerPutMilestones.entryPriceTime,
+        entryPriceTimeFormatted: sellerPutMilestones.entryPriceTimeFormatted,
+        target1HitTime: sellerPutMilestones.target1HitTime,
+        target1HitTimeFormatted: sellerPutMilestones.target1HitTimeFormatted,
+        target2HitTime: sellerPutMilestones.target2HitTime,
+        target2HitTimeFormatted: sellerPutMilestones.target2HitTimeFormatted,
+        stoplossTime: sellerPutMilestones.stoplossTime,
+        stoplossTimeFormatted: sellerPutMilestones.stoplossTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD'
@@ -2600,6 +2805,20 @@ export class ConfluenceEngine {
 
       const sellerPutStatus: UnifiedSmartTip['status'] = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
 
+      const initialSellerPutMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: null,
+        currentLtp: netCreditPts,
+        entryPrice: netCreditPts,
+        entryRangeMin: netCreditPts,
+        entryRangeMax: netCreditPts,
+        target1Price: +(netCreditPts * 0.35).toFixed(2),
+        target2Price: +(netCreditPts * 0.10).toFixed(2),
+        stoplossPrice: +(netCreditPts * 1.9).toFixed(2),
+        isSeller: true,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
+
       topSellerPutTrade = {
         id: `seller-put-${symbol}-${hourlySlotId}-${soldPutStrike}`,
         symbol,
@@ -2613,8 +2832,22 @@ export class ConfluenceEngine {
         contractSymbol: `${symbol} Bull Put Spread (${soldPutStrike}S / ${hedgePutStrike}L)`,
         strikePrice: soldPutStrike,
         optionType: 'SPREAD',
-        entryTime: new Date().toISOString(),
-        entryTimeFormatted: effectiveEntryTimeFormatted,
+        entryTime: initialSellerPutMilestones.callGivenTime,
+        entryTimeFormatted: initialSellerPutMilestones.callGivenTimeFormatted,
+        callGivenTime: initialSellerPutMilestones.callGivenTime,
+        callGivenTimeFormatted: initialSellerPutMilestones.callGivenTimeFormatted,
+        isEntryTriggered: initialSellerPutMilestones.isEntryTriggered,
+        actualEntryPrice: initialSellerPutMilestones.actualEntryPrice,
+        entryPriceTime: initialSellerPutMilestones.entryPriceTime,
+        entryPriceTimeFormatted: initialSellerPutMilestones.entryPriceTimeFormatted,
+        target1HitTime: initialSellerPutMilestones.target1HitTime,
+        target1HitTimeFormatted: initialSellerPutMilestones.target1HitTimeFormatted,
+        target2HitTime: initialSellerPutMilestones.target2HitTime,
+        target2HitTimeFormatted: initialSellerPutMilestones.target2HitTimeFormatted,
+        stoplossTime: initialSellerPutMilestones.stoplossTime,
+        stoplossTimeFormatted: initialSellerPutMilestones.stoplossTimeFormatted,
+        bookedTime: initialSellerPutMilestones.bookedTime,
+        bookedTimeFormatted: initialSellerPutMilestones.bookedTimeFormatted,
         carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
         carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
         isCarriedForward: sellerPutStatus === 'CARRIED_FORWARD',
@@ -2675,43 +2908,46 @@ export class ConfluenceEngine {
       const pnlPoints = +(activeSellerCall.entryPrice - currentSpreadLtp).toFixed(2);
       const pnlPct = activeSellerCall.entryPrice > 0 ? +((pnlPoints / activeSellerCall.entryPrice) * 100).toFixed(2) : 0;
 
-      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
-      if (currentSpreadLtp <= activeSellerCall.target2Price) actionabilityStatus = 'TARGET_HIT';
-      else if (currentSpreadLtp <= activeSellerCall.target1Price) actionabilityStatus = 'TRAIL_SL';
-      else if (currentSpreadLtp >= activeSellerCall.stoplossPrice) actionabilityStatus = 'SL_HIT';
-      else if (pnlPct >= 5) actionabilityStatus = 'RUNNING_PROFIT';
-      else actionabilityStatus = 'AT_TRIGGER';
+      const sellerCallMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: activeSellerCall,
+        currentLtp: currentSpreadLtp,
+        entryPrice: activeSellerCall.entryPrice,
+        entryRangeMin: activeSellerCall.entryPrice,
+        entryRangeMax: activeSellerCall.entryPrice,
+        target1Price: activeSellerCall.target1Price,
+        target2Price: activeSellerCall.target2Price,
+        stoplossPrice: activeSellerCall.stoplossPrice,
+        isSeller: true,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
 
+      let actionabilityStatus: UnifiedSmartTip['actionabilityStatus'] = 'IN_ENTRY_ZONE';
       let status = activeSellerCall.status;
-      let bookedTime = activeSellerCall.bookedTime;
-      let bookedTimeFormatted = activeSellerCall.bookedTimeFormatted;
       let carryForwardTime = activeSellerCall.carryForwardTime;
       let carryForwardTimeFormatted = activeSellerCall.carryForwardTimeFormatted;
 
-      if (currentSpreadLtp <= activeSellerCall.target2Price) {
+      if (sellerCallMilestones.target2HitTimeFormatted) {
         status = 'TARGET2_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentSpreadLtp <= activeSellerCall.target1Price) {
+        actionabilityStatus = 'TARGET_HIT';
+      } else if (sellerCallMilestones.target1HitTimeFormatted) {
         status = 'TARGET1_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (currentSpreadLtp >= activeSellerCall.stoplossPrice) {
+        actionabilityStatus = 'TRAIL_SL';
+      } else if (sellerCallMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
+        actionabilityStatus = 'SL_HIT';
       } else if (isPast340Pm || activeSellerCall.isCarriedForward) {
         status = 'CARRIED_FORWARD';
         if (!carryForwardTimeFormatted) {
           carryForwardTime = new Date().toISOString();
           carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
         }
+      } else if (pnlPct >= 5) {
+        actionabilityStatus = 'RUNNING_PROFIT';
+      } else if (sellerCallMilestones.isEntryTriggered) {
+        actionabilityStatus = 'AT_TRIGGER';
+      } else {
+        actionabilityStatus = 'IN_ENTRY_ZONE';
       }
 
       let sellerCallPnlRupees = 0;
@@ -2732,8 +2968,18 @@ export class ConfluenceEngine {
         carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
         actionabilityStatus,
         status,
-        bookedTime,
-        bookedTimeFormatted,
+        bookedTime: sellerCallMilestones.bookedTime,
+        bookedTimeFormatted: sellerCallMilestones.bookedTimeFormatted,
+        isEntryTriggered: sellerCallMilestones.isEntryTriggered,
+        actualEntryPrice: sellerCallMilestones.actualEntryPrice,
+        entryPriceTime: sellerCallMilestones.entryPriceTime,
+        entryPriceTimeFormatted: sellerCallMilestones.entryPriceTimeFormatted,
+        target1HitTime: sellerCallMilestones.target1HitTime,
+        target1HitTimeFormatted: sellerCallMilestones.target1HitTimeFormatted,
+        target2HitTime: sellerCallMilestones.target2HitTime,
+        target2HitTimeFormatted: sellerCallMilestones.target2HitTimeFormatted,
+        stoplossTime: sellerCallMilestones.stoplossTime,
+        stoplossTimeFormatted: sellerCallMilestones.stoplossTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD'
@@ -2789,6 +3035,20 @@ export class ConfluenceEngine {
 
       const sellerCallStatus: UnifiedSmartTip['status'] = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
 
+      const initialSellerCallMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: null,
+        currentLtp: netCreditPts,
+        entryPrice: netCreditPts,
+        entryRangeMin: netCreditPts,
+        entryRangeMax: netCreditPts,
+        target1Price: +(netCreditPts * 0.35).toFixed(2),
+        target2Price: +(netCreditPts * 0.10).toFixed(2),
+        stoplossPrice: +(netCreditPts * 1.9).toFixed(2),
+        isSeller: true,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
+
       topSellerCallTrade = {
         id: `seller-call-${symbol}-${hourlySlotId}-${soldCallStrike}`,
         symbol,
@@ -2802,8 +3062,22 @@ export class ConfluenceEngine {
         contractSymbol: `${symbol} Bear Call Spread (${soldCallStrike}S / ${hedgeCallStrike}L)`,
         strikePrice: soldCallStrike,
         optionType: 'SPREAD',
-        entryTime: new Date().toISOString(),
-        entryTimeFormatted: effectiveEntryTimeFormatted,
+        entryTime: initialSellerCallMilestones.callGivenTime,
+        entryTimeFormatted: initialSellerCallMilestones.callGivenTimeFormatted,
+        callGivenTime: initialSellerCallMilestones.callGivenTime,
+        callGivenTimeFormatted: initialSellerCallMilestones.callGivenTimeFormatted,
+        isEntryTriggered: initialSellerCallMilestones.isEntryTriggered,
+        actualEntryPrice: initialSellerCallMilestones.actualEntryPrice,
+        entryPriceTime: initialSellerCallMilestones.entryPriceTime,
+        entryPriceTimeFormatted: initialSellerCallMilestones.entryPriceTimeFormatted,
+        target1HitTime: initialSellerCallMilestones.target1HitTime,
+        target1HitTimeFormatted: initialSellerCallMilestones.target1HitTimeFormatted,
+        target2HitTime: initialSellerCallMilestones.target2HitTime,
+        target2HitTimeFormatted: initialSellerCallMilestones.target2HitTimeFormatted,
+        stoplossTime: initialSellerCallMilestones.stoplossTime,
+        stoplossTimeFormatted: initialSellerCallMilestones.stoplossTimeFormatted,
+        bookedTime: initialSellerCallMilestones.bookedTime,
+        bookedTimeFormatted: initialSellerCallMilestones.bookedTimeFormatted,
         carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
         carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
         isCarriedForward: sellerCallStatus === 'CARRIED_FORWARD',
@@ -3019,25 +3293,27 @@ export class ConfluenceEngine {
       const t2SpreadPrice = +(entryPrice + maxProfitPts).toFixed(2);
       const slSpreadPrice = +(entryPrice * 0.50).toFixed(2);
 
+      const spreadMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: existingSpread,
+        currentLtp: spreadEntryPts,
+        entryPrice,
+        entryRangeMin: +(entryPrice * 0.92).toFixed(2),
+        entryRangeMax: entryPrice,
+        target1Price: t1SpreadPrice,
+        target2Price: t2SpreadPrice,
+        stoplossPrice: slSpreadPrice,
+        isSeller: false,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
+
       let spreadStatus: UnifiedSmartTip['status'] = 'ACTIVE';
-      if (spreadEntryPts >= t2SpreadPrice) {
+      if (spreadMilestones.target2HitTimeFormatted) {
         spreadStatus = 'TARGET2_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (spreadEntryPts >= t1SpreadPrice) {
+      } else if (spreadMilestones.target1HitTimeFormatted) {
         spreadStatus = 'TARGET1_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (spreadEntryPts <= slSpreadPrice) {
+      } else if (spreadMilestones.stoplossTimeFormatted) {
         spreadStatus = 'SL_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
       } else if (isPast340Pm || existingSpread?.isCarriedForward) {
         spreadStatus = 'CARRIED_FORWARD';
         if (!carryForwardTimeFormatted) {
@@ -3073,10 +3349,22 @@ export class ConfluenceEngine {
         contractSymbol,
         strikePrice: buyStrike,
         optionType: 'SPREAD',
-        entryTime,
-        entryTimeFormatted,
-        bookedTime,
-        bookedTimeFormatted,
+        entryTime: spreadMilestones.callGivenTime,
+        entryTimeFormatted: spreadMilestones.callGivenTimeFormatted,
+        callGivenTime: spreadMilestones.callGivenTime,
+        callGivenTimeFormatted: spreadMilestones.callGivenTimeFormatted,
+        isEntryTriggered: spreadMilestones.isEntryTriggered,
+        actualEntryPrice: spreadMilestones.actualEntryPrice,
+        entryPriceTime: spreadMilestones.entryPriceTime,
+        entryPriceTimeFormatted: spreadMilestones.entryPriceTimeFormatted,
+        target1HitTime: spreadMilestones.target1HitTime,
+        target1HitTimeFormatted: spreadMilestones.target1HitTimeFormatted,
+        target2HitTime: spreadMilestones.target2HitTime,
+        target2HitTimeFormatted: spreadMilestones.target2HitTimeFormatted,
+        stoplossTime: spreadMilestones.stoplossTime,
+        stoplossTimeFormatted: spreadMilestones.stoplossTimeFormatted,
+        bookedTime: spreadMilestones.bookedTime,
+        bookedTimeFormatted: spreadMilestones.bookedTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         carryForwardSuggestion: 'Hedged Spread Overnight Hold: Fully defined risk spread. Both legs hold overnight for Theta decay harvest — but both legs MUST be closed by expiry; options do NOT auto-roll.',
@@ -3144,25 +3432,27 @@ export class ConfluenceEngine {
       const pnlPoints = +(topHz.ltp - entryPrice).toFixed(2);
       const pnlPct = entryPrice > 0 ? +((pnlPoints / entryPrice) * 100).toFixed(2) : 0;
 
+      const gammaMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
+        existingTrade: existingGamma,
+        currentLtp: topHz.ltp,
+        entryPrice,
+        entryRangeMin: +(entryPrice * 0.90).toFixed(2),
+        entryRangeMax: entryPrice,
+        target1Price: topHz.target3x,
+        target2Price: topHz.target5x,
+        stoplossPrice: topHz.stoploss,
+        isSeller: false,
+        timeFormatted,
+        effectiveEntryTimeFormatted
+      });
+
       let gammaStatus: UnifiedSmartTip['status'] = 'ACTIVE';
-      if (topHz.ltp >= topHz.target5x) {
+      if (gammaMilestones.target2HitTimeFormatted) {
         gammaStatus = 'TARGET2_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (topHz.ltp >= topHz.target3x) {
+      } else if (gammaMilestones.target1HitTimeFormatted) {
         gammaStatus = 'TARGET1_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
-      } else if (topHz.ltp <= topHz.stoploss) {
+      } else if (gammaMilestones.stoplossTimeFormatted) {
         gammaStatus = 'SL_HIT';
-        if (!bookedTimeFormatted) {
-          bookedTime = new Date().toISOString();
-          bookedTimeFormatted = timeFormatted;
-        }
       } else if (isPast340Pm) {
         gammaStatus = 'EXPIRED';
         if (!carryForwardTimeFormatted) {
@@ -3188,10 +3478,22 @@ export class ConfluenceEngine {
         contractSymbol,
         strikePrice: topHz.strike,
         optionType: topHz.optionType,
-        entryTime,
-        entryTimeFormatted,
-        bookedTime,
-        bookedTimeFormatted,
+        entryTime: gammaMilestones.callGivenTime,
+        entryTimeFormatted: gammaMilestones.callGivenTimeFormatted,
+        callGivenTime: gammaMilestones.callGivenTime,
+        callGivenTimeFormatted: gammaMilestones.callGivenTimeFormatted,
+        isEntryTriggered: gammaMilestones.isEntryTriggered,
+        actualEntryPrice: gammaMilestones.actualEntryPrice,
+        entryPriceTime: gammaMilestones.entryPriceTime,
+        entryPriceTimeFormatted: gammaMilestones.entryPriceTimeFormatted,
+        target1HitTime: gammaMilestones.target1HitTime,
+        target1HitTimeFormatted: gammaMilestones.target1HitTimeFormatted,
+        target2HitTime: gammaMilestones.target2HitTime,
+        target2HitTimeFormatted: gammaMilestones.target2HitTimeFormatted,
+        stoplossTime: gammaMilestones.stoplossTime,
+        stoplossTimeFormatted: gammaMilestones.stoplossTimeFormatted,
+        bookedTime: gammaMilestones.bookedTime,
+        bookedTimeFormatted: gammaMilestones.bookedTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
         carryForwardSuggestion: '0DTE Expiry Warning: All same-day expiry options expired at 03:30 PM. Never carry 0DTE options overnight.',

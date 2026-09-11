@@ -1306,6 +1306,9 @@ export interface ActiveTradeTipData {
   riskReward?: string;
   givenTimeFormatted?: string;
   callGivenTime?: string;
+  callGivenTimeFormatted?: string;
+  isEntryTriggered?: boolean;
+  actualEntryPrice?: number;
   entryPriceTime?: string;
   entryPriceTimeFormatted?: string;
   target1HitTime?: string;

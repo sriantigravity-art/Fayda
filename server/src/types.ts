@@ -1311,6 +1311,8 @@ export interface UnifiedSmartTip {
   // 6-Stage Lifecycle Timestamps
   callGivenTime?: string;
   callGivenTimeFormatted?: string;
+  isEntryTriggered?: boolean;
+  actualEntryPrice?: number;
   entryPriceTime?: string;
   entryPriceTimeFormatted?: string;
   target1HitTime?: string;

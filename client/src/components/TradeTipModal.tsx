@@ -416,10 +416,43 @@ Generated via Fayda Trading Terminal`;
                   </span>
                 )}
 
-                {tip.givenTimeFormatted && (
-                  <span className="px-2 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                {(tip.callGivenTimeFormatted || tip.givenTimeFormatted) && (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
                     <Clock className="w-3 h-3 text-sky-500" />
-                    <span>Given: {tip.givenTimeFormatted}</span>
+                    <span>Given: {tip.callGivenTimeFormatted || tip.givenTimeFormatted}</span>
+                  </span>
+                )}
+
+                {tip.isEntryTriggered ? (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    <span>🟢 Entered: {tip.entryPriceTimeFormatted || tip.givenTimeFormatted} @ ₹{(tip.actualEntryPrice || tip.entryPrice || 0).toFixed(1)}</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                    <Timer className="w-3 h-3 text-sky-500" />
+                    <span>⏳ Waiting for Entry Zone</span>
+                  </span>
+                )}
+
+                {tip.target1HitTimeFormatted && (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <Award className="w-3 h-3 text-emerald-500" />
+                    <span>🏆 T1 Hit: {tip.target1HitTimeFormatted}</span>
+                  </span>
+                )}
+
+                {tip.target2HitTimeFormatted && (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-cyan-500" />
+                    <span>🚀 T2 Hit: {tip.target2HitTimeFormatted}</span>
+                  </span>
+                )}
+
+                {tip.stoplossTimeFormatted && (
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-rose-500" />
+                    <span>🛑 SL Hit: {tip.stoplossTimeFormatted}</span>
                   </span>
                 )}
               </div>
@@ -533,23 +566,55 @@ Generated via Fayda Trading Terminal`;
           {/* ========================================================================= */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
             {/* 1. ENTRY ZONE (with Entry Price Time) */}
-            <div className="bg-accent-cyan/10 dark:bg-accent-cyan/15 p-3 rounded-xl border border-accent-cyan/30 text-left space-y-1">
-              <span className="text-accent-cyan block text-[9.5px] font-black uppercase tracking-wider">
-                {modeLabels.entryLabel}
-              </span>
+            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+              tip.isEntryTriggered
+                ? 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/30'
+                : 'bg-accent-cyan/10 dark:bg-accent-cyan/15 border-accent-cyan/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className={`block text-[9.5px] font-black uppercase tracking-wider ${
+                  tip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-accent-cyan'
+                }`}>
+                  {modeLabels.entryLabel}
+                </span>
+                <span className={`text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase ${
+                  tip.isEntryTriggered 
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' 
+                    : 'bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                }`}>
+                  {tip.isEntryTriggered ? 'TRIGGERED' : 'WAITING'}
+                </span>
+              </div>
               <span className="font-black text-slate-900 dark:text-terminal-text text-sm sm:text-base block">
-                {typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(2)}` : (tip.entryRange || tip.entryPrice || '—')}
+                {tip.isEntryTriggered && tip.actualEntryPrice 
+                  ? `₹${tip.actualEntryPrice.toFixed(2)}` 
+                  : (typeof tip.entryPrice === 'number' ? `₹${tip.entryPrice.toFixed(2)}` : (tip.entryRange || tip.entryPrice || '—'))}
               </span>
-              <span className="text-[9px] text-sky-600 dark:text-sky-300 font-bold block truncate">
-                ⏱️ Triggered: {tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}
+              <span className={`text-[9px] font-bold block truncate ${
+                tip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-300'
+              }`}>
+                {tip.isEntryTriggered 
+                  ? `🟢 In: ${tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}`
+                  : `⏳ Waiting (${tip.entryRange || `₹${tip.entryPrice}`})`}
               </span>
             </div>
 
             {/* 2. TARGET 1 (with Target 1 Hit Time) */}
-            <div className="bg-bull/10 dark:bg-bull/15 p-3 rounded-xl border border-bull/30 text-left space-y-1">
-              <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
-                {modeLabels.t1Label}
-              </span>
+            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+              tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
+                ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
+                : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+                  {modeLabels.t1Label}
+                </span>
+                {(tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT') && (
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                    HIT
+                  </span>
+                )}
+              </div>
               <span className="font-black text-bull text-sm sm:text-base block">
                 {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(2)}` : (tip.target1Price || '—')}
               </span>
@@ -559,10 +624,21 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* 3. TARGET 2 (with Target 2 Hit Time) */}
-            <div className="bg-bull/10 dark:bg-bull/15 p-3 rounded-xl border border-bull/30 text-left space-y-1">
-              <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
-                {modeLabels.t2Label}
-              </span>
+            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+              tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT'
+                ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
+                : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
+                  {modeLabels.t2Label}
+                </span>
+                {(tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT') && (
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                    HIT
+                  </span>
+                )}
+              </div>
               <span className="font-black text-bull text-sm sm:text-base block">
                 {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
               </span>
@@ -572,10 +648,21 @@ Generated via Fayda Trading Terminal`;
             </div>
 
             {/* 4. STOP LOSS (with Stoploss Time) */}
-            <div className="bg-bear/10 dark:bg-bear/15 p-3 rounded-xl border border-bear/30 text-left space-y-1">
-              <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider">
-                {modeLabels.slLabel}
-              </span>
+            <div className={`p-3 rounded-xl border text-left space-y-1 ${
+              tip.stoplossTimeFormatted || isSlHit
+                ? 'bg-rose-500/15 dark:bg-rose-500/20 border-rose-500/50 shadow-xs'
+                : 'bg-bear/10 dark:bg-bear/15 border-bear/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider">
+                  {modeLabels.slLabel}
+                </span>
+                {(tip.stoplossTimeFormatted || isSlHit) && (
+                  <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-rose-500/20 text-rose-700 dark:text-rose-300">
+                    HIT
+                  </span>
+                )}
+              </div>
               <span className="font-black text-bear text-sm sm:text-base block">
                 {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
               </span>
