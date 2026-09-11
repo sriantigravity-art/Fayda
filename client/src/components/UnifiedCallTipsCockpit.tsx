@@ -668,10 +668,10 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                     <div>
                       <div className="text-[10px] text-terminal-muted uppercase">
-                        {isBeginner ? 'Safe Buy Range' : 'Dip Entry'}
+                        {isBeginner ? 'Perfect Buy Price' : 'Perfect Entry'}
                       </div>
                       <div className="font-bold text-terminal-text font-mono text-[11px]">
-                        {topCallTrade.entryRange}
+                        ₹{topCallTrade.entryPrice.toFixed(2)}
                       </div>
                     </div>
                     <div>
@@ -704,6 +704,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       />
                     </div>
                   </div>
+
+                  {/* Strategic Guidance Box (Wait for Target 2 vs Close / Carry Forward) */}
+                  {topCallTrade.ongoingProfitBox?.decisionText && (
+                    <div className="p-2 rounded-lg bg-terminal-bg/90 border border-amber-500/30 flex items-start gap-2 text-[11px] font-mono">
+                      <span className="text-amber-400 font-bold shrink-0">💡 Strategy Directive:</span>
+                      <span className="text-slate-200">{topCallTrade.ongoingProfitBox.decisionText}</span>
+                    </div>
+                  )}
 
                   {/* 10-Indicator Confluence Checklist Drawer Toggle */}
                   {topCallTrade.confluenceBreakdown && (
@@ -757,12 +765,33 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                     {topCallTrade.isEntryTriggered ? (
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                        <span>🟢 Entered: {topCallTrade.entryPriceTimeFormatted || topCallTrade.entryTimeFormatted}</span>
+                        <span>🟢 Entered: {topCallTrade.entryPriceTimeFormatted || topCallTrade.entryTimeFormatted} @ ₹{topCallTrade.entryPrice.toFixed(2)}</span>
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5 text-sky-400" />
-                        <span>⏳ Waiting Zone</span>
+                        <span>⏳ Waiting Trigger (₹{topCallTrade.entryPrice.toFixed(2)})</span>
+                      </span>
+                    )}
+
+                    {topCallTrade.target1HitTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <Award className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>T1 Hit: {topCallTrade.target1HitTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {topCallTrade.target2HitTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>T2 Hit: {topCallTrade.target2HitTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {topCallTrade.stoplossTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
+                        <span>SL Hit: {topCallTrade.stoplossTimeFormatted}</span>
                       </span>
                     )}
 
@@ -877,10 +906,10 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                   <div className="grid grid-cols-3 gap-2 bg-terminal-bg/90 border border-terminal-border p-2.5 rounded-lg text-xs">
                     <div>
                       <div className="text-[10px] text-terminal-muted uppercase">
-                        {isBeginner ? 'Safe Buy Range' : 'Dip Entry'}
+                        {isBeginner ? 'Perfect Buy Price' : 'Perfect Entry'}
                       </div>
                       <div className="font-bold text-terminal-text font-mono text-[11px]">
-                        {topPutTrade.entryRange}
+                        ₹{topPutTrade.entryPrice.toFixed(2)}
                       </div>
                     </div>
                     <div>
@@ -913,6 +942,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       />
                     </div>
                   </div>
+
+                  {/* Strategic Guidance Box (Wait for Target 2 vs Close / Carry Forward) */}
+                  {topPutTrade.ongoingProfitBox?.decisionText && (
+                    <div className="p-2 rounded-lg bg-terminal-bg/90 border border-amber-500/30 flex items-start gap-2 text-[11px] font-mono">
+                      <span className="text-amber-400 font-bold shrink-0">💡 Strategy Directive:</span>
+                      <span className="text-slate-200">{topPutTrade.ongoingProfitBox.decisionText}</span>
+                    </div>
+                  )}
 
                   {/* 10-Indicator Confluence Checklist Drawer Toggle */}
                   {topPutTrade.confluenceBreakdown && (
@@ -966,12 +1003,33 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                     {topPutTrade.isEntryTriggered ? (
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                        <span>🟢 Entered: {topPutTrade.entryPriceTimeFormatted || topPutTrade.entryTimeFormatted}</span>
+                        <span>🟢 Entered: {topPutTrade.entryPriceTimeFormatted || topPutTrade.entryTimeFormatted} @ ₹{topPutTrade.entryPrice.toFixed(2)}</span>
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5 text-sky-400" />
-                        <span>⏳ Waiting Zone</span>
+                        <span>⏳ Waiting Trigger (₹{topPutTrade.entryPrice.toFixed(2)})</span>
+                      </span>
+                    )}
+
+                    {topPutTrade.target1HitTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <Award className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>T1 Hit: {topPutTrade.target1HitTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {topPutTrade.target2HitTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>T2 Hit: {topPutTrade.target2HitTimeFormatted}</span>
+                      </span>
+                    )}
+
+                    {topPutTrade.stoplossTimeFormatted && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
+                        <span>SL Hit: {topPutTrade.stoplossTimeFormatted}</span>
                       </span>
                     )}
 

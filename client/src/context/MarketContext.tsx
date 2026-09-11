@@ -704,7 +704,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               strikePriceVal: number,
               entryTimeFormatted?: string,
               priorBookedTimeFormatted?: string,
-              carryForwardTimeFormatted?: string
+              carryForwardTimeFormatted?: string,
+              entryPriceTimeFormatted?: string,
+              target1HitTimeFormatted?: string,
+              target2HitTimeFormatted?: string,
+              stoplossTimeFormatted?: string
             ) => {
               if (!contractSymbol || entryVal <= 0) return;
               if (!isMarketOpenForSymbol(symbol)) return;
@@ -781,6 +785,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     timestamp: new Date().toISOString(),
                     timeFormatted: bookedTime,
                     entryTimeFormatted: currentGivenTime,
+                    entryPriceTimeFormatted: entryPriceTimeFormatted || currentGivenTime,
+                    target1HitTimeFormatted: target1HitTimeFormatted || bookedTime,
+                    target2HitTimeFormatted: target2HitTimeFormatted || bookedTime,
                     bookedTimeFormatted: bookedTime,
                     carryForwardTimeFormatted
                   };
@@ -828,6 +835,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     timestamp: new Date().toISOString(),
                     timeFormatted: bookedTime,
                     entryTimeFormatted: currentGivenTime,
+                    entryPriceTimeFormatted: entryPriceTimeFormatted || currentGivenTime,
+                    target1HitTimeFormatted: target1HitTimeFormatted || bookedTime,
                     bookedTimeFormatted: bookedTime,
                     carryForwardTimeFormatted
                   };
@@ -877,6 +886,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       timestamp: new Date().toISOString(),
                       timeFormatted: lossBookedTime,
                       entryTimeFormatted: currentGivenTime,
+                      entryPriceTimeFormatted: entryPriceTimeFormatted || currentGivenTime,
+                      stoplossTimeFormatted: stoplossTimeFormatted || lossBookedTime,
                       bookedTimeFormatted: lossBookedTime,
                       carryForwardTimeFormatted
                     };
@@ -926,6 +937,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     timestamp: new Date().toISOString(),
                     timeFormatted: formatISTTime(null, { showSeconds: true }),
                     entryTimeFormatted: currentGivenTime,
+                    entryPriceTimeFormatted: entryPriceTimeFormatted || currentGivenTime,
                     carryForwardTimeFormatted
                   };
 
@@ -954,7 +966,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 primePick.strikePrice || parseInt(primePick.contractSymbol.replace(/[^0-9]/g, '')) || 0,
                 primePick.callGivenTimeFormatted || primePick.entryTimeFormatted,
                 primePick.bookedTimeFormatted,
-                primePick.carryForwardTimeFormatted
+                primePick.carryForwardTimeFormatted,
+                primePick.entryPriceTimeFormatted,
+                primePick.target1HitTimeFormatted,
+                primePick.target2HitTimeFormatted,
+                primePick.stoplossTimeFormatted
               );
             }
 
@@ -976,7 +992,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 t.strikePrice || parseInt(t.contractSymbol.replace(/[^0-9]/g, '')) || 0,
                 t.callGivenTimeFormatted || t.entryTimeFormatted,
                 t.bookedTimeFormatted,
-                t.carryForwardTimeFormatted
+                t.carryForwardTimeFormatted,
+                t.entryPriceTimeFormatted,
+                t.target1HitTimeFormatted,
+                t.target2HitTimeFormatted,
+                t.stoplossTimeFormatted
               );
             }
 

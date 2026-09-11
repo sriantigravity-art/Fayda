@@ -205,7 +205,7 @@ class SignalLedgerService {
     }
     recordSignal(signal) {
         const today = this.getTodayDateStr();
-        const timeFormatted = this.getIstTimeFormatted();
+        const timeFormatted = signal.callGivenTimeFormatted || this.getIstTimeFormatted();
         // Deduplicate strictly by (today, symbol, strikePrice, optionType, action)
         for (const existing of this.calls.values()) {
             if (existing.date === today &&
@@ -218,6 +218,14 @@ class SignalLedgerService {
                     existing.currentLtp = +signal.entryPrice.toFixed(2);
                     existing.peakLtp = Math.max(existing.peakLtp, signal.entryPrice);
                 }
+                if (signal.entryPriceTimeFormatted)
+                    existing.entryPriceTimeFormatted = signal.entryPriceTimeFormatted;
+                if (signal.target1HitTimeFormatted)
+                    existing.target1HitTimeFormatted = signal.target1HitTimeFormatted;
+                if (signal.target2HitTimeFormatted)
+                    existing.target2HitTimeFormatted = signal.target2HitTimeFormatted;
+                if (signal.stoplossTimeFormatted)
+                    existing.stoplossHitTime = signal.stoplossTimeFormatted;
                 return existing;
             }
         }
@@ -237,7 +245,7 @@ class SignalLedgerService {
         const contractName = `${signal.symbol} ${signal.strikePrice > 0 ? signal.strikePrice : ''} ${signal.optionType}`.trim();
         const id = `call_${today}_${signal.symbol}_${signal.strikePrice}_${signal.optionType}_${signal.action}`;
         const rr = signal.riskReward || '1:2.0';
-        const entryRange = `₹${signal.entryPrice.toFixed(2)} - ₹${(signal.entryPrice * 1.02).toFixed(2)}`;
+        const entryRange = `₹${signal.entryPrice.toFixed(2)}`;
         const newCall = {
             id,
             date: today,
@@ -263,12 +271,77 @@ class SignalLedgerService {
             pnlPct: 0,
             nearTargetPct: 0,
             nearTargetDescription: 'Active In Progress',
+            callGivenTime: signal.callGivenTimeFormatted || timeFormatted,
+            entryPriceTimeFormatted: signal.entryPriceTimeFormatted,
+            target1HitTimeFormatted: signal.target1HitTimeFormatted,
+            target2HitTimeFormatted: signal.target2HitTimeFormatted,
+            stoplossTime: signal.stoplossTimeFormatted,
+            stoplossHitTime: signal.stoplossTimeFormatted,
             notes: signal.notes
         };
         this.calls.set(id, newCall);
         this.datesSet.add(today);
         this.saveToFile();
         return newCall;
+    }
+    recordOrUpdateMilestone(data) {
+        const today = this.getTodayDateStr();
+        const id = `call_${today}_${data.symbol}_${data.strikePrice}_${data.optionType}_${data.action}`;
+        let call = this.calls.get(id);
+        if (!call) {
+            call = this.recordSignal({
+                symbol: data.symbol,
+                strikePrice: data.strikePrice,
+                optionType: data.optionType,
+                action: data.action,
+                signalSource: data.signalSource || 'CONFLUENCE',
+                entryPrice: data.entryPrice,
+                target1Price: data.target1Price,
+                target2Price: data.target2Price,
+                stoplossPrice: data.stoplossPrice,
+                notes: data.notes,
+                callGivenTimeFormatted: data.callGivenTimeFormatted,
+                entryPriceTimeFormatted: data.entryPriceTimeFormatted
+            });
+        }
+        if (call) {
+            call.currentLtp = +data.currentLtp.toFixed(2);
+            call.peakLtp = Math.max(call.peakLtp, data.currentLtp);
+            if (data.callGivenTimeFormatted)
+                call.callGivenTime = data.callGivenTimeFormatted;
+            if (data.entryPriceTimeFormatted)
+                call.entryPriceTimeFormatted = data.entryPriceTimeFormatted;
+            if (data.target1HitTimeFormatted)
+                call.target1HitTimeFormatted = data.target1HitTimeFormatted;
+            if (data.target2HitTimeFormatted) {
+                call.target2HitTimeFormatted = data.target2HitTimeFormatted;
+                call.targetHitTime = data.target2HitTimeFormatted;
+            }
+            if (data.stoplossTimeFormatted) {
+                call.stoplossTime = data.stoplossTimeFormatted;
+                call.stoplossHitTime = data.stoplossTimeFormatted;
+            }
+            const pnlPoints = +(data.currentLtp - call.entryPrice).toFixed(2);
+            const pnlPct = +(((data.currentLtp - call.entryPrice) / call.entryPrice) * 100).toFixed(1);
+            if (data.status) {
+                call.status = data.status;
+                if (data.status === 'TARGET_HIT' || data.status === 'STOPLOSS_HIT') {
+                    call.exitLtp = +data.currentLtp.toFixed(2);
+                    call.pointsPnl = pnlPoints;
+                    call.pnlPct = pnlPct;
+                    if (data.status === 'TARGET_HIT') {
+                        call.nearTargetPct = 100;
+                        call.nearTargetDescription = `🎯 100% Target Hit (+${pnlPoints} pts / +${pnlPct}%)`;
+                    }
+                    else {
+                        call.nearTargetPct = 0;
+                        call.nearTargetDescription = `🛑 Stoploss Hit (${pnlPoints} pts / ${pnlPct}%)`;
+                    }
+                }
+            }
+            this.saveToFile();
+        }
+        return call;
     }
     updateLivePrices(symbol, strikes) {
         let hasChanges = false;
@@ -895,7 +968,7 @@ class SignalLedgerService {
             list.forEach((item, itemIdx) => {
                 const id = `seed_${dStr}_${item.symbol}_${item.strikePrice}_${itemIdx}`;
                 const timeFormatted = item.timeOffset;
-                const entryRange = `₹${item.entryPrice.toFixed(2)} - ₹${(item.entryPrice * 1.02).toFixed(2)}`;
+                const entryRange = `₹${item.entryPrice.toFixed(2)}`;
                 const entry = {
                     id,
                     date: dStr,

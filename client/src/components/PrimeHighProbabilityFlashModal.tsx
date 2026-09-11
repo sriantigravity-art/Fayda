@@ -112,7 +112,7 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
   };
 
   const handleCopySetup = () => {
-    const text = `🎯 FAYDA HIGH-PROBABILITY ${isCall ? 'CALL' : 'PUT'}: ${tip.contractSymbol}\n• Entry Zone: ${tip.entryRange}\n• Target 1: ₹${tip.target1Price.toFixed(2)} (+${tip.target1Pct}%)\n• Target 2: ₹${tip.target2Price.toFixed(2)} (+${tip.target2Pct}%)\n• Stop Loss: ₹${tip.stoplossPrice.toFixed(2)} (-${tip.stoplossPct}%)\n• Confluence: ${tip.confluenceScore}% High Probability`;
+    const text = `🎯 FAYDA HIGH-PROBABILITY ${isCall ? 'CALL' : 'PUT'}: ${tip.contractSymbol}\n• Perfect Entry: ₹${tip.entryPrice.toFixed(2)}\n• Target 1: ₹${tip.target1Price.toFixed(2)} (+${tip.target1Pct}%)\n• Target 2: ₹${tip.target2Price.toFixed(2)} (+${tip.target2Pct}%)\n• Stop Loss: ₹${tip.stoplossPrice.toFixed(2)} (-${tip.stoplossPct}%)\n• Confluence: ${tip.confluenceScore}% High Probability`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -203,9 +203,9 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
             </div>
 
             <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200 dark:border-terminal-border/60">
-              <div className="text-[10px] text-slate-500 dark:text-terminal-muted uppercase font-bold">Suggested Entry Zone</div>
+              <div className="text-[10px] text-slate-500 dark:text-terminal-muted uppercase font-bold">Perfect Entry</div>
               <div className="text-lg font-black font-mono text-cyan-700 dark:text-accent-cyan mt-0.5">
-                {tip.entryRange}
+                ₹{tip.entryPrice.toFixed(2)}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-terminal-muted font-mono">
                 Risk:Reward: <span className="text-amber-700 dark:text-accent-gold font-bold">{tip.riskReward}</span>

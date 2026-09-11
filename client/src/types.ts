@@ -405,6 +405,10 @@ export interface TipLifecycleFlashEvent {
   timestamp: string;
   timeFormatted: string;
   entryTimeFormatted?: string;
+  entryPriceTimeFormatted?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTimeFormatted?: string;
   bookedTimeFormatted?: string;
   carryForwardTimeFormatted?: string;
 }

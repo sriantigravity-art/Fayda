@@ -266,9 +266,29 @@ export const TradeLifecycleFlashModal: React.FC = () => {
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
                   <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-400 border border-slate-700 text-[10px] font-bold">
-                    Given: {event.entryTimeFormatted || 'Earlier Session'}
+                    Given: {event.entryTimeFormatted || 'Live Session'}
                   </span>
-                  {event.bookedTimeFormatted && event.bookedTimeFormatted !== event.entryTimeFormatted && (
+                  {event.entryPriceTimeFormatted && (
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                      🟢 Entered: {event.entryPriceTimeFormatted} @ ₹{event.entryPrice.toFixed(2)}
+                    </span>
+                  )}
+                  {event.target1HitTimeFormatted && (
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                      🏆 T1 Hit: {event.target1HitTimeFormatted}
+                    </span>
+                  )}
+                  {event.target2HitTimeFormatted && (
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold">
+                      🚀 T2 Hit: {event.target2HitTimeFormatted}
+                    </span>
+                  )}
+                  {event.stoplossTimeFormatted && (
+                    <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
+                      🛑 SL Triggered: {event.stoplossTimeFormatted}
+                    </span>
+                  )}
+                  {event.bookedTimeFormatted && event.bookedTimeFormatted !== event.entryTimeFormatted && !event.target1HitTimeFormatted && !event.target2HitTimeFormatted && !event.stoplossTimeFormatted && (
                     <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
                       isLoss ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                     }`}>
@@ -319,9 +339,9 @@ export const TradeLifecycleFlashModal: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
             {/* Entry */}
             <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-              <span className="text-[9px] text-slate-400 uppercase font-bold block">Entry Zone</span>
+              <span className="text-[9px] text-sky-400 uppercase font-bold block">Perfect Entry</span>
               <span className="text-sm font-black text-sky-400 block mt-0.5">
-                {event.entryRange || `₹${event.entryPrice.toFixed(1)}`}
+                ₹{event.entryPrice.toFixed(2)}
               </span>
             </div>
 

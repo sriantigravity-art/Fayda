@@ -913,7 +913,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'ATM High-Alpha Momentum Breakout & Aggressive Put Writing',
           entryTimeFormatted: 'Live Intraday',
-          entryRange: `₹${(callPrice * 0.98).toFixed(1)} - ₹${callPrice.toFixed(1)}`,
+          entryRange: `₹${callPrice.toFixed(2)}`,
           entryPrice: callPrice,
           currentLtp: callPrice,
           target1Price: +(callPrice * 1.30).toFixed(1),
@@ -942,7 +942,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'ATM Intraday Breakdown Scalp & Call Resistance Wall',
           entryTimeFormatted: 'Live Intraday',
-          entryRange: `₹${(putPrice * 0.98).toFixed(1)} - ₹${putPrice.toFixed(1)}`,
+          entryRange: `₹${putPrice.toFixed(2)}`,
           entryPrice: putPrice,
           currentLtp: putPrice,
           target1Price: +(putPrice * 1.30).toFixed(1),
@@ -973,7 +973,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'ITM Conservative Trend Follower (Delta ~0.65, Low Theta)',
           entryTimeFormatted: 'Session Trend',
-          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryRange: `₹${p.toFixed(2)}`,
           entryPrice: p,
           currentLtp: p,
           target1Price: +(p * 1.28).toFixed(1),
@@ -1004,7 +1004,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'Resistance Breakout Squeeze (High Velocity Gamma)',
           entryTimeFormatted: 'Breakout Slot',
-          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryRange: `₹${p.toFixed(2)}`,
           entryPrice: p,
           currentLtp: p,
           target1Price: +(p * 1.35).toFixed(1),
@@ -1035,7 +1035,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'ITM Institutional Breakdown Runner (Delta ~0.65, Cushion)',
           entryTimeFormatted: 'Session Trend',
-          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryRange: `₹${p.toFixed(2)}`,
           entryPrice: p,
           currentLtp: p,
           target1Price: +(p * 1.28).toFixed(1),
@@ -1066,7 +1066,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: 'Support Floor Collapse Scalp (Aggressive Put Flow)',
           entryTimeFormatted: 'Breakdown Slot',
-          entryRange: `₹${(p * 0.98).toFixed(1)} - ₹${p.toFixed(1)}`,
+          entryRange: `₹${p.toFixed(2)}`,
           entryPrice: p,
           currentLtp: p,
           target1Price: +(p * 1.35).toFixed(1),
@@ -1099,7 +1099,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} CE Momentum Tip)`,
           entryTimeFormatted: 'Radar Selected',
-          entryRange: `₹${(pCall * 0.98).toFixed(1)} - ₹${pCall.toFixed(1)}`,
+          entryRange: `₹${pCall.toFixed(2)}`,
           entryPrice: pCall,
           currentLtp: pCall,
           target1Price: +(pCall * 1.30).toFixed(1),
@@ -1126,7 +1126,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           executionType: 'NET_DEBIT',
           strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} PE Reversal Tip)`,
           entryTimeFormatted: 'Radar Selected',
-          entryRange: `₹${(pPut * 0.98).toFixed(1)} - ₹${pPut.toFixed(1)}`,
+          entryRange: `₹${pPut.toFixed(2)}`,
           entryPrice: pPut,
           currentLtp: pPut,
           target1Price: +(pPut * 1.30).toFixed(1),
@@ -1542,7 +1542,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       `🚦 [FAYDA SIGNALS] LIVE SIGNAL`,
       `⚡ SYMBOL: ${item.contractSymbol}`,
       `🏷️ ACTION: ${item.actionBadge} (${item.role === 'SELLER' ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})`,
-      `💰 ENTRY ZONE: ${item.entryRange} (LTP: ₹${item.currentLtp.toFixed(1)})`,
+      `💰 PERFECT ENTRY: ${item.entryRange} (LTP: ₹${item.currentLtp.toFixed(2)})`,
       `🎯 TARGET 1: ₹${item.target1Price.toFixed(1)} (+${item.target1Pct}%)`,
       item.target2Price ? `🚀 TARGET 2: ₹${item.target2Price.toFixed(1)} (+${item.target2Pct}%)` : '',
       `🛑 STOP LOSS: ₹${item.stoplossPrice.toFixed(1)} (-${item.stoplossPct}%)`,
@@ -2134,12 +2134,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 min-w-[280px]">
             {/* Entry Range */}
             <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
-              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Entry Zone</span>
+              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Perfect Entry</span>
               <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate block">
-                {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
+                {item.entryRange || `₹${item.entryPrice.toFixed(2)}`}
               </span>
               <span className={`text-[9px] font-mono font-bold mt-0.5 truncate block ${item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                {item.isEntryTriggered ? `🟢 Entered: ${item.entryPriceTimeFormatted || 'Live'}` : '⏳ Waiting Zone'}
+                {item.isEntryTriggered ? `🟢 In: ${item.entryPriceTimeFormatted || 'Live'}` : `⏳ Trigger @ ₹${item.entryPrice.toFixed(2)}`}
               </span>
             </div>
 
@@ -2892,13 +2892,13 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       {/* Entry Zone */}
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
                         <div className="text-[10px] uppercase font-mono text-slate-500 dark:text-slate-400">
-                          {isBeginner ? '🔰 Buy Zone' : isExpert ? 'Trigger Initiation' : 'Entry Range'}
+                          {isBeginner ? '🔰 Perfect Buy Price' : isExpert ? 'Perfect Entry Trigger' : 'Perfect Entry'}
                         </div>
                         <div className="text-sm font-mono font-black text-sky-600 dark:text-sky-400 mt-0.5">
                           {currentFlashTip.entryRange}
                         </div>
                         <div className={`text-[9px] font-mono font-bold mt-0.5 truncate ${currentFlashTip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {currentFlashTip.isEntryTriggered ? `🟢 Entered: ${currentFlashTip.entryPriceTimeFormatted || 'Live'}` : '⏳ Waiting Zone'}
+                          {currentFlashTip.isEntryTriggered ? `🟢 In: ${currentFlashTip.entryPriceTimeFormatted || 'Live'}` : `⏳ Trigger @ ₹${currentFlashTip.entryPrice?.toFixed(2) || currentFlashTip.entryRange}`}
                         </div>
                       </div>
 
@@ -3412,17 +3412,17 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800/80'
                       }`}>
                         <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">
-                          {isBeginner ? 'Buy Zone' : isExpert ? 'Trigger' : 'Entry'}
+                          {isBeginner ? 'Perfect Buy' : isExpert ? 'Trigger' : 'Perfect Entry'}
                         </span>
                         <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {item.entryRange || `₹${item.entryPrice.toFixed(1)}`}
+                          {item.entryRange || `₹${item.entryPrice.toFixed(2)}`}
                         </span>
                         <span className={`text-[8px] font-mono truncate mt-0.5 font-bold ${
                           item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-400'
                         }`}>
                           {item.isEntryTriggered 
                             ? `🟢 In: ${item.entryPriceTimeFormatted || item.entryTimeFormatted || 'Live'}` 
-                            : '⏳ Waiting Zone'}
+                            : `⏳ Trigger @ ₹${item.entryPrice.toFixed(2)}`}
                         </span>
                       </div>
 
@@ -3752,7 +3752,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           }`}>
                             {item.isEntryTriggered 
                               ? `🟢 In: ${item.entryPriceTimeFormatted || item.entryTimeFormatted} @ ₹${(item.actualEntryPrice || item.entryPrice).toFixed(1)}` 
-                              : '⏳ Waiting Entry Zone'}
+                              : `⏳ Trigger @ ₹${item.entryPrice.toFixed(2)}`}
                           </span>
                           <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono">
                             <span className="text-slate-500 dark:text-slate-400">LTP:</span>

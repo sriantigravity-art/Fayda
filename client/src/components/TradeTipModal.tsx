@@ -153,7 +153,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         : isBull 
         ? '🔰 Safe Green Setup (Buy Call - Expecting Market Upward Move)' 
         : '🔰 Safe Red Setup (Buy Put - Expecting Market Downward Move)',
-      entryLabel: '🔰 BUY PRICE ZONE',
+      entryLabel: '🔰 PERFECT BUY PRICE',
       t1Label: '🎯 1ST PROFIT GOAL',
       t2Label: '🚀 2ND BONUS GOAL',
       slLabel: '🛡️ CAPITAL SHIELD (STOP LOSS)',
@@ -163,7 +163,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         BOOK_HALF: '🎯 SECURE 50% PROFIT NOW',
         TRAIL_SL: '🚀 MOVE SHIELD TO BUY PRICE',
         EXIT_SL: '🛑 SHIELD HIT - EXIT SAFELY',
-        ENTER: '🟢 BUY ZONE ACTIVE',
+        ENTER: '🟢 PERFECT ENTRY ACTIVE',
         HOLD: '⏸️ PATIENTLY HOLD FOR GOAL',
         EXPIRED: '🛑 CONTRACT EXPIRED (₹0.00)'
       },
@@ -182,7 +182,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     INTERMEDIATE: {
       tag: '📈 Technical Momentum & Confluence',
       roleTag: isExpired ? '🛑 0DTE Terminal Expiration' : tip.tierLabel || (isBull ? '🎯 High-Probability Long Momentum Setup' : '🎯 High-Probability Short Momentum Setup'),
-      entryLabel: 'ENTRY ZONE',
+      entryLabel: 'PERFECT ENTRY PRICE',
       t1Label: 'TARGET 1 (+25%)',
       t2Label: 'TARGET 2 (+48%)',
       slLabel: 'STOP LOSS (-12%)',
@@ -192,7 +192,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         BOOK_HALF: '🎯 BOOK 50% PROFIT',
         TRAIL_SL: '🚀 TRAIL SL TO COST',
         EXIT_SL: '🛑 STOPLOSS TRIGGERED',
-        ENTER: '🟢 OPTIMAL ENTRY ZONE',
+        ENTER: '🟢 PERFECT ENTRY ACTIVE',
         HOLD: '⏸️ MAINTAIN HOLD',
         EXPIRED: '🛑 EXPIRED WORTHLESS (₹0.00)'
       },
@@ -211,7 +211,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     EXPERT: {
       tag: '🔬 Quantitative Greeks & Order Flow',
       roleTag: isExpired ? '🛑 0DTE Terminal Cash Settlement (Delta = 0)' : '🔬 Institutional Order Flow & Greeks Confluence',
-      entryLabel: 'TRIGGER INITIATION',
+      entryLabel: 'PERFECT ENTRY TRIGGER',
       t1Label: '1.2σ EXPANSION TARGET',
       t2Label: '1.8σ GAMMA RUNNER',
       slLabel: 'INVALIDATION THRESHOLD',
@@ -221,7 +221,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         BOOK_HALF: '🎯 1.2σ MEAN EXPANSION HIT',
         TRAIL_SL: '🚀 POSITIVE GAMMA ACCELERATION',
         EXIT_SL: '🛑 DELTA BOUNDARY VIOLATION',
-        ENTER: '🟢 INSTITUTIONAL INFLOW ZONE',
+        ENTER: '🟢 PERFECT ENTRY POINT',
         HOLD: '⏸️ DELTA DRIFT STABLE',
         EXPIRED: '🛑 0DTE CASH SETTLED (0.00)'
       },
@@ -595,7 +595,7 @@ Generated via Fayda Trading Terminal`;
               }`}>
                 {tip.isEntryTriggered 
                   ? `🟢 In: ${tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}`
-                  : `⏳ Waiting (${tip.entryRange || `₹${tip.entryPrice}`})`}
+                  : `⏳ Waiting Trigger (₹${typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(2) : entryNum.toFixed(2)})`}
               </span>
             </div>
 
