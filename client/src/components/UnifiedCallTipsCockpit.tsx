@@ -246,7 +246,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Price: t.target2Price,
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
-      givenTimeFormatted: t.entryTimeFormatted,
+      givenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      callGivenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      isEntryTriggered: t.isEntryTriggered,
+      actualEntryPrice: t.actualEntryPrice,
+      entryPriceTimeFormatted: t.entryPriceTimeFormatted || t.entryTimeFormatted,
+      target1HitTimeFormatted: t.target1HitTimeFormatted,
+      target2HitTimeFormatted: t.target2HitTimeFormatted,
+      stoplossTimeFormatted: t.stoplossTimeFormatted,
       bookedTimeFormatted: t.bookedTimeFormatted,
       carryForwardTimeFormatted: t.carryForwardTimeFormatted,
       carryForwardSuggestion: t.carryForwardSuggestion,
@@ -287,7 +294,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Price: t.target2Price,
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
-      givenTimeFormatted: t.entryTimeFormatted,
+      givenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      callGivenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      isEntryTriggered: t.isEntryTriggered,
+      actualEntryPrice: t.actualEntryPrice,
+      entryPriceTimeFormatted: t.entryPriceTimeFormatted || t.entryTimeFormatted,
+      target1HitTimeFormatted: t.target1HitTimeFormatted,
+      target2HitTimeFormatted: t.target2HitTimeFormatted,
+      stoplossTimeFormatted: t.stoplossTimeFormatted,
       bookedTimeFormatted: t.bookedTimeFormatted,
       carryForwardTimeFormatted: t.carryForwardTimeFormatted,
       carryForwardSuggestion: t.carryForwardSuggestion,
@@ -330,7 +344,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Price: t.target2Price,
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
-      givenTimeFormatted: t.entryTimeFormatted,
+      givenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      callGivenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      isEntryTriggered: t.isEntryTriggered,
+      actualEntryPrice: t.actualEntryPrice,
+      entryPriceTimeFormatted: t.entryPriceTimeFormatted || t.entryTimeFormatted,
+      target1HitTimeFormatted: t.target1HitTimeFormatted,
+      target2HitTimeFormatted: t.target2HitTimeFormatted,
+      stoplossTimeFormatted: t.stoplossTimeFormatted,
       bookedTimeFormatted: t.bookedTimeFormatted,
       carryForwardTimeFormatted: t.carryForwardTimeFormatted,
       carryForwardSuggestion: t.carryForwardSuggestion,
@@ -375,7 +396,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Price: t.target2Price,
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
-      givenTimeFormatted: t.entryTimeFormatted,
+      givenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      callGivenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      isEntryTriggered: t.isEntryTriggered,
+      actualEntryPrice: t.actualEntryPrice,
+      entryPriceTimeFormatted: t.entryPriceTimeFormatted || t.entryTimeFormatted,
+      target1HitTimeFormatted: t.target1HitTimeFormatted,
+      target2HitTimeFormatted: t.target2HitTimeFormatted,
+      stoplossTimeFormatted: t.stoplossTimeFormatted,
       bookedTimeFormatted: t.bookedTimeFormatted,
       carryForwardTimeFormatted: t.carryForwardTimeFormatted,
       carryForwardSuggestion: t.carryForwardSuggestion,
@@ -416,7 +444,14 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       target2Price: t.target2Price,
       target2Pct: t.target2Pct,
       riskReward: t.riskReward,
-      givenTimeFormatted: t.entryTimeFormatted,
+      givenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      callGivenTimeFormatted: t.callGivenTimeFormatted || t.entryTimeFormatted,
+      isEntryTriggered: t.isEntryTriggered,
+      actualEntryPrice: t.actualEntryPrice,
+      entryPriceTimeFormatted: t.entryPriceTimeFormatted || t.entryTimeFormatted,
+      target1HitTimeFormatted: t.target1HitTimeFormatted,
+      target2HitTimeFormatted: t.target2HitTimeFormatted,
+      stoplossTimeFormatted: t.stoplossTimeFormatted,
       bookedTimeFormatted: t.bookedTimeFormatted,
       carryForwardTimeFormatted: t.carryForwardTimeFormatted || t.entryTimeFormatted,
       carryForwardSuggestion: t.carryForwardSuggestion,
@@ -716,10 +751,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                     <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>Given: {topCallTrade.entryTimeFormatted}</span>
+                      <span>Given: {topCallTrade.callGivenTimeFormatted || topCallTrade.entryTimeFormatted}</span>
                     </span>
 
-                    {topCallTrade.bookedTimeFormatted && (
+                    {topCallTrade.isEntryTriggered ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>🟢 Entered: {topCallTrade.entryPriceTimeFormatted || topCallTrade.entryTimeFormatted}</span>
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-sky-400" />
+                        <span>⏳ Waiting Zone</span>
+                      </span>
+                    )}
+
+                    {(topCallTrade.status === 'TARGET1_HIT' || topCallTrade.status === 'TARGET2_HIT' || topCallTrade.status === 'SL_HIT') && topCallTrade.bookedTimeFormatted && topCallTrade.bookedTimeFormatted !== (topCallTrade.callGivenTimeFormatted || topCallTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
                         topCallTrade.status === 'SL_HIT'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
@@ -913,10 +960,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                     <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>Given: {topPutTrade.entryTimeFormatted}</span>
+                      <span>Given: {topPutTrade.callGivenTimeFormatted || topPutTrade.entryTimeFormatted}</span>
                     </span>
 
-                    {topPutTrade.bookedTimeFormatted && (
+                    {topPutTrade.isEntryTriggered ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>🟢 Entered: {topPutTrade.entryPriceTimeFormatted || topPutTrade.entryTimeFormatted}</span>
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-sky-400" />
+                        <span>⏳ Waiting Zone</span>
+                      </span>
+                    )}
+
+                    {(topPutTrade.status === 'TARGET1_HIT' || topPutTrade.status === 'TARGET2_HIT' || topPutTrade.status === 'SL_HIT') && topPutTrade.bookedTimeFormatted && topPutTrade.bookedTimeFormatted !== (topPutTrade.callGivenTimeFormatted || topPutTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
                         topPutTrade.status === 'SL_HIT'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
@@ -1568,14 +1627,25 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       </div>
                       <div className="text-[11px] text-terminal-muted flex items-center gap-1 mt-0.5 flex-wrap">
                         <span className="text-accent-gold font-medium">Given:</span>
-                        <span className="font-mono text-terminal-text font-bold">{cf.entryTimeFormatted}</span>
+                        <span className="font-mono text-terminal-text font-bold">{cf.callGivenTimeFormatted || cf.entryTimeFormatted}</span>
                         <span className="text-terminal-muted">(Ref: ₹{Number(cf.entryPrice).toFixed(2)})</span>
+
+                        {cf.isEntryTriggered ? (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] flex items-center gap-0.5">
+                            🟢 In: {cf.entryPriceTimeFormatted || cf.entryTimeFormatted}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 text-[10px] flex items-center gap-0.5">
+                            ⏳ Waiting Zone
+                          </span>
+                        )}
+
                         {(cf.isCarriedForward || cf.carryForwardTimeFormatted) && (
                           <span className="px-1.5 py-0.2 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px]">
                             Carry Forward: {cf.carryForwardTimeFormatted || cf.entryTimeFormatted}
                           </span>
                         )}
-                        {cf.bookedTimeFormatted && (
+                        {(cf.status === 'TARGET1_HIT' || cf.status === 'TARGET2_HIT' || cf.status === 'SL_HIT') && cf.bookedTimeFormatted && cf.bookedTimeFormatted !== (cf.callGivenTimeFormatted || cf.entryTimeFormatted) && (
                           <span className={`px-1.5 py-0.2 rounded font-bold text-[10px] border ${
                             cf.status === 'SL_HIT' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                           }`}>
@@ -1723,10 +1793,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                     <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>Given: {pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
+                      <span>Given: {pkg.hedgedSpreadTrade.callGivenTimeFormatted || pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
                     </span>
 
-                    {pkg.hedgedSpreadTrade.bookedTimeFormatted && (
+                    {pkg.hedgedSpreadTrade.isEntryTriggered ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>🟢 Entered: {pkg.hedgedSpreadTrade.entryPriceTimeFormatted || pkg.hedgedSpreadTrade.entryTimeFormatted}</span>
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-sky-400" />
+                        <span>⏳ Waiting Zone</span>
+                      </span>
+                    )}
+
+                    {(pkg.hedgedSpreadTrade.status === 'TARGET1_HIT' || pkg.hedgedSpreadTrade.status === 'TARGET2_HIT' || pkg.hedgedSpreadTrade.status === 'SL_HIT') && pkg.hedgedSpreadTrade.bookedTimeFormatted && pkg.hedgedSpreadTrade.bookedTimeFormatted !== (pkg.hedgedSpreadTrade.callGivenTimeFormatted || pkg.hedgedSpreadTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
                         pkg.hedgedSpreadTrade.status === 'SL_HIT'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
@@ -1847,10 +1929,22 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
 
                     <span className="px-2 py-0.5 rounded bg-terminal-bg border border-terminal-border text-terminal-muted text-[10px] font-mono flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>Given: {pkg.gammaTrade.entryTimeFormatted}</span>
+                      <span>Given: {pkg.gammaTrade.callGivenTimeFormatted || pkg.gammaTrade.entryTimeFormatted}</span>
                     </span>
 
-                    {pkg.gammaTrade.bookedTimeFormatted && (
+                    {pkg.gammaTrade.isEntryTriggered ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>🟢 Entered: {pkg.gammaTrade.entryPriceTimeFormatted || pkg.gammaTrade.entryTimeFormatted}</span>
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-sky-400" />
+                        <span>⏳ Waiting Zone</span>
+                      </span>
+                    )}
+
+                    {(pkg.gammaTrade.status === 'TARGET1_HIT' || pkg.gammaTrade.status === 'TARGET2_HIT' || pkg.gammaTrade.status === 'SL_HIT') && pkg.gammaTrade.bookedTimeFormatted && pkg.gammaTrade.bookedTimeFormatted !== (pkg.gammaTrade.callGivenTimeFormatted || pkg.gammaTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
                         pkg.gammaTrade.status === 'SL_HIT'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'

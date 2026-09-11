@@ -1203,7 +1203,7 @@ export class ConfluenceEngine {
                 actualEntryPrice = params.currentLtp;
             }
         }
-        // 3. Milestone Targets & Stop Loss (Only triggered if position was entered)
+        // 3. Milestone Targets & Stop Loss (Only evaluated if trade is an existing tracked trade, NEVER on creation tick 0 of a new tip)
         let target1HitTime = existing?.target1HitTime;
         let target1HitTimeFormatted = existing?.target1HitTimeFormatted;
         let target2HitTime = existing?.target2HitTime;
@@ -1214,7 +1214,8 @@ export class ConfluenceEngine {
         let halfProfitBookTimeFormatted = existing?.halfProfitBookTimeFormatted;
         let bookedTime = existing?.bookedTime;
         let bookedTimeFormatted = existing?.bookedTimeFormatted;
-        if (isEntryTriggered) {
+        const isBrandNewTip = !existing;
+        if (isEntryTriggered && !isBrandNewTip) {
             if (isSeller) {
                 // Seller: profit is when price decays down to targets
                 if (params.target2Price && params.currentLtp <= params.target2Price) {
