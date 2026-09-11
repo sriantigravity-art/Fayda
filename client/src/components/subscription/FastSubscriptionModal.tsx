@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { getApiBase, PROD_API_BASE } from '../../utils/apiBase';
 
 export interface PlanData {
   id: 'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND';
@@ -80,10 +81,21 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
     const fetchPlans = async () => {
       try {
         setLoadingPlans(true);
-        const res = await fetch('http://localhost:3001/api/subscriptions/plans');
-        const data = await res.json();
-        if (mounted && data.success && Array.isArray(data.plans)) {
-          setPlans(data.plans);
+        const apiBase = getApiBase();
+        const candidateBases = [apiBase, '', PROD_API_BASE];
+        for (const base of candidateBases) {
+          try {
+            const res = await fetch(`${base}/api/subscriptions/plans`, { signal: AbortSignal.timeout(4000) });
+            if (res.ok) {
+              const data = await res.json();
+              if (mounted && data.success && Array.isArray(data.plans)) {
+                setPlans(data.plans);
+                break;
+              }
+            }
+          } catch {
+            // try next candidate
+          }
         }
       } catch {
         // fallback to default if offline
