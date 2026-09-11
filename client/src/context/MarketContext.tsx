@@ -1233,19 +1233,29 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     for (const url of candidates) {
       try {
         const res = await fetch(url, { method, headers, body });
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const json = await res.json();
-          return json;
+        const rawText = await res.text();
+        if (rawText && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) {
+          try {
+            const json = JSON.parse(rawText);
+            return json;
+          } catch {}
         }
       } catch (err: any) {
-        lastError = err.message;
+        if (err.message && (err.message.includes('Unexpected token') || err.message.includes('is not valid JSON'))) {
+          lastError = 'Backend returned an HTML or non-JSON response.';
+        } else {
+          lastError = err.message;
+        }
       }
     }
 
+    const cleanMsg = lastError && (lastError.includes('Unexpected token') || lastError.includes('is not valid JSON'))
+      ? 'Backend returned an invalid non-JSON response. Please verify server connection.'
+      : (lastError || 'Unable to connect to backend server. Please verify network connection.');
+
     return {
       success: false,
-      message: lastError || 'Unable to connect to backend server. Please verify network connection.'
+      message: cleanMsg
     };
   };
 

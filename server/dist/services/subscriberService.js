@@ -7,9 +7,53 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { subscriptionPlanService } from './subscriptionPlanService.js';
+import { subscriptionHistoryService } from './subscriptionHistoryService.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-use-env-var';
 const JWT_EXPIRES = '30d';
 const BCRYPT_ROUNDS = 10;
+function computeExpiryDate(startDateIso, cycle) {
+    const d = new Date(startDateIso);
+    if (cycle === 'MONTHLY')
+        d.setDate(d.getDate() + 30);
+    else if (cycle === 'QUARTERLY')
+        d.setDate(d.getDate() + 90);
+    else if (cycle === 'HALF_YEARLY')
+        d.setDate(d.getDate() + 180);
+    else
+        d.setDate(d.getDate() + 365); // ANNUAL
+    return d.toISOString();
+}
+function calculateProfileCompletion(s) {
+    let score = 30; // Base: Name, Mobile, Email completed during subscription
+    if (s.extendedProfile?.profilePhoto)
+        score += 20;
+    if (s.extendedProfile?.city)
+        score += 15;
+    if (s.extendedProfile?.preferredLanguage)
+        score += 15;
+    if (s.extendedProfile?.marketPreferences && s.extendedProfile.marketPreferences.length > 0)
+        score += 10;
+    if (s.extendedProfile?.traderExperience)
+        score += 10;
+    return Math.min(100, score);
+}
+function getSubscriptionStatus(plan, planExpiry, isActive = true) {
+    if (!isActive)
+        return 'SUSPENDED';
+    if (plan === 'FREE')
+        return 'ACTIVE';
+    if (!planExpiry)
+        return 'ACTIVE';
+    const now = Date.now();
+    const exp = new Date(planExpiry).getTime();
+    const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0)
+        return 'EXPIRED';
+    if (diffDays <= 7)
+        return 'EXPIRING_SOON';
+    return 'ACTIVE';
+}
 function getDataPath() {
     const base = process.cwd().endsWith('server') ? process.cwd() : path.join(process.cwd(), 'server');
     const dir = path.join(base, 'data');
@@ -38,8 +82,36 @@ class SubscriberService {
                 const list = JSON.parse(fs.readFileSync(this.dataPath, 'utf-8'));
                 if (Array.isArray(list)) {
                     this.subscribers.clear();
-                    list.forEach(s => this.subscribers.set(s.id, s));
-                    console.log(`[SubscriberService] Loaded ${this.subscribers.size} subscriber(s).`);
+                    let userSeq = 100;
+                    list.forEach(s => {
+                        // Ensure permanent subscriberId
+                        if (!s.subscriberId) {
+                            if (s.role === 'SUPERADMIN' || s.id.startsWith('ADM')) {
+                                s.subscriberId = 'SUB000007';
+                            }
+                            else {
+                                userSeq++;
+                                s.subscriberId = `SUB000${userSeq}`;
+                            }
+                        }
+                        // Migrate legacy plans to 4-tier model
+                        if (s.plan === 'BASIC')
+                            s.plan = 'SILVER';
+                        else if (s.plan === 'PRO')
+                            s.plan = 'GOLD';
+                        else if (s.plan === 'PREMIUM')
+                            s.plan = 'DIAMOND';
+                        if (!s.billingCycle)
+                            s.billingCycle = s.plan === 'FREE' ? 'ANNUAL' : 'MONTHLY';
+                        if (!s.planExpiry && s.plan !== 'FREE') {
+                            s.planExpiry = computeExpiryDate(s.createdAt || getIST(), s.billingCycle);
+                        }
+                        s.subscriptionStatus = getSubscriptionStatus(s.plan, s.planExpiry, s.isActive);
+                        s.profileCompletionPct = calculateProfileCompletion(s);
+                        this.subscribers.set(s.id, s);
+                    });
+                    this.save();
+                    console.log(`[SubscriberService] Loaded & synchronized ${this.subscribers.size} subscriber(s).`);
                 }
             }
         }
@@ -61,48 +133,61 @@ class SubscriberService {
             return;
         const initPassword = process.env.SUPERADMIN_INIT_PASSWORD || 'ChangeMe@FirstLogin';
         const passwordHash = bcrypt.hashSync(initPassword, BCRYPT_ROUNDS);
+        const startDate = getIST();
         const superAdmin = {
             id: 'ADM-SRIKANT-007',
+            subscriberId: 'SUB000007',
             fullName: 'Srikant SR',
             email: 'srikantsr@vertexinfo.co.in',
             mobile: '+919876500700',
             passwordHash,
             role: 'SUPERADMIN',
-            plan: 'PREMIUM',
+            plan: 'DIAMOND',
+            billingCycle: 'ANNUAL',
+            planExpiry: computeExpiryDate(startDate, 'ANNUAL'),
+            subscriptionStatus: 'ACTIVE',
             isActive: true,
             isVerified: true,
             emailOptIn: true,
             whatsappOptIn: true,
             smsOptIn: true,
-            createdAt: getIST(),
+            createdAt: startDate,
+            profileCompletionPct: 100,
             notes: 'SuperAdmin master account'
         };
         this.subscribers.set(superAdmin.id, superAdmin);
         // Seed a few sample subscribers
         const samples = [
-            { fullName: 'Arjun Mehta', email: 'arjun.mehta@gmail.com', mobile: '+919876543210', plan: 'PRO', role: 'USER', emailOptIn: true, whatsappOptIn: true, smsOptIn: false },
-            { fullName: 'Priya Sharma', email: 'priya.sharma@yahoo.com', mobile: '+919876543211', plan: 'BASIC', role: 'USER', emailOptIn: true, whatsappOptIn: false, smsOptIn: true },
+            { fullName: 'Arjun Mehta', email: 'arjun.mehta@gmail.com', mobile: '+919876543210', plan: 'GOLD', role: 'USER', emailOptIn: true, whatsappOptIn: true, smsOptIn: false },
+            { fullName: 'Priya Sharma', email: 'priya.sharma@yahoo.com', mobile: '+919876543211', plan: 'SILVER', role: 'USER', emailOptIn: true, whatsappOptIn: false, smsOptIn: true },
             { fullName: 'Rajesh Gupta', email: 'rajesh.gupta@gmail.com', mobile: '+919876543212', plan: 'FREE', role: 'USER', emailOptIn: false, whatsappOptIn: true, smsOptIn: false },
-            { fullName: 'Nisha Patel', email: 'nisha.patel@gmail.com', mobile: '+919876543213', plan: 'PREMIUM', role: 'USER', emailOptIn: true, whatsappOptIn: true, smsOptIn: true },
+            { fullName: 'Nisha Patel', email: 'nisha.patel@gmail.com', mobile: '+919876543213', plan: 'DIAMOND', role: 'USER', emailOptIn: true, whatsappOptIn: true, smsOptIn: true },
         ];
         samples.forEach((s, i) => {
             const id = `USR-2026-00${i + 1}`;
-            this.subscribers.set(id, {
+            const cycle = s.plan === 'FREE' ? 'ANNUAL' : 'MONTHLY';
+            const sub = {
                 id,
+                subscriberId: `SUB000${101 + i}`,
                 fullName: s.fullName,
                 email: s.email,
                 mobile: s.mobile,
                 passwordHash: bcrypt.hashSync('Trader@123', BCRYPT_ROUNDS),
                 role: s.role ?? 'USER',
                 plan: s.plan ?? 'FREE',
+                billingCycle: cycle,
+                planExpiry: s.plan === 'FREE' ? undefined : computeExpiryDate(startDate, cycle),
+                subscriptionStatus: 'ACTIVE',
                 isActive: true,
                 isVerified: true,
                 emailOptIn: s.emailOptIn ?? true,
                 whatsappOptIn: s.whatsappOptIn ?? true,
                 smsOptIn: s.smsOptIn ?? false,
-                createdAt: getIST(),
-                notes: s.plan === 'FREE' ? 'Free tier user' : undefined
-            });
+                createdAt: startDate,
+                profileCompletionPct: 35,
+                notes: s.plan === 'FREE' ? 'Free starter user' : undefined
+            };
+            this.subscribers.set(id, sub);
         });
         this.save();
         console.log('[SubscriberService] Seeded SuperAdmin + sample subscribers.');
@@ -115,20 +200,26 @@ class SubscriberService {
         const initPassword = process.env.SUPERADMIN_PASSWORD || process.env.SUPERADMIN_INIT_PASSWORD || 'Aryan@007#';
         if (!superAdmin) {
             const passwordHash = bcrypt.hashSync(initPassword, BCRYPT_ROUNDS);
+            const startDate = getIST();
             superAdmin = {
                 id: 'ADM-SRIKANT-007',
+                subscriberId: 'SUB000007',
                 fullName: 'Srikant SR',
                 email: 'srikantsr@vertexinfo.co.in',
                 mobile: '+919876500700',
                 passwordHash,
                 role: 'SUPERADMIN',
-                plan: 'PREMIUM',
+                plan: 'DIAMOND',
+                billingCycle: 'ANNUAL',
+                planExpiry: computeExpiryDate(startDate, 'ANNUAL'),
+                subscriptionStatus: 'ACTIVE',
                 isActive: true,
                 isVerified: true,
                 emailOptIn: true,
                 whatsappOptIn: true,
                 smsOptIn: true,
-                createdAt: getIST(),
+                createdAt: startDate,
+                profileCompletionPct: 100,
                 notes: 'SuperAdmin master account'
             };
             this.subscribers.set(superAdmin.id, superAdmin);
@@ -136,6 +227,10 @@ class SubscriberService {
             console.log('[SubscriberService] Restored missing SuperAdmin account.');
         }
         else {
+            if (!superAdmin.subscriberId)
+                superAdmin.subscriberId = 'SUB000007';
+            if (superAdmin.plan === 'PREMIUM')
+                superAdmin.plan = 'DIAMOND';
             // Ensure superadmin password matches configured environment password
             const matchesEnv = bcrypt.compareSync(initPassword, superAdmin.passwordHash);
             if (!matchesEnv) {
@@ -158,9 +253,11 @@ class SubscriberService {
         }
         const idNum = String(this.subscribers.size + 1).padStart(3, '0');
         const id = `USR-2026-${idNum}`;
+        const subscriberId = this.generatePermanentSubscriberId();
         const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
         const subscriber = {
             id,
+            subscriberId,
             fullName: data.fullName.trim(),
             email,
             mobile,
@@ -235,6 +332,23 @@ class SubscriberService {
         return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     }
     // ── CRUD ─────────────────────────────────────────────────────────────────────
+    findByIdOrContact(query) {
+        if (!query)
+            return null;
+        const clean = query.trim().toLowerCase();
+        const cleanDigits = query.replace(/\D/g, '');
+        for (const s of this.subscribers.values()) {
+            if (s.id.toLowerCase() === clean)
+                return s;
+            if (s.subscriberId && s.subscriberId.toLowerCase() === clean)
+                return s;
+            if (s.email && s.email.toLowerCase() === clean)
+                return s;
+            if (s.mobile && cleanDigits.length >= 10 && s.mobile.replace(/\D/g, '').endsWith(cleanDigits))
+                return s;
+        }
+        return null;
+    }
     getAll() {
         return Array.from(this.subscribers.values())
             .map(({ passwordHash: _, ...pub }) => pub)
@@ -264,6 +378,23 @@ class SubscriberService {
         this.save();
         return true;
     }
+    async changePassword(id, currentPassword, newPassword) {
+        const s = this.subscribers.get(id);
+        if (!s)
+            return { success: false, error: 'Subscriber account not found.' };
+        if (currentPassword) {
+            const match = await bcrypt.compare(currentPassword, s.passwordHash);
+            if (!match) {
+                return { success: false, error: 'Current password is incorrect.' };
+            }
+        }
+        if (!newPassword || newPassword.length < 6) {
+            return { success: false, error: 'New password must be at least 6 characters.' };
+        }
+        s.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+        this.save();
+        return { success: true };
+    }
     delete(id) {
         if (id === 'ADM-SRIKANT-007')
             return false; // Protect SuperAdmin
@@ -290,16 +421,227 @@ class SubscriberService {
         })
             .map(({ passwordHash: _, ...pub }) => pub);
     }
+    generatePermanentSubscriberId() {
+        const count = this.subscribers.size + 1;
+        return `SUB000${100 + count}`;
+    }
+    calculateProfileCompletion(s) {
+        return calculateProfileCompletion(s);
+    }
+    /**
+     * Fast Subscription:
+     * Select Plan -> Minimum Details (Name, Mobile, Email) -> Instant Active Subscription.
+     * If user already exists, updates plan; if new, creates account and returns auth token.
+     */
+    async subscribeFast(data) {
+        const email = (data.email || '').trim().toLowerCase();
+        const mobileClean = (data.mobile || '').replace(/\s/g, '');
+        const targetPlanId = (data.planId || data.plan || 'FREE');
+        const cycle = data.billingCycle || (targetPlanId === 'FREE' ? 'ANNUAL' : 'MONTHLY');
+        const plan = subscriptionPlanService.getPlanById(targetPlanId) || subscriptionPlanService.getPlanById('FREE');
+        const pricing = subscriptionPlanService.calculateOrderTotal(plan.id, cycle);
+        let isNewUser = false;
+        let subscriber;
+        // Check existing user by email or mobile
+        for (const s of this.subscribers.values()) {
+            if (s.email.toLowerCase() === email || s.mobile.replace(/\s/g, '') === mobileClean) {
+                subscriber = s;
+                break;
+            }
+        }
+        const startDate = getIST();
+        const expiryDate = plan.id === 'FREE' ? computeExpiryDate(startDate, 'ANNUAL') : computeExpiryDate(startDate, cycle);
+        if (!subscriber) {
+            isNewUser = true;
+            const count = this.subscribers.size + 1;
+            const idNum = String(count).padStart(3, '0');
+            const id = `USR-2026-${idNum}`;
+            const subscriberId = `SUB000${100 + count}`;
+            const defaultPassword = 'Trader@' + (mobileClean.length >= 4 ? mobileClean.slice(-4) : '1234');
+            const passwordHash = await bcrypt.hash(defaultPassword, BCRYPT_ROUNDS);
+            subscriber = {
+                id,
+                subscriberId,
+                fullName: (data.fullName || 'Trader').trim(),
+                email,
+                mobile: mobileClean,
+                passwordHash,
+                role: 'USER',
+                plan: plan.id,
+                billingCycle: cycle,
+                planExpiry: expiryDate,
+                subscriptionStatus: 'ACTIVE',
+                isActive: true,
+                isVerified: true,
+                emailOptIn: true,
+                whatsappOptIn: true,
+                smsOptIn: true,
+                createdAt: startDate,
+                profileCompletionPct: 35
+            };
+            this.subscribers.set(id, subscriber);
+        }
+        else {
+            // Existing user upgrade / subscription
+            const oldPlan = subscriber.plan;
+            subscriber.plan = plan.id;
+            subscriber.billingCycle = cycle;
+            subscriber.planExpiry = expiryDate;
+            subscriber.subscriptionStatus = 'ACTIVE';
+            if (data.fullName && !subscriber.fullName)
+                subscriber.fullName = data.fullName.trim();
+        }
+        subscriber.profileCompletionPct = calculateProfileCompletion(subscriber);
+        this.save();
+        // Create Subscription record
+        const subscription = {
+            subscriptionId: `SUB-TXN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+            subscriberId: subscriber.subscriberId,
+            userId: subscriber.id,
+            planId: plan.id,
+            status: 'ACTIVE',
+            startDate,
+            expiryDate,
+            billingCycle: cycle,
+            amount: pricing?.taxableAmount || 0,
+            taxAmount: pricing?.taxAmount || 0,
+            totalAmount: pricing?.totalAmount || 0,
+            paymentReference: plan.id === 'FREE' ? 'FREE_ACCESS' : `PAY-RAZOR-${Date.now()}`,
+            paymentMethod: plan.id === 'FREE' ? 'FREE' : (data.paymentMethod || 'UPI'),
+            autoRenewal: true,
+            createdAt: startDate
+        };
+        // Record in immutable history
+        subscriptionHistoryService.recordEvent({
+            subscriberId: subscriber.subscriberId,
+            userId: subscriber.id,
+            action: isNewUser ? 'NEW_SUBSCRIPTION' : 'UPGRADE',
+            oldPlan: isNewUser ? undefined : subscriber.plan,
+            newPlan: plan.id,
+            billingCycle: cycle,
+            amount: subscription.totalAmount,
+            taxAmount: subscription.taxAmount,
+            paymentReference: subscription.paymentReference,
+            performedBy: 'USER',
+            notes: data.notes || (isNewUser ? 'Fast new subscription' : 'Subscription changed by user')
+        });
+        const token = this.issueToken(subscriber);
+        const { passwordHash: _, ...pub } = subscriber;
+        return {
+            success: true,
+            token,
+            subscriber: pub,
+            subscription,
+            isNewUser
+        };
+    }
+    /**
+     * 1-Click Upgrade or Renew for authenticated user
+     */
+    async upgradeOrRenew(userId, planOrOptions, billingCycleArg = 'MONTHLY', paymentMethodArg = 'UPI') {
+        const subscriber = this.subscribers.get(userId);
+        if (!subscriber)
+            return { success: false, error: 'Subscriber not found.' };
+        const planId = typeof planOrOptions === 'object' ? planOrOptions.plan : planOrOptions;
+        const billingCycle = typeof planOrOptions === 'object' ? (planOrOptions.billingCycle || 'MONTHLY') : billingCycleArg;
+        const paymentMethod = typeof planOrOptions === 'object' ? (planOrOptions.paymentMethod || 'UPI') : paymentMethodArg;
+        const oldPlan = subscriber.plan;
+        const plan = subscriptionPlanService.getPlanById(planId);
+        if (!plan)
+            return { success: false, error: 'Invalid plan selected.' };
+        const pricing = subscriptionPlanService.calculateOrderTotal(plan.id, billingCycle);
+        const startDate = getIST();
+        const expiryDate = plan.id === 'FREE' ? computeExpiryDate(startDate, 'ANNUAL') : computeExpiryDate(startDate, billingCycle);
+        const isRenewal = oldPlan === plan.id;
+        subscriber.plan = plan.id;
+        subscriber.billingCycle = billingCycle;
+        subscriber.planExpiry = expiryDate;
+        subscriber.subscriptionStatus = 'ACTIVE';
+        subscriber.profileCompletionPct = calculateProfileCompletion(subscriber);
+        this.save();
+        const subscription = {
+            subscriptionId: `SUB-TXN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+            subscriberId: subscriber.subscriberId,
+            userId: subscriber.id,
+            planId: plan.id,
+            status: 'ACTIVE',
+            startDate,
+            expiryDate,
+            billingCycle,
+            amount: pricing?.taxableAmount || 0,
+            taxAmount: pricing?.taxAmount || 0,
+            totalAmount: pricing?.totalAmount || 0,
+            paymentReference: plan.id === 'FREE' ? 'FREE_ACCESS' : `PAY-FAST-${Date.now()}`,
+            paymentMethod: plan.id === 'FREE' ? 'FREE' : paymentMethod,
+            autoRenewal: true,
+            createdAt: startDate
+        };
+        subscriptionHistoryService.recordEvent({
+            subscriberId: subscriber.subscriberId,
+            userId: subscriber.id,
+            action: isRenewal ? 'RENEWAL' : 'UPGRADE',
+            oldPlan,
+            newPlan: plan.id,
+            billingCycle,
+            amount: subscription.totalAmount,
+            taxAmount: subscription.taxAmount,
+            paymentReference: subscription.paymentReference,
+            performedBy: 'USER',
+            notes: isRenewal ? 'User renewed current plan' : `User upgraded plan from ${oldPlan} to ${plan.id}`
+        });
+        const { passwordHash: _, ...pub } = subscriber;
+        return {
+            success: true,
+            subscriber: pub,
+            subscription
+        };
+    }
+    /**
+     * Update optional profile details after subscription (non-blocking)
+     */
+    updateExtendedProfile(userId, profilePatch) {
+        const s = this.subscribers.get(userId);
+        if (!s)
+            return null;
+        if (!s.extendedProfile)
+            s.extendedProfile = {};
+        Object.assign(s.extendedProfile, profilePatch, { updatedAt: getIST() });
+        s.profileCompletionPct = calculateProfileCompletion(s);
+        this.save();
+        const { passwordHash: _, ...pub } = s;
+        return pub;
+    }
+    /**
+     * Central Entitlement Check
+     */
+    hasAccess(userId, featureCode) {
+        const s = this.subscribers.get(userId);
+        if (!s || !s.isActive)
+            return false;
+        if (s.role === 'SUPERADMIN' || s.role === 'ADMIN')
+            return true;
+        const planConfig = subscriptionPlanService.getPlanById(s.plan);
+        if (!planConfig)
+            return false;
+        // Check expiry
+        if (s.plan !== 'FREE' && s.planExpiry) {
+            if (new Date(s.planExpiry).getTime() < Date.now())
+                return false; // Expired
+        }
+        return planConfig.entitlements.includes(featureCode);
+    }
     getStats() {
         const all = Array.from(this.subscribers.values());
         return {
             total: all.length,
-            active: all.filter(s => s.isActive).length,
+            active: all.filter(s => s.isActive && s.subscriptionStatus !== 'EXPIRED').length,
+            expiringSoon: all.filter(s => s.subscriptionStatus === 'EXPIRING_SOON').length,
+            expired: all.filter(s => s.subscriptionStatus === 'EXPIRED').length,
             byPlan: {
                 FREE: all.filter(s => s.plan === 'FREE').length,
-                BASIC: all.filter(s => s.plan === 'BASIC').length,
-                PRO: all.filter(s => s.plan === 'PRO').length,
-                PREMIUM: all.filter(s => s.plan === 'PREMIUM').length,
+                SILVER: all.filter(s => s.plan === 'SILVER' || s.plan === 'BASIC').length,
+                GOLD: all.filter(s => s.plan === 'GOLD' || s.plan === 'PRO').length,
+                DIAMOND: all.filter(s => s.plan === 'DIAMOND' || s.plan === 'PREMIUM').length,
             },
             optIns: {
                 email: all.filter(s => s.emailOptIn && s.isActive).length,

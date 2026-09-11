@@ -15,6 +15,8 @@ import { globalMarketFeedService } from './services/globalMarketFeedService.js';
 import { mcxOfflineService, McxOfflineService } from './services/mcxOfflineService.js';
 import { signalLedgerService } from './services/signalLedgerService.js';
 import { subscriberService } from './services/subscriberService.js';
+import { subscriptionPlanService } from './services/subscriptionPlanService.js';
+import { subscriptionHistoryService } from './services/subscriptionHistoryService.js';
 import { notificationService } from './services/notificationService.js';
 import { bseService } from './services/bseService.js';
 import { ALL_SYMBOLS_CONFIG } from './types.js';
@@ -917,6 +919,163 @@ app.patch('/api/auth/me', requireAuth, (req, res) => {
         return res.status(404).json({ success: false, error: 'User not found.' });
     res.json({ success: true, subscriber: updated });
 });
+// POST /api/auth/change-password — update own password with current password verification
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+    try {
+        const payload = req.authPayload;
+        const { currentPassword, newPassword } = req.body;
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: 'New password must be at least 6 characters.' });
+        }
+        const result = await subscriberService.changePassword(payload.subscriberId, currentPassword, newPassword);
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+        res.json({ success: true, message: 'Password updated successfully.' });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// ── SUBSCRIPTION ENGINE ENDPOINTS (PUBLIC & AUTHENTICATED) ──────────────────
+// GET /api/subscriptions/plans — active plans for user selection
+app.get('/api/subscriptions/plans', (_req, res) => {
+    try {
+        const plans = subscriptionPlanService.getActivePlans();
+        res.json({ success: true, plans });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// POST /api/subscriptions/subscribe-fast — ultra-low-friction signup/checkout
+app.post('/api/subscriptions/subscribe-fast', async (req, res) => {
+    try {
+        const { fullName, email, mobile, plan, billingCycle, autoLogin, paymentMethod } = req.body;
+        if (!email && !mobile) {
+            return res.status(400).json({ success: false, error: 'Mobile or Email is required.' });
+        }
+        const result = await subscriberService.subscribeFast({
+            fullName,
+            email,
+            mobile,
+            plan,
+            billingCycle,
+            autoLogin: autoLogin !== false,
+            paymentMethod,
+        });
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// POST /api/subscriptions/upgrade-renew — 1-click upgrade/renew for authenticated user or recognized subscriber
+app.post('/api/subscriptions/upgrade-renew', async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        let targetSubscriberId = null;
+        let targetSub = null;
+        if (token) {
+            const payload = subscriberService.verifyToken(token);
+            if (payload) {
+                targetSubscriberId = payload.subscriberId;
+                targetSub = subscriberService.getById(targetSubscriberId);
+            }
+        }
+        // If token not provided or expired, check body email/mobile/subscriberId/userId
+        if (!targetSubscriberId) {
+            const identifier = req.body.email || req.body.mobile || req.body.subscriberId || req.body.userId;
+            if (identifier) {
+                targetSub = subscriberService.findByIdOrContact(identifier);
+                if (targetSub) {
+                    targetSubscriberId = targetSub.id;
+                }
+            }
+        }
+        const { plan, billingCycle, paymentMethod, fullName, email, mobile } = req.body;
+        if (!plan) {
+            return res.status(400).json({ success: false, error: 'Target plan is required.' });
+        }
+        // If still no subscriber could be matched, forward seamlessly to subscribeFast
+        if (!targetSubscriberId) {
+            if (email || mobile) {
+                const fastResult = await subscriberService.subscribeFast({
+                    fullName,
+                    email,
+                    mobile,
+                    plan,
+                    billingCycle,
+                    paymentMethod,
+                    autoLogin: true
+                });
+                return res.json(fastResult);
+            }
+            return res.status(401).json({ success: false, error: 'Authentication required. Please sign in or provide email/mobile.' });
+        }
+        const result = await subscriberService.upgradeOrRenew(targetSubscriberId, {
+            plan,
+            billingCycle,
+            paymentMethod,
+        });
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+        // Also issue a fresh token so client session stays active
+        const fullSub = subscriberService.findByIdOrContact(targetSubscriberId);
+        const newToken = fullSub ? subscriberService.issueToken(fullSub) : undefined;
+        res.json({
+            ...result,
+            token: newToken
+        });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// GET /api/subscriptions/my-subscription — current user's plan, days remaining, history
+app.get('/api/subscriptions/my-subscription', requireAuth, (req, res) => {
+    try {
+        const payload = req.authPayload;
+        const sub = subscriberService.getById(payload.subscriberId);
+        if (!sub)
+            return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+        const plan = subscriptionPlanService.getPlanById(sub.plan);
+        const history = subscriptionHistoryService.getBySubscriberId(sub.id);
+        const daysRemaining = sub.planExpiry ? Math.max(0, Math.ceil((new Date(sub.planExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+        res.json({
+            success: true,
+            subscriber: sub,
+            planDetails: plan,
+            daysRemaining,
+            history,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// PATCH /api/auth/extended-profile — optional post-subscription profile completion
+app.patch('/api/auth/extended-profile', requireAuth, (req, res) => {
+    try {
+        const payload = req.authPayload;
+        const updated = subscriberService.updateExtendedProfile(payload.subscriberId, req.body);
+        if (!updated)
+            return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+        res.json({
+            success: true,
+            subscriber: updated,
+            profileCompletionPct: subscriberService.calculateProfileCompletion(updated),
+        });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 // ── SUPERADMIN: SUBSCRIBER MANAGEMENT ────────────────────────────────────────
 // GET /api/admin/subscribers — list all
 app.get('/api/admin/subscribers', requireAuth, requireSuperAdmin, (req, res) => {
@@ -946,6 +1105,71 @@ app.delete('/api/admin/subscribers/:id', requireAuth, requireSuperAdmin, (req, r
     if (!ok)
         return res.status(400).json({ success: false, error: 'Cannot delete this subscriber.' });
     res.json({ success: true });
+});
+// GET /api/admin/subscription-plans — list all plan configs
+app.get('/api/admin/subscription-plans', requireAuth, requireSuperAdmin, (_req, res) => {
+    res.json({ success: true, plans: subscriptionPlanService.getAllPlans() });
+});
+// PUT /api/admin/subscription-plans/:planId — edit plan config (pricing, features, status)
+app.put('/api/admin/subscription-plans/:planId', requireAuth, requireSuperAdmin, (req, res) => {
+    try {
+        const updated = subscriptionPlanService.updatePlan(req.params.planId, req.body);
+        if (!updated)
+            return res.status(404).json({ success: false, error: 'Plan not found.' });
+        res.json({ success: true, plan: updated });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// GET /api/admin/subscription-history — audit trail
+app.get('/api/admin/subscription-history', requireAuth, requireSuperAdmin, (req, res) => {
+    const subscriberId = req.query.subscriberId;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+    if (subscriberId) {
+        res.json({ success: true, history: subscriptionHistoryService.getBySubscriberId(subscriberId) });
+    }
+    else {
+        res.json({ success: true, history: subscriptionHistoryService.getAll(limit) });
+    }
+});
+// POST /api/admin/subscribers/:id/manual-subscription — manual plan override/extend
+app.post('/api/admin/subscribers/:id/manual-subscription', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+        const { plan, billingCycle, expiryDate, subscriptionStatus, notes } = req.body;
+        const sub = subscriberService.getById(req.params.id);
+        if (!sub)
+            return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+        const updateData = {};
+        if (plan)
+            updateData.plan = plan;
+        if (billingCycle)
+            updateData.billingCycle = billingCycle;
+        if (expiryDate)
+            updateData.planExpiry = expiryDate;
+        if (subscriptionStatus)
+            updateData.subscriptionStatus = subscriptionStatus;
+        const updated = subscriberService.update(req.params.id, updateData);
+        if (updated) {
+            subscriptionHistoryService.record({
+                subscriberId: updated.subscriberId,
+                userId: updated.id,
+                action: 'ADMIN_OVERRIDE',
+                oldPlan: sub.plan,
+                newPlan: updated.plan,
+                billingCycle: updated.billingCycle || 'MONTHLY',
+                amount: 0,
+                taxAmount: 0,
+                paymentReference: 'ADMIN_MANUAL_OVERRIDE',
+                performedBy: req.authPayload?.subscriberId || 'SUPERADMIN',
+                notes: notes || 'Admin manual subscription adjustment',
+            });
+        }
+        res.json({ success: true, subscriber: updated });
+    }
+    catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 // ── SUPERADMIN: SIGNAL MANAGEMENT ─────────────────────────────────────────────
 // GET /api/admin/signals

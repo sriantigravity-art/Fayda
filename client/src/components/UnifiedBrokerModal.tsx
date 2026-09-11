@@ -95,6 +95,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   const [fyersAuthCode, setFyersAuthCode] = useState<string>('');
   const [fyersAccessToken, setFyersAccessToken] = useState<string>('');
   const [showFyersSecret, setShowFyersSecret] = useState(false);
+  const [showFyersToken, setShowFyersToken] = useState(false);
   const [fyersLoading, setFyersLoading] = useState(false);
   const [fyersStatusMsg, setFyersStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [fyersSubTab, setFyersSubTab] = useState<'AUTH_CODE' | 'DIRECT_TOKEN'>('AUTH_CODE');
@@ -175,20 +176,40 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       return;
     }
 
+    const token = fyersAccessToken.trim();
+    if (token.includes('auth_code=') || token.startsWith('http')) {
+      setFyersStatusMsg({
+        success: false,
+        text: '⚠️ You pasted an Auth Code or redirect URL into the Access Token field. Please switch to "Option 1: Generate Auth Code" to exchange it for an Access Token.'
+      });
+      return;
+    }
+
+    if (!token.includes('.') && token.length < 50) {
+      setFyersStatusMsg({
+        success: false,
+        text: '⚠️ Fyers Access Tokens are long JWT strings (starting with eyJ...). If you only have your App ID & Secret Key, please use "Option 1: Generate Auth Code" to connect.'
+      });
+      return;
+    }
+
     setFyersLoading(true);
     setFyersStatusMsg(null);
 
     const cleanAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : `${fyersAppId.trim()}-100`;
     localStorage.setItem('fyers_app_id', cleanAppId);
 
-    const res = await connectFyers(cleanAppId, fyersAccessToken.trim(), fyersSecretKey.trim());
+    const res = await connectFyers(cleanAppId, token, fyersSecretKey.trim());
     setFyersLoading(false);
 
     if (res.success) {
       setFyersStatusMsg({ success: true, text: `✅ Connected to Fyers as ${res.userName || 'Trader'}!` });
       selectBroker('FYERS');
     } else {
-      setFyersStatusMsg({ success: false, text: `❌ ${res.message}` });
+      const cleanText = res.message?.includes('Unexpected token') || res.message?.includes('is not valid JSON')
+        ? 'Could not authenticate with Fyers servers. Please check your credentials.'
+        : res.message;
+      setFyersStatusMsg({ success: false, text: `❌ ${cleanText}` });
     }
   };
 
@@ -198,18 +219,30 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       return;
     }
 
+    let code = fyersAuthCode.trim();
+    if (code.includes('auth_code=')) {
+      const match = code.match(/auth_code=([^&]+)/);
+      if (match && match[1]) {
+        code = decodeURIComponent(match[1]);
+        setFyersAuthCode(code);
+      }
+    }
+
     setFyersLoading(true);
     setFyersStatusMsg(null);
 
     const cleanAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : `${fyersAppId.trim()}-100`;
-    const res = await exchangeAuthCode(cleanAppId, fyersSecretKey.trim(), fyersAuthCode.trim());
+    const res = await exchangeAuthCode(cleanAppId, fyersSecretKey.trim(), code);
     setFyersLoading(false);
 
     if (res.success) {
       setFyersStatusMsg({ success: true, text: `✅ Fyers Token generated successfully! Connected.` });
       selectBroker('FYERS');
     } else {
-      setFyersStatusMsg({ success: false, text: `❌ ${res.message}` });
+      const cleanText = res.message?.includes('Unexpected token') || res.message?.includes('is not valid JSON')
+        ? 'Fyers authentication returned an unexpected response. Auth codes expire in 2 minutes and can only be used once.'
+        : res.message;
+      setFyersStatusMsg({ success: false, text: `❌ ${cleanText}` });
     }
   };
 
@@ -803,15 +836,43 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-mono font-bold text-terminal-text mb-1">Access Token</label>
-                    <input
-                      type="password"
-                      value={fyersAccessToken}
-                      onChange={(e) => setFyersAccessToken(e.target.value)}
-                      placeholder="Paste daily Fyers Access Token"
-                      className="w-full px-3 py-2 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-mono font-bold text-terminal-text">
+                        Daily Access Token (JWT Token)
+                      </label>
+                      <span className="text-[10px] font-mono text-terminal-muted">
+                        Starts with eyJ...
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showFyersToken ? "text" : "password"}
+                        value={fyersAccessToken}
+                        onChange={(e) => setFyersAccessToken(e.target.value)}
+                        placeholder="Paste daily Fyers Access Token (JWT)"
+                        className="w-full px-3 py-2 pr-10 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowFyersToken(!showFyersToken)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-terminal-muted hover:text-terminal-text"
+                      >
+                        {showFyersToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Clarification tip */}
+                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs font-mono text-terminal-muted space-y-1">
+                    <p className="text-terminal-text font-bold flex items-center gap-1.5">
+                      <HelpCircle className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Don't have a daily Access Token yet?</span>
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Use <strong>Option 1: Generate Auth Code</strong> above to log in with your Fyers PIN/OTP and your Secret Key (API Key). It creates your daily token automatically in seconds!
+                    </p>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={fyersLoading}
