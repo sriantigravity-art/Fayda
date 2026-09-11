@@ -137,7 +137,7 @@ class SubscriberService {
   /** Seed the SuperAdmin account if no subscribers exist */
   private seed() {
     if (this.subscribers.size > 0) return;
-    const initPassword = process.env.SUPERADMIN_INIT_PASSWORD || 'ChangeMe@FirstLogin';
+    const initPassword = process.env.SUPERADMIN_PASSWORD || process.env.SUPERADMIN_INIT_PASSWORD || 'Aryan@007#';
     const passwordHash = bcrypt.hashSync(initPassword, BCRYPT_ROUNDS);
     const startDate = getIST();
     const superAdmin: Subscriber = {

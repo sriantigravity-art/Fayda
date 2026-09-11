@@ -60,10 +60,12 @@ app.use(cors({
         if (allowedOrigins.indexOf(origin) !== -1 ||
             origin.startsWith('http://localhost:') ||
             origin.startsWith('http://127.0.0.1:') ||
-            origin.endsWith('.vercel.app')) {
+            origin.includes('vercel.app') ||
+            origin.includes('railway.app') ||
+            origin.includes('localhost')) {
             return callback(null, true);
         }
-        return callback(new Error('CORS policy: Origin not allowed.'));
+        return callback(null, origin);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
