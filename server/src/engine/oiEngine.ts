@@ -769,6 +769,7 @@ export class OIEngine {
 
     if (isMarketOpenForSymbol) {
       const qualifiedBullSurges = indexSurges.filter(s => 
+        s.optionType === 'CE' &&
         s.tradeAction === 'BUY_CALL' && 
         s.surgeScore >= 88 &&
         s.liquidityRating === 'HIGH_LIQUIDITY' && 
@@ -797,6 +798,7 @@ export class OIEngine {
       }
 
       const qualifiedBearSurges = indexSurges.filter(s => 
+        s.optionType === 'PE' &&
         s.tradeAction === 'BUY_PUT' && 
         s.surgeScore >= 88 &&
         s.liquidityRating === 'HIGH_LIQUIDITY' && 

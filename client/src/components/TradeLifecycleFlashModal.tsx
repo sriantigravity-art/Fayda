@@ -92,7 +92,7 @@ export const TradeLifecycleFlashModal: React.FC = () => {
   }
 
   const event = latestLifecycleFlash;
-  const isCall = event.action.includes('CALL') || event.optionType === 'CE';
+  const isCall = event.contractSymbol.toUpperCase().includes('CE') || (!event.contractSymbol.toUpperCase().includes('PE') && (event.action.includes('CALL') || event.optionType === 'CE'));
   const isLoss = event.type === 'BOOK_LOSS';
   const isProfit = event.type === 'BOOK_HALF_PROFIT' || event.type === 'BOOK_FULL_PROFIT';
   const isNew = event.type === 'NEW_TIP';
@@ -262,17 +262,19 @@ export const TradeLifecycleFlashModal: React.FC = () => {
                 <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                   isCall ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
                 }`}>
-                  {event.action}
+                  {isCall ? 'BUY_CALL' : 'BUY_PUT'}
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
                   <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-400 border border-slate-700 text-[10px] font-bold">
                     Given: {event.entryTimeFormatted || 'Earlier Session'}
                   </span>
-                  <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
-                    isLoss ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  }`}>
-                    {isLoss ? 'Loss Booked:' : 'Profit Booked:'} {event.bookedTimeFormatted || event.timeFormatted}
-                  </span>
+                  {event.bookedTimeFormatted && event.bookedTimeFormatted !== event.entryTimeFormatted && (
+                    <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
+                      isLoss ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    }`}>
+                      {isLoss ? 'Loss Booked:' : 'Profit Booked:'} {event.bookedTimeFormatted}
+                    </span>
+                  )}
                   {event.carryForwardTimeFormatted && (
                     <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold">
                       Carry Forward: {event.carryForwardTimeFormatted}

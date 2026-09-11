@@ -19,8 +19,8 @@ export function determineTradeAction(symbol, optionType, buildup, strike, atmStr
                 };
             case 'SHORT_BUILDUP':
                 return {
-                    tradeAction: 'BUY_PUT',
-                    actionTitle: '🔴 BUY PUT (PE) / CALL WRITING WALL',
+                    tradeAction: 'SELL_CALL',
+                    actionTitle: '🛡️ SELL CALL (CE) / CALL WRITING WALL',
                     actionDescription: `Heavy institutional Call writing at ${strike} CE (+OI, -price). Stiff resistance forming above.`,
                     confidence: isNearAtm ? 'EXTREME' : 'HIGH'
                 };
@@ -33,8 +33,8 @@ export function determineTradeAction(symbol, optionType, buildup, strike, atmStr
                 };
             case 'LONG_UNWINDING':
                 return {
-                    tradeAction: 'BUY_PUT',
-                    actionTitle: '⚠️ BUY PUT (PE) / BULL LIQUIDATION',
+                    tradeAction: 'SELL_CALL',
+                    actionTitle: '⚠️ EXIT LONG CALL / BULL LIQUIDATION',
                     actionDescription: `Call buyers liquidating long positions at ${strike} CE (-OI, -price). Momentum fading downwards.`,
                     confidence: 'MEDIUM'
                 };
@@ -51,8 +51,8 @@ export function determineTradeAction(symbol, optionType, buildup, strike, atmStr
                 };
             case 'SHORT_BUILDUP':
                 return {
-                    tradeAction: 'BUY_CALL',
-                    actionTitle: '🟢 BUY CALL (CE) / PUT SUPPORT FLOOR',
+                    tradeAction: 'SELL_PUT',
+                    actionTitle: '🛡️ SELL PUT (PE) / PUT SUPPORT FLOOR',
                     actionDescription: `Massive institutional Put writing at ${strike} PE (+OI, -price). Strong support cushion created.`,
                     confidence: isNearAtm ? 'EXTREME' : 'HIGH'
                 };
@@ -65,8 +65,8 @@ export function determineTradeAction(symbol, optionType, buildup, strike, atmStr
                 };
             case 'LONG_UNWINDING':
                 return {
-                    tradeAction: 'BUY_CALL',
-                    actionTitle: '⚠️ BUY CALL (CE) / PUT BUYERS EXITING',
+                    tradeAction: 'SELL_PUT',
+                    actionTitle: '⚠️ EXIT LONG PUT / PUT BUYERS EXITING',
                     actionDescription: `Put holders exiting positions at ${strike} PE (-OI, -price). Downside panic subsiding.`,
                     confidence: 'MEDIUM'
                 };

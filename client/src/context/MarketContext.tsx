@@ -709,17 +709,40 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (!contractSymbol || entryVal <= 0) return;
               if (!isMarketOpenForSymbol(symbol)) return;
 
+              // Strictly resolve contract type directly from contractSymbol to eliminate cross-type mismatch bugs
+              const isContractPe = contractSymbol.toUpperCase().includes('PE');
+              const isContractCe = contractSymbol.toUpperCase().includes('CE');
+              const resolvedOptType: 'CE' | 'PE' | 'SPREAD' = optType === 'SPREAD'
+                ? 'SPREAD'
+                : isContractPe
+                  ? 'PE'
+                  : isContractCe
+                    ? 'CE'
+                    : optType;
+
+              const isCall = resolvedOptType === 'CE' || (!isContractPe && actionStr.toUpperCase().includes('CALL'));
+
               const strikeRow = indexState.strikes?.find((s: any) => s.strikePrice === strikePriceVal);
               let liveLtp = entryVal;
               if (strikeRow) {
-                liveLtp = optType === 'PE' ? strikeRow.putLtp : strikeRow.callLtp;
+                liveLtp = resolvedOptType === 'PE' ? (strikeRow.putLtp || entryVal) : (strikeRow.callLtp || entryVal);
               }
               if (!liveLtp || liveLtp <= 0) liveLtp = entryVal;
 
+              // Sanity guard: prevent abnormal cross-type spikes (>250% deviation from entry) from firing false milestone alerts
+              if (entryVal > 0 && Math.abs(liveLtp - entryVal) / entryVal > 2.5) {
+                return;
+              }
+
               const pnlPoints = +(liveLtp - entryVal).toFixed(2);
               const pnlPct = +(((liveLtp - entryVal) / entryVal) * 100).toFixed(2);
-              const isCall = actionStr.includes('CALL') || optType === 'CE';
               const currentGivenTime = entryTimeFormatted || formatISTTime(null);
+              const nowFormatted = formatISTTime(null, { showSeconds: true });
+
+              // Don't flash milestone alert on brand-new tip tick 0 (same second as creation)
+              if (!priorBookedTimeFormatted && entryTimeFormatted && entryTimeFormatted === nowFormatted) {
+                return;
+              }
 
               // 1. TARGET 2 HIT / MAXIMUM PROFIT / EXIT FULL (Flash ONCE ONLY, min 30s gap)
               const t2Key = `t2_${symbol}_${contractSymbol}_${Math.round(target2Val)}`;
@@ -728,7 +751,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                   flashedLifecycleEventsRef.current.add(t2Key);
                   lastLifecycleFlashTimeRef.current = nowMs;
-                  const bookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
+                  const bookedTime = priorBookedTimeFormatted || (nowFormatted !== currentGivenTime ? nowFormatted : formatISTTime(null, { showSeconds: true }));
 
                   const flashEvent: TipLifecycleFlashEvent = {
                     id: `flash-t2-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -736,7 +759,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     symbol,
                     contractSymbol,
                     action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                    optionType: optType,
+                    optionType: resolvedOptType,
                     entryPrice: entryVal,
                     entryRange: entryRangeStr,
                     currentLtp: liveLtp,
@@ -775,7 +798,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                   flashedLifecycleEventsRef.current.add(t1Key);
                   lastLifecycleFlashTimeRef.current = nowMs;
-                  const bookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
+                  const bookedTime = priorBookedTimeFormatted || (nowFormatted !== currentGivenTime ? nowFormatted : formatISTTime(null, { showSeconds: true }));
 
                   const flashEvent: TipLifecycleFlashEvent = {
                     id: `flash-t1-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -783,7 +806,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     symbol,
                     contractSymbol,
                     action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                    optionType: optType,
+                    optionType: resolvedOptType,
                     entryPrice: entryVal,
                     entryRange: entryRangeStr,
                     currentLtp: liveLtp,
@@ -824,7 +847,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   if (nowMs - lastLifecycleFlashTimeRef.current >= 30000) {
                     flashedLifecycleEventsRef.current.add(slKey);
                     lastLifecycleFlashTimeRef.current = nowMs;
-                    const lossBookedTime = priorBookedTimeFormatted || formatISTTime(null, { showSeconds: true });
+                    const lossBookedTime = priorBookedTimeFormatted || (nowFormatted !== currentGivenTime ? nowFormatted : formatISTTime(null, { showSeconds: true }));
 
                     const flashEvent: TipLifecycleFlashEvent = {
                       id: `flash-sl-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -832,7 +855,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       symbol,
                       contractSymbol,
                       action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                      optionType: optType,
+                      optionType: resolvedOptType,
                       entryPrice: entryVal,
                       entryRange: entryRangeStr,
                       currentLtp: liveLtp,
@@ -881,7 +904,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     symbol,
                     contractSymbol,
                     action: isCall ? 'BUY_CALL' : 'BUY_PUT',
-                    optionType: optType,
+                    optionType: resolvedOptType,
                     entryPrice: entryVal,
                     entryRange: entryRangeStr,
                     currentLtp: liveLtp,
@@ -916,7 +939,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             // Evaluate Primary Prime Setup
             const primePick = indexState.sessionTips?.topCallTrade || indexState.sessionTips?.topPutTrade;
             if (primePick) {
-              const isCall = primePick.contractSymbol.includes('CE');
+              const isCall = primePick.contractSymbol.toUpperCase().includes('CE');
               evaluateTipLifecycle(
                 primePick.contractSymbol,
                 isCall ? 'BUY CALL' : 'BUY PUT',
@@ -928,7 +951,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 primePick.stoplossPrice,
                 primePick.confluenceScore,
                 primePick.strategyTag || 'Institutional High-Probability Confluence',
-                primePick.strikePrice || parseInt(primePick.contractSymbol.replace(/[^0-9]/g, '')) || 0
+                primePick.strikePrice || parseInt(primePick.contractSymbol.replace(/[^0-9]/g, '')) || 0,
+                primePick.callGivenTimeFormatted || primePick.entryTimeFormatted,
+                primePick.bookedTimeFormatted,
+                primePick.carryForwardTimeFormatted
               );
             }
 
@@ -939,7 +965,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               evaluateTipLifecycle(
                 t.contractSymbol,
                 t.action,
-                t.optionType === 'SPREAD' ? 'CE' : t.optionType,
+                t.optionType === 'SPREAD' ? 'SPREAD' : t.optionType,
                 t.entryPrice,
                 t.entryRange || `₹${t.entryPrice.toFixed(1)}`,
                 t.target1Price,
@@ -948,7 +974,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 t.confluenceScore || 90,
                 t.strategyTag || 'Institutional Directional Alpha',
                 t.strikePrice || parseInt(t.contractSymbol.replace(/[^0-9]/g, '')) || 0,
-                t.entryTimeFormatted,
+                t.callGivenTimeFormatted || t.entryTimeFormatted,
                 t.bookedTimeFormatted,
                 t.carryForwardTimeFormatted
               );
@@ -958,7 +984,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (indexState.recommendedTrades?.bullishPick) {
               const p = indexState.recommendedTrades.bullishPick;
               const contract = p.suggestedContract;
-              if (contract) {
+              if (contract && (p.optionType === 'CE' || contract.symbol.toUpperCase().includes('CE'))) {
                 const pEntry = parseFloat(String(contract.recommendedEntry || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || contract.ltp;
                 const pTgt = parseFloat(String(contract.target || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 1.3);
                 const pSl = parseFloat(String(contract.stoploss || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 0.85);
@@ -973,7 +999,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   pSl,
                   p.surgeScore || 88,
                   p.rationale || 'High Velocity Breakout',
-                  p.strikePrice
+                  p.strikePrice,
+                  p.timeFormatted
                 );
               }
             }
@@ -981,7 +1008,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (indexState.recommendedTrades?.bearishPick) {
               const p = indexState.recommendedTrades.bearishPick;
               const contract = p.suggestedContract;
-              if (contract) {
+              if (contract && (p.optionType === 'PE' || contract.symbol.toUpperCase().includes('PE'))) {
                 const pEntry = parseFloat(String(contract.recommendedEntry || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || contract.ltp;
                 const pTgt = parseFloat(String(contract.target || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 1.3);
                 const pSl = parseFloat(String(contract.stoploss || '').match(/[\d]+(?:\.[\d]+)?/)?.[0] || '0') || (pEntry * 0.85);
@@ -996,7 +1023,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   pSl,
                   p.surgeScore || 88,
                   p.rationale || 'Support Floor Breakdown',
-                  p.strikePrice
+                  p.strikePrice,
+                  p.timeFormatted
                 );
               }
             }

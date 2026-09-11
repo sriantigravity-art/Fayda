@@ -642,7 +642,8 @@ export class OIEngine {
         let bullishPick = null;
         let bearishPick = null;
         if (isMarketOpenForSymbol) {
-            const qualifiedBullSurges = indexSurges.filter(s => s.tradeAction === 'BUY_CALL' &&
+            const qualifiedBullSurges = indexSurges.filter(s => s.optionType === 'CE' &&
+                s.tradeAction === 'BUY_CALL' &&
                 s.surgeScore >= 88 &&
                 s.liquidityRating === 'HIGH_LIQUIDITY' &&
                 s.ivStatus !== 'EXPENSIVE_CRUSH_RISK').sort((a, b) => b.surgeScore - a.surgeScore);
@@ -666,7 +667,8 @@ export class OIEngine {
                 }
                 bullishPick = topBull;
             }
-            const qualifiedBearSurges = indexSurges.filter(s => s.tradeAction === 'BUY_PUT' &&
+            const qualifiedBearSurges = indexSurges.filter(s => s.optionType === 'PE' &&
+                s.tradeAction === 'BUY_PUT' &&
                 s.surgeScore >= 88 &&
                 s.liquidityRating === 'HIGH_LIQUIDITY' &&
                 s.ivStatus !== 'EXPENSIVE_CRUSH_RISK').sort((a, b) => b.surgeScore - a.surgeScore);
