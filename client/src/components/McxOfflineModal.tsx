@@ -221,16 +221,16 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
+      className="fixed inset-0 z-[200] overflow-y-auto p-3 sm:p-4 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-2xl bg-terminal-card border-2 border-bear/40 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 font-mono">
+      <div className="w-full max-w-2xl max-h-[88vh] flex flex-col bg-terminal-card border-2 border-bear/40 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 font-mono my-auto">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-bear/20 via-terminal-panel to-terminal-panel border-b border-bear/30">
+        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-bear/20 via-terminal-panel to-terminal-panel border-b border-bear/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-bear/20 border border-bear/40 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-bear/20 border border-bear/40 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-5 h-5 text-bear" />
             </div>
             <div>
@@ -252,7 +252,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
         </div>
 
         {/* ── Status Banner ── */}
-        <div className="px-5 py-3 bg-amber/5 border-b border-amber/20 flex items-start gap-2.5">
+        <div className="shrink-0 px-5 py-2.5 bg-amber/5 border-b border-amber/20 flex items-start gap-2.5">
           <Clock className="w-4 h-4 text-amber mt-0.5 shrink-0" />
           <div>
             <p className="text-xs text-amber font-semibold">{statusInfo.desc}</p>
@@ -263,7 +263,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
           </div>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
+        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
 
           {loading && (
             <div className="flex items-center justify-center py-12 gap-3">
@@ -407,7 +407,7 @@ export const McxOfflineModal: React.FC<Props> = ({ symbol, onClose, onProceedAny
         </div>
 
         {/* ── Footer Actions ── */}
-        <div className="px-5 py-4 bg-terminal-panel border-t border-terminal-border flex items-center gap-3">
+        <div className="shrink-0 px-5 py-3.5 bg-terminal-panel border-t border-terminal-border flex items-center gap-3">
           <button
             onClick={onProceedAnyway}
             className="flex-1 py-2.5 px-4 rounded-xl bg-accent-cyan/10 border border-accent-cyan/40 text-accent-cyan text-xs font-bold hover:bg-accent-cyan/20 transition"

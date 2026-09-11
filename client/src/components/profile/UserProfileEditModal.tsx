@@ -294,7 +294,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
   const pwdStrength = getPasswordStrength(newPassword);
 
   return createPortal(
-    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
       <style>{`
         .profile-modal-scrollbar::-webkit-scrollbar {
           width: 7px;
@@ -314,7 +314,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
         }
       `}</style>
       
-      <div className={`border rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col font-sans select-none ring-1 overflow-hidden shadow-2xl ${
+      <div className={`border rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col font-sans select-none ring-1 overflow-hidden shadow-2xl my-auto ${
         isDark 
           ? 'bg-[#0c1220] border-slate-800 text-slate-100 ring-white/10 shadow-black/90' 
           : 'bg-white border-slate-200 text-slate-900 ring-slate-200 shadow-slate-400/40'
