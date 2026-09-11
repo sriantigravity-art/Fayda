@@ -334,8 +334,18 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
       const isItemExpiry = rawItem.isExpiryDay ?? rawItem.rawTip?.isExpiryDay ?? isExpiryDay;
       const isSeller = rawItem.role === 'SELLER' || rawItem.optionType === 'SPREAD';
-      const entry = rawItem.entryPrice ?? rawItem.rawTip?.entryPrice ?? 0;
-      const ltp = rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? 0;
+      const entry = (rawItem.isEntryTriggered && rawItem.actualEntryPrice)
+        ? rawItem.actualEntryPrice
+        : (rawItem.entryPrice ?? rawItem.rawTip?.entryPrice ?? 0);
+
+      // Look up live option strike LTP from currentIndexState
+      const strikePrice = rawItem.strikePrice ?? rawItem.rawTip?.strikePrice;
+      const optionType = rawItem.optionType ?? rawItem.rawTip?.optionType;
+      const liveStrike = currentIndexState?.strikes?.find(s => s.strikePrice === strikePrice);
+      const liveStrikeLtp = liveStrike 
+        ? (optionType === 'CE' ? liveStrike.callLtp : (optionType === 'PE' ? liveStrike.putLtp : 0)) 
+        : 0;
+      const ltp = (liveStrikeLtp > 0) ? liveStrikeLtp : (rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? 0);
 
       const isContractExpired = Boolean(
         rawItem.status === 'EXPIRED' ||
@@ -343,39 +353,70 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         (isItemExpiry && !isCommodity && ltp <= 0.05)
       );
 
-      const finalStatus = isContractExpired ? 'EXPIRED' : (rawItem.status || 'ACTIVE');
+      // Check target achievements
+      const target1Price = rawItem.target1Price ?? rawItem.rawTip?.target1Price ?? 0;
+      const target2Price = rawItem.target2Price ?? rawItem.rawTip?.target2Price ?? 0;
+      const stoplossPrice = rawItem.stoplossPrice ?? rawItem.rawTip?.stoplossPrice ?? 0;
+
+      const isTarget2Hit = rawItem.status === 'TARGET2_HIT' 
+        || rawItem.rawTip?.status === 'TARGET2_HIT' 
+        || Boolean(rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted)
+        || Boolean(target2Price > 0 && !isSeller && ltp >= target2Price)
+        || Boolean(target2Price > 0 && isSeller && ltp <= target2Price);
+
+      const isTarget1Hit = isTarget2Hit
+        || rawItem.status === 'TARGET1_HIT' 
+        || rawItem.rawTip?.status === 'TARGET1_HIT' 
+        || Boolean(rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted)
+        || Boolean(target1Price > 0 && !isSeller && ltp >= target1Price)
+        || Boolean(target1Price > 0 && isSeller && ltp <= target1Price);
+
+      const isSlHit = rawItem.status === 'SL_HIT'
+        || rawItem.rawTip?.status === 'SL_HIT'
+        || Boolean(rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted)
+        || Boolean(stoplossPrice > 0 && !isSeller && ltp <= stoplossPrice)
+        || Boolean(stoplossPrice > 0 && isSeller && ltp >= stoplossPrice);
+
+      const finalStatus = isContractExpired 
+        ? 'EXPIRED' 
+        : isTarget2Hit 
+        ? 'TARGET2_HIT' 
+        : isTarget1Hit 
+        ? 'TARGET1_HIT' 
+        : isSlHit 
+        ? 'SL_HIT' 
+        : (rawItem.status || 'ACTIVE');
 
       // 1. P&L in points
-      let points = rawItem.pnlPoints;
+      let points = 0;
       if (isContractExpired && !isSeller) {
         points = -entry;
-      } else if (points === undefined && rawItem.rawTip?.pnlPoints !== undefined) {
-        points = rawItem.rawTip.pnlPoints;
-      }
-      if (points === undefined) {
+      } else if (entry > 0 && ltp > 0) {
         points = isSeller ? (entry - ltp) : (ltp - entry);
+      } else if (rawItem.pnlPoints !== undefined && rawItem.pnlPoints !== 0) {
+        points = rawItem.pnlPoints;
+      } else if (rawItem.rawTip?.pnlPoints !== undefined && rawItem.rawTip.pnlPoints !== 0) {
+        points = rawItem.rawTip.pnlPoints;
       }
       points = Number(points.toFixed(2));
 
       // 2. P&L in percentage
-      let pct = rawItem.pnlPct;
+      let pct = 0;
       if (isContractExpired && !isSeller) {
         pct = -100;
-      } else if (pct === undefined && rawItem.rawTip?.pnlPct !== undefined) {
+      } else if (entry > 0) {
+        pct = Number(((points / entry) * 100).toFixed(1));
+      } else if (rawItem.pnlPct !== undefined && rawItem.pnlPct !== 0) {
+        pct = rawItem.pnlPct;
+      } else if (rawItem.rawTip?.pnlPct !== undefined && rawItem.rawTip.pnlPct !== 0) {
         pct = rawItem.rawTip.pnlPct;
-      }
-      if (pct === undefined) {
-        pct = entry > 0 ? Number(((points / entry) * 100).toFixed(1)) : 0;
       }
 
       // 3. P&L in Rupees per lot
-      let rupees = rawItem.pnlRupees;
+      let rupees = 0;
       if (isContractExpired && !isSeller) {
         rupees = -Math.round(entry * (lotSize || 50));
-      } else if (rupees === undefined && rawItem.rawTip?.pnlRupees !== undefined) {
-        rupees = rawItem.rawTip.pnlRupees;
-      }
-      if (rupees === undefined) {
+      } else {
         rupees = Math.round(points * (lotSize || 50));
       }
 

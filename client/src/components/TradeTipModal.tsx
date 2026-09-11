@@ -106,43 +106,93 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const currentIndex = indices[tip.symbol];
   const liveSpot = currentIndex?.spotPrice || 0;
 
-  const entryNum = typeof tip.entryPrice === 'number' 
-    ? tip.entryPrice 
-    : (parseFloat(String(tip.entryPrice).replace(/[^0-9.]/g, '')) || (tip.currentLtp || 100));
-  const ltpNum = tip.currentLtp || entryNum;
-  const rawPnlPoints = tip.pnlPoints ?? +(ltpNum - entryNum).toFixed(2);
-  const rawPnlPct = tip.pnlPct ?? (entryNum > 0 ? +((rawPnlPoints / entryNum) * 100).toFixed(2) : 0);
-  const rawPnlRupees = tip.pnlRupees ?? Math.round(rawPnlPoints * lotSize);
+  // Extract strike price and option type from tip if not directly set
+  const strikeNum = tip.strikePrice || (() => {
+    const match = tip.contractSymbol?.match(/\b(\d{4,6})\b/);
+    return match ? parseInt(match[1], 10) : undefined;
+  })();
+  const optType = tip.optionType || (tip.contractSymbol?.includes('CE') ? 'CE' : (tip.contractSymbol?.includes('PE') ? 'PE' : undefined));
+
+  // Find live strike from current index option chain
+  const liveStrike = currentIndex?.strikes?.find(s => s.strikePrice === strikeNum);
+  const liveOptionLtp = liveStrike 
+    ? (optType === 'CE' ? liveStrike.callLtp : (optType === 'PE' ? liveStrike.putLtp : 0))
+    : 0;
+
+  const entryNum = (tip.isEntryTriggered && tip.actualEntryPrice) 
+    ? tip.actualEntryPrice 
+    : (typeof tip.entryPrice === 'number' 
+      ? tip.entryPrice 
+      : (parseFloat(String(tip.entryPrice).replace(/[^0-9.]/g, '')) || (tip.currentLtp || 100)));
+
+  // Current active LTP is liveOptionLtp if available, otherwise tip.currentLtp
+  const ltpNum = (liveOptionLtp && liveOptionLtp > 0) ? liveOptionLtp : (tip.currentLtp || entryNum);
+
+  // Dynamic PnL calculation from effective entry and active LTP
+  const pnlPts = isSeller
+    ? +(entryNum - ltpNum).toFixed(2)
+    : +(ltpNum - entryNum).toFixed(2);
+  const pnlPercent = entryNum > 0 ? +((pnlPts / entryNum) * 100).toFixed(1) : 0;
+  const pnlInRupees = Math.round(pnlPts * lotSize);
+
+  const rawPnlPoints = pnlPts;
+  const rawPnlPct = pnlPercent;
+  const rawPnlRupees = pnlInRupees;
+
+  // Check target hit dynamically based on prices as well as historical timestamps/status
+  const isTarget2Reached = tip.status === 'TARGET2_HIT' 
+    || Boolean(tip.target2HitTimeFormatted) 
+    || Boolean(tip.target2Price && !isSeller && ltpNum >= tip.target2Price) 
+    || Boolean(tip.target2Price && isSeller && ltpNum <= tip.target2Price);
+
+  const isTarget1Reached = isTarget2Reached 
+    || tip.status === 'TARGET1_HIT' 
+    || Boolean(tip.target1HitTimeFormatted) 
+    || Boolean(tip.target1Price && !isSeller && ltpNum >= tip.target1Price) 
+    || Boolean(tip.target1Price && isSeller && ltpNum <= tip.target1Price);
+
+  const isStoplossReached = isSlHit 
+    || Boolean(tip.stoplossTimeFormatted) 
+    || Boolean(tip.stoplossPrice && !isSeller && ltpNum <= tip.stoplossPrice) 
+    || Boolean(tip.stoplossPrice && isSeller && ltpNum >= tip.stoplossPrice);
 
   // Expiry / 0DTE expiration check: An option on expiry day with LTP <= 0.05 or off-market is EXPIRED
   const isExpired = tip.status === 'EXPIRED' || (tip.isExpiryDay && !isCommodity && (ltpNum <= 0.05 || (!isMarketOpen && tip.status !== 'CARRIED_FORWARD')));
 
-  const profitBoxData: OngoingProfitBoxData = tip.ongoingProfitBox || {
-    pnlPoints: isExpired && !isSeller ? -entryNum : rawPnlPoints,
-    pnlPct: isExpired && !isSeller ? -100 : (isExpired && isSeller ? 100 : rawPnlPct),
-    pnlRupees: isExpired && !isSeller ? -Math.round(entryNum * lotSize) : (isExpired && isSeller ? Math.round(entryNum * lotSize) : rawPnlRupees),
-    decisionTag: isExpired && !isSeller ? 'EXPIRED' : isSlHit ? 'EXIT_SL' : rawPnlPct >= 25 ? 'BOOK_HALF' : rawPnlPct >= 15 ? 'TRAIL_SL' : 'HOLD',
-    decisionText: isExpired && !isSeller
-      ? `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Settled at zero.`
-      : isExpired && isSeller
-      ? `🎯 0DTE Expired OTM (+100%) — Full credit captured at 03:30 PM IST.`
-      : isSlHit 
-      ? `🛑 Stoploss Hit (${rawPnlPct}%) — Capital protected & position archived to Trade Journal.`
-      : rawPnlPct >= 25
-      ? `🎯 Target 1 Achieved (+${rawPnlPct}%) — Lock 50% profit & trail SL to entry cost.`
-      : rawPnlPct >= 15
-      ? `🚀 Running in Profit (+${rawPnlPct}%) — Trail stoploss to entry price.`
-      : `⏸️ Holding above stoploss (LTP ₹${ltpNum.toFixed(1)}) — Maintain position towards Target 1.`,
-    isProfit: isExpired && !isSeller ? false : (isExpired && isSeller ? true : rawPnlPoints >= 0)
-  };
+  let dynamicDecisionTag: OngoingProfitBoxData['decisionTag'] = 'HOLD';
+  let dynamicDecisionText = '';
 
-  // If the backend supplied an ongoingProfitBox but the contract is clearly expired, override decisionTag so it never shows "HOLD"
   if (isExpired && !isSeller) {
-    profitBoxData.decisionTag = 'EXPIRED';
-    profitBoxData.decisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Cannot be held or traded.`;
-    profitBoxData.isProfit = false;
-    profitBoxData.pnlPct = -100;
+    dynamicDecisionTag = 'EXPIRED';
+    dynamicDecisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Cannot be held or entered.`;
+  } else if (isTarget2Reached) {
+    dynamicDecisionTag = 'BOOK_HALF';
+    dynamicDecisionText = `🏆 Target 2 Achieved (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Maximum strategy alpha reached: Liquidate full position and lock peak gains.`;
+  } else if (isTarget1Reached) {
+    dynamicDecisionTag = 'BOOK_HALF';
+    dynamicDecisionText = `🎯 Target 1 Achieved (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Lock 50% profit and trail stoploss to entry cost (₹${entryNum.toFixed(1)}) for risk-free runners.`;
+  } else if (isStoplossReached) {
+    dynamicDecisionTag = 'EXIT_SL';
+    dynamicDecisionText = `🛑 Stoploss Hit (${pnlPercent}% / -₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Capital protection mandate: Close trade now and preserve capital.`;
+  } else if (pnlPercent >= 15) {
+    dynamicDecisionTag = 'TRAIL_SL';
+    dynamicDecisionText = `🚀 Running in Profit (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Trail stoploss to entry price (₹${entryNum.toFixed(1)}).`;
+  } else if (Math.abs(pnlPercent) <= 2) {
+    dynamicDecisionTag = 'ENTER';
+    dynamicDecisionText = `🟢 In Optimal Entry Zone (LTP ₹${ltpNum.toFixed(1)}) — Good risk:reward near trigger price.`;
+  } else {
+    dynamicDecisionTag = 'HOLD';
+    dynamicDecisionText = `⏸️ Holding above stoploss (LTP ₹${ltpNum.toFixed(1)}) — Maintain position towards Target 1 (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}).`;
   }
+
+  const profitBoxData: OngoingProfitBoxData = {
+    pnlPoints: isExpired && !isSeller ? -entryNum : pnlPts,
+    pnlPct: isExpired && !isSeller ? -100 : pnlPercent,
+    pnlRupees: isExpired && !isSeller ? -Math.round(entryNum * lotSize) : pnlInRupees,
+    decisionTag: dynamicDecisionTag,
+    decisionText: dynamicDecisionText,
+    isProfit: isExpired && !isSeller ? false : pnlPts >= 0
+  };
 
   // Mode-Adaptive Titles, Descriptions, and Explanations
   const modeLabels = {
@@ -169,13 +219,15 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       },
       decisionAdvice: isExpired && !isSeller
         ? `🛑 This 0DTE contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held overnight. Please switch to the Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}) contract.`
-        : isSlHit 
+        : isStoplossReached 
         ? `🛑 Safety Shield Triggered (${rawPnlPct}%). Close this trade now to protect your remaining funds. Never average a losing trade.`
-        : rawPnlPct >= 25
-        ? `🎯 1st Profit Goal Reached (+${rawPnlPct}%)! Click "Book 50% Profit" to secure ₹${Math.round(profitBoxData.pnlRupees / 2).toLocaleString('en-IN')} cash into your account, and shift your Capital Shield to your buy price.`
+        : isTarget2Reached
+        ? `🏆 Target 2 Achieved (+${rawPnlPct}%)! Great job, close entire position and secure ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits!`
+        : isTarget1Reached
+        ? `🎯 1st Profit Goal Reached (+${rawPnlPct}%)! Click "Book 50% Profit" to secure ₹${Math.round(Math.abs(profitBoxData.pnlRupees) / 2).toLocaleString('en-IN')} cash into your account, and shift your Capital Shield to your buy price.`
         : rawPnlPct >= 15
-        ? `🚀 Running in Good Profit (+${rawPnlPct}%)! Move your Capital Shield to your buy price (₹${entryNum}) so this trade cannot lose money.`
-        : `⏸️ Trade is moving safely in the right direction. Stay patient and wait for 1st Profit Goal (₹${tip.target1Price}).`,
+        ? `🚀 Running in Good Profit (+${rawPnlPct}%)! Move your Capital Shield to your buy price (₹${entryNum.toFixed(1)}) so this trade cannot lose money.`
+        : `⏸️ Trade is moving safely in the right direction. Stay patient and wait for 1st Profit Goal (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}).`,
       desc: tip.explanations?.beginner ||
         `Why this trade? Market strength is moving in your favor. Buy 1 lot within the Buy Price Zone. When 1st Profit Goal is reached, take half your cash off the table and let the rest run risk-free. Always keep your Capital Shield active to protect your hard-earned money.`
     },
@@ -198,9 +250,11 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       },
       decisionAdvice: isExpired && !isSeller
         ? `🛑 0DTE Expiry Invalidation — Contract expired OTM at 03:30 PM IST with 100% time decay. Cannot be carried overnight. Roll over to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
-        : isSlHit
+        : isStoplossReached
         ? `🛑 Stoploss Hit (${rawPnlPct}%) — Confluence invalidation point breached. Trade automatically archived to Post-Market Trade Journal.`
-        : rawPnlPct >= 25
+        : isTarget2Reached
+        ? `🏆 Target 2 Achieved (+${rawPnlPct}%) — Peak alpha achieved. Lock all profits and exit position.`
+        : isTarget1Reached
         ? `🎯 Target 1 Achieved (+${rawPnlPct}%) — Lock 50% profit, trail SL to entry cost, and let runners aim for Target 2.`
         : rawPnlPct >= 15
         ? `🚀 Momentum Expansion (+${rawPnlPct}%) — Dynamic CPR pivot confirmed; trail SL to breakeven cost.`
@@ -227,9 +281,11 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       },
       decisionAdvice: isExpired && !isSeller
         ? `🛑 0DTE Terminal Settlement — Position terminated at 03:30 PM IST cash settlement. Delta = 0, Gamma = 0, IV = 0. Re-deploy delta into Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
-        : isSlHit
+        : isStoplossReached
         ? `🛑 Structural Invalidation (${rawPnlPct}%) — Volume point of control breached; delta hedge deactivated and logged.`
-        : rawPnlPct >= 25
+        : isTarget2Reached
+        ? `🏆 Target 2 (1.8σ Gamma Runner) Hit (+${rawPnlPct}%) — Mean reversion risk elevated; liquidate full delta exposure.`
+        : isTarget1Reached
         ? `🎯 1.2σ Mean Expansion Hit (+${rawPnlPct}%) — De-risk 50% delta exposure, trail gamma stoploss to breakeven POC.`
         : rawPnlPct >= 15
         ? `🚀 High Positive Gamma Flow (+${rawPnlPct}%) — Theta decay offset by momentum impulse. Trail stop to entry volume cluster.`
@@ -601,7 +657,7 @@ Generated via Fayda Trading Terminal`;
 
             {/* 2. TARGET 1 (with Target 1 Hit Time) */}
             <div className={`p-3 rounded-xl border text-left space-y-1 ${
-              tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT'
+              isTarget1Reached
                 ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
                 : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
             }`}>
@@ -609,7 +665,7 @@ Generated via Fayda Trading Terminal`;
                 <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
                   {modeLabels.t1Label}
                 </span>
-                {(tip.target1HitTimeFormatted || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT') && (
+                {isTarget1Reached && (
                   <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
                     HIT
                   </span>
@@ -619,13 +675,13 @@ Generated via Fayda Trading Terminal`;
                 {typeof tip.target1Price === 'number' ? `₹${tip.target1Price.toFixed(2)}` : (tip.target1Price || '—')}
               </span>
               <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
-                ⏱️ {tip.target1HitTimeFormatted ? `Hit: ${tip.target1HitTimeFormatted}` : (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' ? `Hit: ${tip.bookedTimeFormatted || 'Booked'}` : 'Pending Target')}
+                ⏱️ {isTarget1Reached ? `Hit: ${tip.target1HitTimeFormatted || tip.bookedTimeFormatted || 'Target 1 Reached'}` : 'Pending Target'}
               </span>
             </div>
 
             {/* 3. TARGET 2 (with Target 2 Hit Time) */}
             <div className={`p-3 rounded-xl border text-left space-y-1 ${
-              tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT'
+              isTarget2Reached
                 ? 'bg-emerald-500/15 dark:bg-emerald-500/20 border-emerald-500/50 shadow-xs'
                 : 'bg-bull/10 dark:bg-bull/15 border-bull/30'
             }`}>
@@ -633,7 +689,7 @@ Generated via Fayda Trading Terminal`;
                 <span className="text-bull block text-[9.5px] font-black uppercase tracking-wider">
                   {modeLabels.t2Label}
                 </span>
-                {(tip.target2HitTimeFormatted || tip.status === 'TARGET2_HIT') && (
+                {isTarget2Reached && (
                   <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
                     HIT
                   </span>
@@ -643,13 +699,13 @@ Generated via Fayda Trading Terminal`;
                 {typeof tip.target2Price === 'number' ? `₹${tip.target2Price.toFixed(2)}` : (tip.target2Price || 'Trail SL')}
               </span>
               <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
-                ⏱️ {tip.target2HitTimeFormatted ? `Hit: ${tip.target2HitTimeFormatted}` : (tip.status === 'TARGET2_HIT' ? `Hit: ${tip.bookedTimeFormatted || 'Booked'}` : 'Runner Trailing')}
+                ⏱️ {isTarget2Reached ? `Hit: ${tip.target2HitTimeFormatted || tip.bookedTimeFormatted || 'Target 2 Reached'}` : 'Runner Trailing'}
               </span>
             </div>
 
             {/* 4. STOP LOSS (with Stoploss Time) */}
             <div className={`p-3 rounded-xl border text-left space-y-1 ${
-              tip.stoplossTimeFormatted || isSlHit
+              isStoplossReached
                 ? 'bg-rose-500/15 dark:bg-rose-500/20 border-rose-500/50 shadow-xs'
                 : 'bg-bear/10 dark:bg-bear/15 border-bear/30'
             }`}>
@@ -657,7 +713,7 @@ Generated via Fayda Trading Terminal`;
                 <span className="text-bear block text-[9.5px] font-black uppercase tracking-wider">
                   {modeLabels.slLabel}
                 </span>
-                {(tip.stoplossTimeFormatted || isSlHit) && (
+                {isStoplossReached && (
                   <span className="text-[8.5px] font-mono px-1 py-0.2 rounded font-bold uppercase bg-rose-500/20 text-rose-700 dark:text-rose-300">
                     HIT
                   </span>
@@ -667,7 +723,7 @@ Generated via Fayda Trading Terminal`;
                 {typeof tip.stoplossPrice === 'number' ? `₹${tip.stoplossPrice.toFixed(2)}` : (tip.stoplossPrice || '—')}
               </span>
               <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold block truncate">
-                ⏱️ {tip.stoplossTimeFormatted ? `Hit: ${tip.stoplossTimeFormatted}` : (isSlHit ? `Hit: ${tip.bookedTimeFormatted || 'Stopped Out'}` : 'Active Shield')}
+                ⏱️ {tip.stoplossTimeFormatted ? `Hit: ${tip.stoplossTimeFormatted}` : (isStoplossReached ? `Hit: ${tip.bookedTimeFormatted || 'Stopped Out'}` : 'Active Shield')}
               </span>
             </div>
           </div>
@@ -684,7 +740,7 @@ Generated via Fayda Trading Terminal`;
             <div className="bg-amber-500/15 p-2 rounded-xl border border-amber-500/30">
               <span className="text-amber-800 dark:text-amber-300 block text-[9px] font-bold uppercase">CURRENT LTP</span>
               <span className="font-black text-amber-800 dark:text-amber-300 text-sm">
-                {tip.currentLtp ? `₹${Number(tip.currentLtp).toFixed(2)}` : '—'}
+                ₹{Number(ltpNum).toFixed(2)}
               </span>
             </div>
 
