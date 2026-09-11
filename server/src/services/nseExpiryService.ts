@@ -130,10 +130,10 @@ export class NseExpiryService {
     switch (symbol) {
       case 'MIDCPNIFTY':
       case 'BANKEX':    return 1; // Monday
-      case 'NIFTY':
       case 'FINNIFTY':  return 2; // Tuesday
       case 'BANKNIFTY': return 3; // Wednesday
-      case 'SENSEX':    return 5; // Friday
+      case 'NIFTY':     return 4; // Thursday (NSE Nifty 50 weekly expiry)
+      case 'SENSEX':    return 5; // Friday (BSE Sensex weekly expiry)
       default:          return 4; // Thursday (stocks & monthly default)
     }
   }
@@ -224,9 +224,14 @@ export class NseExpiryService {
   public static calculateDTE(expiryStr: string): number {
     try {
       const expDate = this.parseDate(expiryStr);
-      const now     = new Date();
-      const diffMs  = expDate.getTime() - now.getTime();
-      return diffMs <= 0 ? 0 : Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const now = new Date();
+      // Calculate calendar difference in IST timezone
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const ist = new Date(utc + (3600000 * 5.5));
+      const expDay = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate()).getTime();
+      const istDay = new Date(ist.getFullYear(), ist.getMonth(), ist.getDate()).getTime();
+      const diffDays = Math.round((expDay - istDay) / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
     } catch {
       return 0;
     }

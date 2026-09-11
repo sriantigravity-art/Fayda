@@ -1456,7 +1456,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         carryForwardSuggestion: item.carryForwardSuggestion,
         isCarriedForward: item.isCarriedForward,
         marketRegime: 'VOLATILE_SURGE',
-        isExpiryDay: true,
+        isExpiryDay: item.isExpiryDay ?? isExpiryDay,
         pnlRupees: item.pnlRupees,
         pnlPoints: item.pnlPoints,
         pnlPct: item.pnlPct,
