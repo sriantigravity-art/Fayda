@@ -61,6 +61,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
   const [state, setState] = useState<string>('');
   const [pincode, setPincode] = useState<string>('');
   const [experience, setExperience] = useState<'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'>('INTERMEDIATE');
+  const [marketPreferences, setMarketPreferences] = useState<string[]>(['INDEX_OPTIONS', 'STOCK_OPTIONS', 'MCX_COMMODITIES']);
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState<string>('');
@@ -80,6 +81,12 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const toggleMarketPref = (pref: string) => {
+    setMarketPreferences(prev => 
+      prev.includes(pref) ? prev.filter(p => p !== pref) : [...prev, pref]
+    );
+  };
+
   // Reset tab and populate form when opening
   useEffect(() => {
     if (isOpen) {
@@ -93,7 +100,8 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
         setCity(user.address?.city || '');
         setState(user.address?.state || '');
         setPincode(user.address?.pincode || '');
-        setExperience(user.traderExperience || 'INTERMEDIATE');
+        setExperience(user.traderExperience || user.extendedProfile?.traderExperience || 'INTERMEDIATE');
+        setMarketPreferences(user.extendedProfile?.marketPreferences || ['INDEX_OPTIONS', 'STOCK_OPTIONS', 'MCX_COMMODITIES']);
       }
       setCurrentPassword('');
       setNewPassword('');
@@ -187,7 +195,6 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
     }
 
     setIsSaving(true);
-
     try {
       const res = await updateProfile({
         fullName: fullName.trim(),
@@ -200,6 +207,14 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
           city: city.trim(),
           state: state.trim(),
           pincode: pincode.trim()
+        },
+        extendedProfile: {
+          ...user?.extendedProfile,
+          traderExperience: experience,
+          city: city.trim(),
+          state: state.trim(),
+          avatarUrl,
+          marketPreferences
         }
       });
 
@@ -280,18 +295,37 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
 
   return createPortal(
     <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`border rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl flex flex-col font-sans select-none ring-1 ${
+      <style>{`
+        .profile-modal-scrollbar::-webkit-scrollbar {
+          width: 7px;
+        }
+        .profile-modal-scrollbar::-webkit-scrollbar-track {
+          background: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(241, 245, 249, 0.8)'};
+          border-radius: 9999px;
+          margin: 4px 0;
+        }
+        .profile-modal-scrollbar::-webkit-scrollbar-thumb {
+          background: ${isDark ? 'rgba(71, 85, 105, 0.8)' : 'rgba(148, 163, 184, 0.8)'};
+          border-radius: 9999px;
+          border: 1px solid ${isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.8)'};
+        }
+        .profile-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: ${isDark ? 'rgba(148, 163, 184, 0.95)' : 'rgba(100, 116, 139, 0.95)'};
+        }
+      `}</style>
+      
+      <div className={`border rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col font-sans select-none ring-1 overflow-hidden shadow-2xl ${
         isDark 
           ? 'bg-[#0c1220] border-slate-800 text-slate-100 ring-white/10 shadow-black/90' 
           : 'bg-white border-slate-200 text-slate-900 ring-slate-200 shadow-slate-400/40'
       }`}>
         
-        {/* Header with User Info */}
-        <div className={`flex items-center justify-between p-4 sm:p-5 border-b sticky top-0 z-20 backdrop-blur-lg ${
-          isDark ? 'border-slate-800 bg-[#0c1220]/95' : 'border-slate-200 bg-white/95'
+        {/* Fixed Top Header: Prominent Modal Title and Trader Identity */}
+        <div className={`shrink-0 flex items-center justify-between p-4 sm:p-5 border-b z-20 ${
+          isDark ? 'border-slate-800 bg-[#0c1220]' : 'border-slate-200 bg-white'
         }`}>
           <div className="flex items-center space-x-3">
-            <div className={`p-2.5 rounded-2xl flex items-center justify-center font-bold text-base shadow-md ${
+            <div className={`p-2.5 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 ${
               isSuperAdmin
                 ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white'
                 : currentPlan === 'GOLD'
@@ -305,11 +339,11 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
               {isSuperAdmin ? <Crown className="w-5 h-5 text-yellow-300" /> : (user?.fullName?.charAt(0) || 'U').toUpperCase()}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base tracking-wide">
-                  {user?.fullName || 'Trader Profile'}
-                </h3>
-                <span className={`text-[9px] font-mono px-2 py-0.2 rounded-full border font-bold ${
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-extrabold text-sm sm:text-base tracking-wide flex items-center gap-2">
+                  <span>Edit Trader Profile</span>
+                </h2>
+                <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border font-bold ${
                   isSuperAdmin
                     ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                     : currentPlan === 'DIAMOND'
@@ -323,7 +357,9 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
                   {isSuperAdmin ? 'SUPERADMIN' : currentPlan}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs opacity-75 font-mono mt-0.5">
+              <div className="flex items-center flex-wrap gap-2 text-xs opacity-75 font-mono mt-0.5">
+                <span className="font-semibold text-cyan-400">{user?.fullName || 'Trader Account'}</span>
+                <span>•</span>
                 <span>{user?.email}</span>
                 <span>•</span>
                 <button
@@ -342,7 +378,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl border transition cursor-pointer ${
+            className={`p-2 rounded-xl border transition cursor-pointer shrink-0 ${
               isDark 
                 ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' 
                 : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
@@ -353,8 +389,8 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className={`flex items-center border-b px-4 sm:px-6 pt-2 gap-2 text-xs font-bold overflow-x-auto no-scrollbar ${
+        {/* Fixed Tab Switcher */}
+        <div className={`shrink-0 flex items-center border-b px-4 sm:px-6 pt-2 gap-2 text-xs font-bold overflow-x-auto ${
           isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50/70'
         }`}>
           <button
@@ -363,8 +399,8 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 transition cursor-pointer shrink-0 ${
               activeTab === 'PROFILE'
                 ? isDark
-                  ? 'border-cyan-400 text-cyan-400'
-                  : 'border-blue-600 text-blue-600'
+                  ? 'border-cyan-400 text-cyan-400 font-extrabold'
+                  : 'border-blue-600 text-blue-600 font-extrabold'
                 : 'border-transparent opacity-70 hover:opacity-100'
             }`}
           >
@@ -378,13 +414,13 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 transition cursor-pointer shrink-0 ${
               activeTab === 'PASSWORD'
                 ? isDark
-                  ? 'border-amber-400 text-amber-400'
-                  : 'border-amber-600 text-amber-600'
+                  ? 'border-amber-400 text-amber-400 font-extrabold'
+                  : 'border-amber-600 text-amber-600 font-extrabold'
                 : 'border-transparent opacity-70 hover:opacity-100'
             }`}
           >
             <KeyRound className="w-3.5 h-3.5" />
-            <span>Update Password</span>
+            <span>Update Password & Security</span>
           </button>
 
           <button
@@ -393,8 +429,8 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 transition cursor-pointer shrink-0 ${
               activeTab === 'MEMBERSHIP'
                 ? isDark
-                  ? 'border-purple-400 text-purple-400'
-                  : 'border-purple-600 text-purple-600'
+                  ? 'border-purple-400 text-purple-400 font-extrabold'
+                  : 'border-purple-600 text-purple-600 font-extrabold'
                 : 'border-transparent opacity-70 hover:opacity-100'
             }`}
           >
@@ -405,7 +441,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
 
         {/* Global Feedback Messages */}
         {(formError || successMsg) && (
-          <div className="px-4 sm:px-6 pt-4">
+          <div className="shrink-0 px-4 sm:px-6 pt-3">
             {formError && (
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -423,133 +459,128 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
 
         {/* TAB 1: PROFILE DETAILS & ADDRESS */}
         {activeTab === 'PROFILE' && (
-          <form onSubmit={handleProfileSubmit} className="p-4 sm:p-6 space-y-5">
+          <form onSubmit={handleProfileSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             
-            {/* 1. PHOTO UPLOAD SECTION (Max 250 KB, JPG/PNG) */}
-            <div className={`p-4 rounded-2xl border space-y-3 ${
-              isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-cyan-400" />
-                  <span>Profile Photo (Avatar)</span>
-                </span>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-                }`}>
-                  JPG / PNG • Max 250 KB
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="relative group shrink-0">
-                  <div className={`w-20 h-20 rounded-full border-2 overflow-hidden flex items-center justify-center shadow-lg ${
-                    isDark ? 'border-cyan-500/50 bg-slate-950' : 'border-blue-400 bg-white'
+            {/* Scrollable Body with Visible Active Scrollbar */}
+            <div 
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 profile-modal-scrollbar"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'
+              }}
+            >
+              
+              {/* 1. PHOTO UPLOAD SECTION */}
+              <div className={`p-4 rounded-2xl border space-y-3.5 ${
+                isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800/40">
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                    <Camera className="w-4 h-4" />
+                    <span>Profile Photo (Avatar)</span>
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                    isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
                   }`}>
-                    {avatarUrl ? (
-                      <img 
-                        src={avatarUrl} 
-                        alt="Profile Avatar" 
-                        className="w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <div className={`w-full h-full font-black text-2xl flex items-center justify-center ${
-                        isDark ? 'bg-cyan-500/15 text-cyan-300' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {(fullName.charAt(0) || user?.fullName?.charAt(0) || 'U').toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+                    JPG / PNG • Max 250 KB
+                  </span>
                 </div>
 
-                <div className="flex-1 flex flex-col space-y-2 w-full text-center sm:text-left">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handlePhotoUpload}
-                      accept="image/png, image/jpeg, image/jpg"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
-                        isDark
-                          ? 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/40 text-cyan-300'
-                          : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700'
-                      }`}
-                    >
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      <span>Upload New Photo</span>
-                    </button>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <div className={`w-20 h-20 rounded-full border-2 overflow-hidden flex items-center justify-center shadow-lg ${
+                      isDark ? 'border-cyan-500/50 bg-slate-950' : 'border-blue-400 bg-white'
+                    }`}>
+                      {avatarUrl ? (
+                        <img 
+                          src={avatarUrl} 
+                          alt="Profile Avatar" 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className={`w-full h-full font-black text-2xl flex items-center justify-center ${
+                          isDark ? 'bg-cyan-500/15 text-cyan-300' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {(fullName.charAt(0) || user?.fullName?.charAt(0) || 'U').toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                    {avatarUrl && (
+                  <div className="flex-1 flex flex-col space-y-2 w-full text-center sm:text-left">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handlePhotoUpload}
+                        accept="image/png, image/jpeg, image/jpg"
+                        className="hidden"
+                      />
                       <button
                         type="button"
-                        onClick={handleRemovePhoto}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                          isDark
+                            ? 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/40 text-cyan-300'
+                            : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700'
+                        }`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Remove</span>
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Upload New Photo</span>
                       </button>
+
+                      {avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={handleRemovePhoto}
+                          className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] opacity-70 leading-tight">
+                      Strictly up to <strong>250 KB</strong> in size. Keeps your profile optimized and fast.
+                    </p>
+
+                    {photoError && (
+                      <p className="text-[11px] text-rose-400 font-semibold flex items-center gap-1 justify-center sm:justify-start">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{photoError}</span>
+                      </p>
                     )}
                   </div>
-
-                  <p className="text-[11px] opacity-70 leading-tight">
-                    Strictly up to <strong>250 KB</strong> in size. Keeps your profile optimized and fast.
-                  </p>
-
-                  {photoError && (
-                    <p className="text-[11px] text-rose-400 font-semibold flex items-center gap-1 justify-center sm:justify-start">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{photoError}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 2. PERSONAL IDENTITY FIELDS */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider block opacity-70">
-                Personal Contact Details
-              </span>
-
-              <div>
-                <label className="text-[11px] font-bold block mb-1">
-                  Full Legal Name <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Arun Kumar"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
-                    }`}
-                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 2. PERSONAL IDENTITY FIELDS */}
+              <div className={`p-4 rounded-2xl border space-y-4 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <User className="w-4 h-4 text-blue-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Personal & Contact Information
+                    </h3>
+                    <p className="text-[10px] opacity-60">Verified trader contact details for terminal session & communication</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[11px] font-bold block mb-1">
-                    Email Address <span className="text-rose-500">*</span>
+                    Full Legal Name <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <User className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                     <input
-                      type="email"
+                      type="text"
                       required
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. Arun Kumar"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                       className={`w-full border rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none font-sans ${
                         isDark 
                           ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
@@ -559,19 +590,122 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">
+                      Email Address <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`w-full border rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none font-sans ${
+                          isDark 
+                            ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
+                            : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">
+                      Mobile Number <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+91 98765 43210"
+                        value={mobile}
+                        onChange={(e) => setMobile(e.target.value)}
+                        className={`w-full border rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none font-sans ${
+                          isDark 
+                            ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
+                            : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. RESIDENTIAL / CORRESPONDENCE ADDRESS */}
+              <div className={`p-4 rounded-2xl border space-y-4 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <MapPin className="w-4 h-4 text-cyan-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Residential & Correspondence Address
+                    </h3>
+                    <p className="text-[10px] opacity-60">Physical billing location used for invoicing and compliance records</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[11px] font-bold block mb-1">
-                    Mobile Number <span className="text-rose-500">*</span>
+                    Street Address / Flat / Building
                   </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Flat 402, Dalal Street Commercial Tower"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
+                      isDark 
+                        ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
+                        : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                    }`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">City</label>
                     <input
-                      type="tel"
-                      required
-                      placeholder="+91 98765 43210"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
-                      className={`w-full border rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none font-sans ${
+                      type="text"
+                      placeholder="e.g. Mumbai"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
+                          : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">State</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Maharashtra"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
+                          : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold block mb-1">Pincode</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="e.g. 400001"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
                         isDark 
                           ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
                           : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
@@ -580,113 +714,94 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 3. RESIDENTIAL / CORRESPONDENCE ADDRESS */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider block flex items-center gap-1.5 opacity-70">
-                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Residential / Correspondence Address</span>
-              </span>
-
-              <div>
-                <label className="text-[11px] font-bold block mb-1">
-                  Street Address / Flat / Building
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Flat 402, Dalal Street Commercial Tower"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
-                    isDark 
-                      ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
-                      : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
-                  }`}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-[11px] font-bold block mb-1">City</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Mumbai"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
-                    }`}
-                  />
+              {/* 4. TRADER EXPERIENCE LEVEL */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Trading Experience Level
+                    </h3>
+                    <p className="text-[10px] opacity-60">Calibrates risk disclosures, leverage warnings, and terminal telemetry</p>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-bold block mb-1">State</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Maharashtra"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold block mb-1">Pincode</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="e.g. 400001"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-cyan-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
-                    }`}
-                  />
+                <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
+                  {(['BEGINNER', 'INTERMEDIATE', 'EXPERT'] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setExperience(lvl)}
+                      className={`py-2 px-2 rounded-xl border transition cursor-pointer text-center ${
+                        experience === lvl
+                          ? lvl === 'BEGINNER'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 font-bold shadow-sm'
+                            : lvl === 'INTERMEDIATE'
+                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-bold shadow-sm'
+                            : 'bg-purple-500/20 text-purple-400 border-purple-500/50 font-bold shadow-sm'
+                          : isDark
+                          ? 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
+                          : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-200'
+                      }`}
+                    >
+                      {lvl === 'BEGINNER' ? '🟢 Beginner (<1 Yr)' : lvl === 'INTERMEDIATE' ? '🟡 Interm. (1-3 Yrs)' : '🟣 Expert (3+ Yrs)'}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* 4. TRADER EXPERIENCE LEVEL */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider block opacity-70">
-                Default Experience Preference
-              </span>
-              <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
-                {(['BEGINNER', 'INTERMEDIATE', 'EXPERT'] as const).map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setExperience(lvl)}
-                    className={`py-2 px-2 rounded-xl border transition cursor-pointer text-center ${
-                      experience === lvl
-                        ? lvl === 'BEGINNER'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 font-bold shadow-sm'
-                          : lvl === 'INTERMEDIATE'
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-bold shadow-sm'
-                          : 'bg-purple-500/20 text-purple-400 border-purple-500/50 font-bold shadow-sm'
-                        : isDark
-                        ? 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
-                        : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-200'
-                    }`}
-                  >
-                    {lvl === 'BEGINNER' ? '🟢 Beginner' : lvl === 'INTERMEDIATE' ? '🟡 Interm.' : '🟣 Expert'}
-                  </button>
-                ))}
+              {/* 5. PREFERRED TRADING SEGMENTS */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Preferred Trading Segments & Markets
+                    </h3>
+                    <p className="text-[10px] opacity-60">Customizes default market radar feeds and high-conviction signal highlights</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {[
+                    { id: 'INDEX_OPTIONS', label: '⚡ Index Options (Nifty & BankNifty)' },
+                    { id: 'STOCK_OPTIONS', label: '📊 Stock Options & Equity F&O' },
+                    { id: 'MCX_COMMODITIES', label: '🛢️ MCX Commodities (Gold, Silver, Crude)' },
+                    { id: 'CURRENCY_FUTURES', label: '💹 Currency Derivatives (USDINR)' }
+                  ].map((seg) => {
+                    const isSelected = marketPreferences.includes(seg.id);
+                    return (
+                      <button
+                        key={seg.id}
+                        type="button"
+                        onClick={() => toggleMarketPref(seg.id)}
+                        className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition cursor-pointer ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 font-bold'
+                              : 'bg-blue-50 border-blue-300 text-blue-800 font-bold'
+                            : isDark
+                            ? 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                            : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="text-[11px]">{seg.label}</span>
+                        {isSelected ? <Check className="w-3.5 h-3.5 shrink-0 text-cyan-400" /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
             </div>
 
-            {/* Save Buttons */}
-            <div className={`pt-4 border-t flex items-center justify-between gap-2 ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
+            {/* Fixed Action Footer */}
+            <div className={`shrink-0 p-4 sm:px-6 py-3.5 border-t flex items-center justify-between gap-2 z-10 ${
+              isDark ? 'border-slate-800 bg-[#0c1220]/95' : 'border-slate-200 bg-white/95'
             }`}>
               <button
                 type="button"
@@ -734,134 +849,159 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
                 </button>
               </div>
             </div>
+
           </form>
         )}
 
         {/* TAB 2: UPDATE PASSWORD & SECURITY */}
         {activeTab === 'PASSWORD' && (
-          <form onSubmit={handlePasswordSubmit} className="p-4 sm:p-6 space-y-5">
-            <div className={`p-4 rounded-2xl border space-y-1.5 ${
-              isDark ? 'bg-amber-500/10 border-amber-500/25 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
-            }`}>
-              <div className="flex items-center gap-1.5 font-bold text-xs">
-                <Lock className="w-4 h-4 text-amber-400" />
-                <span>Account Security & Password Management</span>
-              </div>
-              <p className="text-[11px] leading-relaxed opacity-90">
-                Choose a secure password containing at least 6 characters. If this is your first time updating from a fast subscription OTP login, you can leave current password empty or enter your initial password.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {/* Current Password */}
-              <div>
-                <label className="text-[11px] font-bold block mb-1">
-                  Current Password (Optional if newly registered)
-                </label>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    placeholder="Enter existing password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
-                  >
-                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+          <form onSubmit={handlePasswordSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            
+            {/* Scrollable Body with Visible Active Scrollbar */}
+            <div 
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 profile-modal-scrollbar"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'
+              }}
+            >
+              {/* Security Advisory Box */}
+              <div className={`p-4 rounded-2xl border space-y-1.5 ${
+                isDark ? 'bg-amber-500/10 border-amber-500/25 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+              }`}>
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <Lock className="w-4 h-4 text-amber-400" />
+                  <span>Account Security & Password Advisory</span>
                 </div>
+                <p className="text-[11px] leading-relaxed opacity-90">
+                  Choose a secure password containing at least 6 characters. If this is your first time updating from a fast subscription OTP login, you can leave current password empty or enter your initial password.
+                </p>
               </div>
 
-              {/* New Password */}
-              <div>
-                <label className="text-[11px] font-bold block mb-1">
-                  New Password <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Enter new password (min. 6 characters)"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
-                  >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                {/* Password Strength Indicator */}
-                {newPassword && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex justify-between text-[10px]">
-                      <span className="opacity-70">Password Strength:</span>
-                      <span className="font-bold">{pwdStrength.text}</span>
-                    </div>
-                    <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                      <div
-                        className={`h-full transition-all duration-300 ${pwdStrength.color}`}
-                        style={{ width: `${(pwdStrength.level / 3) * 100}%` }}
-                      />
-                    </div>
+              {/* Password Credentials Section */}
+              <div className={`p-4 rounded-2xl border space-y-4 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <KeyRound className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Change Authentication Credentials
+                    </h3>
+                    <p className="text-[10px] opacity-60">Update your account password for secure multi-device terminal login</p>
                   </div>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <label className="text-[11px] font-bold block mb-1">
-                  Confirm New Password <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Re-enter new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
-                        : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
-                {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-[10px] text-rose-400 mt-1">Passwords do not match.</p>
-                )}
+
+                {/* Current Password */}
+                <div>
+                  <label className="text-[11px] font-bold block mb-1">
+                    Current Password (Optional if newly registered)
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      placeholder="Enter existing password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
+                          : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="text-[11px] font-bold block mb-1">
+                    New Password <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Enter new password (min. 6 characters)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
+                          : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Indicator */}
+                  {newPassword && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="opacity-70">Password Strength:</span>
+                        <span className="font-bold">{pwdStrength.text}</span>
+                      </div>
+                      <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
+                        <div
+                          className={`h-full transition-all duration-300 ${pwdStrength.color}`}
+                          style={{ width: `${(pwdStrength.level / 3) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="text-[11px] font-bold block mb-1">
+                    Confirm New Password <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Re-enter new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`w-full border rounded-xl pl-9 pr-10 py-2 text-xs focus:outline-none font-sans ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-400' 
+                          : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-[10px] text-rose-400 mt-1">Passwords do not match.</p>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Submit Bar */}
-            <div className={`pt-4 border-t flex items-center justify-between gap-2 ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
+            {/* Fixed Action Footer */}
+            <div className={`shrink-0 p-4 sm:px-6 py-3.5 border-t flex items-center justify-between gap-2 z-10 ${
+              isDark ? 'border-slate-800 bg-[#0c1220]/95' : 'border-slate-200 bg-white/95'
             }`}>
               <button
                 type="button"
@@ -909,131 +1049,160 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
 
         {/* TAB 3: MEMBERSHIP & PLAN */}
         {activeTab === 'MEMBERSHIP' && (
-          <div className="p-4 sm:p-6 space-y-5">
-            {/* Membership Overview Card */}
-            <div className={`p-4 rounded-2xl border space-y-3 ${
-              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`p-2 rounded-xl ${
-                    isSuperAdmin
-                      ? 'bg-purple-500/20 text-purple-300'
-                      : currentPlan === 'DIAMOND'
-                      ? 'bg-purple-500/20 text-purple-300'
-                      : currentPlan === 'GOLD'
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-300'
-                      : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {isSuperAdmin ? <Crown className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
-                  </div>
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            
+            {/* Scrollable Body with Visible Active Scrollbar */}
+            <div 
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 profile-modal-scrollbar"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: isDark ? 'rgba(71, 85, 105, 0.8) rgba(15, 23, 42, 0.6)' : 'rgba(148, 163, 184, 0.8) rgba(241, 245, 249, 0.8)'
+              }}
+            >
+              {/* Section 1: Membership Overview Card */}
+              <div className={`p-4 rounded-2xl border space-y-3.5 ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <ShieldCheck className="w-4 h-4 text-purple-400" />
                   <div>
-                    <div className="font-bold text-sm">
-                      {isSuperAdmin ? 'SuperAdmin Master Access' : `${currentPlan} Plan Membership`}
-                    </div>
-                    <div className="text-xs opacity-75 font-mono">
-                      Subscriber ID: {subscriberId}
-                    </div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Current Plan & Subscription Status
+                    </h3>
+                    <p className="text-[10px] opacity-60">Terminal tier license, billing period, and account validity</p>
                   </div>
                 </div>
 
-                <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${
-                  isSuperAdmin
-                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                    : currentPlan === 'DIAMOND'
-                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                    : currentPlan === 'GOLD'
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                    : isDark
-                    ? 'bg-slate-800 text-slate-300 border-slate-700'
-                    : 'bg-slate-100 text-slate-700 border-slate-300'
-                }`}>
-                  {user?.subscriptionStatus || 'ACTIVE'}
-                </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${
+                      isSuperAdmin
+                        ? 'bg-purple-500/20 text-purple-300'
+                        : currentPlan === 'DIAMOND'
+                        ? 'bg-purple-500/20 text-purple-300'
+                        : currentPlan === 'GOLD'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : isDark
+                        ? 'bg-slate-800 text-slate-300'
+                        : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {isSuperAdmin ? <Crown className="w-6 h-6" /> : <Shield className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-sm sm:text-base">
+                        {isSuperAdmin ? 'SuperAdmin Master Access' : `${currentPlan} Plan Membership`}
+                      </div>
+                      <div className="text-xs opacity-75 font-mono">
+                        Subscriber ID: <span className="text-cyan-400 font-semibold">{subscriberId}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${
+                    isSuperAdmin
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                      : currentPlan === 'DIAMOND'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                      : currentPlan === 'GOLD'
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                      : isDark
+                      ? 'bg-slate-800 text-slate-300 border-slate-700'
+                      : 'bg-slate-100 text-slate-700 border-slate-300'
+                  }`}>
+                    {user?.subscriptionStatus || 'ACTIVE'}
+                  </span>
+                </div>
+
+                {/* Renewal info */}
+                {user?.planExpiry && !isSuperAdmin && (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-mono ${
+                    isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'
+                  }`}>
+                    <span className="flex items-center gap-1.5 opacity-80">
+                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Renewal Date: {new Date(user.planExpiry).toLocaleDateString('en-IN')}</span>
+                    </span>
+                    {user.daysRemaining !== undefined && (
+                      <span className="font-bold text-emerald-400">
+                        {user.daysRemaining} days remaining
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Renewal info */}
-              {user?.planExpiry && !isSuperAdmin && (
-                <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-mono ${
-                  isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'
+              {/* Section 2: Included Entitlements */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/40">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 dark:text-slate-100">
+                      Active Institutional Entitlements & Features
+                    </h3>
+                    <p className="text-[10px] opacity-60">Full suite of terminal analytics and trading features enabled for this tier</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {[
+                    'Live Indian Market Option Chain (Nifty, BankNifty, FinNifty, Midcp)',
+                    'Breakout Pattern Radar & Multitimeframe Confluence',
+                    'Option Greeks, Gamma Exposure & Strike Heatmap',
+                    'Instant WhatsApp & SMS Signal Alerts',
+                    'Broker Terminal Integration (DhanHQ & Fyers v3)',
+                    'Trade Journal with Target Hits & Nearness Audit'
+                  ].map((feat, idx) => (
+                    <div key={idx} className={`p-2.5 rounded-xl border flex items-center gap-2 ${
+                      isDark ? 'bg-slate-900/60 border-slate-800/80' : 'bg-white border-slate-200'
+                    }`}>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="opacity-90">{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 3: Upgrade CTA */}
+              {!isSuperAdmin && onOpenSubscribeModal && (
+                <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
+                  isDark 
+                    ? 'bg-gradient-to-r from-cyan-950/30 via-indigo-950/30 to-purple-950/30 border-cyan-500/30' 
+                    : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-blue-200'
                 }`}>
-                  <span className="flex items-center gap-1.5 opacity-80">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Renewal Date: {new Date(user.planExpiry).toLocaleDateString('en-IN')}</span>
-                  </span>
-                  {user.daysRemaining !== undefined && (
-                    <span className="font-bold text-emerald-400">
-                      {user.daysRemaining} days remaining
-                    </span>
-                  )}
+                  <div>
+                    <div className="font-bold text-xs flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-yellow-400" />
+                      <span>Want higher alpha signals & VIP Greeks?</span>
+                    </div>
+                    <p className="text-[11px] opacity-75 mt-0.5">
+                      Upgrade to Gold or Diamond for institutional orderflow and automated strike execution.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenSubscribeModal();
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-md shrink-0 flex items-center gap-1 cursor-pointer ${
+                      isDark
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
+                    }`}
+                  >
+                    <span>Upgrade Membership</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Included Entitlements */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider block opacity-70">
-                Current Terminal Capabilities
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {[
-                  'Live Indian Market Option Chain (Nifty, BankNifty, FinNifty, Midcp)',
-                  'Breakout Pattern Radar & Multitimeframe Confluence',
-                  'Option Greeks, Gamma Exposure & Strike Heatmap',
-                  'Instant WhatsApp & SMS Signal Alerts',
-                  'Broker Terminal Integration (DhanHQ & Fyers v3)',
-                  'Trade Journal with Target Hits & Nearness Audit'
-                ].map((feat, idx) => (
-                  <div key={idx} className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-                    isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="opacity-90">{feat}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Upgrade CTA */}
-            {!isSuperAdmin && onOpenSubscribeModal && (
-              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
-                isDark 
-                  ? 'bg-gradient-to-r from-cyan-950/30 via-indigo-950/30 to-purple-950/30 border-cyan-500/30' 
-                  : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-blue-200'
-              }`}>
-                <div>
-                  <div className="font-bold text-xs flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-yellow-400" />
-                    <span>Want higher alpha signals & VIP Greeks?</span>
-                  </div>
-                  <p className="text-[11px] opacity-75 mt-0.5">
-                    Upgrade to Gold or Diamond for institutional orderflow and automated strike execution.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenSubscribeModal();
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-md shrink-0 flex items-center gap-1 cursor-pointer ${
-                    isDark
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
-                  }`}
-                >
-                  <span>Upgrade Membership</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className={`pt-4 border-t flex items-center justify-between gap-2 ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
+            {/* Fixed Action Footer */}
+            <div className={`shrink-0 p-4 sm:px-6 py-3.5 border-t flex items-center justify-between gap-2 z-10 ${
+              isDark ? 'border-slate-800 bg-[#0c1220]/95' : 'border-slate-200 bg-white/95'
             }`}>
               <button
                 type="button"
@@ -1047,7 +1216,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`px-4 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                className={`px-5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
                   isDark 
                     ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-white' 
                     : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900'
