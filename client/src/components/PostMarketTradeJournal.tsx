@@ -40,25 +40,61 @@ interface Props {
   onClose?: () => void;
 }
 
+// IST Date & Session helper utilities
+const getIstDateInfo = (d: Date = new Date()) => {
+  const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + (3600000 * 5.5));
+  const year = ist.getFullYear();
+  const month = String(ist.getMonth() + 1).padStart(2, '0');
+  const day = String(ist.getDate()).padStart(2, '0');
+  return {
+    dateStr: `${year}-${month}-${day}`,
+    hours: ist.getHours(),
+    minutes: ist.getMinutes(),
+    dayOfWeek: ist.getDay()
+  };
+};
+
+const getRecentTradingDays = () => {
+  const now = new Date();
+  const istNow = getIstDateInfo(now);
+  const todayStr = istNow.dateStr;
+
+  const pastTradingDays: string[] = [];
+  let cursor = new Date(now);
+  // Collect previous 5 weekdays (skipping Saturday 6 and Sunday 0)
+  while (pastTradingDays.length < 5) {
+    cursor.setDate(cursor.getDate() - 1);
+    const cIst = getIstDateInfo(cursor);
+    if (cIst.dayOfWeek !== 0 && cIst.dayOfWeek !== 6) {
+      pastTradingDays.push(cIst.dateStr);
+    }
+  }
+
+  const prevDayStr = pastTradingDays[0] || '2026-09-14';
+  const isPreMarket = (istNow.hours * 60 + istNow.minutes) < (9 * 60 + 15);
+
+  return { todayStr, prevDayStr, pastTradingDays, isPreMarket };
+};
+
 // Client-side fallback report generator for instant loading and resilience
 const generateClientFallbackReport = (dateStr?: string, category: AssetCategory = 'ALL', status: string = 'ALL'): JournalReportResponse => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const targetDate = dateStr || todayStr;
+  const { todayStr, prevDayStr, pastTradingDays, isPreMarket } = getRecentTradingDays();
+  const targetDate = dateStr || (isPreMarket ? prevDayStr : todayStr);
   
   const dates = [
     todayStr,
-    '2026-08-31',
-    '2026-08-28',
-    '2026-08-27',
-    '2026-08-26'
+    ...pastTradingDays
   ];
 
   const dateDataMap: Record<string, JournalTradeCall[]> = {
-    [todayStr]: [
+    // Today's ledger starts clean! Closed trades only populate when target hit, stoploss hit, or position closed
+    [todayStr]: [],
+    [prevDayStr]: [
       {
-        id: `call_${todayStr}_1`,
-        date: todayStr,
-        timestamp: `${todayStr}T09:25:15.000Z`,
+        id: `call_${prevDayStr}_1`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T09:25:15.000Z`,
         timeFormatted: '09:25:15 IST',
         symbol: 'NIFTY',
         category: 'OPTIONS',
@@ -84,9 +120,9 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         sessionPhase: 'OPENING_SURGE'
       },
       {
-        id: `call_${todayStr}_2`,
-        date: todayStr,
-        timestamp: `${todayStr}T10:14:40.000Z`,
+        id: `call_${prevDayStr}_2`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T10:14:40.000Z`,
         timeFormatted: '10:14:40 IST',
         symbol: 'BANKNIFTY',
         category: 'OPTIONS',
@@ -112,9 +148,9 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         sessionPhase: 'MID_SESSION_MOMENTUM'
       },
       {
-        id: `call_${todayStr}_3`,
-        date: todayStr,
-        timestamp: `${todayStr}T11:05:22.000Z`,
+        id: `call_${prevDayStr}_3`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T11:05:22.000Z`,
         timeFormatted: '11:05:22 IST',
         symbol: 'FINNIFTY',
         category: 'OPTIONS',
@@ -140,9 +176,9 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         sessionPhase: 'MID_SESSION_MOMENTUM'
       },
       {
-        id: `call_${todayStr}_4`,
-        date: todayStr,
-        timestamp: `${todayStr}T12:30:10.000Z`,
+        id: `call_${prevDayStr}_4`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T12:30:10.000Z`,
         timeFormatted: '12:30:10 IST',
         symbol: 'RELIANCE',
         category: 'STOCKS',
@@ -168,9 +204,9 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         sessionPhase: 'AFTERNOON_SESSION'
       },
       {
-        id: `call_${todayStr}_5`,
-        date: todayStr,
-        timestamp: `${todayStr}T13:45:10.000Z`,
+        id: `call_${prevDayStr}_5`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T13:45:10.000Z`,
         timeFormatted: '13:45:10 IST',
         symbol: 'CRUDEOIL',
         category: 'COMMODITIES',
@@ -196,9 +232,9 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         sessionPhase: 'POWER_HOUR'
       },
       {
-        id: `call_${todayStr}_6`,
-        date: todayStr,
-        timestamp: `${todayStr}T14:20:05.000Z`,
+        id: `call_${prevDayStr}_6`,
+        date: prevDayStr,
+        timestamp: `${prevDayStr}T14:20:05.000Z`,
         timeFormatted: '14:20:05 IST',
         symbol: 'SENSEX',
         category: 'OPTIONS',
@@ -510,7 +546,8 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
     ]
   };
 
-  const rawCalls: JournalTradeCall[] = dateDataMap[targetDate] || dateDataMap[todayStr];
+  // Strictly retrieve calls for target date only (do not fallback to other dates)
+  const rawCalls: JournalTradeCall[] = dateDataMap[targetDate] || [];
 
   const filtered = rawCalls.filter(c => {
     if (category !== 'ALL' && c.category !== category) return false;
@@ -523,6 +560,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
   });
 
   let prof = 0, loss = 0, near = 0, active = 0, gainPts = 0, lossPts = 0;
+  let bestTradeItem: JournalTradeCall | null = null;
   filtered.forEach(c => {
     if (c.status === 'TARGET_HIT') prof++;
     else if (c.status === 'STOPLOSS_HIT') loss++;
@@ -531,11 +569,15 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
 
     if (c.pointsPnl > 0) gainPts += c.pointsPnl;
     if (c.pointsPnl < 0) lossPts += Math.abs(c.pointsPnl);
+
+    if (!bestTradeItem || c.pointsPnl > bestTradeItem.pointsPnl) {
+      bestTradeItem = c;
+    }
   });
 
   const totalDecided = prof + loss;
-  const winRatePct = totalDecided > 0 ? +((prof / totalDecided) * 100).toFixed(2) : 83.30;
-  const nearTargetAccuracyPct = filtered.length > 0 ? +(((prof + near) / filtered.length) * 100).toFixed(2) : 91.50;
+  const winRatePct = totalDecided > 0 ? +((prof / totalDecided) * 100).toFixed(2) : 0;
+  const nearTargetAccuracyPct = filtered.length > 0 ? +(((prof + near) / filtered.length) * 100).toFixed(2) : 0;
 
   return {
     date: targetDate,
@@ -551,16 +593,16 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
       totalPointsProfit: +gainPts.toFixed(2),
       totalPointsLoss: +lossPts.toFixed(2),
       netPoints: +(gainPts - lossPts).toFixed(2),
-      avgRiskReward: '1:2.5',
-      bestTrade: {
-        contractName: 'BANKNIFTY 52000 CE',
-        points: 52.00,
-        pnlPct: 21.7
-      },
+      avgRiskReward: filtered.length > 0 ? '1:2.5' : '-',
+      bestTrade: filtered.length > 0 && bestTradeItem && bestTradeItem.pointsPnl > 0 ? {
+        contractName: bestTradeItem.contractName,
+        points: bestTradeItem.pointsPnl,
+        pnlPct: bestTradeItem.pnlPct
+      } : null,
       categoryBreakdown: {
-        options: { total: 4, winRate: 75, netPts: 89.0 },
-        stocks: { total: 1, winRate: 100, netPts: 10.5 },
-        commodities: { total: 1, winRate: 100, netPts: 27.5 }
+        options: { total: filtered.filter(c => c.category === 'OPTIONS').length, winRate: 0, netPts: 0 },
+        stocks: { total: filtered.filter(c => c.category === 'STOCKS').length, winRate: 0, netPts: 0 },
+        commodities: { total: filtered.filter(c => c.category === 'COMMODITIES').length, winRate: 0, netPts: 0 }
       }
     },
     signals: filtered
@@ -569,13 +611,13 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
 
 export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClose }) => {
   const { openTradeTipModal } = useMarket();
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const dateInfo = useMemo(() => getRecentTradingDays(), []);
+  // If pre-market (before 09:15 AM), default selected date to the latest completed trading session
+  const initialDate = dateInfo.isPreMarket ? dateInfo.prevDayStr : dateInfo.todayStr;
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
   const [availableDates, setAvailableDates] = useState<string[]>([
-    new Date().toISOString().split('T')[0],
-    '2026-08-31',
-    '2026-08-28',
-    '2026-08-27',
-    '2026-08-26'
+    dateInfo.todayStr,
+    ...dateInfo.pastTradingDays
   ]);
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROFIT' | 'LOSS' | 'NEAR_TARGET' | 'ACTIVE'>('ALL');
@@ -583,9 +625,9 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   const [currentPage, setCurrentPage] = useState<number>(1);
   const PAGE_SIZE = 25;
   
-  // Instant initial data so modal NEVER renders blank
+  // Instant initial data with pre-market awareness
   const [report, setReport] = useState<JournalReportResponse>(() => 
-    generateClientFallbackReport(new Date().toISOString().split('T')[0], 'ALL', 'ALL')
+    generateClientFallbackReport(initialDate, 'ALL', 'ALL')
   );
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -783,11 +825,23 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               onChange={(e) => setSelectedDate(e.target.value)}
               className="bg-transparent text-xs font-mono font-bold text-terminal-text focus:outline-none cursor-pointer"
             >
-              {availableDates.map((d) => (
-                <option key={d} value={d} className="bg-white dark:bg-terminal-card text-terminal-text">
-                  {d} {d === availableDates[0] ? '(Latest / Today)' : ''}
-                </option>
-              ))}
+              {availableDates.map((d) => {
+                const isToday = d === dateInfo.todayStr;
+                const isLatestClosed = d === dateInfo.prevDayStr;
+                let badge = '';
+                if (isToday) {
+                  badge = dateInfo.isPreMarket ? '(Today - Pre-Market, opens 09:15)' : '(Today - Live Session)';
+                } else if (isLatestClosed) {
+                  badge = '(Latest Closed Session)';
+                } else {
+                  badge = '(Closed Session)';
+                }
+                return (
+                  <option key={d} value={d} className="bg-white dark:bg-terminal-card text-terminal-text">
+                    {d} {badge}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -935,9 +989,14 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 </span>
               </div>
             ) : (
-              <span className="text-xs text-terminal-muted italic mt-2">No completed trades</span>
+              <div className="mt-2">
+                <span className="text-xs text-terminal-muted italic block">No closed trades yet</span>
+                <span className="text-[10px] text-terminal-muted block">Awaiting target / SL exit</span>
+              </div>
             )}
-            <div className="text-[9px] text-accent-cyan font-mono mt-1">Audit-verified target (Click to open)</div>
+            <div className="text-[9px] text-accent-cyan font-mono mt-1">
+              {summary.bestTrade ? 'Audit-verified target (Click to open)' : 'Real-time ledger audit'}
+            </div>
           </div>
         </div>
       )}
@@ -1035,12 +1094,53 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           <p className="text-xs font-mono">Loading date-wise predictions and target audit...</p>
         </div>
       ) : displayedSignals.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center text-terminal-muted space-y-2 bg-slate-50 dark:bg-terminal-panel/40 rounded-xl border border-dashed border-slate-200 dark:border-terminal-border my-2">
-          <HelpCircle className="w-8 h-8 text-terminal-muted" />
-          <p className="text-sm font-bold font-mono text-terminal-text">No Trade Calls Found for Selected Filter</p>
-          <p className="text-xs font-mono max-w-md">
-            Try switching the date, clearing the search query, or selecting 'All Assets' to view past recorded trade predictions.
-          </p>
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-terminal-muted space-y-3 bg-slate-50 dark:bg-terminal-panel/40 rounded-xl border border-dashed border-slate-200 dark:border-terminal-border my-2">
+          <div className="p-3 rounded-full bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan">
+            {selectedDate === dateInfo.todayStr ? <Clock className="w-6 h-6" /> : <HelpCircle className="w-6 h-6" />}
+          </div>
+          {selectedDate === dateInfo.todayStr ? (
+            <div className="space-y-2 max-w-lg">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <p className="text-sm font-black font-mono text-terminal-text">
+                  Today's Session ({selectedDate}): No Closed Trades Recorded Yet
+                </p>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                  dateInfo.isPreMarket 
+                    ? 'bg-amber/20 text-amber border border-amber/40' 
+                    : 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/40'
+                }`}>
+                  {dateInfo.isPreMarket ? 'PRE-MARKET (Opens 09:15 AM IST)' : 'LIVE SESSION IN-PROGRESS'}
+                </span>
+              </div>
+              <p className="text-xs font-mono text-terminal-muted">
+                {dateInfo.isPreMarket 
+                  ? "Today's trading session has not yet started. Live trade recommendation radars and tracking engines activate at 09:15 AM IST."
+                  : "No positions have closed yet in today's session."}
+              </p>
+              <div className="text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-terminal-panel/80 p-2.5 rounded-lg border border-slate-200 dark:border-terminal-border/60 text-left">
+                ⚡ <strong>Audit Rule:</strong> This Post-Market Journal is a performance ledger for <strong>closed</strong> trades. Setups only appear here once profit targets are booked, stoplosses are triggered, or positions are wound up.
+              </div>
+              {dateInfo.prevDayStr && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(dateInfo.prevDayStr)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/40 text-xs font-mono font-bold transition shadow-sm cursor-pointer"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>View Latest Closed Session ({dateInfo.prevDayStr})</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1 max-w-md">
+              <p className="text-sm font-bold font-mono text-terminal-text">No Trade Calls Found for Selected Filter</p>
+              <p className="text-xs font-mono">
+                Try switching the date, clearing the search query, or selecting 'All Assets' to view past recorded trade predictions.
+              </p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto my-2 rounded-xl border border-slate-200 dark:border-terminal-border/80 shadow-sm">

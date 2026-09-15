@@ -511,7 +511,18 @@ class SignalLedgerService {
     statusQuery?: string
   ): JournalReportResponse {
     const availableDates = this.getAvailableDates();
-    const selectedDate = dateQuery && availableDates.includes(dateQuery) ? dateQuery : availableDates[0];
+    const today = this.getTodayDateStr();
+    let defaultDate = availableDates[0];
+    if (!dateQuery) {
+      const todayHasCalls = Array.from(this.calls.values()).some(c => c.date === today);
+      if (!todayHasCalls) {
+        const latestCompletedDate = availableDates.find(d => d !== today && Array.from(this.calls.values()).some(c => c.date === d));
+        if (latestCompletedDate) {
+          defaultDate = latestCompletedDate;
+        }
+      }
+    }
+    const selectedDate = dateQuery && availableDates.includes(dateQuery) ? dateQuery : defaultDate;
     const category = categoryQuery || 'ALL';
     const symbolFilter = symbolQuery || 'ALL';
     const statusFilter = statusQuery || 'ALL';
@@ -579,10 +590,10 @@ class SignalLedgerService {
     });
 
     const totalDecided = profitableCount + lossCount;
-    const winRatePct = totalDecided > 0 ? +((profitableCount / totalDecided) * 100).toFixed(1) : 83.3;
+    const winRatePct = totalDecided > 0 ? +((profitableCount / totalDecided) * 100).toFixed(1) : 0;
     const nearTargetAccuracyPct = allDayCalls.length > 0
       ? +(((profitableCount + nearTargetCount) / allDayCalls.length) * 100).toFixed(1)
-      : 91.5;
+      : 0;
 
     const netPoints = +(totalPointsProfit - totalPointsLoss).toFixed(2);
 
@@ -597,7 +608,7 @@ class SignalLedgerService {
       totalPointsProfit: +totalPointsProfit.toFixed(2),
       totalPointsLoss: +totalPointsLoss.toFixed(2),
       netPoints,
-      avgRiskReward: '1:2.4',
+      avgRiskReward: allDayCalls.length > 0 ? '1:2.4' : '-',
       bestTrade: bestTrade && (bestTrade as JournalTradeCall).pointsPnl > 0 ? {
         contractName: (bestTrade as JournalTradeCall).contractName,
         points: (bestTrade as JournalTradeCall).pointsPnl,
@@ -606,17 +617,17 @@ class SignalLedgerService {
       categoryBreakdown: {
         options: {
           total: catStats.options.total,
-          winRate: catStats.options.total > 0 ? Math.round((catStats.options.win / catStats.options.total) * 100) : 85,
+          winRate: catStats.options.total > 0 ? Math.round((catStats.options.win / catStats.options.total) * 100) : 0,
           netPoints: +catStats.options.netPts.toFixed(1)
         },
         stocks: {
           total: catStats.stocks.total,
-          winRate: catStats.stocks.total > 0 ? Math.round((catStats.stocks.win / catStats.stocks.total) * 100) : 80,
+          winRate: catStats.stocks.total > 0 ? Math.round((catStats.stocks.win / catStats.stocks.total) * 100) : 0,
           netPoints: +catStats.stocks.netPts.toFixed(1)
         },
         commodities: {
           total: catStats.commodities.total,
-          winRate: catStats.commodities.total > 0 ? Math.round((catStats.commodities.win / catStats.commodities.total) * 100) : 88,
+          winRate: catStats.commodities.total > 0 ? Math.round((catStats.commodities.win / catStats.commodities.total) * 100) : 0,
           netPoints: +catStats.commodities.netPts.toFixed(1)
         }
       }
@@ -651,128 +662,7 @@ class SignalLedgerService {
     const dateD4 = formatD(d4);
 
     const sessionDataMap: Record<string, any[]> = {
-      [dateToday]: [
-        {
-          symbol: 'NIFTY',
-          category: 'OPTIONS' as const,
-          strikePrice: 24100,
-          optionType: 'CE' as const,
-          action: 'BUY_CALL' as const,
-          signalSource: 'OI_SURGE' as const,
-          entryPrice: 16.02,
-          target1Price: 20.00,
-          target2Price: 24.00,
-          stoplossPrice: 14.39,
-          peakLtp: 21.50,
-          exitLtp: 19.80,
-          status: 'NEAR_TARGET' as const,
-          pointsPnl: 3.78,
-          pnlPct: 23.6,
-          nearTargetPct: 94.0,
-          nearTargetDescription: '⚡ Reached 94% of Target 1 (Peak ₹21.50 vs ₹20.00)',
-          timeOffset: '09:25:15 IST'
-        },
-        {
-          symbol: 'BANKNIFTY',
-          category: 'OPTIONS' as const,
-          strikePrice: 51200,
-          optionType: 'PE' as const,
-          action: 'BUY_PUT' as const,
-          signalSource: 'BREAKOUT' as const,
-          entryPrice: 180.00,
-          target1Price: 225.00,
-          target2Price: 260.00,
-          stoplossPrice: 162.00,
-          peakLtp: 235.00,
-          exitLtp: 225.00,
-          status: 'TARGET_HIT' as const,
-          pointsPnl: 45.00,
-          pnlPct: 25.0,
-          nearTargetPct: 100,
-          nearTargetDescription: '🎯 Target 1 Hit (+45.0 pts / +25.0%)',
-          timeOffset: '10:14:40 IST'
-        },
-        {
-          symbol: 'FINNIFTY',
-          category: 'OPTIONS' as const,
-          strikePrice: 23800,
-          optionType: 'PE' as const,
-          action: 'BUY_PUT' as const,
-          signalSource: 'CONFLUENCE' as const,
-          entryPrice: 84.00,
-          target1Price: 105.00,
-          target2Price: 125.00,
-          stoplossPrice: 75.60,
-          peakLtp: 108.00,
-          exitLtp: 105.00,
-          status: 'TARGET_HIT' as const,
-          pointsPnl: 21.00,
-          pnlPct: 25.0,
-          nearTargetPct: 100,
-          nearTargetDescription: '🎯 Target 1 Hit (+21.0 pts / +25.0%)',
-          timeOffset: '11:05:22 IST'
-        },
-        {
-          symbol: 'RELIANCE',
-          category: 'STOCKS' as const,
-          strikePrice: 2980,
-          optionType: 'CE' as const,
-          action: 'BUY_CALL' as const,
-          signalSource: 'OI_SURGE' as const,
-          entryPrice: 36.50,
-          target1Price: 45.60,
-          target2Price: 54.00,
-          stoplossPrice: 32.85,
-          peakLtp: 46.20,
-          exitLtp: 45.60,
-          status: 'TARGET_HIT' as const,
-          pointsPnl: 9.10,
-          pnlPct: 24.9,
-          nearTargetPct: 100,
-          nearTargetDescription: '🎯 Target 1 Hit (+9.1 pts / +24.9%)',
-          timeOffset: '12:30:10 IST'
-        },
-        {
-          symbol: 'CRUDEOIL',
-          category: 'COMMODITIES' as const,
-          strikePrice: 6150,
-          optionType: 'PE' as const,
-          action: 'BUY_PUT' as const,
-          signalSource: 'OI_SURGE' as const,
-          entryPrice: 115.00,
-          target1Price: 143.75,
-          target2Price: 170.00,
-          stoplossPrice: 103.50,
-          peakLtp: 148.00,
-          exitLtp: 143.75,
-          status: 'TARGET_HIT' as const,
-          pointsPnl: 28.75,
-          pnlPct: 25.0,
-          nearTargetPct: 100,
-          nearTargetDescription: '🎯 Target 1 Hit (+28.75 pts / +25.0%)',
-          timeOffset: '13:45:10 IST'
-        },
-        {
-          symbol: 'SENSEX',
-          category: 'OPTIONS' as const,
-          strikePrice: 79800,
-          optionType: 'CE' as const,
-          action: 'BUY_CALL' as const,
-          signalSource: 'HERO_ZERO' as const,
-          entryPrice: 210.00,
-          target1Price: 262.50,
-          target2Price: 315.00,
-          stoplossPrice: 189.00,
-          peakLtp: 195.00,
-          exitLtp: 189.00,
-          status: 'STOPLOSS_HIT' as const,
-          pointsPnl: -21.00,
-          pnlPct: -10.0,
-          nearTargetPct: 0,
-          nearTargetDescription: '🛑 Stoploss Hit (-21.0 pts / -10.0%)',
-          timeOffset: '14:20:05 IST'
-        }
-      ],
+      // Historical completed session data (Today remains clean until live trades close)
       [dateYesterday]: [
         {
           symbol: 'NIFTY',
