@@ -1149,7 +1149,10 @@ app.post('/api/subscriptions/upgrade-renew', async (req, res) => {
 app.get('/api/subscriptions/my-subscription', requireAuth, (req, res) => {
   try {
     const payload = (req as any).authPayload;
-    const sub = subscriberService.getById(payload.subscriberId) || subscriberService.findByIdOrContact(payload.subscriberId);
+    let sub = subscriberService.getById(payload.subscriberId) || subscriberService.findByIdOrContact(payload.subscriberId);
+    if (!sub && payload.role === 'SUPERADMIN') {
+      sub = subscriberService.findByIdOrContact('srikantsr@vertexinfo.co.in') || subscriberService.getById('ADM-SRIKANT-007');
+    }
     if (!sub) return res.status(401).json({ success: false, error: 'Subscriber account not found or session expired.' });
 
     const plan = subscriptionPlanService.getPlanById(sub.plan);

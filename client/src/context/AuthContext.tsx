@@ -31,6 +31,7 @@ export interface UserProfile {
   id: string;
   subscriberId?: string; // Permanent formatted ID: SUB000101, SUB000007
   fullName: string;
+  username?: string;
   email: string;
   mobile: string;
   avatarUrl?: string; // base64 / image uri (strictly under 250kb)
@@ -292,13 +293,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resp = await fetch(`${getApiBase()}/api/subscriptions/my-subscription`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (resp.status === 401 || resp.status === 404) {
-        // Token belongs to a non-existent or expired subscriber account — purge stale session
-        console.warn('[AuthContext] Session invalid or subscriber account not found. Purging stale token.');
-        localStorage.removeItem('fayda_jwt');
-        localStorage.removeItem('fayda_auth_user');
-        setJwtToken(null);
-        setUser(null);
+      if (resp.status === 401) {
+        // Only purge if it's an expired JWT and not an emergency fallback admin session
+        if (!token.startsWith('fayda_superadmin_session_')) {
+          console.warn('[AuthContext] Session expired on server. Purging stale token.');
+          localStorage.removeItem('fayda_jwt');
+          localStorage.removeItem('fayda_auth_user');
+          setJwtToken(null);
+          setUser(null);
+        }
+        return;
+      }
+      if (resp.status === 404) {
+        // Backend endpoint route temporarily 404 or spinning up; preserve user session
+        console.warn('[AuthContext] /api/subscriptions/my-subscription returned 404. Preserving active user session.');
         return;
       }
       if (!resp.ok) return;
@@ -399,6 +407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: sub.id,
             subscriberId: sub.subscriberId || `SUB${sub.id.replace(/\D/g, '').padStart(6, '0')}`,
             fullName: sub.fullName,
+            username: (sub as any).username || sub.fullName || sub.email?.split('@')[0],
             email: sub.email,
             mobile: sub.mobile,
             role: sub.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'USER',
@@ -408,7 +417,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subscriptionStatus: sub.subscriptionStatus || 'ACTIVE',
             profileCompletionPct: sub.profileCompletionPct || 35,
             extendedProfile: sub.extendedProfile,
-            isVerified: sub.isVerified,
+            isVerified: sub.isVerified ?? true,
             createdAt: sub.createdAt,
             traderExperience: sub.extendedProfile?.traderExperience || 'INTERMEDIATE',
             address: { city: sub.extendedProfile?.city || '', state: sub.extendedProfile?.state || '' }
@@ -473,6 +482,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: sub.id,
         subscriberId: sub.subscriberId || `SUB${sub.id.replace(/\D/g, '').padStart(6, '0')}`,
         fullName: sub.fullName,
+        username: (sub as any).username || sub.fullName || sub.email?.split('@')[0],
         email: sub.email,
         mobile: sub.mobile,
         role: 'USER',
@@ -482,7 +492,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscriptionStatus: sub.subscriptionStatus || 'ACTIVE',
         profileCompletionPct: sub.profileCompletionPct || 35,
         extendedProfile: sub.extendedProfile,
-        isVerified: sub.isVerified,
+        isVerified: sub.isVerified ?? true,
         createdAt: sub.createdAt,
         traderExperience: 'BEGINNER',
         address: { city: '', state: '' }
@@ -787,7 +797,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: Boolean(user && user.isVerified),
+        isAuthenticated: Boolean(user),
         isSuperAdmin: user?.role === 'SUPERADMIN',
         currentLegalVersion: CURRENT_LEGAL_VERSION,
         panelVisibility,

@@ -70,7 +70,11 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   }
 
   const currentPlan = (user.plan || 'FREE').toUpperCase();
-  const firstName = user.fullName?.trim().split(' ')[0] || (isSuperAdmin ? 'Admin' : 'Trader');
+  const displayName = user.fullName?.trim() 
+    || user.username?.trim() 
+    || (user.email ? user.email.split('@')[0] : '') 
+    || (isSuperAdmin ? 'SuperAdmin' : 'Trader');
+  const firstName = displayName.split(' ')[0] || displayName;
   const subscriberId = user.subscriberId || `SUB${user.id?.replace(/\D/g, '').padStart(6, '0') || '000101'}`;
 
   // Plan badge color helper
@@ -141,10 +145,10 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
             : 'bg-blue-100 text-blue-700 border border-blue-300'
         }`}>
-          {isSuperAdmin ? <Crown className="w-3.5 h-3.5" /> : firstName.charAt(0).toUpperCase()}
+          {isSuperAdmin ? <Crown className="w-3.5 h-3.5" /> : (firstName || 'T').charAt(0).toUpperCase()}
         </div>
 
-        <span className="hidden sm:inline-block max-w-[100px] truncate font-medium">
+        <span className="inline-block max-w-[90px] sm:max-w-[130px] truncate font-bold text-xs text-terminal-text">
           {firstName}
         </span>
 
@@ -177,12 +181,12 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                   : 'bg-blue-100 text-blue-700 border border-blue-300'
               }`}>
-                {isSuperAdmin ? <Crown className="w-5 h-5 text-yellow-300" /> : firstName.charAt(0).toUpperCase()}
+                {isSuperAdmin ? <Crown className="w-5 h-5 text-yellow-300" /> : (firstName || 'T').charAt(0).toUpperCase()}
               </div>
 
               <div className="min-w-0">
                 <div className="font-bold text-sm truncate flex items-center gap-1.5">
-                  <span className={isDark ? 'text-white' : 'text-slate-900'}>{user.fullName}</span>
+                  <span className={isDark ? 'text-white' : 'text-slate-900'}>{displayName}</span>
                 </div>
                 <div className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {user.email}

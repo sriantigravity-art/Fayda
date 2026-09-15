@@ -143,10 +143,10 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                 {/* Left Round Small Profile Avatar */}
                 <div className="w-12 h-12 rounded-full border-2 border-accent-sky/50 bg-terminal-card overflow-hidden flex items-center justify-center shrink-0 shadow-subtle">
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+                    <img src={user.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-accent-sky/20 text-accent-sky font-black text-lg flex items-center justify-center">
-                      {user.fullName.charAt(0).toUpperCase()}
+                      {(user.fullName || (user as any).username || user.email || 'T').charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -155,7 +155,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-xs sm:text-sm text-terminal-text truncate block">
-                      {user.fullName}
+                      {user.fullName || (user as any).username || user.email?.split('@')[0] || 'Trader'}
                     </span>
                     <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
                       user.role === 'SUPERADMIN' 

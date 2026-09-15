@@ -207,17 +207,19 @@ const DashboardContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsProfileEditOpen(true)}
                 className="flex items-center space-x-2 hover:opacity-85 transition cursor-pointer"
-                title={`Logged in as ${user.fullName} (${user.role}) - Click to edit profile`}
+                title={`Logged in as ${user.fullName || (user as any).username || user.email?.split('@')[0] || 'User'} (${user.role}) - Click to edit profile`}
               >
                 <div className="w-6 h-6 rounded-full border border-accent-sky/50 bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+                    <img src={user.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
                   ) : (
-                    user.fullName.charAt(0).toUpperCase()
+                    (user.fullName || (user as any).username || user.email || 'T').charAt(0).toUpperCase()
                   )}
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="font-bold text-xs text-terminal-text leading-none">{user.fullName}</span>
+                  <span className="font-bold text-xs text-terminal-text leading-none">
+                    {user.fullName || (user as any).username || user.email?.split('@')[0] || 'Trader'}
+                  </span>
                   <span className="text-[9px] text-accent-sky font-mono leading-tight uppercase">{user.role || 'Pro Trader'}</span>
                 </div>
               </button>
