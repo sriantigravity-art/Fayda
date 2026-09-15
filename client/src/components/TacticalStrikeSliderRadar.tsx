@@ -186,77 +186,118 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
   const isPositive = change >= 0;
   const strikeData = currentStrikeItem.data;
 
-  // Fallback technical indicators if server engine is syncing
-  const ti: TechnicalIndicatorsData = technicalIndicators || {
-    symbol: selectedIndex,
-    spotPrice,
-    timestamp: new Date().toLocaleTimeString('en-IN', { hour12: false }),
-    ema: {
-      ema9: spotPrice * 0.998,
-      ema20: spotPrice * 0.995,
-      ema50: spotPrice * 0.991,
-      ema200: spotPrice * 0.978,
-      trend: isPositive ? 'BULLISH' : 'BEARISH',
-      crossSignal: isPositive ? 'Bullish Golden Slope (EMA 9 > 20)' : 'Bearish Slope (EMA 9 < 20)',
-      distance9Pct: 0.20,
-      distance20Pct: 0.50
-    },
-    rsi: {
-      value: isPositive ? 58.4 : 44.2,
-      condition: isPositive ? 'BULLISH_MOMENTUM' : 'BEARISH_MOMENTUM',
-      description: isPositive ? 'Healthy upside momentum with room before overbought exhaustion (>70).' : 'Controlled downward pressure.'
-    },
-    bollingerBands: {
-      upper: spotPrice * 1.008,
-      middle: spotPrice * 0.999,
-      lower: spotPrice * 0.990,
-      bandwidthPct: 1.8,
-      status: 'NORMAL_VOLATILITY',
-      position: isPositive ? 'UPPER_HALF' : 'LOWER_HALF'
-    },
-    imi: {
-      value: isPositive ? 61.2 : 42.8,
-      condition: isPositive ? 'BULLISH' : 'BEARISH',
-      description: 'Intraday candle momentum favors aggressive buyers on pullbacks.'
-    },
-    vwap: {
-      value: spotPrice * (isPositive ? 0.9975 : 1.0025),
-      distancePoints: spotPrice * 0.0025,
-      distancePct: 0.25,
-      position: isPositive ? 'ABOVE_VWAP' : 'BELOW_VWAP',
-      bias: isPositive ? 'BULLISH_SUPPORT' : 'BEARISH_RESISTANCE'
-    },
-    pcr: {
-      overall: currentIndexState.pcr.value,
-      ntmCluster: 1.12,
-      pcr5mChange: 0.04,
-      sentiment: currentIndexState.pcr.sentiment
-    },
-    oiSummary: {
-      totalCallOI: 45200000,
-      totalPutOI: 48900000,
-      netOIFlow: 3700000,
-      callOIChange5m: 124000,
-      putOIChange5m: 310000,
-      dominant5mFlow: 'PUT_WRITING'
-    },
-    maxPain: {
-      strikePrice: currentIndexState.maxPain.strike,
-      differenceFromSpot: spotPrice - currentIndexState.maxPain.strike,
-      magneticPull: spotPrice > currentIndexState.maxPain.strike ? 'PULL_DOWN' : 'PULL_UP'
-    },
-    indiaVix: {
-      value: currentIndexState.indiaVix || 13.45,
-      changePct: -1.85,
-      regime: 'LOW_VOLATILITY',
-      impactOnOptions: 'Calm volatility regime: Option sellers retain edge; option buyers require fast momentum breakouts.'
-    },
-    fiiDiiFlow: {
-      fiiNetCr: 1240,
-      diiNetCr: 1850,
-      bias: 'INSTITUTIONAL_ACCUMULATION'
-    }
-  };
+  // Fallback and deep-merged technical indicators to guarantee zero runtime crashes
+  const ti: TechnicalIndicatorsData = useMemo(() => {
+    const rawPcr = currentIndexState?.pcr;
+    const pcrVal = (rawPcr as any)?.overall ?? (rawPcr as any)?.value ?? rawPcr?.overallPcr ?? 1.0;
+    const pcrSentiment = (rawPcr as any)?.sentiment || (pcrVal >= 1.0 ? 'BULLISH' : 'BEARISH');
+    const mpStrike = currentIndexState?.maxPain?.strikePrice ?? (currentIndexState?.maxPain as any)?.strike ?? atmStrike;
+    const mpDiff = !isNaN(spotPrice - mpStrike) ? +(spotPrice - mpStrike).toFixed(1) : 0;
+    const vixVal = typeof currentIndexState?.indiaVix === 'number' ? currentIndexState.indiaVix : 13.45;
+
+    const baseTi: TechnicalIndicatorsData = {
+      symbol: selectedIndex,
+      spotPrice,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour12: false }),
+      ema: {
+        ema9: +(spotPrice * 0.998).toFixed(1),
+        ema20: +(spotPrice * 0.995).toFixed(1),
+        ema50: +(spotPrice * 0.991).toFixed(1),
+        ema200: +(spotPrice * 0.978).toFixed(1),
+        trend: isPositive ? 'BULLISH' : 'BEARISH',
+        crossSignal: isPositive ? 'Bullish Golden Slope (EMA 9 > 20)' : 'Bearish Slope (EMA 9 < 20)',
+        distance9Pct: 0.20,
+        distance20Pct: 0.50
+      },
+      rsi: {
+        value: isPositive ? 58.4 : 44.2,
+        condition: isPositive ? 'BULLISH_MOMENTUM' : 'BEARISH_MOMENTUM',
+        description: isPositive ? 'Healthy upside momentum with room before overbought exhaustion (>70).' : 'Controlled downward pressure.'
+      },
+      bollingerBands: {
+        upper: +(spotPrice * 1.008).toFixed(1),
+        middle: +(spotPrice * 0.999).toFixed(1),
+        lower: +(spotPrice * 0.990).toFixed(1),
+        bandwidthPct: 1.8,
+        status: 'NORMAL_VOLATILITY',
+        position: isPositive ? 'UPPER_HALF' : 'LOWER_HALF'
+      },
+      imi: {
+        value: isPositive ? 61.2 : 42.8,
+        condition: isPositive ? 'BULLISH' : 'BEARISH',
+        description: 'Intraday candle momentum favors aggressive buyers on pullbacks.'
+      },
+      vwap: {
+        value: +(spotPrice * (isPositive ? 0.9975 : 1.0025)).toFixed(1),
+        distancePoints: +(spotPrice * 0.0025).toFixed(1),
+        distancePct: 0.25,
+        position: isPositive ? 'ABOVE_VWAP' : 'BELOW_VWAP',
+        bias: isPositive ? 'BULLISH_SUPPORT' : 'BEARISH_RESISTANCE'
+      },
+      pcr: {
+        overall: typeof pcrVal === 'number' ? +pcrVal.toFixed(2) : 1.0,
+        ntmCluster: typeof (rawPcr as any)?.ntmCluster === 'number' ? +(rawPcr as any).ntmCluster.toFixed(2) : (rawPcr?.atmPlusMinus5Pcr || 1.12),
+        pcr5mChange: typeof rawPcr?.pcr5mChange === 'number' ? +rawPcr.pcr5mChange.toFixed(3) : 0.04,
+        sentiment: pcrSentiment
+      },
+      oiSummary: {
+        totalCallOI: rawPcr?.totalCallOI || 45200000,
+        totalPutOI: rawPcr?.totalPutOI || 48900000,
+        netOIFlow: (rawPcr?.totalPutOI || 48900000) - (rawPcr?.totalCallOI || 45200000),
+        callOIChange5m: rawPcr?.totalCallOIChange1m ? rawPcr.totalCallOIChange1m * 5 : 124000,
+        putOIChange5m: rawPcr?.totalPutOIChange1m ? rawPcr.totalPutOIChange1m * 5 : 310000,
+        dominant5mFlow: 'PUT_WRITING'
+      },
+      maxPain: {
+        strikePrice: mpStrike,
+        differenceFromSpot: mpDiff,
+        magneticPull: spotPrice > mpStrike ? 'PULL_DOWN' : 'PULL_UP'
+      },
+      indiaVix: {
+        value: vixVal,
+        changePct: -1.85,
+        regime: 'LOW_VOLATILITY',
+        impactOnOptions: 'Calm volatility regime: Option sellers retain edge; option buyers require fast momentum breakouts.'
+      },
+      fiiDiiFlow: {
+        fiiNetCr: 1240,
+        diiNetCr: 1850,
+        bias: 'INSTITUTIONAL_ACCUMULATION'
+      }
+    };
+
+    if (!technicalIndicators) return baseTi;
+
+    return {
+      ...baseTi,
+      ...technicalIndicators,
+      timestamp: technicalIndicators.timestamp || baseTi.timestamp,
+      ema: { ...baseTi.ema, ...(technicalIndicators.ema || {}) },
+      rsi: { ...baseTi.rsi, ...(technicalIndicators.rsi || {}) },
+      bollingerBands: { ...baseTi.bollingerBands, ...(technicalIndicators.bollingerBands || {}) },
+      imi: { ...baseTi.imi, ...(technicalIndicators.imi || {}) },
+      vwap: { ...baseTi.vwap, ...(technicalIndicators.vwap || {}) },
+      pcr: { 
+        ...baseTi.pcr, 
+        ...(technicalIndicators.pcr || {}),
+        overall: (technicalIndicators.pcr as any)?.overall ?? (technicalIndicators.pcr as any)?.value ?? baseTi.pcr.overall,
+        ntmCluster: (technicalIndicators.pcr as any)?.ntmCluster ?? baseTi.pcr.ntmCluster,
+        pcr5mChange: (technicalIndicators.pcr as any)?.pcr5mChange ?? baseTi.pcr.pcr5mChange
+      },
+      oiSummary: { ...baseTi.oiSummary, ...(technicalIndicators.oiSummary || {}) },
+      maxPain: { 
+        ...baseTi.maxPain, 
+        ...(technicalIndicators.maxPain || {}),
+        strikePrice: technicalIndicators.maxPain?.strikePrice ?? (technicalIndicators.maxPain as any)?.strike ?? baseTi.maxPain.strikePrice,
+        differenceFromSpot: technicalIndicators.maxPain?.differenceFromSpot ?? baseTi.maxPain.differenceFromSpot
+      },
+      indiaVix: { 
+        ...baseTi.indiaVix, 
+        ...(typeof technicalIndicators.indiaVix === 'object' ? technicalIndicators.indiaVix : { value: typeof technicalIndicators.indiaVix === 'number' ? technicalIndicators.indiaVix : baseTi.indiaVix.value }) 
+      },
+      fiiDiiFlow: { ...baseTi.fiiDiiFlow, ...(technicalIndicators.fiiDiiFlow || {}) }
+    };
+  }, [currentIndexState, selectedIndex, spotPrice, atmStrike, isPositive, technicalIndicators]);
 
   const handlePrevStrike = () => {
     if (strikeOffset > -3) setStrikeOffset(prev => prev - 1);
@@ -697,10 +738,10 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono font-bold text-accent-cyan uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              10 Technical Indicators Matrix — Tailored for {mode.toUpperCase()}
+              10 Technical Indicators Matrix — Tailored for {mode?.toUpperCase() || 'INTERMEDIATE'}
             </span>
             <span className="text-[10px] font-mono text-terminal-muted">
-              Live Updated: {ti.timestamp}
+              Live Updated: {ti.timestamp || new Date().toLocaleTimeString('en-IN', { hour12: false })}
             </span>
           </div>
 
@@ -711,31 +752,31 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">1. Moving Averages (EMA)</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.ema.trend.includes('BULL') ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+                  (ti.ema?.trend || '').includes('BULL') ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
                 }`}>
-                  {ti.ema.trend}
+                  {ti.ema?.trend || 'NEUTRAL'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">EMA 9:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.ema.ema9.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.ema?.ema9 === 'number' ? ti.ema.ema9.toFixed(1) : (spotPrice * 0.998).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">EMA 20:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.ema.ema20.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.ema?.ema20 === 'number' ? ti.ema.ema20.toFixed(1) : (spotPrice * 0.995).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">EMA 50:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.ema.ema50.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.ema?.ema50 === 'number' ? ti.ema.ema50.toFixed(1) : (spotPrice * 0.991).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">EMA 200:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.ema.ema200.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.ema?.ema200 === 'number' ? ti.ema.ema200.toFixed(1) : (spotPrice * 0.978).toFixed(1)}</span>
                 </div>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? 'Price is riding above short-term trend line.' : ti.ema.crossSignal}
+                {isBeginner ? 'Price is riding above short-term trend line.' : (ti.ema?.crossSignal || 'Trend alignment stable.')}
               </p>
             </div>
 
@@ -744,24 +785,24 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">2. Relative Strength (RSI)</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.rsi.value >= 70 ? 'bg-bear/20 text-bear' : ti.rsi.value <= 30 ? 'bg-bull/20 text-bull' : 'bg-accent-cyan/20 text-accent-cyan'
+                  (ti.rsi?.value ?? 50) >= 70 ? 'bg-bear/20 text-bear' : (ti.rsi?.value ?? 50) <= 30 ? 'bg-bull/20 text-bull' : 'bg-accent-cyan/20 text-accent-cyan'
                 }`}>
-                  {ti.rsi.condition}
+                  {ti.rsi?.condition || 'NEUTRAL'}
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-black font-mono text-terminal-text">{ti.rsi.value.toFixed(1)}</span>
-                <span className="text-[10px] font-mono text-terminal-muted">14-Period Period</span>
+                <span className="text-2xl font-black font-mono text-terminal-text">{typeof ti.rsi?.value === 'number' ? ti.rsi.value.toFixed(1) : '50.0'}</span>
+                <span className="text-[10px] font-mono text-terminal-muted">14-Period</span>
               </div>
               {/* Progress visual bar */}
               <div className="w-full bg-terminal-card h-1.5 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${ti.rsi.value > 60 ? 'bg-bull' : ti.rsi.value < 40 ? 'bg-bear' : 'bg-accent-cyan'}`} 
-                  style={{ width: `${ti.rsi.value}%` }}
+                  className={`h-full ${(ti.rsi?.value ?? 50) > 60 ? 'bg-bull' : (ti.rsi?.value ?? 50) < 40 ? 'bg-bear' : 'bg-accent-cyan'}`} 
+                  style={{ width: `${Math.min(100, Math.max(0, ti.rsi?.value ?? 50))}%` }}
                 />
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? (ti.rsi.value > 65 ? 'Buyers are strong, but do not chase high.' : 'Healthy momentum.') : ti.rsi.description}
+                {isBeginner ? ((ti.rsi?.value ?? 50) > 65 ? 'Buyers are strong, but do not chase high.' : 'Healthy momentum.') : (ti.rsi?.description || 'Relative strength in balanced equilibrium.')}
               </p>
             </div>
 
@@ -770,29 +811,29 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">3. Bollinger Bands (20,2)</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded font-bold font-mono bg-purple-500/20 text-purple-300">
-                  {ti.bollingerBands.status === 'SQUEEZE_BREAKOUT_PENDING' ? '⚡ Squeeze' : 'Normal'}
+                  {ti.bollingerBands?.status === 'SQUEEZE_BREAKOUT_PENDING' ? '⚡ Squeeze' : 'Normal'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Upper:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.bollingerBands.upper.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.bollingerBands?.upper === 'number' ? ti.bollingerBands.upper.toFixed(1) : (spotPrice * 1.008).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">20 SMA:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.bollingerBands.middle.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.bollingerBands?.middle === 'number' ? ti.bollingerBands.middle.toFixed(1) : (spotPrice * 0.999).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Lower:</span>
-                  <span className="font-bold text-terminal-text">₹{ti.bollingerBands.lower.toFixed(1)}</span>
+                  <span className="font-bold text-terminal-text">₹{typeof ti.bollingerBands?.lower === 'number' ? ti.bollingerBands.lower.toFixed(1) : (spotPrice * 0.990).toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Bandwidth:</span>
-                  <span className="font-bold text-accent-cyan">{ti.bollingerBands.bandwidthPct.toFixed(2)}%</span>
+                  <span className="font-bold text-accent-cyan">{typeof ti.bollingerBands?.bandwidthPct === 'number' ? ti.bollingerBands.bandwidthPct.toFixed(2) : '1.80'}%</span>
                 </div>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? 'Price is operating within normal trading channel.' : `Position: ${ti.bollingerBands.position}`}
+                {isBeginner ? 'Price is operating within normal trading channel.' : `Position: ${ti.bollingerBands?.position || 'UPPER_HALF'}`}
               </p>
             </div>
 
@@ -801,23 +842,23 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">4. Intraday Momentum (IMI)</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.imi.value >= 50 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+                  (ti.imi?.value ?? 50) >= 50 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
                 }`}>
-                  {ti.imi.condition}
+                  {ti.imi?.condition || 'NEUTRAL'}
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-black font-mono text-terminal-text">{ti.imi.value.toFixed(1)}</span>
+                <span className="text-2xl font-black font-mono text-terminal-text">{typeof ti.imi?.value === 'number' ? ti.imi.value.toFixed(1) : '50.0'}</span>
                 <span className="text-[10px] font-mono text-terminal-muted">Candle RSI</span>
               </div>
               <div className="w-full bg-terminal-card h-1.5 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${ti.imi.value >= 50 ? 'bg-bull' : 'bg-bear'}`} 
-                  style={{ width: `${ti.imi.value}%` }}
+                  className={`h-full ${(ti.imi?.value ?? 50) >= 50 ? 'bg-bull' : 'bg-bear'}`} 
+                  style={{ width: `${Math.min(100, Math.max(0, ti.imi?.value ?? 50))}%` }}
                 />
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? 'Shows if green candles outnumber red candles today.' : ti.imi.description}
+                {isBeginner ? 'Shows if green candles outnumber red candles today.' : (ti.imi?.description || 'Balanced intra-bar participation.')}
               </p>
             </div>
 
@@ -826,22 +867,22 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">5. Put-Call Ratio (PCR)</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.pcr.overall >= 1.0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+                  (ti.pcr?.overall ?? 1.0) >= 1.0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
                 }`}>
-                  {ti.pcr.sentiment}
+                  {ti.pcr?.sentiment || 'NEUTRAL'}
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-black font-mono text-terminal-text">{ti.pcr.overall.toFixed(2)}</span>
-                <span className="text-[10px] font-mono text-terminal-muted">NTM: {ti.pcr.ntmCluster.toFixed(2)}</span>
+                <span className="text-2xl font-black font-mono text-terminal-text">{typeof ti.pcr?.overall === 'number' ? ti.pcr.overall.toFixed(2) : '1.00'}</span>
+                <span className="text-[10px] font-mono text-terminal-muted">NTM: {typeof ti.pcr?.ntmCluster === 'number' ? ti.pcr.ntmCluster.toFixed(2) : '1.00'}</span>
               </div>
               <div className="text-[11px] font-mono text-terminal-muted">
-                5m PCR Velocity: <strong className={ti.pcr.pcr5mChange >= 0 ? 'text-bull' : 'text-bear'}>
-                  {ti.pcr.pcr5mChange >= 0 ? '+' : ''}{ti.pcr.pcr5mChange.toFixed(3)}
+                5m PCR Velocity: <strong className={(ti.pcr?.pcr5mChange ?? 0) >= 0 ? 'text-bull' : 'text-bear'}>
+                  {(ti.pcr?.pcr5mChange ?? 0) >= 0 ? '+' : ''}{typeof ti.pcr?.pcr5mChange === 'number' ? ti.pcr.pcr5mChange.toFixed(3) : '0.000'}
                 </strong>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? (ti.pcr.overall > 1.0 ? 'More put sellers defending downside.' : 'Call resistance heavy.') : 'Ratio of Put OI to Call OI.'}
+                {isBeginner ? ((ti.pcr?.overall ?? 1.0) > 1.0 ? 'More put sellers defending downside.' : 'Call resistance heavy.') : 'Ratio of Put OI to Call OI.'}
               </p>
             </div>
 
@@ -850,23 +891,23 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">6. Open Interest (OI)</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.oiSummary.netOIFlow >= 0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+                  (ti.oiSummary?.netOIFlow ?? 0) >= 0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
                 }`}>
-                  {ti.oiSummary.netOIFlow >= 0 ? 'PUT DOMINANT' : 'CALL DOMINANT'}
+                  {(ti.oiSummary?.netOIFlow ?? 0) >= 0 ? 'PUT DOMINANT' : 'CALL DOMINANT'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Total Call OI:</span>
-                  <span className="font-bold text-bear">{formatLakhs(ti.oiSummary.totalCallOI)}</span>
+                  <span className="font-bold text-bear">{formatLakhs(ti.oiSummary?.totalCallOI || 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Total Put OI:</span>
-                  <span className="font-bold text-bull">{formatLakhs(ti.oiSummary.totalPutOI)}</span>
+                  <span className="font-bold text-bull">{formatLakhs(ti.oiSummary?.totalPutOI || 0)}</span>
                 </div>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? 'Shows whether bulls or bears hold bigger positions.' : `Net Bias: ${formatLakhs(ti.oiSummary.netOIFlow)} contracts`}
+                {isBeginner ? 'Shows whether bulls or bears hold bigger positions.' : `Net Bias: ${formatLakhs(ti.oiSummary?.netOIFlow || 0)} contracts`}
               </p>
             </div>
 
@@ -875,20 +916,20 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">7. 5-Min OI Change</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded font-bold font-mono bg-amber-500/20 text-amber-300">
-                  {ti.oiSummary.dominant5mFlow}
+                  {ti.oiSummary?.dominant5mFlow || 'BALANCED'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Call 5m Δ:</span>
-                  <span className={`font-bold ${ti.oiSummary.callOIChange5m >= 0 ? 'text-bear' : 'text-bull'}`}>
-                    {formatOIChange(ti.oiSummary.callOIChange5m)}
+                  <span className={`font-bold ${(ti.oiSummary?.callOIChange5m ?? 0) >= 0 ? 'text-bear' : 'text-bull'}`}>
+                    {formatOIChange(ti.oiSummary?.callOIChange5m)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Put 5m Δ:</span>
-                  <span className={`font-bold ${ti.oiSummary.putOIChange5m >= 0 ? 'text-bull' : 'text-bear'}`}>
-                    {formatOIChange(ti.oiSummary.putOIChange5m)}
+                  <span className={`font-bold ${(ti.oiSummary?.putOIChange5m ?? 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                    {formatOIChange(ti.oiSummary?.putOIChange5m)}
                   </span>
                 </div>
               </div>
@@ -902,25 +943,25 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">8. VWAP Benchmark</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${
-                  ti.vwap.position === 'ABOVE_VWAP' ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+                  ti.vwap?.position === 'ABOVE_VWAP' ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
                 }`}>
-                  {ti.vwap.bias}
+                  {ti.vwap?.bias || 'NEUTRAL_PIVOT'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">VWAP:</span>
-                  <span className="font-extrabold text-terminal-text">₹{ti.vwap.value.toFixed(1)}</span>
+                  <span className="font-extrabold text-terminal-text">₹{typeof ti.vwap?.value === 'number' ? ti.vwap.value.toFixed(1) : spotPrice.toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Distance:</span>
-                  <span className={`font-bold ${ti.vwap.position === 'ABOVE_VWAP' ? 'text-bull' : 'text-bear'}`}>
-                    {ti.vwap.position === 'ABOVE_VWAP' ? '+' : '-'}{ti.vwap.distancePoints.toFixed(1)} pts
+                  <span className={`font-bold ${ti.vwap?.position === 'ABOVE_VWAP' ? 'text-bull' : 'text-bear'}`}>
+                    {ti.vwap?.position === 'ABOVE_VWAP' ? '+' : '-'}{typeof ti.vwap?.distancePoints === 'number' ? Math.abs(ti.vwap.distancePoints).toFixed(1) : '0.0'} pts
                   </span>
                 </div>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? (ti.vwap.position === 'ABOVE_VWAP' ? 'Trading above fair value (Bullish).' : 'Trading below fair value (Bearish).') : `Bias: ${ti.vwap.bias}`}
+                {isBeginner ? (ti.vwap?.position === 'ABOVE_VWAP' ? 'Trading above fair value (Bullish).' : 'Trading below fair value (Bearish).') : `Bias: ${ti.vwap?.bias || 'NEUTRAL_PIVOT'}`}
               </p>
             </div>
 
@@ -929,17 +970,17 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">9. Max Pain Strike</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded font-bold font-mono bg-purple-500/20 text-purple-300">
-                  {ti.maxPain.magneticPull}
+                  {ti.maxPain?.magneticPull || 'PINNED'}
                 </span>
               </div>
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Pin Strike:</span>
-                  <span className="font-extrabold text-terminal-text">{ti.maxPain.strikePrice}</span>
+                  <span className="font-extrabold text-terminal-text">{ti.maxPain?.strikePrice ?? atmStrike}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-terminal-muted">Spot Gap:</span>
-                  <span className="font-bold text-terminal-muted">{ti.maxPain.differenceFromSpot.toFixed(1)} pts</span>
+                  <span className="font-bold text-terminal-muted">{typeof ti.maxPain?.differenceFromSpot === 'number' && !isNaN(ti.maxPain.differenceFromSpot) ? Math.abs(ti.maxPain.differenceFromSpot).toFixed(1) : '0.0'} pts</span>
                 </div>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
@@ -952,17 +993,17 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-bold text-terminal-muted uppercase">10. India VIX</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded font-bold font-mono bg-bull/20 text-bull">
-                  {ti.indiaVix.regime}
+                  {ti.indiaVix?.regime || 'MODERATE'}
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-black font-mono text-terminal-text">{ti.indiaVix.value.toFixed(2)}</span>
-                <span className={`text-[10px] font-mono font-bold ${ti.indiaVix.changePct >= 0 ? 'text-bear' : 'text-bull'}`}>
-                  {ti.indiaVix.changePct >= 0 ? '+' : ''}{ti.indiaVix.changePct.toFixed(2)}%
+                <span className="text-2xl font-black font-mono text-terminal-text">{typeof ti.indiaVix?.value === 'number' ? ti.indiaVix.value.toFixed(2) : (typeof currentIndexState?.indiaVix === 'number' ? currentIndexState.indiaVix.toFixed(2) : '13.45')}</span>
+                <span className={`text-[10px] font-mono font-bold ${(ti.indiaVix?.changePct ?? 0) >= 0 ? 'text-bear' : 'text-bull'}`}>
+                  {(ti.indiaVix?.changePct ?? 0) >= 0 ? '+' : ''}{typeof ti.indiaVix?.changePct === 'number' ? ti.indiaVix.changePct.toFixed(2) : '0.00'}%
                 </span>
               </div>
               <p className="text-[10px] text-terminal-muted pt-1 border-t border-terminal-border/50">
-                {isBeginner ? (ti.indiaVix.value < 15 ? 'Calm market: options decay normally.' : 'High fear: sudden swings likely.') : ti.indiaVix.impactOnOptions}
+                {isBeginner ? ((ti.indiaVix?.value ?? 13.45) < 15 ? 'Calm market: options decay normally.' : 'High fear: sudden swings likely.') : (ti.indiaVix?.impactOnOptions || 'Normal option premium pricing with balanced time decay.')}
               </p>
             </div>
           </div>
@@ -975,16 +1016,16 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                   <Target className="w-3.5 h-3.5" />
                   INSTITUTIONAL FLOW:
                 </span>
-                <span className={ti.fiiDiiFlow.fiiNetCr >= 0 ? 'text-bull' : 'text-bear'}>
-                  FII: {ti.fiiDiiFlow.fiiNetCr >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.fiiNetCr} Cr
+                <span className={(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}>
+                  FII: {(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.fiiNetCr ?? 0} Cr
                 </span>
                 <span className="text-terminal-border">|</span>
-                <span className={ti.fiiDiiFlow.diiNetCr >= 0 ? 'text-bull' : 'text-bear'}>
-                  DII: {ti.fiiDiiFlow.diiNetCr >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.diiNetCr} Cr
+                <span className={(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}>
+                  DII: {(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.diiNetCr ?? 0} Cr
                 </span>
               </div>
               <div className="text-[11px] text-terminal-muted">
-                Institutional Stance: <strong className="text-terminal-text uppercase">{ti.fiiDiiFlow.bias}</strong>
+                Institutional Stance: <strong className="text-terminal-text uppercase">{ti.fiiDiiFlow.bias || 'BALANCED'}</strong>
               </div>
             </div>
           )}
