@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
+import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { TradePayoffSimulator } from './TradePayoffSimulator';
@@ -434,24 +435,41 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         }
       }
 
+      const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
+      const matchedSym = ALL_SYMBOLS_CONFIG.find(c => c.symbol.toUpperCase() === rawAssetSymbol.toUpperCase()) || symConfig;
+      const resolvedAssetSymbol = matchedSym?.symbol || rawAssetSymbol || selectedIndex;
+      const resolvedAssetName = matchedSym?.name || resolvedAssetSymbol;
+      const isMarketOpen = isMarketOpenForSymbol(resolvedAssetSymbol);
+
       const milestoneKey = rawItem.id || key;
       let mRecord = deckLockedMilestonesMap.get(milestoneKey);
       
       const nowFormatted = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      const initialGiven = rawItem.callGivenTimeFormatted || rawItem.rawTip?.callGivenTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryTimeFormatted || nowFormatted;
+      const initialGiven = rawItem.callGivenTimeFormatted || rawItem.rawTip?.callGivenTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryTimeFormatted || (isMarketOpen ? nowFormatted : 'Market Closed');
 
       if (!mRecord) {
         mRecord = {
           callGivenTimeFormatted: initialGiven,
-          isEntryTriggered: rawItem.isEntryTriggered ?? rawItem.rawTip?.isEntryTriggered ?? false,
-          actualEntryPrice: rawItem.actualEntryPrice ?? rawItem.rawTip?.actualEntryPrice,
-          entryPriceTimeFormatted: rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted,
-          target1HitTimeFormatted: rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted,
-          target2HitTimeFormatted: rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted,
-          stoplossTimeFormatted: rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted,
+          isEntryTriggered: isMarketOpen ? (rawItem.isEntryTriggered ?? rawItem.rawTip?.isEntryTriggered ?? false) : false,
+          actualEntryPrice: isMarketOpen ? (rawItem.actualEntryPrice ?? rawItem.rawTip?.actualEntryPrice) : undefined,
+          entryPriceTimeFormatted: isMarketOpen ? (rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted) : undefined,
+          target1HitTimeFormatted: isMarketOpen ? (rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted) : undefined,
+          target2HitTimeFormatted: isMarketOpen ? (rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted) : undefined,
+          stoplossTimeFormatted: isMarketOpen ? (rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted) : undefined,
         };
         deckLockedMilestonesMap.set(milestoneKey, mRecord);
       } else {
+        if (!isMarketOpen) {
+          // If market is closed, clear any false pre-market/off-market triggered milestones
+          if (!rawItem.rawTip?.isEntryTriggered && !rawItem.isCarriedForward) {
+            mRecord.isEntryTriggered = false;
+            mRecord.actualEntryPrice = undefined;
+            mRecord.entryPriceTimeFormatted = undefined;
+            mRecord.target1HitTimeFormatted = undefined;
+            mRecord.target2HitTimeFormatted = undefined;
+            mRecord.stoplossTimeFormatted = undefined;
+          }
+        }
         if (rawItem.rawTip?.callGivenTimeFormatted) mRecord.callGivenTimeFormatted = rawItem.rawTip.callGivenTimeFormatted;
         if (rawItem.rawTip?.isEntryTriggered) {
           mRecord.isEntryTriggered = true;
@@ -463,8 +481,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         if (rawItem.rawTip?.stoplossTimeFormatted) mRecord.stoplossTimeFormatted = rawItem.rawTip.stoplossTimeFormatted;
       }
 
-      // Check entry trigger on current tick
-      if (!mRecord.isEntryTriggered && entry > 0 && ltp > 0) {
+      // Check entry trigger on current tick (strictly during active market hours)
+      if (isMarketOpen && !mRecord.isEntryTriggered && entry > 0 && ltp > 0) {
         const isWithinEntry = isSeller
           ? (ltp >= entry * 0.98 && ltp <= entry * 1.05)
           : (ltp <= entry * 1.015 && ltp >= entry * 0.88);
@@ -475,8 +493,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         }
       }
 
-      // Check Target and Stoploss milestones if entered
-      if (mRecord.isEntryTriggered && ltp > 0) {
+      // Check Target and Stoploss milestones if entered (strictly during active market hours)
+      if (isMarketOpen && mRecord.isEntryTriggered && ltp > 0) {
         const target1Price = rawItem.target1Price ?? rawItem.rawTip?.target1Price ?? 0;
         const target2Price = rawItem.target2Price ?? rawItem.rawTip?.target2Price;
         const stoplossPrice = rawItem.stoplossPrice ?? rawItem.rawTip?.stoplossPrice ?? 0;
@@ -502,16 +520,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
       const carryForwardTimeFormatted = rawItem.carryForwardTimeFormatted || rawItem.rawTip?.carryForwardTimeFormatted || '03:20 PM';
 
-      const entryPriceTimeFormatted = mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || mRecord.callGivenTimeFormatted;
+      const entryPriceTimeFormatted = mRecord.isEntryTriggered
+        ? (mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted)
+        : (rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted);
       const target1HitTimeFormatted = mRecord.target1HitTimeFormatted || rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const target2HitTimeFormatted = mRecord.target2HitTimeFormatted || rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const stoplossTimeFormatted = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
-      const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
-      const matchedSym = ALL_SYMBOLS_CONFIG.find(c => c.symbol.toUpperCase() === rawAssetSymbol.toUpperCase()) || symConfig;
-      const resolvedAssetSymbol = matchedSym?.symbol || rawAssetSymbol || selectedIndex;
-      const resolvedAssetName = matchedSym?.name || resolvedAssetSymbol;
       const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : (rawItem.actionBadge || rawItem.action || 'SIGNAL');
 
       const fullItem: RecommendationTableItem = {
@@ -1438,7 +1454,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         callGivenTimeFormatted: item.callGivenTimeFormatted || t.callGivenTimeFormatted || item.entryTimeFormatted,
         isEntryTriggered: item.isEntryTriggered ?? t.isEntryTriggered,
         actualEntryPrice: item.actualEntryPrice ?? t.actualEntryPrice,
-        entryPriceTimeFormatted: item.entryPriceTimeFormatted || t.entryPriceTimeFormatted || item.entryTimeFormatted,
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || t.entryPriceTimeFormatted || (item.isEntryTriggered ? item.entryTimeFormatted : undefined),
         target1HitTimeFormatted: item.target1HitTimeFormatted || t.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted || t.target2HitTimeFormatted,
         stoplossTimeFormatted: item.stoplossTimeFormatted || t.stoplossTimeFormatted,
@@ -1488,7 +1504,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         callGivenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted,
         isEntryTriggered: item.isEntryTriggered,
         actualEntryPrice: item.actualEntryPrice,
-        entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || (item.isEntryTriggered ? item.entryTimeFormatted : undefined),
         target1HitTimeFormatted: item.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted,
         stoplossTimeFormatted: item.stoplossTimeFormatted,
@@ -1532,7 +1548,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         callGivenTimeFormatted: item.callGivenTimeFormatted || item.entryTimeFormatted,
         isEntryTriggered: item.isEntryTriggered,
         actualEntryPrice: item.actualEntryPrice,
-        entryPriceTimeFormatted: item.entryPriceTimeFormatted || item.entryTimeFormatted,
+        entryPriceTimeFormatted: item.entryPriceTimeFormatted || (item.isEntryTriggered ? item.entryTimeFormatted : undefined),
         target1HitTimeFormatted: item.target1HitTimeFormatted,
         target2HitTimeFormatted: item.target2HitTimeFormatted,
         stoplossTimeFormatted: item.stoplossTimeFormatted,

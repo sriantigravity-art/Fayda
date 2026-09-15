@@ -937,15 +937,27 @@ Generated via Fayda Trading Terminal`;
                     </div>
 
                     {/* 2. Entry Price Time */}
-                    <div className="p-3 rounded-xl bg-white dark:bg-slate-950/70 border border-sky-500/30 text-left space-y-1 shadow-xs">
+                    <div className={`p-3 rounded-xl border text-left space-y-1 shadow-xs ${
+                      tip.isEntryTriggered
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-500/50'
+                        : 'bg-white dark:bg-slate-950/70 border-sky-500/30'
+                    }`}>
                       <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block tracking-wider">
                         2. ENTRY PRICE
                       </span>
                       <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block truncate">
-                        {tip.entryPriceTimeFormatted || tip.givenTimeFormatted || 'Live'}
+                        {tip.isEntryTriggered
+                          ? (tip.entryPriceTimeFormatted || 'Triggered')
+                          : (!isMarketOpen ? 'Opens 09:15 AM' : 'Awaiting Trigger')}
                       </span>
-                      <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 block font-semibold truncate">
-                        ✓ Triggered @ ₹{typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(1) : tip.entryPrice}
+                      <span className={`text-[8.5px] block font-semibold truncate ${
+                        tip.isEntryTriggered
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }`}>
+                        {tip.isEntryTriggered
+                          ? `✓ Triggered @ ₹${typeof (tip.actualEntryPrice || tip.entryPrice) === 'number' ? (tip.actualEntryPrice || tip.entryPrice).toFixed(1) : (tip.actualEntryPrice || tip.entryPrice)}`
+                          : `⏳ Limit @ ₹${typeof tip.entryPrice === 'number' ? tip.entryPrice.toFixed(1) : tip.entryPrice}`}
                       </span>
                     </div>
 
