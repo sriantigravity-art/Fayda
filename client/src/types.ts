@@ -1221,6 +1221,8 @@ export interface UnifiedSessionTipsPackage {
   isExpiryDay?: boolean;
   regimeWarning?: string;
   isNoTradeZone?: boolean;
+  directionalBias?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  directionalGuidance?: string;
   lastEvaluatedAt: string;
 }
 

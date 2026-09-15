@@ -211,6 +211,18 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const nextExpiryDate = pkg?.nextExpiryDate;
   const isExpiryDay = pkg?.isExpiryDay || false;
 
+  const directionalBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = useMemo(() => {
+    if (pkg?.directionalBias) return pkg.directionalBias;
+    if (pkg?.primaryTrade?.action === 'BUY_CALL') return 'BULLISH';
+    if (pkg?.primaryTrade?.action === 'BUY_PUT') return 'BEARISH';
+    const mcDecision = currentIndexState?.masterConfluence?.masterDecision;
+    if (mcDecision === 'BUY_CALL') return 'BULLISH';
+    if (mcDecision === 'BUY_PUT') return 'BEARISH';
+    const pcrVal = currentIndexState?.pcr?.atmPlusMinus5Pcr ?? currentIndexState?.pcr?.overallPcr ?? 1.0;
+    if (pcrVal >= 1.08) return 'BULLISH';
+    if (pcrVal <= 0.88) return 'BEARISH';
+    return 'NEUTRAL';
+  }, [pkg, currentIndexState]);
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
   const [optionSideFilter, setOptionSideFilter] = useState<OptionSideFilter>('ALL');
@@ -603,18 +615,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 2. TOP CALL TRADE (Option Buyer)
     if (pkg?.topCallTrade) {
       const t = pkg.topCallTrade;
+      const isCallCounterTrend = directionalBias === 'BEARISH';
       addUniqueItem({
         id: `buyer-call-${t.id}`,
-        category: 'BUYERS',
-        categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+        category: isCallCounterTrend ? 'BREAKOUTS' : 'BUYERS',
+        categoryTitle: isCallCounterTrend ? '⚠️ Counter-Trend Reversal Watch' : '🟢 Option Buyers (High Alpha CE/PE)',
         contractSymbol: t.contractSymbol,
         strikePrice: t.strikePrice,
         optionType: 'CE',
         action: t.action,
-        actionBadge: 'BUY CALL',
+        actionBadge: isCallCounterTrend ? 'COUNTER-TREND (CE)' : 'BUY CALL',
         role: 'BUYER',
         executionType: 'NET_DEBIT',
-        strategyTag: t.strategyTag || 'Bullish VWAP Pullback & Heavy Put Writing',
+        strategyTag: isCallCounterTrend ? 'Counter-Trend: Call buying not advised in Bearish regime' : (t.strategyTag || 'Bullish VWAP Pullback & Heavy Put Writing'),
         entryTimeFormatted: t.entryTimeFormatted || 'Live Session',
         bookedTimeFormatted: t.bookedTimeFormatted,
         carryForwardTimeFormatted: t.carryForwardTimeFormatted,
@@ -629,8 +642,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:2.4',
-        confluenceScore: t.confluenceScore || 88,
-        status: t.status || 'ACTIVE',
+        confluenceScore: isCallCounterTrend ? Math.min(65, t.confluenceScore || 65) : (t.confluenceScore || 88),
+        status: isCallCounterTrend ? 'STAND_ASIDE' : (t.status || 'ACTIVE'),
         rawTip: t
       });
     }
@@ -638,18 +651,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     // 3. TOP PUT TRADE (Option Buyer)
     if (pkg?.topPutTrade) {
       const t = pkg.topPutTrade;
+      const isPutCounterTrend = directionalBias === 'BULLISH';
       addUniqueItem({
         id: `buyer-put-${t.id}`,
-        category: 'BUYERS',
-        categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+        category: isPutCounterTrend ? 'BREAKOUTS' : 'BUYERS',
+        categoryTitle: isPutCounterTrend ? '⚠️ Counter-Trend Reversal Watch' : '🟢 Option Buyers (High Alpha CE/PE)',
         contractSymbol: t.contractSymbol,
         strikePrice: t.strikePrice,
         optionType: 'PE',
         action: t.action,
-        actionBadge: 'BUY PUT',
+        actionBadge: isPutCounterTrend ? 'COUNTER-TREND (PE)' : 'BUY PUT',
         role: 'BUYER',
         executionType: 'NET_DEBIT',
-        strategyTag: t.strategyTag || 'Bearish Breakdown & Heavy Call Concentration',
+        strategyTag: isPutCounterTrend ? 'Counter-Trend: Put buying not advised in Bullish regime' : (t.strategyTag || 'Bearish Breakdown & Heavy Call Concentration'),
         entryTimeFormatted: t.entryTimeFormatted || 'Live Session',
         bookedTimeFormatted: t.bookedTimeFormatted,
         carryForwardTimeFormatted: t.carryForwardTimeFormatted,
@@ -664,8 +678,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:2.3',
-        confluenceScore: t.confluenceScore || 86,
-        status: t.status || 'ACTIVE',
+        confluenceScore: isPutCounterTrend ? Math.min(65, t.confluenceScore || 65) : (t.confluenceScore || 86),
+        status: isPutCounterTrend ? 'STAND_ASIDE' : (t.status || 'ACTIVE'),
         rawTip: t
       });
     }
@@ -954,248 +968,257 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const otm1Obj = strikes.find(s => s.strikePrice === atmStrike + step);
       const radarObj = radarStrikePrice ? strikes.find(s => s.strikePrice === radarStrikePrice) : null;
 
-      // 10a. ATM Call Setup (if not already added via pkg)
-      if (atmObj) {
-        const callPrice = Math.max(atmObj.callLtp || 0, 45);
-        addUniqueItem({
-          id: `buyer-atm-ce-${atmObj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
-          strikePrice: atmObj.strikePrice,
-          optionType: 'CE',
-          action: 'BUY_CALL',
-          actionBadge: 'BUY CALL (ATM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'ATM High-Alpha Momentum Breakout & Aggressive Put Writing',
-          entryTimeFormatted: 'Live Intraday',
-          entryRange: `₹${callPrice.toFixed(2)}`,
-          entryPrice: callPrice,
-          currentLtp: callPrice,
-          target1Price: +(callPrice * 1.30).toFixed(1),
-          target1Pct: 30,
-          target2Price: +(callPrice * 1.65).toFixed(1),
-          target2Pct: 65,
-          stoplossPrice: +(callPrice * 0.78).toFixed(1),
-          stoplossPct: 22,
-          riskReward: '1:2.4',
-          confluenceScore: 89,
-          status: 'ACTIVE'
-        });
+      // 10a. Call Setups: Generated only when market is BULLISH or NEUTRAL (filtered out in BEARISH breakdown)
+      if (directionalBias !== 'BEARISH') {
+        if (atmObj) {
+          const callPrice = Math.max(atmObj.callLtp || 0, 45);
+          addUniqueItem({
+            id: `buyer-atm-ce-${atmObj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
+            strikePrice: atmObj.strikePrice,
+            optionType: 'CE',
+            action: 'BUY_CALL',
+            actionBadge: 'BUY CALL (ATM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'ATM High-Alpha Momentum Breakout & Aggressive Put Writing',
+            entryTimeFormatted: 'Live Intraday',
+            entryRange: `₹${callPrice.toFixed(2)}`,
+            entryPrice: callPrice,
+            currentLtp: callPrice,
+            target1Price: +(callPrice * 1.30).toFixed(1),
+            target1Pct: 30,
+            target2Price: +(callPrice * 1.65).toFixed(1),
+            target2Pct: 65,
+            stoplossPrice: +(callPrice * 0.78).toFixed(1),
+            stoplossPct: 22,
+            riskReward: '1:2.4',
+            confluenceScore: 89,
+            status: 'ACTIVE'
+          });
+        }
 
-        // 10b. ATM Put Setup (if not already added via pkg)
-        const putPrice = Math.max(atmObj.putLtp || 0, 45);
-        addUniqueItem({
-          id: `buyer-atm-pe-${atmObj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,
-          strikePrice: atmObj.strikePrice,
-          optionType: 'PE',
-          action: 'BUY_PUT',
-          actionBadge: 'BUY PUT (ATM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'ATM Intraday Breakdown Scalp & Call Resistance Wall',
-          entryTimeFormatted: 'Live Intraday',
-          entryRange: `₹${putPrice.toFixed(2)}`,
-          entryPrice: putPrice,
-          currentLtp: putPrice,
-          target1Price: +(putPrice * 1.30).toFixed(1),
-          target1Pct: 30,
-          target2Price: +(putPrice * 1.65).toFixed(1),
-          target2Pct: 65,
-          stoplossPrice: +(putPrice * 0.78).toFixed(1),
-          stoplossPct: 22,
-          riskReward: '1:2.4',
-          confluenceScore: 88,
-          status: 'ACTIVE'
-        });
+        // 10c. ITM-1 Call (Conservative Trend Follower - Delta ~0.65, Low Theta)
+        if (itm1Obj) {
+          const p = Math.max(itm1Obj.callLtp || 0, 75);
+          addUniqueItem({
+            id: `buyer-itm1-ce-${itm1Obj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} CE`,
+            strikePrice: itm1Obj.strikePrice,
+            optionType: 'CE',
+            action: 'BUY_CALL',
+            actionBadge: 'BUY CALL (ITM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'ITM Conservative Trend Follower (Delta ~0.65, Low Theta)',
+            entryTimeFormatted: 'Session Trend',
+            entryRange: `₹${p.toFixed(2)}`,
+            entryPrice: p,
+            currentLtp: p,
+            target1Price: +(p * 1.28).toFixed(1),
+            target1Pct: 28,
+            target2Price: +(p * 1.60).toFixed(1),
+            target2Pct: 60,
+            stoplossPrice: +(p * 0.82).toFixed(1),
+            stoplossPct: 18,
+            riskReward: '1:2.6',
+            confluenceScore: 91,
+            status: 'ACTIVE'
+          });
+        }
+
+        // 10d. OTM-1 Call (Resistance Breakout Squeeze - High Velocity Gamma)
+        if (otm1Obj) {
+          const p = Math.max(otm1Obj.callLtp || 0, 35);
+          addUniqueItem({
+            id: `buyer-otm1-ce-${otm1Obj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} CE`,
+            strikePrice: otm1Obj.strikePrice,
+            optionType: 'CE',
+            action: 'BUY_CALL',
+            actionBadge: 'BUY CALL (OTM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'Resistance Breakout Squeeze (High Velocity Gamma)',
+            entryTimeFormatted: 'Breakout Slot',
+            entryRange: `₹${p.toFixed(2)}`,
+            entryPrice: p,
+            currentLtp: p,
+            target1Price: +(p * 1.35).toFixed(1),
+            target1Pct: 35,
+            target2Price: +(p * 1.75).toFixed(1),
+            target2Pct: 75,
+            stoplossPrice: +(p * 0.75).toFixed(1),
+            stoplossPct: 25,
+            riskReward: '1:2.8',
+            confluenceScore: 87,
+            status: 'ACTIVE'
+          });
+        }
       }
 
-      // 10c. ITM-1 Call (Conservative Trend Follower - Delta ~0.65, Low Theta)
-      if (itm1Obj) {
-        const p = Math.max(itm1Obj.callLtp || 0, 75);
-        addUniqueItem({
-          id: `buyer-itm1-ce-${itm1Obj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} CE`,
-          strikePrice: itm1Obj.strikePrice,
-          optionType: 'CE',
-          action: 'BUY_CALL',
-          actionBadge: 'BUY CALL (ITM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'ITM Conservative Trend Follower (Delta ~0.65, Low Theta)',
-          entryTimeFormatted: 'Session Trend',
-          entryRange: `₹${p.toFixed(2)}`,
-          entryPrice: p,
-          currentLtp: p,
-          target1Price: +(p * 1.28).toFixed(1),
-          target1Pct: 28,
-          target2Price: +(p * 1.60).toFixed(1),
-          target2Pct: 60,
-          stoplossPrice: +(p * 0.82).toFixed(1),
-          stoplossPct: 18,
-          riskReward: '1:2.6',
-          confluenceScore: 91,
-          status: 'ACTIVE'
-        });
+      // 10b. Put Setups: Generated only when market is BEARISH or NEUTRAL (filtered out in BULLISH momentum)
+      if (directionalBias !== 'BULLISH') {
+        if (atmObj) {
+          const putPrice = Math.max(atmObj.putLtp || 0, 45);
+          addUniqueItem({
+            id: `buyer-atm-pe-${atmObj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,
+            strikePrice: atmObj.strikePrice,
+            optionType: 'PE',
+            action: 'BUY_PUT',
+            actionBadge: 'BUY PUT (ATM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'ATM Intraday Breakdown Scalp & Call Resistance Wall',
+            entryTimeFormatted: 'Live Intraday',
+            entryRange: `₹${putPrice.toFixed(2)}`,
+            entryPrice: putPrice,
+            currentLtp: putPrice,
+            target1Price: +(putPrice * 1.30).toFixed(1),
+            target1Pct: 30,
+            target2Price: +(putPrice * 1.65).toFixed(1),
+            target2Pct: 65,
+            stoplossPrice: +(putPrice * 0.78).toFixed(1),
+            stoplossPct: 22,
+            riskReward: '1:2.4',
+            confluenceScore: 88,
+            status: 'ACTIVE'
+          });
+        }
+
+        // 10e. ITM-1 Put (Institutional Breakdown Runner - Delta ~0.65, Cushion)
+        if (otm1Obj) { // For Put, strike > spot is ITM
+          const p = Math.max(otm1Obj.putLtp || 0, 75);
+          addUniqueItem({
+            id: `buyer-itm1-pe-${otm1Obj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} PE`,
+            strikePrice: otm1Obj.strikePrice,
+            optionType: 'PE',
+            action: 'BUY_PUT',
+            actionBadge: 'BUY PUT (ITM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'ITM Institutional Breakdown Runner (Delta ~0.65, Cushion)',
+            entryTimeFormatted: 'Session Trend',
+            entryRange: `₹${p.toFixed(2)}`,
+            entryPrice: p,
+            currentLtp: p,
+            target1Price: +(p * 1.28).toFixed(1),
+            target1Pct: 28,
+            target2Price: +(p * 1.60).toFixed(1),
+            target2Pct: 60,
+            stoplossPrice: +(p * 0.82).toFixed(1),
+            stoplossPct: 18,
+            riskReward: '1:2.6',
+            confluenceScore: 90,
+            status: 'ACTIVE'
+          });
+        }
+
+        // 10f. OTM-1 Put (Support Floor Collapse Scalp - Momentum Acceleration)
+        if (itm1Obj) { // For Put, strike < spot is OTM
+          const p = Math.max(itm1Obj.putLtp || 0, 35);
+          addUniqueItem({
+            id: `buyer-otm1-pe-${itm1Obj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} PE`,
+            strikePrice: itm1Obj.strikePrice,
+            optionType: 'PE',
+            action: 'BUY_PUT',
+            actionBadge: 'BUY PUT (OTM)',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: 'Support Floor Collapse Scalp (Aggressive Put Flow)',
+            entryTimeFormatted: 'Breakdown Slot',
+            entryRange: `₹${p.toFixed(2)}`,
+            entryPrice: p,
+            currentLtp: p,
+            target1Price: +(p * 1.35).toFixed(1),
+            target1Pct: 35,
+            target2Price: +(p * 1.75).toFixed(1),
+            target2Pct: 75,
+            stoplossPrice: +(p * 0.75).toFixed(1),
+            stoplossPct: 25,
+            riskReward: '1:2.8',
+            confluenceScore: 86,
+            status: 'ACTIVE'
+          });
+        }
       }
 
-      // 10d. OTM-1 Call (Resistance Breakout Squeeze - High Velocity Gamma)
-      if (otm1Obj) {
-        const p = Math.max(otm1Obj.callLtp || 0, 35);
-        addUniqueItem({
-          id: `buyer-otm1-ce-${otm1Obj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} CE`,
-          strikePrice: otm1Obj.strikePrice,
-          optionType: 'CE',
-          action: 'BUY_CALL',
-          actionBadge: 'BUY CALL (OTM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'Resistance Breakout Squeeze (High Velocity Gamma)',
-          entryTimeFormatted: 'Breakout Slot',
-          entryRange: `₹${p.toFixed(2)}`,
-          entryPrice: p,
-          currentLtp: p,
-          target1Price: +(p * 1.35).toFixed(1),
-          target1Pct: 35,
-          target2Price: +(p * 1.75).toFixed(1),
-          target2Pct: 75,
-          stoplossPrice: +(p * 0.75).toFixed(1),
-          stoplossPct: 25,
-          riskReward: '1:2.8',
-          confluenceScore: 87,
-          status: 'ACTIVE'
-        });
-      }
-
-      // 10e. ITM-1 Put (Institutional Breakdown Runner - Delta ~0.65, Cushion)
-      if (otm1Obj) { // For Put, strike > spot is ITM
-        const p = Math.max(otm1Obj.putLtp || 0, 75);
-        addUniqueItem({
-          id: `buyer-itm1-pe-${otm1Obj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${otm1Obj.strikePrice} PE`,
-          strikePrice: otm1Obj.strikePrice,
-          optionType: 'PE',
-          action: 'BUY_PUT',
-          actionBadge: 'BUY PUT (ITM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'ITM Institutional Breakdown Runner (Delta ~0.65, Cushion)',
-          entryTimeFormatted: 'Session Trend',
-          entryRange: `₹${p.toFixed(2)}`,
-          entryPrice: p,
-          currentLtp: p,
-          target1Price: +(p * 1.28).toFixed(1),
-          target1Pct: 28,
-          target2Price: +(p * 1.60).toFixed(1),
-          target2Pct: 60,
-          stoplossPrice: +(p * 0.82).toFixed(1),
-          stoplossPct: 18,
-          riskReward: '1:2.6',
-          confluenceScore: 90,
-          status: 'ACTIVE'
-        });
-      }
-
-      // 10f. OTM-1 Put (Support Floor Collapse Scalp - Momentum Acceleration)
-      if (itm1Obj) { // For Put, strike < spot is OTM
-        const p = Math.max(itm1Obj.putLtp || 0, 35);
-        addUniqueItem({
-          id: `buyer-otm1-pe-${itm1Obj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${itm1Obj.strikePrice} PE`,
-          strikePrice: itm1Obj.strikePrice,
-          optionType: 'PE',
-          action: 'BUY_PUT',
-          actionBadge: 'BUY PUT (OTM)',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: 'Support Floor Collapse Scalp (Aggressive Put Flow)',
-          entryTimeFormatted: 'Breakdown Slot',
-          entryRange: `₹${p.toFixed(2)}`,
-          entryPrice: p,
-          currentLtp: p,
-          target1Price: +(p * 1.35).toFixed(1),
-          target1Pct: 35,
-          target2Price: +(p * 1.75).toFixed(1),
-          target2Pct: 75,
-          stoplossPrice: +(p * 0.75).toFixed(1),
-          stoplossPct: 25,
-          riskReward: '1:2.8',
-          confluenceScore: 86,
-          status: 'ACTIVE'
-        });
-      }
-
-      // 10g. Tactical Radar-Selected Strike Tips (Synchronized when user clicks or slides in Tactical Radar)
+      // 10g. Tactical Radar-Selected Strike Tips
       if (radarObj && radarObj.strikePrice !== atmStrike && radarObj.strikePrice !== itm1Obj?.strikePrice && radarObj.strikePrice !== otm1Obj?.strikePrice) {
-        const pCall = Math.max(radarObj.callLtp || 0, 25);
-        const pPut = Math.max(radarObj.putLtp || 0, 25);
+        if (directionalBias !== 'BEARISH') {
+          const pCall = Math.max(radarObj.callLtp || 0, 25);
+          addUniqueItem({
+            id: `radar-buyer-ce-${radarObj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${radarObj.strikePrice} CE`,
+            strikePrice: radarObj.strikePrice,
+            optionType: 'CE',
+            action: 'BUY_CALL',
+            actionBadge: 'RADAR CE',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} CE Momentum Tip)`,
+            entryTimeFormatted: 'Radar Selected',
+            entryRange: `₹${pCall.toFixed(2)}`,
+            entryPrice: pCall,
+            currentLtp: pCall,
+            target1Price: +(pCall * 1.30).toFixed(1),
+            target1Pct: 30,
+            target2Price: +(pCall * 1.65).toFixed(1),
+            target2Pct: 65,
+            stoplossPrice: +(pCall * 0.78).toFixed(1),
+            stoplossPct: 22,
+            riskReward: '1:2.5',
+            confluenceScore: 89,
+            status: 'ACTIVE'
+          });
+        }
 
-        addUniqueItem({
-          id: `radar-buyer-ce-${radarObj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${radarObj.strikePrice} CE`,
-          strikePrice: radarObj.strikePrice,
-          optionType: 'CE',
-          action: 'BUY_CALL',
-          actionBadge: 'RADAR CE',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} CE Momentum Tip)`,
-          entryTimeFormatted: 'Radar Selected',
-          entryRange: `₹${pCall.toFixed(2)}`,
-          entryPrice: pCall,
-          currentLtp: pCall,
-          target1Price: +(pCall * 1.30).toFixed(1),
-          target1Pct: 30,
-          target2Price: +(pCall * 1.65).toFixed(1),
-          target2Pct: 65,
-          stoplossPrice: +(pCall * 0.78).toFixed(1),
-          stoplossPct: 22,
-          riskReward: '1:2.5',
-          confluenceScore: 89,
-          status: 'ACTIVE'
-        });
-
-        addUniqueItem({
-          id: `radar-buyer-pe-${radarObj.strikePrice}`,
-          category: 'BUYERS',
-          categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
-          contractSymbol: `${selectedIndex} ${radarObj.strikePrice} PE`,
-          strikePrice: radarObj.strikePrice,
-          optionType: 'PE',
-          action: 'BUY_PUT',
-          actionBadge: 'RADAR PE',
-          role: 'BUYER',
-          executionType: 'NET_DEBIT',
-          strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} PE Reversal Tip)`,
-          entryTimeFormatted: 'Radar Selected',
-          entryRange: `₹${pPut.toFixed(2)}`,
-          entryPrice: pPut,
-          currentLtp: pPut,
-          target1Price: +(pPut * 1.30).toFixed(1),
-          target1Pct: 30,
-          target2Price: +(pPut * 1.65).toFixed(1),
-          target2Pct: 65,
-          stoplossPrice: +(pPut * 0.78).toFixed(1),
-          stoplossPct: 22,
-          riskReward: '1:2.5',
-          confluenceScore: 88,
-          status: 'ACTIVE'
-        });
+        if (directionalBias !== 'BULLISH') {
+          const pPut = Math.max(radarObj.putLtp || 0, 25);
+          addUniqueItem({
+            id: `radar-buyer-pe-${radarObj.strikePrice}`,
+            category: 'BUYERS',
+            categoryTitle: '🟢 Option Buyers (High Alpha CE/PE)',
+            contractSymbol: `${selectedIndex} ${radarObj.strikePrice} PE`,
+            strikePrice: radarObj.strikePrice,
+            optionType: 'PE',
+            action: 'BUY_PUT',
+            actionBadge: 'RADAR PE',
+            role: 'BUYER',
+            executionType: 'NET_DEBIT',
+            strategyTag: `🎯 Tactical Radar Selection (${radarObj.strikePrice} PE Reversal Tip)`,
+            entryTimeFormatted: 'Radar Selected',
+            entryRange: `₹${pPut.toFixed(2)}`,
+            entryPrice: pPut,
+            currentLtp: pPut,
+            target1Price: +(pPut * 1.30).toFixed(1),
+            target1Pct: 30,
+            target2Price: +(pPut * 1.65).toFixed(1),
+            target2Pct: 65,
+            stoplossPrice: +(pPut * 0.78).toFixed(1),
+            stoplossPct: 22,
+            riskReward: '1:2.5',
+            confluenceScore: 89,
+            status: 'ACTIVE'
+          });
+        }
       }
     }
 
@@ -1287,7 +1310,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }
 
     return deduplicatedList;
-  }, [currentIndexState, selectedIndex, lotSize, radarStrikePrice]);
+  }, [currentIndexState, selectedIndex, lotSize, radarStrikePrice, directionalBias]);
 
   // Filtered items based on selected tab & option side filter
   const filteredItems = useMemo(() => {
@@ -1359,14 +1382,28 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     setFlashSecondsLeft(7);
   }, [activeTab]);
 
+  // Directionally-filtered items for the 7-Second Flash Solo banner so it NEVER flips between Call & Put
+  const flashBannerItems = useMemo(() => {
+    if (activeTab === 'ALL' || activeTab === 'BUYERS') {
+      if (directionalBias === 'BULLISH') {
+        const ceOrSellers = filteredItems.filter(i => i.optionType === 'CE' || i.role === 'SELLER');
+        if (ceOrSellers.length > 0) return ceOrSellers;
+      } else if (directionalBias === 'BEARISH') {
+        const peOrSellers = filteredItems.filter(i => i.optionType === 'PE' || i.role === 'SELLER');
+        if (peOrSellers.length > 0) return peOrSellers;
+      }
+    }
+    return filteredItems;
+  }, [filteredItems, activeTab, directionalBias]);
+
   // 7-Second Automatic Sequential Flash Tip Rotation
   useEffect(() => {
-    if (isFlashPaused || isFlashHovered || filteredItems.length <= 1) return;
+    if (isFlashPaused || isFlashHovered || flashBannerItems.length <= 1) return;
 
     const interval = setInterval(() => {
       setFlashSecondsLeft(prev => {
         if (prev <= 1) {
-          setFlashIndex(curr => (curr + 1) % filteredItems.length);
+          setFlashIndex(curr => (curr + 1) % flashBannerItems.length);
           return 7;
         }
         return prev - 1;
@@ -1374,22 +1411,22 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isFlashPaused, isFlashHovered, filteredItems.length]);
+  }, [isFlashPaused, isFlashHovered, flashBannerItems.length]);
 
   const handlePrevFlashTip = () => {
-    if (filteredItems.length === 0) return;
-    setFlashIndex(curr => (curr - 1 + filteredItems.length) % filteredItems.length);
+    if (flashBannerItems.length === 0) return;
+    setFlashIndex(curr => (curr - 1 + flashBannerItems.length) % flashBannerItems.length);
     setFlashSecondsLeft(7);
   };
 
   const handleNextFlashTip = () => {
-    if (filteredItems.length === 0) return;
-    setFlashIndex(curr => (curr + 1) % filteredItems.length);
+    if (flashBannerItems.length === 0) return;
+    setFlashIndex(curr => (curr + 1) % flashBannerItems.length);
     setFlashSecondsLeft(7);
   };
 
-  const safeFlashIndex = filteredItems.length > 0 ? flashIndex % filteredItems.length : 0;
-  const currentFlashTip = filteredItems[safeFlashIndex] || null;
+  const safeFlashIndex = flashBannerItems.length > 0 ? flashIndex % flashBannerItems.length : 0;
+  const currentFlashTip = flashBannerItems[safeFlashIndex] || null;
 
   // Active surges for current symbol
   const activeSurgesForSymbol = useMemo(() => {
@@ -2374,6 +2411,56 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── Directional Consensus & Market Guidance Banner (Answers: Which side to take?) ── */}
+        <div className={`p-3 rounded-xl border text-xs font-mono flex flex-col md:flex-row md:items-center justify-between gap-2.5 transition-all ${
+          directionalBias === 'BULLISH'
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+            : directionalBias === 'BEARISH'
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-accent-gold'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <span className={`w-3 h-3 rounded-full shrink-0 ${
+              directionalBias === 'BULLISH'
+                ? 'bg-emerald-500 animate-pulse'
+                : directionalBias === 'BEARISH'
+                ? 'bg-rose-500 animate-pulse'
+                : 'bg-amber-500 animate-pulse'
+            }`} />
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-black text-[11px] uppercase tracking-wider">
+                  INSTITUTIONAL DIRECTION: {directionalBias === 'BULLISH' ? '🟢 BULLISH TREND' : directionalBias === 'BEARISH' ? '🔴 BEARISH BREAKDOWN' : '⚪ RANGEBOUND / CHOPPY'}
+                </span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  directionalBias === 'BULLISH'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                    : directionalBias === 'BEARISH'
+                    ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                    : 'bg-amber-500/20 text-amber-700 dark:text-accent-gold'
+                }`}>
+                  {directionalBias === 'BULLISH' ? 'CALL (CE) PRIORITY' : directionalBias === 'BEARISH' ? 'PUT (PE) PRIORITY' : 'SPREADS PRIORITY'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-700 dark:text-slate-300 mt-0.5">
+                {directionalBias === 'BULLISH' ? (
+                  <><strong>Which side to take?</strong> Option Buyers should take <strong>CALL (CE)</strong> setups (ATM, ITM, Momentum). Put buying is counter-trend and filtered out to prevent conflicting signals.</>
+                ) : directionalBias === 'BEARISH' ? (
+                  <><strong>Which side to take?</strong> Option Buyers should take <strong>PUT (PE)</strong> setups (ATM, ITM, Breakdown). Call buying is counter-trend and filtered out to prevent conflicting signals.</>
+                ) : (
+                  <><strong>Which side to take?</strong> Market is rangebound with high theta decay risk. Option Buyers should stand aside or wait for breakout. Option Sellers should trade defined-risk credit spreads.</>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 text-[11px]">
+            <span className="text-slate-500 dark:text-slate-400">Sellers:</span>
+            <span className="font-bold px-2 py-1 rounded-lg bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+              {directionalBias === 'BULLISH' ? '🛡️ Bull Put Credit Spread' : directionalBias === 'BEARISH' ? '🛡️ Bear Call Credit Spread' : '🛡️ Neutral Iron Condor'}
+            </span>
           </div>
         </div>
 

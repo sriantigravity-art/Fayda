@@ -1739,6 +1739,17 @@ export class ConfluenceEngine {
       preferBull = isTechBull ? true : (isTechBear ? false : pcrVal >= 1.0);
     }
 
+    const isNeutralChoppy = masterConfluence.marketRegime === 'RANGE_BOUND_CHOP' || (!isBull && !isBear && Math.abs(pcrVal - 1.0) < 0.05);
+    const directionalBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL' = isNeutralChoppy
+      ? 'NEUTRAL'
+      : (preferBull ? 'BULLISH' : 'BEARISH');
+
+    const directionalGuidance = directionalBias === 'BULLISH'
+      ? `🟢 Predominant Institutional Bias: BULLISH. Option Buyers should focus on CALL (CE) trades. Put buying is counter-trend.`
+      : directionalBias === 'BEARISH'
+      ? `🔴 Predominant Institutional Bias: BEARISH. Option Buyers should focus on PUT (PE) trades. Call buying is counter-trend.`
+      : `⚪ Market is RANGEBOUND / CHOPPY. Option Buyers should stand aside (Theta burn risk). Defined risk option spreads recommended.`;
+
     const primAction = preferBull ? 'BUY_CALL' : 'BUY_PUT';
     const optType = preferBull ? 'CE' : 'PE';
     const targetStrike = atmStrike;
@@ -2300,7 +2311,11 @@ export class ConfluenceEngine {
         );
 
         let callProb = callConfluence.totalConfluenceScore;
-        if (isBull) callProb = Math.min(98, callProb + 4);
+        if (directionalBias === 'BULLISH') {
+          callProb = Math.min(98, callProb + 4);
+        } else if (directionalBias === 'BEARISH') {
+          callProb = Math.max(35, callProb - 25);
+        }
 
         const entryPrice = bestCeStrike.callLtp > 0 ? bestCeStrike.callLtp : 110;
         const slPrice = +(entryPrice * (1 - momentumInfo.slPct / 100)).toFixed(2);
@@ -2344,14 +2359,18 @@ export class ConfluenceEngine {
           strikePrice: bestCeStrike.strikePrice,
           optionType: 'CE',
           action: 'BUY_CALL',
-          strategyTag: 'Prime High-Probability CALL'
+          strategyTag: directionalBias === 'BEARISH'
+            ? 'Counter-Trend Reversal Radar (Bearish Bias — Naked Call Buy Not Advised)'
+            : 'Prime High-Probability CALL'
         });
 
         topCallTrade = {
           id: `call-prime-${symbol}-${hourlySlotId}-${bestCeStrike.strikePrice}`,
           symbol,
           tier: 'PRIMARY_MOMENTUM',
-          tierLabel: '🟢 Prime High-Probability CALL (Buyer)',
+          tierLabel: directionalBias === 'BEARISH'
+            ? '⚠️ Counter-Trend Call (Naked Buy Avoided in Bearish Regime)'
+            : '🟢 Prime High-Probability CALL (Buyer)',
           tradingRole: 'BUYER',
           executionType: 'NET_DEBIT',
           session: sessionInfo.session,
@@ -2738,7 +2757,11 @@ export class ConfluenceEngine {
         );
 
         let putProb = putConfluence.totalConfluenceScore;
-        if (isBear) putProb = Math.min(98, putProb + 4);
+        if (directionalBias === 'BEARISH') {
+          putProb = Math.min(98, putProb + 4);
+        } else if (directionalBias === 'BULLISH') {
+          putProb = Math.max(35, putProb - 25);
+        }
 
         const entryPrice = bestPeStrike.putLtp > 0 ? bestPeStrike.putLtp : 110;
         const slPrice = +(entryPrice * (1 - momentumInfo.slPct / 100)).toFixed(2);
@@ -2782,14 +2805,18 @@ export class ConfluenceEngine {
           strikePrice: bestPeStrike.strikePrice,
           optionType: 'PE',
           action: 'BUY_PUT',
-          strategyTag: 'Prime High-Probability PUT'
+          strategyTag: directionalBias === 'BULLISH'
+            ? 'Counter-Trend Breakdown Radar (Bullish Bias — Naked Put Buy Not Advised)'
+            : 'Prime High-Probability PUT'
         });
 
         topPutTrade = {
           id: `put-prime-${symbol}-${hourlySlotId}-${bestPeStrike.strikePrice}`,
           symbol,
           tier: 'PRIMARY_MOMENTUM',
-          tierLabel: '🔴 Prime High-Probability PUT (Buyer)',
+          tierLabel: directionalBias === 'BULLISH'
+            ? '⚠️ Counter-Trend Put (Naked Buy Avoided in Bullish Regime)'
+            : '🔴 Prime High-Probability PUT (Buyer)',
           tradingRole: 'BUYER',
           executionType: 'NET_DEBIT',
           session: sessionInfo.session,
@@ -3830,6 +3857,8 @@ export class ConfluenceEngine {
       upcomingExpiries,
       nextExpiryDate,
       isExpiryDay: momentumInfo.isExpiryDay,
+      directionalBias,
+      directionalGuidance,
       regimeWarning: masterConfluence.marketRegime === 'RANGE_BOUND_CHOP' || masterConfluence.marketRegime === 'IV_CRUSH_ZONE'
         ? `⚠️ ${masterConfluence.regimeLabel}: High choppy risk. Use Hedged Spreads or hold capital.`
         : undefined,
