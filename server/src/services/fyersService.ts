@@ -394,9 +394,18 @@ export class FyersService {
     let cleanAuthCode = authCode.trim();
     if (cleanAuthCode.includes('auth_code=')) {
       try {
-        const match = cleanAuthCode.match(/auth_code=([^&]+)/);
-        if (match && match[1]) cleanAuthCode = decodeURIComponent(match[1]);
-      } catch {}
+        const urlObj = cleanAuthCode.startsWith('http') ? new URL(cleanAuthCode) : new URL(`http://dummy.com?${cleanAuthCode.replace(/^[?#]/, '')}`);
+        const extracted = urlObj.searchParams.get('auth_code');
+        if (extracted) {
+          cleanAuthCode = extracted.trim();
+        } else {
+          const match = cleanAuthCode.match(/auth_code=([^&#\s]+)/);
+          if (match && match[1]) cleanAuthCode = decodeURIComponent(match[1]).trim();
+        }
+      } catch {
+        const match = cleanAuthCode.match(/auth_code=([^&#\s]+)/);
+        if (match && match[1]) cleanAuthCode = decodeURIComponent(match[1]).trim();
+      }
     }
 
     if (!cleanAppId || !cleanSecret || !cleanAuthCode) {
@@ -419,13 +428,15 @@ export class FyersService {
       });
 
       let json: any = null;
+      let rawText = '';
       try {
-        const text = await response.text();
-        json = JSON.parse(text);
+        rawText = await response.text();
+        json = JSON.parse(rawText);
       } catch {
+        console.warn(`[Fyers] validate-authcode returned non-JSON response (${response.status}):`, rawText?.slice(0, 200));
         return {
           success: false,
-          message: `Fyers returned HTTP ${response.status}. Please generate a new Auth Code (each code is valid for 2 minutes and can only be used once).`
+          message: `Fyers returned HTTP ${response.status}. Auth codes expire in 2 minutes and can only be used once. Please generate a fresh Auth Code.`
         };
       }
 

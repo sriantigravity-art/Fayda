@@ -221,10 +221,25 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
     let code = fyersAuthCode.trim();
     if (code.includes('auth_code=')) {
-      const match = code.match(/auth_code=([^&]+)/);
-      if (match && match[1]) {
-        code = decodeURIComponent(match[1]);
-        setFyersAuthCode(code);
+      try {
+        const urlObj = code.startsWith('http') ? new URL(code) : new URL(`http://dummy.com?${code}`);
+        const extracted = urlObj.searchParams.get('auth_code');
+        if (extracted) {
+          code = extracted.trim();
+          setFyersAuthCode(code);
+        } else {
+          const match = code.match(/auth_code=([^&#\s]+)/);
+          if (match && match[1]) {
+            code = decodeURIComponent(match[1]).trim();
+            setFyersAuthCode(code);
+          }
+        }
+      } catch {
+        const match = code.match(/auth_code=([^&#\s]+)/);
+        if (match && match[1]) {
+          code = decodeURIComponent(match[1]).trim();
+          setFyersAuthCode(code);
+        }
       }
     }
 
@@ -239,9 +254,10 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       setFyersStatusMsg({ success: true, text: `✅ Fyers Token generated successfully! Connected.` });
       selectBroker('FYERS');
     } else {
-      const cleanText = res.message?.includes('Unexpected token') || res.message?.includes('is not valid JSON')
-        ? 'Fyers authentication returned an unexpected response. Auth codes expire in 2 minutes and can only be used once.'
-        : res.message;
+      let cleanText = res.message || 'Authentication failed.';
+      if (cleanText.includes('Unexpected token') || cleanText.includes('is not valid JSON')) {
+        cleanText = 'Fyers authentication returned an unexpected response. Auth codes expire in 2 minutes and can only be used once.';
+      }
       setFyersStatusMsg({ success: false, text: `❌ ${cleanText}` });
     }
   };
@@ -885,12 +901,54 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
               )}
 
               {fyersStatusMsg && (
-                <div className={`p-3 rounded-xl border text-xs font-mono ${
-                  fyersStatusMsg.success 
-                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400' 
-                    : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
-                }`}>
-                  {fyersStatusMsg.text}
+                <div className="space-y-2">
+                  <div className={`p-3 rounded-xl border text-xs font-mono ${
+                    fyersStatusMsg.success 
+                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400' 
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {fyersStatusMsg.text}
+                  </div>
+
+                  {!fyersStatusMsg.success && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono text-terminal-muted space-y-2">
+                      <p className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Why did Fyers reject this Auth Code?</span>
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1 text-[11px] leading-relaxed">
+                        <li><strong>Strict 2-minute expiration:</strong> Fyers invalidates auth codes exactly 120 seconds after you log in.</li>
+                        <li><strong>Single-use only:</strong> An auth code cannot be exchanged twice. If you refreshed or retried, generate a new one.</li>
+                        <li><strong>Secret Key mismatch:</strong> Verify your Secret Key matches your App in <a href="https://myapi.fyers.in" target="_blank" rel="noopener noreferrer" className="underline text-sky-500 hover:text-sky-400">myapi.fyers.in</a>.</li>
+                      </ul>
+                      <div className="pt-1 flex flex-wrap gap-2">
+                        <a
+                          href={fyersLoginUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            setFyersAuthCode('');
+                            setFyersStatusMsg(null);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-sm transition"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Generate Fresh Auth Code</span>
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFyersInputMode('DIRECT');
+                            setFyersStatusMsg(null);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-terminal-panel hover:bg-terminal-border text-terminal-text border border-terminal-border font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition"
+                        >
+                          <KeyRound className="w-3 h-3 text-sky-400" />
+                          <span>Use Option 2: Direct Token</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
