@@ -42,6 +42,16 @@ const ADMIN_KEY = process.env.ADMIN_SECRET_KEY || 'fayda-terminal-admin-2026';
 const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const providedKey = req.headers['x-admin-key'] as string | undefined;
 
+  // Allow if valid SuperAdmin JWT Bearer token is provided
+  const authHeader = req.headers['authorization'] as string | undefined;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (bearerToken) {
+    const payload = subscriberService.verifyToken(bearerToken);
+    if (payload && payload.role === 'SUPERADMIN') {
+      return next();
+    }
+  }
+
   // Strict check if running in production with explicit secret configured
   if (process.env.NODE_ENV === 'production' && process.env.ADMIN_SECRET_KEY) {
     if (providedKey !== process.env.ADMIN_SECRET_KEY) {
@@ -1604,9 +1614,12 @@ app.get('/api/fyers/callback', async (req, res) => {
 
 // Fyers Auth Code Exchanger Endpoint
 app.post('/api/fyers/exchange-authcode', requireAdminAuth, async (req, res) => {
-  const { appId, secretKey, authCode } = req.body;
-  if (!appId || !secretKey || !authCode) {
-    return res.status(400).json({ success: false, message: 'Missing appId, secretKey, or authCode' });
+  const cfg = fyersService.getConfig();
+  const appId = (req.body.appId || cfg.appId || 'KMSSMU5OGR-100').trim();
+  const secretKey = (req.body.secretKey || cfg.secretKey || 'MVADUMZWBM').trim();
+  const authCode = req.body.authCode;
+  if (!authCode) {
+    return res.status(400).json({ success: false, message: 'Missing authCode' });
   }
 
   const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);

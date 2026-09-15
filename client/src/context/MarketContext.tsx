@@ -38,6 +38,7 @@ interface MarketContextType {
   fyersConfig: FyersConfig;
   connectFyers: (appId: string, accessToken: string, secretKey?: string) => Promise<{ success: boolean; message: string; userName?: string }>;
   exchangeAuthCode: (appId: string, secretKey: string, authCode: string) => Promise<{ success: boolean; message: string; userName?: string; accessToken?: string }>;
+  refreshFyersToken: (pin?: string) => Promise<{ success: boolean; message: string; config?: any; userName?: string }>;
   latestExtremeSurge: SurgeEvent | null;
   dismissExtremeBanner: () => void;
   // Flash News Engine
@@ -1277,9 +1278,11 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const fetchBackendJson = async (endpointPath: string, method = 'POST', data?: any): Promise<any> => {
     const apiBase = getApiBase();
     const body = data ? JSON.stringify(data) : undefined;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('fayda_jwt') : null;
     const headers: HeadersInit = { 
       'Content-Type': 'application/json',
-      'x-admin-key': localStorage.getItem('fayda_admin_key') || 'fayda-terminal-admin-2026'
+      'x-admin-key': (typeof window !== 'undefined' ? localStorage.getItem('fayda_admin_key') : null) || 'fayda-terminal-admin-2026',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
 
     const candidates = [
@@ -1376,6 +1379,25 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return json;
     } catch (err: any) {
       return { success: false, message: err.message || 'Auth code exchange failed' };
+    }
+  };
+
+  const refreshFyersToken = async (pin?: string) => {
+    try {
+      const json = await fetchBackendJson('/api/fyers/refresh-token', 'POST', { pin });
+      if (json.success) {
+        setFyersConfig((prev) => ({
+          ...prev,
+          isConnected: true,
+          userName: json.config?.userName || json.userName || prev.userName
+        }));
+        setActiveBroker('FYERS');
+        setEffectiveBroker('FYERS');
+        try { localStorage.setItem('fayda_active_broker', 'FYERS'); } catch {}
+      }
+      return json;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Token refresh failed' };
     }
   };
 
@@ -1481,6 +1503,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         fyersConfig,
         connectFyers,
         exchangeAuthCode,
+        refreshFyersToken,
         latestExtremeSurge,
         dismissExtremeBanner,
         newsList,

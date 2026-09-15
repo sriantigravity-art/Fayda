@@ -21,7 +21,8 @@ import {
   Check,
   Clock,
   CalendarClock,
-  Repeat2
+  Repeat2,
+  Copy
 } from 'lucide-react';
 import type { ActiveBroker } from '../types';
 
@@ -71,6 +72,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     fyersConfig, 
     connectFyers, 
     exchangeAuthCode, 
+    refreshFyersToken,
     activeBroker, 
     effectiveBroker,
     selectBroker 
@@ -91,14 +93,20 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   const [fyersAppId, setFyersAppId] = useState<string>(() => {
     return fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
   });
-  const [fyersSecretKey, setFyersSecretKey] = useState<string>('');
+  const [fyersSecretKey, setFyersSecretKey] = useState<string>('MVADUMZWBM');
   const [fyersAuthCode, setFyersAuthCode] = useState<string>('');
   const [fyersAccessToken, setFyersAccessToken] = useState<string>('');
   const [showFyersSecret, setShowFyersSecret] = useState(false);
   const [showFyersToken, setShowFyersToken] = useState(false);
   const [fyersLoading, setFyersLoading] = useState(false);
   const [fyersStatusMsg, setFyersStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
-  const [fyersSubTab, setFyersSubTab] = useState<'AUTH_CODE' | 'DIRECT_TOKEN'>('AUTH_CODE');
+  const [fyersSubTab, setFyersSubTab] = useState<'ONE_CLICK' | 'AUTH_CODE' | 'DIRECT_TOKEN'>('ONE_CLICK');
+  const [fyersPin, setFyersPin] = useState<string>(() => {
+    try { return localStorage.getItem('fyers_pin') || ''; } catch { return ''; }
+  });
+  const [rememberPin, setRememberPin] = useState<boolean>(true);
+  const [countdown, setCountdown] = useState<number>(0);
+  const [isListeningClipboard, setIsListeningClipboard] = useState<boolean>(false);
 
   // SEC-06 Remediation: Purge any legacy secrets accidentally stored in localStorage
   useEffect(() => {
@@ -213,46 +221,36 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     }
   };
 
-  const handleFyersExchange = async () => {
-    if (!fyersAppId.trim() || !fyersSecretKey.trim() || !fyersAuthCode.trim()) {
-      setFyersStatusMsg({ success: false, text: 'Please enter App ID, Secret Key, and Auth Code' });
-      return;
-    }
-
-    let code = fyersAuthCode.trim();
+  const triggerFyersExchangeWithCode = async (rawCode: string) => {
+    let code = rawCode.trim();
     if (code.includes('auth_code=')) {
       try {
         const urlObj = code.startsWith('http') ? new URL(code) : new URL(`http://dummy.com?${code}`);
         const extracted = urlObj.searchParams.get('auth_code');
         if (extracted) {
           code = extracted.trim();
-          setFyersAuthCode(code);
         } else {
           const match = code.match(/auth_code=([^&#\s]+)/);
-          if (match && match[1]) {
-            code = decodeURIComponent(match[1]).trim();
-            setFyersAuthCode(code);
-          }
+          if (match && match[1]) code = decodeURIComponent(match[1]).trim();
         }
       } catch {
         const match = code.match(/auth_code=([^&#\s]+)/);
-        if (match && match[1]) {
-          code = decodeURIComponent(match[1]).trim();
-          setFyersAuthCode(code);
-        }
+        if (match && match[1]) code = decodeURIComponent(match[1]).trim();
       }
     }
-
+    setFyersAuthCode(code);
     setFyersLoading(true);
     setFyersStatusMsg(null);
 
     const cleanAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : `${fyersAppId.trim()}-100`;
-    const res = await exchangeAuthCode(cleanAppId, fyersSecretKey.trim(), code);
+    const res = await exchangeAuthCode(cleanAppId, (fyersSecretKey.trim() || 'MVADUMZWBM'), code);
     setFyersLoading(false);
 
     if (res.success) {
-      setFyersStatusMsg({ success: true, text: `✅ Fyers Token generated successfully! Connected.` });
+      setFyersStatusMsg({ success: true, text: `✅ Fyers Connected as ${res.userName || 'Trader'}! Live stream active.` });
       selectBroker('FYERS');
+      setIsListeningClipboard(false);
+      setCountdown(0);
     } else {
       let cleanText = res.message || 'Authentication failed.';
       if (cleanText.includes('Unexpected token') || cleanText.includes('is not valid JSON')) {
@@ -261,6 +259,88 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       setFyersStatusMsg({ success: false, text: `❌ ${cleanText}` });
     }
   };
+
+  const handleFyersExchange = () => {
+    if (!fyersAuthCode.trim()) {
+      setFyersStatusMsg({ success: false, text: 'Please enter or paste the Auth Code / Redirect URL.' });
+      return;
+    }
+    triggerFyersExchangeWithCode(fyersAuthCode);
+  };
+
+  const handleFyersOneClickRefresh = async () => {
+    if (!fyersPin.trim()) {
+      setFyersStatusMsg({ success: false, text: 'Please enter your 4-digit Fyers PIN.' });
+      return;
+    }
+    setFyersLoading(true);
+    setFyersStatusMsg(null);
+    try {
+      if (rememberPin) {
+        try { localStorage.setItem('fyers_pin', fyersPin.trim()); } catch {}
+      }
+      const res = await refreshFyersToken(fyersPin.trim());
+      setFyersLoading(false);
+      if (res.success) {
+        setFyersStatusMsg({ success: true, text: `✅ Fyers Connected in 1-Click as ${res.userName || 'Trader'}! Live stream active.` });
+        selectBroker('FYERS');
+      } else {
+        setFyersStatusMsg({ success: false, text: `❌ ${res.message || 'Token refresh failed. Please verify PIN.'}` });
+      }
+    } catch (err: any) {
+      setFyersLoading(false);
+      setFyersStatusMsg({ success: false, text: `❌ ${err.message || 'Connection failed'}` });
+    }
+  };
+
+  const handleLaunchFyersLogin = () => {
+    setIsListeningClipboard(true);
+    setCountdown(120);
+    window.open(fyersLoginUrl, '_blank', 'width=650,height=800');
+  };
+
+  const handlePasteFromClipboardAndConnect = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        setFyersStatusMsg({ success: false, text: 'Clipboard access not allowed by browser. Please paste the code manually.' });
+        return;
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (!clipText.trim()) {
+        setFyersStatusMsg({ success: false, text: 'Clipboard is empty. Copy the Fyers redirect URL after logging in.' });
+        return;
+      }
+      await triggerFyersExchangeWithCode(clipText.trim());
+    } catch (err: any) {
+      setFyersStatusMsg({ success: false, text: `Clipboard error: ${err.message || 'Unable to read clipboard'}` });
+    }
+  };
+
+  // Auto-detect Fyers URL / auth code in clipboard when switching back to app window
+  useEffect(() => {
+    if (!isOpen || selectedTab !== 'FYERS' || !isListeningClipboard) return;
+
+    const handleWindowFocus = async () => {
+      try {
+        if (navigator.clipboard?.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text && (text.includes('auth_code=') || text.includes('trade.fyers.in') || (text.length > 50 && text.startsWith('eyJ')))) {
+            console.log('[Fyers] Auto-detected Fyers auth code in clipboard on window focus!');
+            triggerFyersExchangeWithCode(text.trim());
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [isOpen, selectedTab, isListeningClipboard, fyersSecretKey, fyersAppId]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => setCountdown(c => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   const normalizedFyersAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : (fyersAppId.trim() ? `${fyersAppId.trim()}-100` : 'KMSSMU5OGR-100');
   const fyersLoginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${normalizedFyersAppId}&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state`;
@@ -752,92 +832,157 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
               <div className="flex bg-terminal-panel p-1 rounded-xl border border-terminal-border text-xs font-mono font-bold">
                 <button
                   type="button"
-                  onClick={() => setFyersSubTab('AUTH_CODE')}
-                  className={`flex-1 py-1.5 rounded-lg text-center transition cursor-pointer ${
-                    fyersSubTab === 'AUTH_CODE'
-                      ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shadow-sm'
+                  onClick={() => setFyersSubTab('ONE_CLICK')}
+                  className={`flex-1 py-1.5 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    fyersSubTab === 'ONE_CLICK'
+                      ? 'bg-gradient-to-r from-sky-500/25 to-blue-500/25 text-sky-400 border border-sky-500/40 shadow-sm font-bold'
                       : 'text-terminal-muted hover:text-terminal-text'
                   }`}
                 >
-                  Option 1: Generate Auth Code
+                  <Zap className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>⚡ 1-Click Connect (PIN)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFyersSubTab('AUTH_CODE')}
+                  className={`flex-1 py-1.5 rounded-lg text-center transition cursor-pointer ${
+                    fyersSubTab === 'AUTH_CODE'
+                      ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30 shadow-sm'
+                      : 'text-terminal-muted hover:text-terminal-text'
+                  }`}
+                >
+                  Option 2: Auth Link &amp; Auto-Detect
                 </button>
                 <button
                   type="button"
                   onClick={() => setFyersSubTab('DIRECT_TOKEN')}
                   className={`flex-1 py-1.5 rounded-lg text-center transition cursor-pointer ${
                     fyersSubTab === 'DIRECT_TOKEN'
-                      ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shadow-sm'
+                      ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30 shadow-sm'
                       : 'text-terminal-muted hover:text-terminal-text'
                   }`}
                 >
-                  Option 2: Direct Access Token
+                  Option 3: JWT Token
                 </button>
               </div>
 
-              {fyersSubTab === 'AUTH_CODE' ? (
-                <div className="space-y-3.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-mono font-bold text-terminal-text mb-1">Fyers App ID</label>
-                      <input
-                        type="text"
-                        value={fyersAppId}
-                        onChange={(e) => setFyersAppId(e.target.value)}
-                        placeholder="e.g. KMSSMU5OGR-100"
-                        className="w-full px-3 py-2 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-mono font-bold text-terminal-text mb-1">Secret Key</label>
-                      <div className="relative">
-                        <input
-                          type={showFyersSecret ? "text" : "password"}
-                          value={fyersSecretKey}
-                          onChange={(e) => setFyersSecretKey(e.target.value)}
-                          placeholder="Fyers Secret Key"
-                          className="w-full px-3 py-2 pr-10 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowFyersSecret(!showFyersSecret)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-terminal-muted hover:text-terminal-text"
-                        >
-                          {showFyersSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
+              {fyersSubTab === 'ONE_CLICK' ? (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 border border-sky-500/30 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-sky-400">
+                        <KeyRound className="w-4 h-4" />
+                        <span>Fyers Master Broker Config (Pre-Loaded)</span>
                       </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold">
+                        Client ID: YS04036
+                      </span>
                     </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-terminal-muted">
+                      <div>App ID: <strong className="text-terminal-text">KMSSMU5OGR-100</strong></div>
+                      <div>Secret: <strong className="text-terminal-text">MVADUMZWBM</strong></div>
+                    </div>
+                    <p className="text-[11px] text-terminal-muted leading-relaxed">
+                      Valid 15-day server session is active. Enter your 4-digit Fyers login PIN below to connect instantly in 1 click!
+                    </p>
                   </div>
 
-                  <a
-                    href={fyersLoginUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2 px-3 rounded-xl bg-sky-500/15 border border-sky-500/40 text-sky-600 dark:text-sky-400 font-mono font-bold text-xs hover:bg-sky-500/25 transition flex items-center justify-center gap-2"
-                  >
-                    <span>Click to Login &amp; Get Auth Code</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-
                   <div>
-                    <label className="block text-xs font-mono font-bold text-terminal-text mb-1">Auth Code (or full redirect URL)</label>
+                    <label className="block text-xs font-mono font-bold text-terminal-text mb-1">
+                      Enter 4-Digit Fyers Login PIN <span className="text-bear">*</span>
+                    </label>
                     <input
-                      type="text"
-                      value={fyersAuthCode}
-                      onChange={(e) => setFyersAuthCode(e.target.value)}
-                      placeholder="Paste redirect URL or auth_code"
-                      className="w-full px-3 py-2 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
+                      type="password"
+                      maxLength={6}
+                      value={fyersPin}
+                      onChange={(e) => setFyersPin(e.target.value)}
+                      placeholder="Enter 4-digit PIN (e.g. 1234)"
+                      className="w-full px-3 py-2.5 text-sm font-mono tracking-widest text-center bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
                     />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-terminal-muted">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rememberPin}
+                        onChange={(e) => setRememberPin(e.target.checked)}
+                        className="rounded accent-sky-500"
+                      />
+                      <span>Save PIN for automatic daily 6:30 AM renewal</span>
+                    </label>
                   </div>
 
                   <button
                     type="button"
-                    onClick={handleFyersExchange}
+                    onClick={handleFyersOneClickRefresh}
+                    disabled={fyersLoading || !fyersPin.trim()}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
+                  >
+                    {fyersLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-yellow-300" />}
+                    <span>⚡ One-Click Connect Fyers</span>
+                  </button>
+                </div>
+              ) : fyersSubTab === 'AUTH_CODE' ? (
+                <div className="space-y-3.5">
+                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-xs text-sky-300 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Fyers Interactive Login &amp; Auto-Detector</span>
+                    </div>
+                    <p className="text-[11px] text-terminal-muted leading-relaxed">
+                      Click below to open Fyers login. After completing login, either copy the redirected address or simply switch back to this tab — our auto-detector will capture the code automatically!
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLaunchFyersLogin}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 border border-sky-500/40 text-sky-400 font-mono font-bold text-xs hover:bg-sky-500/30 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>🚀 Launch Fyers Login Link</span>
+                  </button>
+
+                  {countdown > 0 && (
+                    <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between animate-pulse">
+                      <span>⏳ Auth code active window: {countdown}s remaining</span>
+                      <span className="text-[10px] font-mono">Expires in 2 min</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboardAndConnect}
                     disabled={fyersLoading}
                     className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
                   >
-                    {fyersLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-4 h-4" />}
-                    <span>Generate Token &amp; Connect Fyers</span>
+                    <Copy className="w-4 h-4" />
+                    <span>📋 Paste from Clipboard &amp; Connect (1-Click)</span>
                   </button>
+
+                  <div>
+                    <label className="block text-[11px] font-mono font-bold text-terminal-muted mb-1">
+                      Or manually paste Auth Code / Redirect URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={fyersAuthCode}
+                        onChange={(e) => setFyersAuthCode(e.target.value)}
+                        placeholder="Paste redirect URL or auth_code"
+                        className="flex-1 px-3 py-2 text-xs font-mono bg-terminal-panel border border-terminal-border rounded-xl text-terminal-text focus:outline-none focus:border-sky-500 transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleFyersExchange}
+                        disabled={fyersLoading || !fyersAuthCode.trim()}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {fyersLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Connect'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleConnectFyers} className="space-y-3.5">

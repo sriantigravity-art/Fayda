@@ -276,6 +276,9 @@ export class FyersService {
                 if (json.refresh_token) {
                     this.config.refreshToken = json.refresh_token;
                 }
+                if (pinOverride) {
+                    this.config.pin = pinOverride;
+                }
                 this.config.isConnected = true;
                 this.config.tokenRefreshedAt = new Date().toISOString();
                 this.config.tokenIssuedAt = new Date().toISOString(); // new daily token issued now

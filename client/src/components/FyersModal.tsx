@@ -29,7 +29,7 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
   const [appId, setAppId] = useState<string>(() => {
     return fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
   });
-  const [secretKey, setSecretKey] = useState<string>('');
+  const [secretKey, setSecretKey] = useState<string>('MVADUMZWBM');
   const [authCode, setAuthCode] = useState<string>('');
   const [accessToken, setAccessToken] = useState<string>('');
 
