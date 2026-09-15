@@ -22,7 +22,8 @@ import {
   ExternalLink,
   HelpCircle,
   ShieldQuestion,
-  Fingerprint
+  Fingerprint,
+  Crown
 } from 'lucide-react';
 
 export type AuthScreenMode = 'CONSENT_DISCLOSURE' | 'SIGN_UP' | 'OTP_VERIFY' | 'SIGN_IN' | 'FORGOT_PASSWORD';
@@ -165,6 +166,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg('SEBI compliance accepted. Please sign in to your terminal.');
   };
 
+  // Handler: Quick SuperAdmin Sign In
+  const handleQuickSuperAdmin = async () => {
+    const adminUser = 'superadmin';
+    const adminPass = 'Aryan@007#';
+    setSignInIdentifier(adminUser);
+    setSignInPassword(adminPass);
+    setCaptchaInput(String(captchaNum1 + captchaNum2));
+    setErrorMsg('');
+    setIsLoading(true);
+    try {
+      const res = await login(adminUser, adminPass);
+      if (res.success) {
+        setSuccessMsg('Signed in as SuperAdmin! Loading terminal workspace...');
+        setTimeout(() => {
+          onClose();
+        }, 500);
+      } else {
+        setErrorMsg(res.error || 'SuperAdmin login failed.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'SuperAdmin login failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handler: Sign In
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,9 +203,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Captcha Validation
+    // Captcha Validation (relaxed for superadmin aliases)
     const expected = captchaNum1 + captchaNum2;
-    if (parseInt(captchaInput.trim(), 10) !== expected) {
+    const isSuperAdminQuick = [
+      'superadmin', 'admin', 'srikantsr', 'srikant', 'srikantsr@vertexinfo.co.in'
+    ].includes(signInIdentifier.trim().toLowerCase());
+
+    if (!isSuperAdminQuick && parseInt(captchaInput.trim(), 10) !== expected) {
       setErrorMsg(`Incorrect Captcha answer. What is ${captchaNum1} + ${captchaNum2}?`);
       refreshCaptcha();
       return;
@@ -497,6 +528,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 >
                   <Mail className="w-3.5 h-3.5 inline mr-1" />
                   Email OTP
+                </button>
+              </div>
+
+              {/* SuperAdmin 1-Click Quick Login Banner */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-purple-500/15 via-indigo-500/15 to-purple-500/10 border border-purple-500/40 text-xs shadow-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-purple-500/25 border border-purple-500/40 flex items-center justify-center shrink-0">
+                    <Crown className="w-3.5 h-3.5 text-yellow-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-bold text-purple-200 leading-none">SuperAdmin Quick Access</div>
+                    <div className="text-[10px] font-mono text-purple-300/80 truncate">User: superadmin • Pass: Aryan@007#</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleQuickSuperAdmin}
+                  disabled={isLoading}
+                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-[10px] transition shadow cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Zap className="w-3 h-3 text-yellow-300" />
+                  <span>1-Click Login</span>
                 </button>
               </div>
 
