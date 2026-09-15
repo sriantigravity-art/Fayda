@@ -133,7 +133,6 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
     return () => clearInterval(interval);
   }, [step, otpTimer]);
 
-  if (!isOpen) return null;
 
   const currentPlan = plans.find(p => p.id === selectedPlanId) || {
     id: selectedPlanId,

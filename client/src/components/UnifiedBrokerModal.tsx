@@ -138,8 +138,6 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     return () => clearInterval(id);
   }, []);
 
-  if (!isOpen) return null;
-
   // ── Dhan Handlers ──
   const handleConnectDhan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,6 +342,8 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
   const normalizedFyersAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : (fyersAppId.trim() ? `${fyersAppId.trim()}-100` : 'KMSSMU5OGR-100');
   const fyersLoginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${normalizedFyersAppId}&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state`;
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">

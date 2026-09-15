@@ -371,6 +371,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
+  const reconnectDelayRef = useRef<number>(2000);
 
   const toggleIndexVisibility = useCallback((sym: IndexSymbol) => {
     setVisibleIndices((prev) => {
@@ -513,6 +514,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ws.onopen = () => {
       console.log('[WS] Connected to Live OI & Flash News Engine');
       setIsConnected(true);
+      reconnectDelayRef.current = 2000;
       try {
         ws.send(JSON.stringify({ type: 'SET_ACTIVE_SYMBOL', symbol: selectedIndexRef.current }));
       } catch {}
@@ -1131,7 +1133,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ws.onclose = () => {
       setIsConnected(false);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = setTimeout(connectWs, 2000);
+      const delay = reconnectDelayRef.current;
+      reconnectDelayRef.current = Math.min(Math.round(delay * 1.5), 15000);
+      reconnectTimeoutRef.current = setTimeout(connectWs, delay);
     };
 
     ws.onerror = () => {
