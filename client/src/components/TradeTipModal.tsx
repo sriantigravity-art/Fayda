@@ -218,18 +218,18 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         EXPIRED: '🛑 CONTRACT EXPIRED (₹0.00)'
       },
       decisionAdvice: isExpired && !isSeller
-        ? `🛑 This 0DTE contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held overnight. Please switch to the Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}) contract.`
+        ? `🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Settled at ₹0.00 | Action: Switch to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached 
-        ? `🛑 Safety Shield Triggered (${rawPnlPct}%). Close this trade now to protect your remaining funds. Never average a losing trade.`
+        ? `🛑 SYSTEM DIRECTIVE: Stoploss Breached (${rawPnlPct}%) | Action: Close trade immediately to protect funds. Never average losing trades.`
         : isTarget2Reached
-        ? `🏆 Target 2 Achieved (+${rawPnlPct}%)! Great job, close entire position and secure ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits!`
+        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Action: Liquidate full position; lock ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits.`
         : isTarget1Reached
-        ? `🎯 1st Profit Goal Reached (+${rawPnlPct}%)! Click "Book 50% Profit" to secure ₹${Math.round(Math.abs(profitBoxData.pnlRupees) / 2).toLocaleString('en-IN')} cash into your account, and shift your Capital Shield to your buy price.`
+        ? `🎯 SYSTEM DIRECTIVE: Target 1 Hit (+${rawPnlPct}%) | Action: Book 50% profit; shift Capital Shield to buy price.`
         : rawPnlPct >= 15
-        ? `🚀 Running in Good Profit (+${rawPnlPct}%)! Move your Capital Shield to your buy price (₹${entryNum.toFixed(1)}) so this trade cannot lose money.`
-        : `⏸️ Trade is moving safely in the right direction. Stay patient and wait for 1st Profit Goal (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}).`,
+        ? `🚀 SYSTEM DIRECTIVE: Strong Profit (+${rawPnlPct}%) | Action: Trail Capital Shield to entry price (₹${entryNum.toFixed(1)}) for risk-free ride.`
+        : `⏸️ SYSTEM ADVISORY: Moving towards Target 1 (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}) | Action: Maintain position above shield.`,
       desc: tip.explanations?.beginner ||
-        `Why this trade? Market strength is moving in your favor. Buy 1 lot within the Buy Price Zone. When 1st Profit Goal is reached, take half your cash off the table and let the rest run risk-free. Always keep your Capital Shield active to protect your hard-earned money.`
+        `🎯 SYSTEM ADVISORY: BUY 1 Lot in entry zone | Target 1: Book 50% profit | Rule: Trail Capital Shield to cost to protect funds.`
     },
     INTERMEDIATE: {
       tag: '📈 Technical Momentum & Confluence',
@@ -249,18 +249,18 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         EXPIRED: '🛑 EXPIRED WORTHLESS (₹0.00)'
       },
       decisionAdvice: isExpired && !isSeller
-        ? `🛑 0DTE Expiry Invalidation — Contract expired OTM at 03:30 PM IST with 100% time decay. Cannot be carried overnight. Roll over to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
+        ? `🛑 SYSTEM DIRECTIVE: 0DTE Expiry Invalidation | 100% time decay realized | Action: Roll over to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached
-        ? `🛑 Stoploss Hit (${rawPnlPct}%) — Confluence invalidation point breached. Trade automatically archived to Post-Market Trade Journal.`
+        ? `🛑 SYSTEM DIRECTIVE: Stoploss Hit (${rawPnlPct}%) | Invalidation breached | Action: Position closed & archived to journal.`
         : isTarget2Reached
-        ? `🏆 Target 2 Achieved (+${rawPnlPct}%) — Peak alpha achieved. Lock all profits and exit position.`
+        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Peak alpha reached | Action: Lock all profits and exit position.`
         : isTarget1Reached
-        ? `🎯 Target 1 Achieved (+${rawPnlPct}%) — Lock 50% profit, trail SL to entry cost, and let runners aim for Target 2.`
+        ? `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${rawPnlPct}%) | Action: Lock 50% profit, trail SL to entry cost, let runners aim for Target 2.`
         : rawPnlPct >= 15
-        ? `🚀 Momentum Expansion (+${rawPnlPct}%) — Dynamic CPR pivot confirmed; trail SL to breakeven cost.`
-        : `⏸️ Holding above stoploss level (LTP ₹${ltpNum.toFixed(1)}) — Maintain position towards Target 1.`,
+        ? `🚀 SYSTEM DIRECTIVE: Momentum Expansion (+${rawPnlPct}%) | CPR confirmed | Action: Trail SL to breakeven cost.`
+        : `⏸️ SYSTEM ADVISORY: Holding Above Stoploss (LTP ₹${ltpNum.toFixed(1)}) | Action: Maintain position towards Target 1.`,
       desc: tip.explanations?.intermediate ||
-        `${tip.strategyTag || 'Multi-Strategy Confluence'} confirmed across CPR Pivot range, 9-EMA momentum trigger, and volume absorption. Target 1 offers favorable 1:2.2 Risk-to-Reward.`
+        `⚡ SYSTEM DIRECTIVE: ${tip.strategyTag || 'Multi-Strategy Confluence'} confirmed | 9-EMA & CPR trigger active | Target 1 R:R: 1:2.2 | Action: Trail SL on trigger.`
     },
     EXPERT: {
       tag: '🔬 Quantitative Greeks & Order Flow',
@@ -280,18 +280,18 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         EXPIRED: '🛑 0DTE CASH SETTLED (0.00)'
       },
       decisionAdvice: isExpired && !isSeller
-        ? `🛑 0DTE Terminal Settlement — Position terminated at 03:30 PM IST cash settlement. Delta = 0, Gamma = 0, IV = 0. Re-deploy delta into Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
+        ? `🛑 SYSTEM DIRECTIVE: 0DTE Terminal Settlement | Delta = 0, Gamma = 0 | Action: Re-deploy delta into Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached
-        ? `🛑 Structural Invalidation (${rawPnlPct}%) — Volume point of control breached; delta hedge deactivated and logged.`
+        ? `🛑 SYSTEM DIRECTIVE: Structural Invalidation (${rawPnlPct}%) | POC breached | Action: Delta hedge deactivated.`
         : isTarget2Reached
-        ? `🏆 Target 2 (1.8σ Gamma Runner) Hit (+${rawPnlPct}%) — Mean reversion risk elevated; liquidate full delta exposure.`
+        ? `🏆 SYSTEM DIRECTIVE: 1.8σ Gamma Runner Hit (+${rawPnlPct}%) | Mean reversion risk | Action: Liquidate full delta exposure.`
         : isTarget1Reached
-        ? `🎯 1.2σ Mean Expansion Hit (+${rawPnlPct}%) — De-risk 50% delta exposure, trail gamma stoploss to breakeven POC.`
+        ? `🎯 SYSTEM DIRECTIVE: 1.2σ Mean Expansion Hit (+${rawPnlPct}%) | Action: De-risk 50% delta, trail stop to breakeven POC.`
         : rawPnlPct >= 15
-        ? `🚀 High Positive Gamma Flow (+${rawPnlPct}%) — Theta decay offset by momentum impulse. Trail stop to entry volume cluster.`
-        : `⏸️ Delta Drift Stable (IV: ${tip.iv || 13.2}%) — Order book absorption positive above VWAP. Maintain position.`,
+        ? `🚀 SYSTEM DIRECTIVE: Positive Gamma Flow (+${rawPnlPct}%) | Impulse active | Action: Trail stop to entry cluster.`
+        : `⏸️ SYSTEM ADVISORY: Delta Drift Stable (IV: ${tip.iv || 13.2}%) | Action: Positive order flow above VWAP; maintain position.`,
       desc: tip.explanations?.expert ||
-        `Delta: ${isBull ? '+0.48' : '-0.48'}, Gamma: 0.032, Theta: -₹140/hr. IV: ${tip.iv || 13.2}%. Institutional volume cluster confirmed above VWAP with order flow surge.`
+        `📊 SYSTEM QUANT DATA: Delta: ${isBull ? '+0.48' : '-0.48'} | Gamma: 0.032 | Theta: -₹140/hr | IV: ${tip.iv || 13.2}% | Flow: Order flow surge above VWAP.`
     }
   }[activeTab];
 

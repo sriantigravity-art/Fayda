@@ -1233,49 +1233,49 @@ export class ConfluenceEngine {
     const sl = stoplossPrice || (baseEntry * 0.85);
 
     let decisionTag: OngoingProfitBoxData['decisionTag'] = 'HOLD';
-    let decisionText = `⏸️ Holding above SL (LTP ₹${currentLtp.toFixed(1)}) — Maintain position towards Target 1 (₹${tgt1.toFixed(1)}).`;
+    let decisionText = `⏸️ SYSTEM ADVISORY: Holding above SL (LTP ₹${currentLtp.toFixed(1)}) — Maintain position towards Target 1 (₹${tgt1.toFixed(1)}).`;
 
     if (status === 'EXPIRED' || (isExpiryDay && !isCommodity && currentLtp <= 0.05)) {
       decisionTag = 'EXPIRED';
-      decisionText = `🛑 Contract Expired (₹${currentLtp.toFixed(2)}) — 0DTE contract expired at 03:30 PM IST with zero value. Cannot be held or entered.`;
+      decisionText = `🛑 SYSTEM DIRECTIVE: Contract Expired (₹${currentLtp.toFixed(2)}) — Settled at ₹0.00. Do NOT hold or enter expired contracts.`;
     } else if (status === 'TARGET2_HIT') {
       decisionTag = 'BOOK_HALF';
-      decisionText = `🏆 Target 2 Achieved (+${pnlPct}%). Maximum Strategy Alpha Reached: LIQUIDATE FULL POSITION NOW & Lock Profits (Peak ₹${currentLtp.toFixed(1)}). Exit before theta decay or mean reversion.`;
+      decisionText = `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${pnlPct}%) — Peak alpha reached. Liquidate remaining position and lock cash profits (Peak ₹${currentLtp.toFixed(1)}).`;
     } else if (status === 'TARGET1_HIT') {
       const isStrongMomentum = (confluenceScore || 85) >= 80 && marketRegime !== 'SIDEWAYS_CHOP';
       if (isStrongMomentum) {
         decisionTag = 'TRAIL_SL';
-        decisionText = `🎯 Target 1 Reached (+${pnlPct}%). High Momentum Trend: WAIT FOR TARGET 2 (₹${tgt2.toFixed(1)}). Move Trailing SL to Entry Cost ₹${baseEntry.toFixed(1)} so runners are 100% risk-free.`;
+        decisionText = `🎯 SYSTEM DIRECTIVE: Target 1 Reached (+${pnlPct}%) — Momentum strong. Trail SL to entry cost ₹${baseEntry.toFixed(1)} and aim for Target 2 (₹${tgt2.toFixed(1)}).`;
       } else {
         decisionTag = 'BOOK_HALF';
-        decisionText = `🎯 Target 1 Achieved (+${pnlPct}%). Momentum Decelerating near resistance: CLOSE POSITION NOW & BOOK FULL GAINS (+${pnlPct}%). Do not risk waiting for Target 2.`;
+        decisionText = `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${pnlPct}%) — Momentum decelerating near resistance. Close position now and lock full gains (+${pnlPct}%).`;
       }
     } else if (status === 'SL_HIT') {
       decisionTag = 'EXIT_SL';
-      decisionText = `🛑 Technical Stoploss Hit (${pnlPct}%) — Capital Protection Mandate: Position closed & archived to Trade Journal.`;
+      decisionText = `🛑 SYSTEM DIRECTIVE: Stoploss Hit (${pnlPct}%) — Capital Protection Mandate: Position liquidated & archived to Trade Journal.`;
     } else if (pnlPct >= (t1Pct * 0.6)) {
       decisionTag = 'TRAIL_SL';
-      decisionText = `🚀 +60% to Target 1 (+${pnlPct}%) — Move Trailing SL to Entry ₹${baseEntry.toFixed(1)} (Guaranteed Risk-Free Ride).`;
+      decisionText = `🚀 SYSTEM DIRECTIVE: +60% to Target 1 (+${pnlPct}%) — Trail SL to entry cost ₹${baseEntry.toFixed(1)} for guaranteed risk-free ride.`;
     } else if (pnlPct >= -2.0 && pnlPct <= 2.0) {
       decisionTag = 'ENTER';
-      decisionText = `🟢 Perfect Entry Price ₹${baseEntry.toFixed(1)} — Optimal execution level near trigger.`;
+      decisionText = `🟢 SYSTEM DIRECTIVE: Prime Entry Zone (₹${baseEntry.toFixed(1)}) — Execute position near trigger.`;
     }
 
     let carryForwardAdvice = '';
     let carryForwardSuggestion = '';
     if (isExpiryDay && !isCommodity) {
       const nextExpText = nextExpiryDate ? ` (${nextExpiryDate})` : '';
-      carryForwardAdvice = `⚠️ 0DTE EXPIRY MANDATE: CLOSE all positions before 03:25 PM IST. Zero overnight carry allowed on expiring contracts (100% time decay). To trade tomorrow, manually enter Next Expiry${nextExpText}.`;
-      carryForwardSuggestion = `0DTE Expiry Rule: Close position by 03:25 PM today. Expiring contracts decay to ₹0.00.`;
+      carryForwardAdvice = `🛑 SYSTEM MANDATE: 0DTE Expiry | Close all positions before 03:25 PM IST | Zero overnight carry on expiring contracts (100% time decay). Manually enter Next Expiry${nextExpText}.`;
+      carryForwardSuggestion = `🛑 SYSTEM DIRECTIVE: 0DTE Expiry Rule | Action: Close position by 03:25 PM today | Status: Expiring contracts settle to ₹0.00.`;
     } else if (isCommodity) {
-      carryForwardAdvice = '⚡ MCX FUTURES: Active until 11:30 PM IST. Eligible for overnight hold with strict trailing stoploss.';
-      carryForwardSuggestion = 'MCX Futures: Hold overnight with trailing SL until 11:30 PM session close.';
+      carryForwardAdvice = '⚡ SYSTEM DIRECTIVE: MCX Commodity | Active until 11:30 PM IST | Action: Overnight hold permitted with strict trailing SL.';
+      carryForwardSuggestion = '⚡ SYSTEM DIRECTIVE: MCX Futures | Action: Hold with trailing SL until 11:30 PM session close.';
     } else if (pnlPct >= 15 && (confluenceScore || 85) >= 80) {
-      carryForwardAdvice = `🌙 BTST / CARRY FORWARD PERMITTED: Strong multi-timeframe trend & institutional OI confirmation. Safe to carry 1 runner overnight with strict SL at cost ₹${baseEntry.toFixed(1)}.`;
-      carryForwardSuggestion = `Carry Forward Permitted: Hold 1 runner overnight with locked profit & trailing SL at cost ₹${baseEntry.toFixed(1)}.`;
+      carryForwardAdvice = `🌙 SYSTEM DIRECTIVE: BTST Permitted | Multi-timeframe trend & OI confirmed | Action: Hold 1 runner overnight with strict SL at cost ₹${baseEntry.toFixed(1)}.`;
+      carryForwardSuggestion = `🌙 SYSTEM DIRECTIVE: Carry Forward Permitted | Action: Hold 1 runner with locked profit & trailing SL at cost ₹${baseEntry.toFixed(1)}.`;
     } else {
-      carryForwardAdvice = '🛑 CLOSE INTRADAY BEFORE 03:25 PM: Rangebound/choppy conditions create high overnight gap and theta decay risk. Exit today with locked profits.';
-      carryForwardSuggestion = 'Close Intraday by 03:25 PM: High overnight theta decay risk. Do not hold overnight.';
+      carryForwardAdvice = '🛑 SYSTEM DIRECTIVE: Intraday Close Required | Action: Exit before 03:25 PM | Rule: High overnight gap and theta decay risk.';
+      carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Close Intraday by 03:25 PM | Action: Exit position | Rule: High overnight theta decay risk; do not hold overnight.';
     }
 
     return {
@@ -1667,15 +1667,15 @@ export class ConfluenceEngine {
       let carryForwardSuggestion = prev.carryForwardSuggestion;
       if (!carryForwardSuggestion) {
         if (momentumInfo.isExpiryDay && !isCommodity) {
-          carryForwardSuggestion = `SEBI Rule: 0DTE expires at 03:30 PM. (1) Square off by 03:25 PM. (2) Open fresh Next Expiry (${nextExpiryDate}) contract manually if continuing the trade. Options CANNOT be auto-rolled.`;
+          carryForwardSuggestion = `🛑 SYSTEM DIRECTIVE: 0DTE Expiry at 03:30 PM | Action: Square off by 03:25 PM | Rule: Open fresh Next Expiry (${nextExpiryDate}) contract manually if continuing. Zero auto-rollover.`;
         } else if (isSeller) {
-          carryForwardSuggestion = 'Option Seller (STBT/BTST): Short position benefits from Theta decay. You may hold overnight — but note options expire on expiry day; settlement is automatic at intrinsic value. Maintain defined risk buffer (>75% POP) and hedge.';
+          carryForwardSuggestion = '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour | Rule: Maintain defined risk hedge (>75% POP); close before 03:25 PM if spot approaches strike.';
         } else if (pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
-          carryForwardSuggestion = 'BTST Manual Roll (SEBI Compliant): (1) Square off this contract by 03:25 PM today. (2) Open a fresh next-expiry contract separately. Lock 50% profit; trail SL to entry cost on new lot.';
+          carryForwardSuggestion = '🌙 SYSTEM DIRECTIVE: BTST Manual Roll | Action: Lock 50% profit; square off by 03:25 PM | Rule: Re-enter fresh next-expiry lot with trailing SL at entry cost.';
         } else if (pnlPct < 15 && pnlPct >= -5) {
-          carryForwardSuggestion = 'Intraday Exit at 03:25 PM: Options CANNOT be carried overnight (SEBI rules). Square off fully; do not average or hold losers.';
+          carryForwardSuggestion = '⏱️ SYSTEM DIRECTIVE: Intraday Exit at 03:25 PM | Action: Close position fully | Rule: High overnight theta decay risk; do not average or carry long options overnight.';
         } else {
-          carryForwardSuggestion = 'Strict Intraday Exit: SL hit / loss discipline. Do NOT average or attempt overnight hold — options expire worthless at 0 value if OTM at expiry.';
+          carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Capital Protection Exit | Action: Exit position now | Rule: SL breached; do not average or carry overnight.';
         }
       }
 
@@ -1981,9 +1981,9 @@ export class ConfluenceEngine {
         },
         strategyTag: `${stratId} + ${patternName} Breakout`,
         explanations: {
-          beginner: `Strong institutional ${preferBull ? 'buyers' : 'sellers'} active in ${symbol}. Buy 1 Lot of ${targetStrike} ${optType} around ₹${entryPrice.toFixed(2)} (or on dip at ₹${dipEntryMin.toFixed(2)} - ₹${dipEntryMax.toFixed(2)}). Keep maximum risk at ₹${slPrice.toFixed(2)} (Risk ₹${Math.round(entryPrice * 0.20 * 50)} per lot). Take profit when price reaches ₹${t1Price.toFixed(2)}.`,
-          intermediate: `${stratId} confirmed with ${patternName} breakout on 5-min chart. ${preferBull ? 'Call writers capitulating' : 'Put writers liquidating'} at ${targetStrike}. Limit Dip Entry: ₹${dipEntryMin.toFixed(2)} - ₹${dipEntryMax.toFixed(2)} | Market Trigger: ₹${triggerPrice.toFixed(2)} | Breakout: >₹${breakoutEntryPrice.toFixed(2)}. Strict Stoploss at ₹${slPrice.toFixed(2)} (-20%). Target 1 at ₹${t1Price.toFixed(2)} (1:2 R:R). Trail Stoploss to cost once T1 hits.`,
-          expert: `Delta: ${preferBull ? '+0.52' : '-0.52'}, Gamma: 0.046, IV: ${strikeObj?.iv || 13.5}%. 1-Min Delta OI Order Flow confirms aggressive institutional execution. VWAP Support aligned with CPR Pivot. Risk:Reward 1:2.8.`
+          beginner: `🎯 SYSTEM ADVISORY: BUY ${targetStrike} ${optType} | Entry Zone: ₹${entryPrice.toFixed(2)} (or dip ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)}) | Target 1: ₹${t1Price.toFixed(2)} | Stoploss: ₹${slPrice.toFixed(2)} | Rule: Max risk ₹${Math.round(entryPrice * 0.20 * 50)}/lot; book 50% at Target 1.`,
+          intermediate: `⚡ SYSTEM DIRECTIVE: ${stratId} + ${patternName} Breakout | Trigger: >₹${breakoutEntryPrice.toFixed(2)} | Dip Range: ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} | SL: ₹${slPrice.toFixed(2)} (-20%) | Action: Trail SL to cost upon Target 1.`,
+          expert: `📊 SYSTEM QUANT METRICS: Delta: ${preferBull ? '+0.52' : '-0.52'} | Gamma: 0.046 | IV: ${strikeObj?.iv || 13.5}% | Flow: 1-Min Delta OI institutional execution | VWAP Support: Aligned with CPR | R:R: 1:2.8.`
         }
       };
 
@@ -2181,8 +2181,8 @@ export class ConfluenceEngine {
           entryPriceTime: new Date().toISOString(),
           entryPriceTimeFormatted: effectiveEntryTimeFormatted,
           carryForwardTimeFormatted: '03:20 PM IST',
-          carryForwardSuggestion: `0DTE Expired: Settled at ₹0.00. Trade Next Expiry (${nextExpiryDate}).`,
-          carryForwardAdvice: `🛑 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active calls, select the Next Expiry (${nextExpiryDate}).`,
+          carryForwardSuggestion: `🛑 SYSTEM DIRECTIVE: 0DTE Expired | Settled at ₹0.00 | Action: Trade Next Expiry (${nextExpiryDate}).`,
+          carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active calls, select the Next Expiry (${nextExpiryDate}).`,
           marketRegime: momentumInfo.regime,
           momentumDescription: momentumInfo.description,
           expiryDate: activeExpiryDate,
@@ -2229,9 +2229,9 @@ export class ConfluenceEngine {
           status: 'EXPIRED',
           strategyTag: '0DTE Expired (Worthless Settlement)',
           explanations: {
-            beginner: `🛑 Contract Expired: This 0DTE weekly contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held. Please trade the Next Expiry (${nextExpiryDate}) contract.`,
-            intermediate: `🛑 0DTE Expiry Invalidation: Contract reached terminal cash settlement at 03:30 PM IST. 100% time decay realized. Roll over to Next Expiry (${nextExpiryDate}).`,
-            expert: `🛑 0DTE Terminal Settlement: Exchange settlement completed. Theta burn 100%, Greeks terminated. Re-deploy delta into Next Expiry (${nextExpiryDate}).`
+            beginner: `🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Status: Settled at ₹0.00 | Action: Do NOT trade or hold. Open fresh position in Next Expiry (${nextExpiryDate}).`,
+            intermediate: `🛑 SYSTEM DIRECTIVE: 0DTE Terminal Settlement | Status: 100% theta decay realized | Action: Roll over into Next Expiry (${nextExpiryDate}).`,
+            expert: `🛑 SYSTEM QUANT NOTICE: Terminal Settlement at ₹0.00 | Theta burn: 100% | Action: Re-deploy delta into Next Expiry (${nextExpiryDate}).`
           }
         };
         if (topCallTrade) {
@@ -2440,9 +2440,9 @@ export class ConfluenceEngine {
           },
           strategyTag: 'Institutional Call Covering & Bullish Pivot',
           explanations: {
-            beginner: `High Probability CALL: Buy 1 Lot of ${bestCeStrike.strikePrice} CE near ₹${entryPrice.toFixed(2)}. Stop Loss ₹${slPrice.toFixed(2)}. Target 1 ₹${t1Price.toFixed(2)}.`,
-            intermediate: `Confluence ${callProb}%: Call short-covering confirmed at ${bestCeStrike.strikePrice}. Target 1 at ₹${t1Price.toFixed(2)} (+28%). Trail SL once T1 hits.`,
-            expert: `Delta: +0.51, Theta: -12.4/hr, IV: ${bestCeStrike.iv || 12.5}%. R:R 1:2.5 backed by institutional VWAP support.`
+            beginner: `🎯 SYSTEM ADVISORY: BUY ${bestCeStrike.strikePrice} CE | Entry Zone: Near ₹${entryPrice.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} | Stoploss: ₹${slPrice.toFixed(2)} | Rule: Trail SL to cost upon Target 1.`,
+            intermediate: `⚡ SYSTEM DIRECTIVE: Call Short-Covering Squeeze | Confluence: ${callProb}% | Trigger: ₹${entryPrice.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} (+28%) | Action: Trail SL to cost upon trigger.`,
+            expert: `📊 SYSTEM QUANT METRICS: Delta: +0.51 | Theta: -12.4/hr | IV: ${bestCeStrike.iv || 12.5}% | R:R: 1:2.5 | Support: Institutional VWAP anchor.`
           }
         };
         slotEntry.calls.push(topCallTrade);
@@ -2627,8 +2627,8 @@ export class ConfluenceEngine {
           entryPriceTime: new Date().toISOString(),
           entryPriceTimeFormatted: effectiveEntryTimeFormatted,
           carryForwardTimeFormatted: '03:20 PM IST',
-          carryForwardSuggestion: `0DTE Expired: Settled at ₹0.00. Trade Next Expiry (${nextExpiryDate}).`,
-          carryForwardAdvice: `🛑 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active puts, select the Next Expiry (${nextExpiryDate}).`,
+          carryForwardSuggestion: `🛑 SYSTEM DIRECTIVE: 0DTE Expired | Settled at ₹0.00 | Action: Trade Next Expiry (${nextExpiryDate}).`,
+          carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active puts, select the Next Expiry (${nextExpiryDate}).`,
           marketRegime: momentumInfo.regime,
           momentumDescription: momentumInfo.description,
           expiryDate: activeExpiryDate,
@@ -2675,9 +2675,9 @@ export class ConfluenceEngine {
           status: 'EXPIRED',
           strategyTag: '0DTE Expired (Worthless Settlement)',
           explanations: {
-            beginner: `🛑 Contract Expired: This 0DTE weekly contract expired today at 03:30 PM IST and settled at ₹0.00. It cannot be traded or held. Please trade the Next Expiry (${nextExpiryDate}) contract.`,
-            intermediate: `🛑 0DTE Expiry Invalidation: Contract reached terminal cash settlement at 03:30 PM IST. 100% time decay realized. Roll over to Next Expiry (${nextExpiryDate}).`,
-            expert: `🛑 0DTE Terminal Settlement: Exchange settlement completed. Theta burn 100%, Greeks terminated. Re-deploy delta into Next Expiry (${nextExpiryDate}).`
+            beginner: `🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Status: Settled at ₹0.00 | Action: Do NOT trade or hold. Open fresh position in Next Expiry (${nextExpiryDate}).`,
+            intermediate: `🛑 SYSTEM DIRECTIVE: 0DTE Terminal Settlement | Status: 100% theta decay realized | Action: Roll over into Next Expiry (${nextExpiryDate}).`,
+            expert: `🛑 SYSTEM QUANT NOTICE: Terminal Settlement at ₹0.00 | Theta burn: 100% | Action: Re-deploy delta into Next Expiry (${nextExpiryDate}).`
           }
         };
         if (topPutTrade) {
@@ -2886,9 +2886,9 @@ export class ConfluenceEngine {
           },
           strategyTag: 'Institutional Put Accumulation & Resistance Roof',
           explanations: {
-            beginner: `High Probability PUT: Buy 1 Lot of ${bestPeStrike.strikePrice} PE near ₹${entryPrice.toFixed(2)}. Stop Loss ₹${slPrice.toFixed(2)}. Target 1 ₹${t1Price.toFixed(2)}.`,
-            intermediate: `Confluence ${putProb}%: Put writer capitulation & breakdown confirmed at ${bestPeStrike.strikePrice}. Target 1 at ₹${t1Price.toFixed(2)} (+28%). Trail SL on trigger.`,
-            expert: `Delta: -0.50, Theta: -12.2/hr, IV: ${bestPeStrike.iv || 12.8}%. Strong institutional call writing resistance above spot.`
+            beginner: `🎯 SYSTEM ADVISORY: BUY ${bestPeStrike.strikePrice} PE | Entry Zone: Near ₹${entryPrice.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} | Stoploss: ₹${slPrice.toFixed(2)} | Rule: Trail SL to cost upon Target 1.`,
+            intermediate: `⚡ SYSTEM DIRECTIVE: Put Accumulation & Breakdown | Confluence: ${putProb}% | Trigger: ₹${entryPrice.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} (+28%) | Action: Trail SL to cost upon trigger.`,
+            expert: `📊 SYSTEM QUANT METRICS: Delta: -0.50 | Theta: -12.2/hr | IV: ${bestPeStrike.iv || 12.8}% | R:R: 1:2.5 | Resistance: Heavy institutional call writing roof.`
           }
         };
         slotEntry.puts.push(topPutTrade);
@@ -2969,7 +2969,7 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         pnlRupees: sellerPutPnlRupees,
-        carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
+        carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         actionabilityStatus,
         status,
         bookedTime: sellerPutMilestones.bookedTime,
@@ -3083,7 +3083,7 @@ export class ConfluenceEngine {
         bookedTime: initialSellerPutMilestones.bookedTime,
         bookedTimeFormatted: initialSellerPutMilestones.bookedTimeFormatted,
         carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
-        carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
+        carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         isCarriedForward: sellerPutStatus === 'CARRIED_FORWARD',
         entryPrice: netCreditPts,
         entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
@@ -3113,9 +3113,9 @@ export class ConfluenceEngine {
         },
         strategyTag: 'Bull Put Credit Spread (Theta Harvest)',
         explanations: {
-          beginner: `Safe Option Selling: Sell ${soldPutStrike} PE and Buy ${hedgePutStrike} PE protection. You collect ₹${netCreditPerLot.toLocaleString('en-IN')} upfront per lot. If ${symbol} stays above ₹${lowerBreakeven} by expiry, you keep 100% of the credit.`,
-          intermediate: `POP ${popPct}%: Bull Put Spread (${soldPutStrike} PE / ${hedgePutStrike} PE). Safety buffer of ${safetyBufferPts} points. Max profit ₹${maxProfitRupees.toLocaleString('en-IN')} with margin requirement capped at ₹${estimatedMarginRupees.toLocaleString('en-IN')}.`,
-          expert: `Net Delta: +0.14, Net Theta: +₹${hourlyTheta}/hr. Vega protected with long hedge leg. Exchange SPAN margin benefit active.`
+          beginner: `🛡️ SYSTEM SELLER STRATEGY: Bull Put Spread | Sell ${soldPutStrike} PE + Buy ${hedgePutStrike} PE | Upfront Credit: ₹${netCreditPerLot.toLocaleString('en-IN')}/lot | Breakeven: ₹${lowerBreakeven} | Rule: Full profit retained if ${symbol} stays above breakeven by expiry.`,
+          intermediate: `⚡ SYSTEM DIRECTIVE: Bull Put Spread (${soldPutStrike} PE / ${hedgePutStrike} PE) | POP: ${popPct}% | Safety Buffer: ${safetyBufferPts} pts | Max Profit: ₹${maxProfitRupees.toLocaleString('en-IN')} | Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN')}.`,
+          expert: `📊 SYSTEM QUANT METRICS: Net Delta: +0.14 | Net Theta: +₹${hourlyTheta}/hr | Vega Protected: Long hedge leg active | SPAN Margin Benefit: Active.`
         },
         spreadDetails: {
           legsSummary: `Sell ${soldPutStrike} PE + Buy ${hedgePutStrike} PE`,
@@ -3199,7 +3199,7 @@ export class ConfluenceEngine {
         pnlPoints,
         pnlPct,
         pnlRupees: sellerCallPnlRupees,
-        carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
+        carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         actionabilityStatus,
         status,
         bookedTime: sellerCallMilestones.bookedTime,
@@ -3313,7 +3313,7 @@ export class ConfluenceEngine {
         bookedTime: initialSellerCallMilestones.bookedTime,
         bookedTimeFormatted: initialSellerCallMilestones.bookedTimeFormatted,
         carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
-        carryForwardSuggestion: 'Option Seller Overnight Hold: Theta decay works in your favour (>75% POP). You may hold overnight — but note options expire at expiry and settle automatically. Maintain defined risk hedge.',
+        carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         isCarriedForward: sellerCallStatus === 'CARRIED_FORWARD',
         entryPrice: netCreditPts,
         entryRange: `Net Credit ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot)`,
@@ -3343,9 +3343,9 @@ export class ConfluenceEngine {
         sellerMetrics,
         strategyTag: 'Institutional Bear Call Credit Spread (Roof Defense)',
         explanations: {
-          beginner: `🎰 Safe Seller Setup: Sell ${soldCallStrike} Call and buy ${hedgeCallStrike} Call to lock in protection. You collect ₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} instant cash per lot upfront. As long as ${symbol} stays below ₹${soldCallStrike} by expiry (or even rallies slightly up to ${Math.max(0, safetyBufferPts)} pts), you pocket 100% of the profits! Win probability is ${popPct}%.`,
-          intermediate: `Bear Call Credit Spread: Sell ${soldCallStrike} CE @ ₹${sellPrem.toFixed(1)} / Buy ${hedgeCallStrike} CE @ ₹${buyPrem.toFixed(1)}. Net Credit: ₹${netCreditPts.toFixed(2)} pts (₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot). Required Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (71% hedge discount). Breakeven: ₹${upperBreakeven.toFixed(2)}. SL trigger at 1.9x net credit (₹${(netCreditPts * 1.9).toFixed(1)} pts). Target: 65% profit at ₹${(netCreditPts * 0.35).toFixed(1)} pts.`,
-          expert: `Short Call Delta: +0.21, Long Hedge Delta: -0.07 (Net Delta: -0.14). Hourly Theta: +₹${hourlyTheta}/lot. IV: ${soldStrikeObj?.iv || 12.8}%. Resistance wall intact. Defined Max Loss: ₹${maxLossRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} vs Max Profit: ₹${maxProfitRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. 10-Indicator Confluence: ${sellerCallConfluence.totalConfluenceScore}%.`
+          beginner: `🛡️ SYSTEM SELLER STRATEGY: Bear Call Spread | Sell ${soldCallStrike} CE + Buy ${hedgeCallStrike} CE | Upfront Credit: ₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot | Win Rate: ${popPct}% | Rule: Full profit retained if ${symbol} stays below ₹${soldCallStrike} by expiry.`,
+          intermediate: `⚡ SYSTEM DIRECTIVE: Bear Call Credit Spread (${soldCallStrike} CE @ ₹${sellPrem.toFixed(1)} / ${hedgeCallStrike} CE @ ₹${buyPrem.toFixed(1)}) | Net Credit: ₹${netCreditPts.toFixed(2)} pts | Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Breakeven: ₹${upperBreakeven.toFixed(2)} | Target: 65% profit @ ₹${(netCreditPts * 0.35).toFixed(1)} pts | SL: 1.9x credit.`,
+          expert: `📊 SYSTEM QUANT METRICS: Short Delta: +0.21, Long Delta: -0.07 (Net Delta: -0.14) | Hourly Theta: +₹${hourlyTheta}/lot | IV: ${soldStrikeObj?.iv || 12.8}% | Max Profit: ₹${maxProfitRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Max Loss: ₹${maxLossRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Confluence: ${sellerCallConfluence.totalConfluenceScore}%.`
         },
         spreadDetails: {
           legsSummary: `Sell ${soldCallStrike} CE + Buy ${hedgeCallStrike} CE`,
@@ -3442,9 +3442,9 @@ export class ConfluenceEngine {
         },
         strategyTag: 'Neutral Straddle/Strangle Decay Corridor',
         explanations: {
-          beginner: `Double Theta Harvester: The market is in a sideways range. You sell both sides (Put at ${soldPut}, Call at ${soldCall}) with outer safety hedges. You collect ₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per lot immediately. As long as ${symbol} stays in the corridor (${soldPut} to ${soldCall}), you retain the entire cash. High 83% win rate.`,
-          intermediate: `Iron Condor: Short ${soldPut} PE / ${soldCall} CE + Long ${hedgePut} PE / ${hedgeCall} CE. Max credit: ₹${netCreditPts.toFixed(2)} pts. Breakevens: ₹${(soldPut - 24).toFixed(1)} and ₹${(soldCall + 24).toFixed(1)}. Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
-          expert: `Delta Neutral (|Δ| < 0.05), Gamma: -0.012, Daily Theta: +₹${Math.round(netCreditPts * 0.12 * instrumentLot * 6.25)}/day. Premium harvest inside 2σ boundary.`
+          beginner: `🛡️ SYSTEM SELLER STRATEGY: Iron Condor Corridor | Sell ${soldPut} PE & ${soldCall} CE + Buy ${hedgePut} PE & ${hedgeCall} CE | Instant Credit: ₹${netCreditPerLot.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/lot | Win Rate: 83% | Rule: Profit retained if ${symbol} stays between ${soldPut} and ${soldCall}.`,
+          intermediate: `⚡ SYSTEM DIRECTIVE: Iron Condor (${soldPut} PE / ${soldCall} CE & Hedges) | Net Credit: ₹${netCreditPts.toFixed(2)} pts | Breakevens: ₹${(soldPut - 24).toFixed(1)} & ₹${(soldCall + 24).toFixed(1)} | Margin: ₹${estimatedMarginRupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+          expert: `📊 SYSTEM QUANT METRICS: Delta Neutral (|Δ| < 0.05) | Gamma: -0.012 | Daily Theta: +₹${Math.round(netCreditPts * 0.12 * instrumentLot * 6.25)}/day | Harvest corridor: 2σ boundary.`
         },
         spreadDetails: {
           legsSummary: `Sell ${soldPut} PE & ${soldCall} CE + Buy ${hedgePut} PE & ${hedgeCall} CE`,
@@ -3601,7 +3601,7 @@ export class ConfluenceEngine {
         bookedTimeFormatted: spreadMilestones.bookedTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-        carryForwardSuggestion: 'Hedged Spread Overnight Hold: Fully defined risk spread. Both legs hold overnight for Theta decay harvest — but both legs MUST be closed by expiry; options do NOT auto-roll.',
+        carryForwardSuggestion: '🛡️ SYSTEM SPREAD DIRECTIVE: Hedged overnight hold permitted | Defined risk profile | Rule: Both legs must be closed before expiry.',
         isCarriedForward: spreadStatus === 'CARRIED_FORWARD',
         entryPrice,
         entryRange: `Net Debit ₹${entryPrice.toFixed(2)} pts`,
@@ -3641,9 +3641,9 @@ export class ConfluenceEngine {
           marginSavingsPct: 72
         },
         explanations: {
-          beginner: `100% Capital-Protected Trade for peaceful trading. Buy ${buyStrike} ${optType} and Sell ${sellStrike} ${optType} together. Your maximum risk is strictly locked at ₹${maxLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} and maximum profit potential is ₹${maxProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Risk:Reward ${riskRewardStr}). Zero fear of sudden crashes.`,
-          intermediate: `${stratName} (Long ${buyStrike} / Short ${sellStrike}). 72% margin reduction with complete immunity to sudden IV crush and slow theta decay. Breakeven at ₹${breakeven.toFixed(2)}. High 78% win probability.`,
-          expert: `Net Delta: ${isSpreadBull ? '+0.25' : '-0.25'}, Daily Theta: -1.2 pts, Vega: 0.15. Defined-risk asymmetric payoff with exchange margin benefit.`
+          beginner: `🛡️ SYSTEM CAPITAL-PROTECTED STRATEGY: Directional Spread | Buy ${buyStrike} ${optType} + Sell ${sellStrike} ${optType} | Max Risk Capped: ₹${maxLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Max Profit: ₹${maxProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | R:R: ${riskRewardStr} | Rule: Zero crash risk; strict defined payoff.`,
+          intermediate: `⚡ SYSTEM DIRECTIVE: ${stratName} (Long ${buyStrike} / Short ${sellStrike}) | Margin Discount: 72% | Breakeven: ₹${breakeven.toFixed(2)} | Win Probability: 78% | Immunity: Protected against IV crush & adverse theta.`,
+          expert: `📊 SYSTEM QUANT METRICS: Net Delta: ${isSpreadBull ? '+0.25' : '-0.25'} | Daily Theta: -1.2 pts | Vega: 0.15 | Asymmetric risk-defined payoff with exchange margin benefit.`
         }
       };
     }
@@ -3735,7 +3735,7 @@ export class ConfluenceEngine {
         bookedTimeFormatted: gammaMilestones.bookedTimeFormatted,
         carryForwardTime,
         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-        carryForwardSuggestion: '0DTE Expiry Warning: All same-day expiry options expired at 03:30 PM. Never carry 0DTE options overnight.',
+        carryForwardSuggestion: '🛑 SYSTEM DIRECTIVE: 0DTE Expiry Warning | Action: Close by 03:25 PM | Rule: Expiring contracts settle at ₹0.00; never carry overnight.',
         isCarriedForward: gammaStatus === 'CARRIED_FORWARD',
         entryPrice,
         entryRange: `₹${entryPrice.toFixed(2)}`,
@@ -3771,9 +3771,9 @@ export class ConfluenceEngine {
           multiplierTarget: '3.5x to 5.0x Multiplier'
         },
         explanations: {
-          beginner: `High-Profit 0DTE Special Trade. Small capital risk (₹${topHz.ltp.toFixed(1)} per share). Aim for 3x–5x multiplier. Risk is small, potential gain is very high.`,
-          intermediate: `Massive 0DTE Gamma Squeeze triggered. Writers capitulation detected. Low stoploss at ₹${topHz.stoploss.toFixed(1)}. Target 1 at ₹${topHz.target3x.toFixed(1)} (3x), Target 2 at ₹${topHz.target5x.toFixed(1)} (5x).`,
-          expert: `Gamma Score: ${topHz.gammaScore}, Gamma Value: ${topHz.gamma}. Volume velocity ${topHz.volumeVelocity}x baseline. 1-Min Delta OI: ${topHz.oiChange1m}. Instant delta explosion in progress.`
+          beginner: `⚡ SYSTEM HIGH-ALPHA DIRECTIVE: 0DTE Gamma Sniper | Contract: ${topHz.contractSymbol} | Entry: ₹${topHz.ltp.toFixed(1)} | Target: 3x–5x Multiplier | Stoploss: ₹${topHz.stoploss.toFixed(1)} | Rule: High reward with controlled risk.`,
+          intermediate: `🎯 SYSTEM DIRECTIVE: 0DTE Gamma Squeeze | Low Stoploss: ₹${topHz.stoploss.toFixed(1)} | Target 1 (3x): ₹${topHz.target3x.toFixed(1)} | Target 2 (5x): ₹${topHz.target5x.toFixed(1)} | Trigger: Institutional short-squeeze confirmed.`,
+          expert: `📊 SYSTEM QUANT METRICS: Gamma Score: ${topHz.gammaScore} | Gamma: ${topHz.gamma} | Volume Velocity: ${topHz.volumeVelocity}x | 1-Min Delta OI: ${topHz.oiChange1m} | Status: Gamma explosion active.`
         }
       };
     } else {
@@ -3813,9 +3813,9 @@ export class ConfluenceEngine {
         },
         strategyTag: 'Awaiting 0DTE Expiry / Squeeze Threshold',
         explanations: {
-          beginner: 'STANDBY: Gamma conditions below threshold. Capital safely preserved until true institutional short-squeeze appears.',
-          intermediate: 'STANDBY: 0DTE Gamma velocity normal. Avoid gambling on low-gamma strikes during range consolidation.',
-          expert: 'STANDBY: Gamma score < 80. Realized volatility skew does not justify naked OTM gamma exposure.'
+          beginner: '⏸️ SYSTEM ADVISORY: STANDBY | Status: Gamma conditions below threshold | Action: Preserve capital until institutional squeeze triggers.',
+          intermediate: '⏸️ SYSTEM DIRECTIVE: STANDBY | 0DTE Gamma velocity normal | Action: Avoid naked OTM gamma exposure during consolidation.',
+          expert: '⏸️ SYSTEM QUANT STATUS: Gamma score < 80 | Realized volatility does not justify OTM gamma exposure | Status: Idle.'
         }
       };
     }

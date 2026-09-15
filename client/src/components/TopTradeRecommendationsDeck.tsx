@@ -438,12 +438,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       // 4. Carry forward suggestion & time
       let suggestion = rawItem.carryForwardSuggestion || rawItem.rawTip?.carryForwardSuggestion;
       if (isContractExpired) {
-        suggestion = 'CONTRACT EXPIRED — SEBI Rules: (1) This option expired at 03:30 PM and settled at ₹0.00. There is NO automatic rollover. (2) To continue the trade, you must manually open a fresh contract in the NEXT EXPIRY separately.';
+        suggestion = '🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Status: Settled at ₹0.00 | Action: Square off record. Do NOT hold. Open fresh position in Next Expiry if continuing.';
       } else if (!suggestion) {
         if (isSeller) {
-          suggestion = 'Option Seller Overnight Hold: Theta decay works in your favour if OTM decay buffer >65%. You may hold overnight — but options expire at expiry day; settlement is automatic. Close before 03:25 PM if underlying is within 0.4% of sold strike.';
+          suggestion = '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour | Rule: Maintain defined hedge; close before 03:25 PM if spot approaches sold strike.';
         } else {
-          suggestion = 'Intraday Recommendation: Book 50% profits near T1/T2. Options CANNOT be carried overnight (SEBI rules) — avoid holding naked long options; overnight Theta decay will erode premium rapidly.';
+          suggestion = '🎯 SYSTEM BUYER DIRECTIVE: INTRADAY ONLY | Action: Book 50% on T1/T2, trail SL to cost | Rule: Close by 03:25 PM; avoid overnight theta decay.';
         }
       }
 
@@ -2447,11 +2447,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               </div>
               <p className="text-[11px] text-slate-700 dark:text-slate-300 mt-0.5">
                 {directionalBias === 'BULLISH' ? (
-                  <><strong>Which side to take?</strong> Option Buyers should take <strong>CALL (CE)</strong> setups (ATM, ITM, Momentum). Put buying is counter-trend and filtered out to prevent conflicting signals.</>
+                  <><strong>🎯 SYSTEM DIRECTIVE:</strong> BUY CALL (CE) ONLY | Focus: ATM/ITM Momentum on dips | Put Buying: Counter-trend (Filtered)</>
                 ) : directionalBias === 'BEARISH' ? (
-                  <><strong>Which side to take?</strong> Option Buyers should take <strong>PUT (PE)</strong> setups (ATM, ITM, Breakdown). Call buying is counter-trend and filtered out to prevent conflicting signals.</>
+                  <><strong>🎯 SYSTEM DIRECTIVE:</strong> BUY PUT (PE) ONLY | Focus: ATM/ITM Breakdown triggers | Call Buying: Counter-trend (Filtered)</>
                 ) : (
-                  <><strong>Which side to take?</strong> Market is rangebound with high theta decay risk. Option Buyers should stand aside or wait for breakout. Option Sellers should trade defined-risk credit spreads.</>
+                  <><strong>⏸️ SYSTEM DIRECTIVE:</strong> STAND ASIDE ON NAKED OPTIONS | Rangebound consolidation | Sellers: Deploy Defined Credit Spreads</>
                 )}
               </p>
             </div>

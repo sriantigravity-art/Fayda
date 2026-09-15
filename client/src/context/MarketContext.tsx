@@ -227,9 +227,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           },
           strategyTag: 'Institutional Call Covering & Bullish Pivot',
           explanations: {
-            beginner: 'High Probability CALL: Buy 1 Lot of 24200 CE near ₹124.50. SL ₹102.00. T1 ₹159.00.',
-            intermediate: 'Confluence 92%: Heavy Call covering with positive 1-min delta order flow.',
-            expert: 'Delta +0.52, Gamma 0.045, R:R 1:2.5 supported by institutional VWAP anchor.'
+            beginner: '🎯 SYSTEM ADVISORY: BUY 24200 CE | Entry: Near ₹124.50 | Target 1: ₹159.00 | Stoploss: ₹102.00.',
+            intermediate: '⚡ SYSTEM DIRECTIVE: Confluence 92% | Heavy Call short-covering with positive 1-min delta order flow.',
+            expert: '📊 SYSTEM QUANT METRICS: Delta +0.52 | Gamma 0.045 | R:R 1:2.5 supported by institutional VWAP anchor.'
           }
         }
       });

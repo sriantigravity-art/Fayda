@@ -107,8 +107,8 @@ export const TradeGuidanceCard: React.FC = () => {
       theta: typeof rawTheta === 'number' && !isNaN(rawTheta) ? rawTheta : -8.5,
       actionTitle: isBull ? `Call Wall Resistance: ${targetStrikePrice} CE` : `Put Floor Support: ${targetStrikePrice} PE`,
       actionDescription: isBull
-        ? `Major resistance at ${targetStrikePrice} with ${r1 ? r1.oiFormatted : 'heavy'} Calls. Upside target on breakout above ₹${cleanLtp.toFixed(2)}.`
-        : `Strong institutional support floor at ${targetStrikePrice} with ${s1 ? s1.oiFormatted : 'heavy'} Puts. Downside trigger on breakdown below ₹${cleanLtp.toFixed(2)}.`
+        ? `🎯 SYSTEM ADVISORY: Call Wall Resistance at ${targetStrikePrice} (${r1 ? r1.oiFormatted : 'heavy'} OI) | Action: Enter Call on breakout above ₹${cleanLtp.toFixed(2)}.`
+        : `🎯 SYSTEM ADVISORY: Put Floor Support at ${targetStrikePrice} (${s1 ? s1.oiFormatted : 'heavy'} OI) | Action: Enter Put on breakdown below ₹${cleanLtp.toFixed(2)}.`
     };
   };
 

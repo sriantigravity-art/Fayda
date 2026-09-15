@@ -69,8 +69,8 @@ export class GammaEngine {
 
         const oiChgFmt = `${(strikeData.callOIChange1m / 1000).toFixed(1)}k`;
         const rationale = isShortCovering
-          ? `Aggressive Call writers unwinding at ${strike} CE (${oiChgFmt} OI). High short-covering squeeze multiplier.`
-          : `Extreme 0DTE Gamma acceleration. Requires only +${requiredSpotMovePts} pts upside in ${symbol} for 3.5x payoff.`;
+          ? `⚡ SYSTEM DIRECTIVE: Short-Covering Squeeze | Unwinding at ${strike} CE (${oiChgFmt} OI) | Action: High multiplier runner.`
+          : `⚡ SYSTEM DIRECTIVE: 0DTE Gamma Acceleration | Need +${requiredSpotMovePts} pts spot move | Payoff Target: 3.5x.`;
 
         const entryLow = Math.max(1, +(callLtp * 0.90).toFixed(1));
         const entryHigh = +(callLtp * 1.04).toFixed(1);
@@ -143,8 +143,8 @@ export class GammaEngine {
 
         const oiChgFmt = `${(strikeData.putOIChange1m / 1000).toFixed(1)}k`;
         const rationale = isShortCovering
-          ? `Aggressive Put writers capitulating at ${strike} PE (${oiChgFmt} OI). High downside breakout momentum.`
-          : `Extreme 0DTE Gamma acceleration. Requires only -${requiredSpotMovePts} pts downside in ${symbol} for 3.5x payoff.`;
+          ? `⚡ SYSTEM DIRECTIVE: Long Liquidation Breakdown | Capitulation at ${strike} PE (${oiChgFmt} OI) | Action: High multiplier runner.`
+          : `⚡ SYSTEM DIRECTIVE: 0DTE Gamma Acceleration | Need -${requiredSpotMovePts} pts spot drop | Payoff Target: 3.5x.`;
 
         const putEntryLow = Math.max(1, +(putLtp * 0.90).toFixed(1));
         const putEntryHigh = +(putLtp * 1.04).toFixed(1);

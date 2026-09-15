@@ -79,7 +79,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
     let badgeColor = 'bg-cyan-500/20 text-cyan-700 dark:text-accent-cyan border-cyan-500/40';
     let actionDirective = 'HOLD / ENTER DIP';
     let actionClass = 'bg-cyan-500 text-slate-950';
-    let primaryInstruction = `LTP ₹${currentLtp.toFixed(1)} is in the entry zone. Keep initial Stop Loss at ₹${stoplossPrice.toFixed(1)}.`;
+    let primaryInstruction = `🎯 SYSTEM ADVISORY: In Entry Zone (LTP ₹${currentLtp.toFixed(1)}) | Action: Enter on dip | Stoploss: ₹${stoplossPrice.toFixed(1)}.`;
     let recommendedSl = stoplossPrice;
 
     if (isExpired) {
@@ -88,7 +88,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/40';
       actionDirective = 'EXPIRED (0.00) — DO NOT HOLD';
       actionClass = 'bg-rose-700 text-white font-black';
-      primaryInstruction = 'Contract expired at 03:30 PM on expiry day and settled at ₹0.00. Do NOT hold or enter expired contracts. Roll over to next weekly expiry.';
+      primaryInstruction = '🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Settled at ₹0.00 | Action: Liquidate/archive record. Do NOT hold expired contracts.';
       recommendedSl = 0;
     } else if (currentLtp <= stoplossPrice) {
       stage = 'STOPLOSS_HIT';
@@ -96,7 +96,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/40';
       actionDirective = 'CUT POSITION NOW';
       actionClass = 'bg-rose-600 text-white animate-pulse';
-      primaryInstruction = `Technical SL breached at ₹${stoplossPrice.toFixed(1)}. Strict Discipline Directive: Exit without hesitation to preserve 90% capital.`;
+      primaryInstruction = `🛑 SYSTEM DIRECTIVE: Stoploss Breached (₹${stoplossPrice.toFixed(1)}) | Action: Exit position now to preserve capital.`;
       recommendedSl = stoplossPrice;
     } else if (target2Price && currentLtp >= target2Price) {
       stage = 'TARGET_2_HIT';
@@ -104,7 +104,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40';
       actionDirective = 'LOCK COMPLETE PROFIT';
       actionClass = 'bg-emerald-600 text-white';
-      primaryInstruction = `Target 2 (₹${target2Price.toFixed(1)}) achieved! Full strategy win. Book remaining runners or trail SL to ₹${target1Price.toFixed(1)}.`;
+      primaryInstruction = `🚀 SYSTEM DIRECTIVE: Target 2 Achieved (₹${target2Price.toFixed(1)}) | Action: Book remaining profits or trail SL to ₹${target1Price.toFixed(1)}.`;
       recommendedSl = target1Price;
     } else if (currentLtp >= target1Price) {
       stage = 'TARGET_1_HIT';
@@ -112,7 +112,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40';
       actionDirective = 'BOOK 50% & TRAIL SL TO COST';
       actionClass = 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30';
-      primaryInstruction = `Target 1 (₹${target1Price.toFixed(1)}) achieved! Golden Rule: Book 50% to 70% profit immediately and trail SL to ₹${entryPrice.toFixed(1)} (Cost). Remaining runners are now 100% RISK-FREE.`;
+      primaryInstruction = `🏆 SYSTEM DIRECTIVE: Target 1 Achieved (₹${target1Price.toFixed(1)}) | Action: Book 50%–70% profit now | Rule: Trail SL to cost (₹${entryPrice.toFixed(1)}) for risk-free runner.`;
       recommendedSl = entryPrice;
     } else if (targetDistanceCovered >= 0.5) {
       stage = 'HALF_TARGET_TRAIL';
@@ -120,7 +120,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-amber-500/20 text-amber-700 dark:text-accent-gold border-amber-500/40';
       actionDirective = 'TIGHTEN SL TO BREAKEVEN';
       actionClass = 'bg-amber-500 text-slate-950 font-bold';
-      primaryInstruction = `Price has covered >50% distance to Target 1. Trailing Directive: Move SL up from ₹${stoplossPrice.toFixed(1)} to ₹${(entryPrice * 1.02).toFixed(1)} to guarantee zero capital loss.`;
+      primaryInstruction = `⚡ SYSTEM DIRECTIVE: +50% Advance to Target 1 | Action: Trail SL to breakeven ₹${(entryPrice * 1.02).toFixed(1)} to eliminate capital risk.`;
       recommendedSl = +(entryPrice * 1.02).toFixed(1);
     } else if (pnlPct > 5) {
       stage = 'IN_PROFIT';
@@ -128,7 +128,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeColor = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
       actionDirective = 'RIDE MOMENTUM';
       actionClass = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40';
-      primaryInstruction = `Trade moving favorably. Maintain initial Stop Loss at ₹${stoplossPrice.toFixed(1)}. Do not add fresh size at high price.`;
+      primaryInstruction = `🟢 SYSTEM ADVISORY: Trade In Profit (+${pnlPct}%) | Action: Maintain trailing SL at ₹${stoplossPrice.toFixed(1)} | Rule: Do not add size at high price.`;
       recommendedSl = stoplossPrice;
     }
 
@@ -141,15 +141,15 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
     let isExpiryUrgent = false;
 
     if (currentMinutesOfDay >= 15 * 60 + 15) {
-      sessionNote = '⏰ Intraday Auto Square-Off Window: Market closing soon. Close open intraday buyer options to prevent expiry decay.';
+      sessionNote = '⏰ SYSTEM SESSION NOTICE: Intraday Auto Square-Off Window | Action: Close buyer positions before 03:25 PM to avoid zero settlement.';
       isExpiryUrgent = true;
     } else if (currentMinutesOfDay >= 14 * 60 + 45) {
-      sessionNote = '⚠️ Power Hour Volatility: High gamma squeeze and theta decay window. Lock trailing profits tightly.';
+      sessionNote = '⚠️ SYSTEM SESSION NOTICE: Power Hour Volatility | Action: Lock trailing profits tight; protect against late gamma swings.';
       isExpiryUrgent = true;
     } else if (currentMinutesOfDay >= 11 * 60 + 30 && currentMinutesOfDay <= 13 * 60 + 30) {
-      sessionNote = '⏳ Mid-Day Theta Consolidation: Option buyer premium decay accelerates during mid-day range.';
+      sessionNote = '⏳ SYSTEM SESSION NOTICE: Mid-Day Theta Consolidation | Status: Rangebound decay active; avoid overtrading.';
     } else if (currentMinutesOfDay < 10 * 60) {
-      sessionNote = '🌅 Morning Breakout Session: Institutional opening orders dominating. Respect initial SL volatility buffer.';
+      sessionNote = '🌅 SYSTEM SESSION NOTICE: Morning Breakout Session | Status: High institutional opening momentum; maintain strict stoploss buffer.';
     }
 
     return {

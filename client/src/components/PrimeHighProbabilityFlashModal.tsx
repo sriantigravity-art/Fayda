@@ -236,7 +236,7 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
 
           {/* Explanation Snippet */}
           <div className="bg-slate-100/90 dark:bg-slate-900/60 border border-slate-200 dark:border-terminal-border/60 rounded-xl p-3 text-xs leading-relaxed text-slate-800 dark:text-terminal-muted shadow-xs">
-            <span className="text-amber-800 dark:text-accent-gold font-bold">Why this setup: </span>
+            <span className="text-amber-800 dark:text-accent-gold font-bold">🎯 System Directive: </span>
             {tip.explanations.intermediate || tip.explanations.beginner}
           </div>
         </div>

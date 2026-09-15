@@ -98,9 +98,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     status: 'ACTIVE',
     strategyTag: 'Bullish Momentum Breakout',
     explanations: {
-      beginner: 'Bullish intraday momentum breakout confirmed by volume surge. Clear upside profit targets with strict stop loss.',
-      intermediate: 'Momentum expansion above CPR pivot with positive call OI accumulation and steady delta flow.',
-      expert: 'Positive delta expansion above VWAP with aggressive call buyer volume absorption and high delta velocity.'
+      beginner: '🎯 SYSTEM ADVISORY: BUY CALL (CE) | Bullish momentum breakout confirmed | Action: Enter on dip | Strict SL active.',
+      intermediate: '⚡ SYSTEM DIRECTIVE: Bullish Expansion above CPR Pivot | Action: Accumulate CE | Confluence confirmed by call OI covering.',
+      expert: '📊 SYSTEM QUANT DATA: Positive delta expansion above VWAP | Flow: Aggressive institutional buyer absorption | High delta velocity.'
     }
   } as any : null);
 
@@ -130,9 +130,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     status: 'ACTIVE',
     strategyTag: 'Bearish Pullback Reversal',
     explanations: {
-      beginner: 'Bearish rejection near resistance roof. Defined stop loss protects your principal capital.',
-      intermediate: 'Resistance rejection below VWAP with rising put buyer participation and negative delta flow.',
-      expert: 'Short-gamma acceleration below key liquidity pool with negative delta order flow and put volume expansion.'
+      beginner: '🎯 SYSTEM ADVISORY: BUY PUT (PE) | Bearish rejection at resistance roof | Action: Enter on pullback | Strict SL active.',
+      intermediate: '⚡ SYSTEM DIRECTIVE: Resistance Rejection below VWAP | Action: Accumulate PE | Put buyer volume expansion confirmed.',
+      expert: '📊 SYSTEM QUANT DATA: Short-gamma acceleration below liquidity pool | Flow: Negative delta order flow | Put volume surge.'
     }
   } as any : null);
 
@@ -168,9 +168,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       popPct: 84
     },
     explanations: {
-      beginner: 'Sell deep out-of-the-money put option with safety buffer. Retain 80%+ premium as time passes.',
-      intermediate: 'Bull Put spread anchored below major OI put support. Delta hedged with defined risk wing.',
-      expert: 'Standard deviation credit structure capitalizing on positive theta velocity outside 1.5 sigma corridor.'
+      beginner: '🛡️ SYSTEM SELLER STRATEGY: Bull Put Credit Spread | Action: Sell OTM Put + Buy Hedge | Retain 80%+ premium via theta decay.',
+      intermediate: '⚡ SYSTEM DIRECTIVE: Bull Put Spread anchored below OI support | Delta-hedged with defined safety wing.',
+      expert: '📊 SYSTEM QUANT DATA: Credit structure outside 1.5σ corridor | Positive theta velocity active.'
     }
   } as any : null);
 
@@ -206,9 +206,9 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       popPct: 83
     },
     explanations: {
-      beginner: 'Sell higher strike call with protection wing. Call resistance roof keeps premium pinned down.',
-      intermediate: 'Bear Call credit spread placed above call open interest ceiling with high probability of decay.',
-      expert: 'Short-gamma resistance fence above 1.5 sigma. High decay velocity with capped tail risk.'
+      beginner: '🛡️ SYSTEM SELLER STRATEGY: Bear Call Credit Spread | Action: Sell OTM Call + Buy Hedge | Call resistance roof locks premium.',
+      intermediate: '⚡ SYSTEM DIRECTIVE: Bear Call Spread placed above OI ceiling | High probability of theta decay.',
+      expert: '📊 SYSTEM QUANT DATA: Short-gamma resistance fence above 1.5σ | High decay velocity with capped tail risk.'
     }
   } as any : null);
 
@@ -1202,7 +1202,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       ? (topSellerPutTrade.explanations?.expert || topSellerPutTrade.explanations?.intermediate || topSellerPutTrade.explanations?.beginner)
                       : isIntermediate 
                       ? (topSellerPutTrade.explanations?.intermediate || topSellerPutTrade.explanations?.beginner)
-                      : (topSellerPutTrade.explanations?.beginner || 'As an option seller, you pocket net premium upfront. As long as the market stays above the short strike, you keep 100% of the credit as pure profit.')}
+                      : (topSellerPutTrade.explanations?.beginner || '🛡️ SYSTEM SELLER STRATEGY: Bull Put Spread | Pocket net premium upfront | Rule: 100% credit retained if spot stays above short strike.')}
                   </p>
 
                   {/* 10-Indicator Confluence Checklist Toggle */}
@@ -1339,7 +1339,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       ? (topSellerCallTrade.explanations?.expert || topSellerCallTrade.explanations?.intermediate || topSellerCallTrade.explanations?.beginner)
                       : isIntermediate 
                       ? (topSellerCallTrade.explanations?.intermediate || topSellerCallTrade.explanations?.beginner)
-                      : (topSellerCallTrade.explanations?.beginner || 'Sell higher strike call and buy protection wing. Favorable call OI resistance roof holds premium down as clock ticks.')}
+                      : (topSellerCallTrade.explanations?.beginner || '🛡️ SYSTEM SELLER STRATEGY: Bear Call Spread | Sell OTM call + buy hedge | Rule: Call OI resistance roof holds premium down.')}
                   </p>
 
                   {/* 10-Indicator Confluence Checklist Toggle */}
@@ -1476,7 +1476,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       ? (topSellerNeutralTrade.explanations?.expert || topSellerNeutralTrade.explanations?.intermediate || topSellerNeutralTrade.explanations?.beginner)
                       : isIntermediate 
                       ? (topSellerNeutralTrade.explanations?.intermediate || topSellerNeutralTrade.explanations?.beginner)
-                      : (topSellerNeutralTrade.explanations?.beginner || 'Market is range-bound between support and resistance. Pocket double premium from both calls and puts while staying protected.')}
+                      : (topSellerNeutralTrade.explanations?.beginner || '🛡️ SYSTEM SELLER STRATEGY: Iron Condor Corridor | Rangebound market | Rule: Pocket double premium inside support and resistance corridor.')}
                   </p>
 
                   {/* 10-Indicator Confluence Checklist Toggle */}
