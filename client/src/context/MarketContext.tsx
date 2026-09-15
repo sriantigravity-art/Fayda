@@ -128,6 +128,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [strikeRange, setStrikeRange] = useState<number>(200);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const isMutedRef = useRef<boolean>(isMuted);
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
   const [dataSource, setDataSourceState] = useState<DataSourceMode>('FYERS_LIVE');
   const [fyersConfig, setFyersConfig] = useState<FyersConfig>({
     appId: '',
@@ -509,7 +513,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('[WS] Connected to Live OI & Flash News Engine');
       setIsConnected(true);
       try {
-        ws.send(JSON.stringify({ type: 'SET_ACTIVE_SYMBOL', symbol: selectedIndex }));
+        ws.send(JSON.stringify({ type: 'SET_ACTIVE_SYMBOL', symbol: selectedIndexRef.current }));
       } catch {}
     };
 
@@ -842,7 +846,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
 
                   setLatestLifecycleFlash(flashEvent);
-                  if (!isMuted) soundManager.playTargetHitAlert();
+                  if (!isMutedRef.current) soundManager.playTargetHitAlert();
                   return;
                 }
               }
@@ -893,7 +897,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     };
 
                     setLatestLifecycleFlash(flashEvent);
-                    if (!isMuted) soundManager.playExtremeAlert();
+                    if (!isMutedRef.current) soundManager.playExtremeAlert();
                     return;
                   }
                 }
@@ -942,7 +946,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
 
                   setLatestLifecycleFlash(flashEvent);
-                  if (!isMuted) soundManager.playStrongAlert();
+                  if (!isMutedRef.current) soundManager.playStrongAlert();
                   return;
                 }
               }
@@ -1092,7 +1096,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (msg.newsItem) {
             setNewsList((prev) => [msg.newsItem, ...prev.filter(n => n.id !== msg.newsItem.id)].slice(0, 50));
             setLatestFlashNews(msg.newsItem);
-            if (!isMuted) {
+            if (!isMutedRef.current) {
               soundManager.playStrongAlert();
             }
           }
@@ -1130,12 +1134,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     ws.onerror = () => {
-      // Browsers fire generic Error events on WS closing; handled seamlessly by onclose reconnect
+      // Browsers fire generic Error events on WS closing; avoid calling ws.close() while still CONNECTING
       try {
-        ws.close();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
       } catch {}
     };
-  }, [isMuted]);
+  }, []);
 
   useEffect(() => {
     connectWs();
@@ -1201,7 +1207,14 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('online', handleResume);
       clearInterval(pollInterval);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (wsRef.current) wsRef.current.close();
+      if (wsRef.current) {
+        const ws = wsRef.current;
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          ws.onopen = () => { try { ws.close(); } catch {} };
+        }
+      }
     };
   }, [connectWs]);
 

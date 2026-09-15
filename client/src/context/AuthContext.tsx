@@ -292,6 +292,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resp = await fetch(`${getApiBase()}/api/subscriptions/my-subscription`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (resp.status === 401 || resp.status === 404) {
+        // Token belongs to a non-existent or expired subscriber account — purge stale session
+        console.warn('[AuthContext] Session invalid or subscriber account not found. Purging stale token.');
+        localStorage.removeItem('fayda_jwt');
+        localStorage.removeItem('fayda_auth_user');
+        setJwtToken(null);
+        setUser(null);
+        return;
+      }
+      if (!resp.ok) return;
       const data = await resp.json();
       if (data.success && data.subscriber) {
         const sub = data.subscriber;
@@ -314,7 +324,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // silently ignore background sync failure
     }
-  }, []);
+  }, [setJwtToken]);
 
   useEffect(() => {
     if (jwtToken) {

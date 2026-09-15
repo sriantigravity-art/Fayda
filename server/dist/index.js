@@ -1043,9 +1043,9 @@ app.post('/api/subscriptions/upgrade-renew', async (req, res) => {
 app.get('/api/subscriptions/my-subscription', requireAuth, (req, res) => {
     try {
         const payload = req.authPayload;
-        const sub = subscriberService.getById(payload.subscriberId);
+        const sub = subscriberService.getById(payload.subscriberId) || subscriberService.findByIdOrContact(payload.subscriberId);
         if (!sub)
-            return res.status(404).json({ success: false, error: 'Subscriber not found.' });
+            return res.status(401).json({ success: false, error: 'Subscriber account not found or session expired.' });
         const plan = subscriptionPlanService.getPlanById(sub.plan);
         const history = subscriptionHistoryService.getBySubscriberId(sub.id);
         const daysRemaining = sub.planExpiry ? Math.max(0, Math.ceil((new Date(sub.planExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
