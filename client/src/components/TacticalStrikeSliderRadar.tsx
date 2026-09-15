@@ -180,14 +180,13 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
     }
   }, [currentStrikeItem?.strikePrice, strikeOffset, selectedIndex]);
 
-  if (!currentIndexState || strikeWindow.length === 0 || !currentStrikeItem) return null;
-
-  const { spotPrice, change, pctChange, atmStrike, strikeStep, lotSize, strikes, technicalIndicators } = currentIndexState;
-  const isPositive = change >= 0;
-  const strikeData = currentStrikeItem.data;
-
   // Fallback and deep-merged technical indicators to guarantee zero runtime crashes
   const ti: TechnicalIndicatorsData = useMemo(() => {
+    const spotPrice = currentIndexState?.spotPrice ?? 0;
+    const change = currentIndexState?.change ?? 0;
+    const isPositive = change >= 0;
+    const atmStrike = currentIndexState?.atmStrike ?? 24000;
+    const technicalIndicators = currentIndexState?.technicalIndicators;
     const rawPcr = currentIndexState?.pcr;
     const pcrVal = (rawPcr as any)?.overall ?? (rawPcr as any)?.value ?? rawPcr?.overallPcr ?? 1.0;
     const pcrSentiment = (rawPcr as any)?.sentiment || (pcrVal >= 1.0 ? 'BULLISH' : 'BEARISH');
@@ -297,7 +296,13 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
       },
       fiiDiiFlow: { ...baseTi.fiiDiiFlow, ...(technicalIndicators.fiiDiiFlow || {}) }
     };
-  }, [currentIndexState, selectedIndex, spotPrice, atmStrike, isPositive, technicalIndicators]);
+  }, [currentIndexState, selectedIndex]);
+
+  if (!currentIndexState || strikeWindow.length === 0 || !currentStrikeItem) return null;
+
+  const { spotPrice, change, pctChange, atmStrike, strikeStep, lotSize, strikes } = currentIndexState;
+  const isPositive = change >= 0;
+  const strikeData = currentStrikeItem.data;
 
   const handlePrevStrike = () => {
     if (strikeOffset > -3) setStrikeOffset(prev => prev - 1);
