@@ -535,7 +535,10 @@ class SubscriberService {
     }
 
     const startDate = getIST();
-    const expiryDate = plan.id === 'FREE' ? computeExpiryDate(startDate, 'ANNUAL') : computeExpiryDate(startDate, cycle);
+    // 2 Months (60 days) full access for Free Beta plan
+    const expiryDate = plan.id === 'FREE' 
+      ? new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+      : computeExpiryDate(startDate, cycle);
 
     if (!subscriber) {
       isNewUser = true;

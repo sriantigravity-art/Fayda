@@ -501,75 +501,72 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {(['FREE', 'SILVER', 'GOLD', 'DIAMOND'] as const).map(planKey => {
                 const plan = plans.find(p => p.id === planKey) || currentPlan;
-                const pricing = plan.pricing?.[billingCycle] || { price: 0, discountPct: 0 };
                 const isSelected = selectedPlanId === planKey;
                 const isUserCurrent = user?.plan === planKey;
 
                 return (
                   <div
                     key={planKey}
-                    onClick={() => setSelectedPlanId(planKey)}
-                    className={`relative cursor-pointer rounded-xl p-4 transition-all duration-200 flex flex-col justify-between border ${
-                      isSelected
+                    onClick={() => {
+                      if (planKey === 'FREE') setSelectedPlanId('FREE');
+                    }}
+                    className={`relative rounded-xl p-4 transition-all duration-200 flex flex-col justify-between border ${
+                      planKey === 'FREE'
                         ? isDark
-                          ? 'bg-gradient-to-b from-slate-900 via-[#101b33] to-slate-900 border-cyan-400 shadow-xl shadow-cyan-500/10 ring-2 ring-cyan-400/30'
-                          : 'bg-blue-50/60 border-blue-500 shadow-lg shadow-blue-100 ring-2 ring-blue-500/25'
+                          ? 'bg-gradient-to-b from-indigo-950/60 via-slate-900 to-slate-900 border-emerald-500/70 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/30 cursor-pointer'
+                          : 'bg-emerald-50/50 border-emerald-500 shadow-lg shadow-emerald-100 ring-2 ring-emerald-500/30 cursor-pointer'
                         : isDark
-                        ? 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
+                        ? 'bg-slate-900/40 border-slate-800/80 opacity-90'
+                        : 'bg-slate-50/70 border-slate-200 opacity-90'
                     }`}
                   >
                     {/* Badges */}
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                         planKey === 'FREE'
-                          ? isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-black'
                           : planKey === 'SILVER'
                           ? isDark ? 'bg-slate-700 text-slate-100' : 'bg-slate-200 text-slate-800 font-semibold'
                           : planKey === 'GOLD'
                           ? isDark ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold'
                           : isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-purple-100 text-purple-900 border border-purple-300 font-semibold'
                       }`}>
-                        {planKey}
+                        {planKey === 'FREE' ? '2M FREE BETA' : planKey}
                       </span>
-                      {isUserCurrent && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                          isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
-                        }`}>
-                          CURRENT
-                        </span>
-                      )}
-                      {plan.isPopular && !isUserCurrent && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                          isDark ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
-                        }`}>
-                          POPULAR
+                      {planKey === 'FREE' && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse">
+                          ALL UNLOCKED
                         </span>
                       )}
                     </div>
 
-                    <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{plan.name || planKey}</h4>
-                    <p className={`text-[11px] mb-3 line-clamp-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{plan.tagline}</p>
+                    <h4 className={`text-base font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {planKey === 'FREE' ? 'Free Beta Member' : (plan.name || planKey)}
+                    </h4>
+                    <p className={`text-[11px] mb-3 line-clamp-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {planKey === 'FREE' ? 'All institutional facilities unlocked free for 2 months (60 days) during Beta.' : plan.tagline}
+                    </p>
 
-                    {/* Price Tag */}
+                    {/* Price Tag: Real ₹0 for FREE; Amount Hidden for Silver/Gold/Diamond in Beta */}
                     <div className={`mb-4 p-2.5 rounded-lg border ${
                       isDark ? 'bg-slate-950/70 border-slate-850' : 'bg-slate-50 border-slate-200'
                     }`}>
-                      {pricing.price === 0 ? (
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-2xl font-black ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>₹0</span>
-                          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Free forever</span>
+                      {planKey === 'FREE' ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className={`text-2xl font-black ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>₹0</span>
+                            <span className={`text-xs font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>Free for 2 Months</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">60 Days 100% Free • All Features Enabled</span>
                         </div>
                       ) : (
-                        <div>
-                          <div className="flex items-baseline gap-1">
-                            <span className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                              ₹{pricing.price.toLocaleString('en-IN')}
-                            </span>
-                            <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/{billingCycle.toLowerCase()}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400">
+                            <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>Included in 2-Month Free Beta</span>
                           </div>
-                          <div className={`text-[10px] font-medium mt-0.5 ${isDark ? 'text-cyan-400' : 'text-blue-600 font-semibold'}`}>
-                            + 18% GST • Instant Access
+                          <div className="text-[10px] font-mono text-slate-400">
+                            Pricing hidden in Beta • TBA in V1.0
                           </div>
                         </div>
                       )}
@@ -577,30 +574,37 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
 
                     {/* Feature bullets */}
                     <ul className={`space-y-1.5 mb-4 text-[11px] flex-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {(plan.features || []).slice(0, 5).map((f, i) => (
+                      {(planKey === 'FREE' ? [
+                        'All Facilities Unlocked for 2 Months (60d)',
+                        'Live NSE/BSE & MCX Option Chain with Greeks',
+                        '75%+ High Confluence Trade Setups & Tips',
+                        '0DTE Hero-Zero Option Squeeze Detection',
+                        '10 Technical Indicators Institutional Radar',
+                        'Direct Dhan & Fyers 1-Click Execution'
+                      ] : (plan.features || []).slice(0, 5)).map((f, i) => (
                         <li key={i} className="flex items-start gap-1.5">
-                          <Check className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+                          <Check className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${planKey === 'FREE' ? 'text-emerald-400' : (isDark ? 'text-cyan-400' : 'text-blue-600')}`} />
                           <span className="leading-tight">{f}</span>
                         </li>
                       ))}
                     </ul>
 
-                    {/* Radio Select Button */}
-                    <button
-                      type="button"
-                      className={`w-full py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
-                        isSelected
-                          ? isDark
-                            ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/30'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25'
-                          : isDark
-                          ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {isSelected ? <Check className="w-3.5 h-3.5" /> : null}
-                      {isSelected ? 'Selected' : 'Choose Plan'}
-                    </button>
+                    {/* Action Button: Free Module Activation for FREE; Buy Button Hidden for Others */}
+                    {planKey === 'FREE' ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlanId('FREE')}
+                        className={`w-full py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-500/25`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                        <span>Select Free 2-Month Access</span>
+                      </button>
+                    ) : (
+                      <div className="w-full py-2 rounded-lg font-bold text-[11px] font-mono flex items-center justify-center gap-1.5 bg-slate-900/80 text-slate-400 border border-slate-800 cursor-not-allowed select-none">
+                        <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span>Unlocked in 2-Month Free Beta</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -612,27 +616,24 @@ export const FastSubscriptionModal: React.FC<FastSubscriptionModalProps> = ({
             isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}>
             <div>
-              <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Selected Membership:</div>
+              <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Beta Special Membership:</div>
               <div className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <span className={isDark ? 'text-cyan-400' : 'text-blue-600 font-extrabold'}>{currentPlan.name}</span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-extrabold">Free Beta Member</span>
                 <span className={isDark ? 'text-slate-400' : 'text-slate-400'}>•</span>
-                <span>{billingCycle}</span>
+                <span>2 Months (60 Days)</span>
                 <span className={isDark ? 'text-slate-400' : 'text-slate-400'}>•</span>
-                <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700 font-extrabold'}`}>
-                  {basePrice === 0 ? 'Free Forever' : `Total ₹${totalAmount.toLocaleString('en-IN')} (incl. 18% GST)`}
+                <span className="font-bold text-emerald-500 dark:text-emerald-400">
+                  ₹0 / Free (All Facilities Included)
                 </span>
               </div>
             </div>
 
             <button
               onClick={handleProceedFromPlan}
-              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-2 transition-all transform active:scale-95 shrink-0 shadow-lg ${
-                isDark
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/25'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/30'
-              }`}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-2 transition-all transform active:scale-95 shrink-0 shadow-lg bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 cursor-pointer`}
             >
-              <span>{selectedPlanId === 'FREE' ? 'Activate Free Plan' : user ? 'Proceed to Upgrade' : 'Continue with Fast Signup'}</span>
+              <Sparkles className="w-4 h-4 text-yellow-300" />
+              <span>{user ? 'Activate 2 Months Free Full Access' : 'Continue with Free 2-Month Signup'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

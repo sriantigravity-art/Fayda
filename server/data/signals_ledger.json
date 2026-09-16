@@ -1402,7 +1402,7 @@
   {
     "id": "call_2026-09-16_MIDCPNIFTY_17675_PE_BUY_PUT",
     "date": "2026-09-16",
-    "timestamp": "2026-09-16T16:28:09.076Z",
+    "timestamp": "2026-09-16T16:47:44.861Z",
     "timeFormatted": "03:15 PM IST",
     "symbol": "MIDCPNIFTY",
     "category": "OPTIONS",
@@ -1425,9 +1425,9 @@
     "nearTargetPct": 0,
     "nearTargetDescription": "🛑 Stoploss Hit (-10.75 pts / -43%)",
     "callGivenTime": "03:15 PM IST",
-    "entryPriceTimeFormatted": "10:00 PM IST",
-    "stoplossTime": "10:02 PM IST",
-    "stoplossHitTime": "10:02 PM IST",
+    "entryPriceTimeFormatted": "10:16 PM IST",
+    "stoplossTime": "10:17 PM IST",
+    "stoplossHitTime": "10:17 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
     "exitLtp": 14.25
   }
