@@ -1,5 +1,6 @@
 import { globalIndicesService } from './globalIndicesService.js';
 import { usdInrService } from './usdInrService.js';
+import { fiiDiiService } from './fiiDiiService.js';
 export class GlobalMarketFeedService {
     currentContext;
     listeners = [];
@@ -7,6 +8,10 @@ export class GlobalMarketFeedService {
     constructor() {
         this.currentContext = this.buildContextFromLiveIndices();
         this.startLiveMonitoring();
+        fiiDiiService.on('update', () => {
+            this.currentContext = this.buildContextFromLiveIndices();
+            this.listeners.forEach(cb => cb(this.currentContext));
+        });
     }
     getGlobalContext() {
         return this.buildContextFromLiveIndices();
@@ -26,17 +31,18 @@ export class GlobalMarketFeedService {
         };
         // Live USD/INR from usdInrService
         const liveUsdInr = usdInrService.get();
-        const giftNifty = findInd('GIFT_NIFTY', 23920.00, 0.15);
-        const sp500 = findInd('SPX_500', 5880.50, 0.45);
-        const nasdaq = findInd('NASDAQ_100', 18540.20, 0.65);
-        const nikkei = findInd('NIKKEI_225', 38720.00, 0.85);
-        const hangSeng = findInd('HANG_SENG', 19680.10, -0.35);
-        const ftse = findInd('FTSE_100', 8240.20, 0.25);
-        const dax = findInd('DAX_40', 18650.00, 0.35);
-        const brentCrude = findInd('BRENT_CRUDE', 72.85, -1.25);
-        const gold = findInd('GOLD', 2685.40, 0.15);
-        const dxy = findInd('DXY_DOLLAR', 104.20, -0.18);
-        const us10y = findInd('US_10Y_YIELD', 4.18, -0.45);
+        const fiiDii = fiiDiiService.getCurrentData();
+        const giftNifty = findInd('GIFT_NIFTY', 25420.00, 0.18);
+        const sp500 = findInd('SPX_500', 5890.40, 0.25);
+        const nasdaq = findInd('NASDAQ_100', 18450.10, 0.35);
+        const nikkei = findInd('NIKKEI_225', 38200.00, -0.15);
+        const hangSeng = findInd('HANG_SENG', 19800.50, 0.45);
+        const ftse = findInd('FTSE_100', 8320.00, 0.10);
+        const dax = findInd('DAX_40', 19250.00, 0.20);
+        const brentCrude = findInd('BRENT_CRUDE', 73.80, -0.65);
+        const gold = findInd('GOLD', 2680.50, 0.30);
+        const dxy = findInd('DXY_DOLLAR', 102.40, -0.12);
+        const us10y = findInd('US_10Y_YIELD', 4.12, -0.05);
         const indicators = {
             sp500,
             nasdaq,
@@ -50,8 +56,10 @@ export class GlobalMarketFeedService {
             dxy,
             us10y,
             usdInr: { value: liveUsdInr > 0 ? liveUsdInr : 94.96, changePct: 0.05 },
-            fiiNetBuyCr: 1240,
-            diiNetBuyCr: 1850
+            fiiNetBuyCr: fiiDii.fiiNetCr,
+            diiNetBuyCr: fiiDii.diiNetCr,
+            fiiDiiDate: fiiDii.date,
+            fiiDiiStatus: fiiDii.status
         };
         const riskMode = this.computeGlobalRiskMode(indicators);
         const premarketSetup = this.computePremarketSetup(indicators, riskMode);

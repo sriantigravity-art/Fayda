@@ -19,6 +19,7 @@ import { subscriptionPlanService } from './services/subscriptionPlanService.js';
 import { subscriptionHistoryService } from './services/subscriptionHistoryService.js';
 import { notificationService } from './services/notificationService.js';
 import { bseService } from './services/bseService.js';
+import { fiiDiiService } from './services/fiiDiiService.js';
 import { ALL_SYMBOLS_CONFIG } from './types.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -780,6 +781,9 @@ app.get('/api/global-indices', (req, res) => {
 });
 app.get('/api/global-market-context', (req, res) => {
     res.json(globalMarketFeedService.getGlobalContext());
+});
+app.get('/api/fii-dii', async (_req, res) => {
+    res.json(fiiDiiService.getCurrentData());
 });
 // MCX Market Status Endpoint
 app.get('/api/mcx-status', (req, res) => {

@@ -259,9 +259,10 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
         impactOnOptions: 'Calm volatility regime: Option sellers retain edge; option buyers require fast momentum breakouts.'
       },
       fiiDiiFlow: {
-        fiiNetCr: 1240,
-        diiNetCr: 1850,
-        bias: 'INSTITUTIONAL_ACCUMULATION'
+        date: '16-Sep-2026',
+        fiiNetCr: -2032.61,
+        diiNetCr: 3908.23,
+        bias: 'DII_ABSORPTION_FII_SELLING'
       }
     };
 
@@ -1016,21 +1017,32 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
           {/* Bonus Important Indicators Banner: FII / DII Institutional Orderflow */}
           {ti.fiiDiiFlow && (
             <div className="p-2 rounded-lg bg-terminal-panel/70 border border-terminal-border flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-accent-cyan flex items-center gap-1">
                   <Target className="w-3.5 h-3.5" />
                   INSTITUTIONAL FLOW:
                 </span>
-                <span className={(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}>
-                  FII: {(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.fiiNetCr ?? 0} Cr
+                <span className={`font-bold ${(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                  FII: {(ti.fiiDiiFlow.fiiNetCr ?? 0) >= 0 ? '+' : ''}₹{Number(ti.fiiDiiFlow.fiiNetCr ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr
                 </span>
                 <span className="text-terminal-border">|</span>
-                <span className={(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}>
-                  DII: {(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? '+' : ''}₹{ti.fiiDiiFlow.diiNetCr ?? 0} Cr
+                <span className={`font-bold ${(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? 'text-bull' : 'text-bear'}`}>
+                  DII: {(ti.fiiDiiFlow.diiNetCr ?? 0) >= 0 ? '+' : ''}₹{Number(ti.fiiDiiFlow.diiNetCr ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr
                 </span>
+                {ti.fiiDiiFlow.date && (
+                  <span className="text-[10px] text-terminal-muted bg-terminal-card px-1.5 py-0.5 rounded border border-terminal-border/60">
+                    {ti.fiiDiiFlow.date}
+                  </span>
+                )}
               </div>
               <div className="text-[11px] text-terminal-muted">
-                Institutional Stance: <strong className="text-terminal-text uppercase">{ti.fiiDiiFlow.bias || 'BALANCED'}</strong>
+                Institutional Stance: <strong className="text-terminal-text uppercase">
+                  {ti.fiiDiiFlow.bias === 'DII_ABSORPTION_FII_SELLING'
+                    ? 'DII BUYING ABSORBING FII SELLING'
+                    : ti.fiiDiiFlow.bias === 'FII_DRIVEN_RALLY'
+                    ? 'FII SURGE RALLY'
+                    : ti.fiiDiiFlow.bias || 'BALANCED'}
+                </strong>
               </div>
             </div>
           )}

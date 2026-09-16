@@ -416,26 +416,35 @@ export class ConfluenceEngine {
             details: 'FII/DII Institutional Flow neutral.'
         };
         const fiiNetCr = tech?.fiiDiiFlow?.fiiNetCr;
+        const diiNetCr = tech?.fiiDiiFlow?.diiNetCr ?? 0;
+        const netInstCr = tech?.fiiDiiFlow?.netInstitutionalCr ?? ((fiiNetCr ?? 0) + diiNetCr);
         if (fiiNetCr !== undefined) {
-            if (isBull && fiiNetCr > 0) {
+            if (isBull && (fiiNetCr > 0 || (diiNetCr > 2000 && netInstCr > 500))) {
                 fiiDiiBonus = {
                     confirmed: true,
                     bonus: 5,
-                    details: `FII/DII Net Flow (+₹${fiiNetCr} Cr) strongly reinforces bullish institutional buying.`
+                    details: `Institutional Flow (+₹${netInstCr.toFixed(0)} Cr Net: DII +₹${diiNetCr.toFixed(0)} Cr absorbing FII -₹${Math.abs(fiiNetCr).toFixed(0)} Cr) reinforces market support.`
                 };
             }
-            else if (isBear && fiiNetCr < 0) {
+            else if (isBear && (fiiNetCr < 0 && netInstCr < 0)) {
                 fiiDiiBonus = {
                     confirmed: true,
                     bonus: 5,
-                    details: `FII/DII Net Flow (-₹${Math.abs(fiiNetCr)} Cr) confirms institutional selling distribution.`
+                    details: `FII Distribution (-₹${Math.abs(fiiNetCr).toFixed(0)} Cr) confirms institutional overhead supply.`
                 };
             }
-            else if (isNeutral && Math.abs(fiiNetCr) < 300) {
+            else if (isNeutral && Math.abs(netInstCr) < 600) {
                 fiiDiiBonus = {
                     confirmed: true,
                     bonus: 5,
-                    details: `FII/DII Net Flow balanced (±₹${Math.abs(fiiNetCr)} Cr) supporting rangebound sideways regime.`
+                    details: `FII/DII Net Flow balanced (±₹${Math.abs(netInstCr).toFixed(0)} Cr) supporting rangebound sideways regime.`
+                };
+            }
+            else {
+                fiiDiiBonus = {
+                    confirmed: false,
+                    bonus: 0,
+                    details: `DII Net (+₹${diiNetCr.toFixed(0)} Cr) vs FII Net (-₹${Math.abs(fiiNetCr).toFixed(0)} Cr) counter-balancing.`
                 };
             }
         }

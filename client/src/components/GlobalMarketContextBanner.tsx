@@ -196,8 +196,11 @@ export const GlobalMarketContextBanner: React.FC = () => {
             }`}>
               <span className="text-[10px] font-mono font-bold uppercase">FII FLOW:</span>
               <span className="font-bold font-mono text-xs">
-                {fiiIsPos ? '+' : ''}₹{indicators.fiiNetBuyCr.toLocaleString()} Cr
+                {fiiIsPos ? '+' : ''}₹{indicators.fiiNetBuyCr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr
               </span>
+              {indicators.fiiDiiDate && (
+                <span className="text-[9px] font-mono opacity-80 pl-0.5">({indicators.fiiDiiDate})</span>
+              )}
             </div>
 
             {/* DII Net */}
@@ -206,8 +209,11 @@ export const GlobalMarketContextBanner: React.FC = () => {
             }`}>
               <span className="text-[10px] font-mono font-bold uppercase">DII FLOW:</span>
               <span className="font-bold font-mono text-xs">
-                {diiIsPos ? '+' : ''}₹{indicators.diiNetBuyCr.toLocaleString()} Cr
+                {diiIsPos ? '+' : ''}₹{indicators.diiNetBuyCr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr
               </span>
+              {indicators.fiiDiiDate && (
+                <span className="text-[9px] font-mono opacity-80 pl-0.5">({indicators.fiiDiiDate})</span>
+              )}
             </div>
 
             {/* Catalyst summary pill */}

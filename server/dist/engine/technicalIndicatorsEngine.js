@@ -1,3 +1,4 @@
+import { fiiDiiService } from '../services/fiiDiiService.js';
 export class TechnicalIndicatorsEngine {
     // Rolling price history per symbol for indicator stability (up to 50 samples)
     priceHistories = new Map();
@@ -85,13 +86,20 @@ export class TechnicalIndicatorsEngine {
             vixRegime = 'EXTREME_VOLATILITY';
             vixImpact = 'Extreme event risk / IV crush hazard. Use defined risk spreads rather than naked options.';
         }
-        // 10. Macro FII / DII Institutional Flow estimation
-        const isBullFlow = spotPctChange > 0.3 || (pcr.overallPcr > 1.15 && netOIFlow > 0);
-        const isBearFlow = spotPctChange < -0.3 || (pcr.overallPcr < 0.85 && netOIFlow < 0);
+        // 10. Macro FII / DII Institutional Flow (Dynamic Live Feed from NSE / Exchange)
+        const fiiDii = fiiDiiService.getCurrentData();
         const fiiDiiFlow = {
-            fiiNetCr: isBullFlow ? 1420 : isBearFlow ? -1850 : 260,
-            diiNetCr: isBullFlow ? 890 : isBearFlow ? 1580 : 420,
-            bias: isBullFlow ? 'INSTITUTIONAL_ACCUMULATION' : isBearFlow ? 'INSTITUTIONAL_DISTRIBUTION' : 'BALANCED'
+            date: fiiDii.date,
+            fiiNetCr: fiiDii.fiiNetCr,
+            diiNetCr: fiiDii.diiNetCr,
+            fiiBuyCr: fiiDii.fiiBuyCr,
+            fiiSellCr: fiiDii.fiiSellCr,
+            diiBuyCr: fiiDii.diiBuyCr,
+            diiSellCr: fiiDii.diiSellCr,
+            netInstitutionalCr: fiiDii.netInstitutionalCr,
+            bias: fiiDii.bias,
+            status: fiiDii.status,
+            lastUpdated: fiiDii.lastUpdated
         };
         return {
             symbol,

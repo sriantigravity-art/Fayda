@@ -302,6 +302,8 @@ export interface GlobalMarketContextData {
     usdInr: { value: number; changePct: number };
     fiiNetBuyCr: number;
     diiNetBuyCr: number;
+    fiiDiiDate?: string;
+    fiiDiiStatus?: string;
   };
 }
 
@@ -973,9 +975,17 @@ export interface TechnicalIndicatorsData {
     impactOnOptions: string;
   };
   fiiDiiFlow?: {
+    date?: string;
     fiiNetCr: number;
     diiNetCr: number;
-    bias: 'INSTITUTIONAL_ACCUMULATION' | 'BALANCED' | 'INSTITUTIONAL_DISTRIBUTION';
+    fiiBuyCr?: number;
+    fiiSellCr?: number;
+    diiBuyCr?: number;
+    diiSellCr?: number;
+    netInstitutionalCr?: number;
+    bias: 'INSTITUTIONAL_ACCUMULATION' | 'BALANCED' | 'INSTITUTIONAL_DISTRIBUTION' | 'DII_ABSORPTION_FII_SELLING' | 'FII_DRIVEN_RALLY';
+    status?: string;
+    lastUpdated?: string;
   };
 }
 
