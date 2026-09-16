@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useMarket, getApiBase } from '../context/MarketContext';
-import type { 
-  JournalTradeCall, 
-  JournalSummaryMetrics, 
-  JournalReportResponse, 
-  AssetCategory,
-  IndexSymbol
+import { 
+  ALL_SYMBOLS_CONFIG,
+  type JournalTradeCall, 
+  type JournalSummaryMetrics, 
+  type JournalReportResponse, 
+  type AssetCategory,
+  type IndexSymbol
 } from '../types';
 import { 
   Calendar, 
