@@ -378,6 +378,13 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Purge distorted tip where live price completely jumped
       }
 
+      // ── STRICT 75% MINIMUM CONFLUENCE FILTER ───────────────────────────────
+      // User directive: show only 75% confluence tips. Filter out weak/counter-trend setups.
+      const tipConfluence = rawItem.confluenceScore ?? rawItem.rawTip?.confluenceScore ?? 0;
+      if (tipConfluence < 75) {
+        return; // Exclude low-probability / counter-trend setups (< 75%)
+      }
+
       const isContractExpired = Boolean(
         rawItem.status === 'EXPIRED' ||
         rawItem.rawTip?.status === 'EXPIRED' ||
@@ -1330,9 +1337,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return deduplicatedList;
   }, [currentIndexState, selectedIndex, lotSize, radarStrikePrice, directionalBias]);
 
-  // Filtered items based on selected tab & option side filter
+  // Filtered items based on selected tab & option side filter (strictly >= 75% confluence)
   const filteredItems = useMemo(() => {
-    let base = items;
+    let base = items.filter(item => (item.confluenceScore ?? 0) >= 75);
     if (activeTab === 'BUYERS') {
       base = base.filter(item => item.role === 'BUYER' || item.category === 'BUYERS');
     } else if (activeTab === 'SELLERS') {
@@ -1375,17 +1382,17 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return base.filter(item => item.optionType === 'PE' || item.action === 'BUY_PUT');
   }, [items, activeTab]);
 
-  // Top prime high-confluence Call & Put for Featured Instant Pick Spotlight
+  // Top prime high-confluence Call & Put for Featured Instant Pick Spotlight (strictly >= 75% confluence)
   const primeCall = useMemo(() => {
     if (callItems.length === 0) return null;
-    const scored = callItems.filter(i => i.role === 'BUYER');
-    return scored.find(i => i.confluenceScore >= 80) || scored[0] || callItems[0] || null;
+    const scored = callItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 75);
+    return scored.find(i => i.confluenceScore >= 80) || scored[0] || null;
   }, [callItems]);
 
   const primePut = useMemo(() => {
     if (putItems.length === 0) return null;
-    const scored = putItems.filter(i => i.role === 'BUYER');
-    return scored.find(i => i.confluenceScore >= 80) || scored[0] || putItems[0] || null;
+    const scored = putItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 75);
+    return scored.find(i => i.confluenceScore >= 80) || scored[0] || null;
   }, [putItems]);
 
   // Counts for each tab badge
@@ -2566,6 +2573,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     {isExpiryDay ? '⚡ 0DTE Expiry:' : '📅 Expiry:'} {activeExpiryDate}
                   </span>
                 )}
+                {/* ── Strict Confluence Badge ── */}
+                <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 shadow-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                  <span>≥75% Confluence Only</span>
+                </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5 flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-slate-700 dark:text-slate-300">
@@ -2576,7 +2588,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     : 'Institutional momentum setups & probability-of-profit credit spreads.'}
                 </span>
                 <span className="text-slate-400 dark:text-slate-600 hidden sm:inline">•</span>
-                <span className="text-amber-600 dark:text-amber-400 font-mono font-bold text-[11px]">10-Factor Confluence</span>
+                <span className="text-amber-600 dark:text-amber-400 font-mono font-bold text-[11px]">Strict 75%+ Confluence Floor</span>
               </p>
             </div>
           </div>
@@ -2668,10 +2680,10 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               </div>
               <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 font-mono font-black text-sky-700 dark:text-sky-400 text-[11px] uppercase mb-1">
-                  <span>2️⃣ Wait for Entry Zone</span>
+                  <span>2️⃣ High Confluence Entry (≥75%)</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 text-[11.5px] leading-relaxed">
-                  Every tip gives you a <strong>Perfect Entry</strong> range (e.g. ₹125 - ₹128). Enter when the live price triggers inside the zone with high Confluence (&gt;80%). Avoid chasing if price is already past Target 1.
+                  Every tip gives you a <strong>Perfect Entry</strong> range (e.g. ₹125 - ₹128). Only setups with a <strong>minimum 75% Confluence Score</strong> are permitted. Low-conviction trades (&lt;75%) are strictly filtered out.
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">

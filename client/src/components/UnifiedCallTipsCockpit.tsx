@@ -73,8 +73,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   const otmCallObj = strikesList.find(s => s.strikePrice >= spotPrice + step * 2) || strikesList[strikesList.length - 1];
 
   const minCockpitCutoff = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(selectedIndex) ? 20.0 : 10.0;
-  const isPkgCallValid = Boolean(pkg?.topCallTrade && pkg.topCallTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topCallTrade.pnlPct || 0) < 350);
-  const isPkgPutValid = Boolean(pkg?.topPutTrade && pkg.topPutTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topPutTrade.pnlPct || 0) < 350);
+  const isPkgCallValid = Boolean(pkg?.topCallTrade && pkg.topCallTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topCallTrade.pnlPct || 0) < 350 && (pkg.topCallTrade.confluenceScore || 0) >= 75);
+  const isPkgPutValid = Boolean(pkg?.topPutTrade && pkg.topPutTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topPutTrade.pnlPct || 0) < 350 && (pkg.topPutTrade.confluenceScore || 0) >= 75);
 
   const topCallTrade = (isPkgCallValid ? pkg?.topCallTrade : null) || (atmObj ? {
     id: `synth-call-${atmObj.strikePrice}`,
