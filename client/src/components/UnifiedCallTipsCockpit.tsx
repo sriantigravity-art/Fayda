@@ -88,8 +88,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     tierLabel: 'HIGH-PROBABILITY HOURLY CALL SETUP',
     sessionName: 'Live Market',
     confluenceScore: 86,
-    entryPrice: atmCallLtp,
-    entryRange: `₹${(atmCallLtp * 0.98).toFixed(1)} - ₹${atmCallLtp.toFixed(1)}`,
+    entryPrice: +(atmCallLtp * 0.96).toFixed(1),
+    entryRange: `₹${(atmCallLtp * 0.94).toFixed(1)} - ₹${(atmCallLtp * 0.98).toFixed(1)}`,
     currentLtp: atmCallLtp,
     target1Price: +(atmCallLtp * 1.30).toFixed(1),
     target1Pct: 30,
@@ -120,8 +120,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     tierLabel: 'HIGH-PROBABILITY HOURLY PUT SETUP',
     sessionName: 'Live Market',
     confluenceScore: 84,
-    entryPrice: atmPutLtp,
-    entryRange: `₹${(atmPutLtp * 0.98).toFixed(1)} - ₹${atmPutLtp.toFixed(1)}`,
+    entryPrice: +(atmPutLtp * 0.96).toFixed(1),
+    entryRange: `₹${(atmPutLtp * 0.94).toFixed(1)} - ₹${(atmPutLtp * 0.98).toFixed(1)}`,
     currentLtp: atmPutLtp,
     target1Price: +(atmPutLtp * 1.30).toFixed(1),
     target1Pct: 30,
@@ -139,6 +139,24 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
       expert: '📊 SYSTEM QUANT DATA: Short-gamma acceleration below liquidity pool | Flow: Negative delta order flow | Put volume surge.'
     }
   } as any : null);
+
+  // Dynamically attach real-time live option strike LTP from strikesList if available
+  if (topCallTrade && topCallTrade.strikePrice) {
+    const st = strikesList.find(s => s.strikePrice === topCallTrade.strikePrice);
+    if (st && st.callLtp > 0) {
+      topCallTrade.currentLtp = st.callLtp;
+      topCallTrade.pnlPoints = +(st.callLtp - topCallTrade.entryPrice).toFixed(2);
+      topCallTrade.pnlPct = topCallTrade.entryPrice > 0 ? +((topCallTrade.pnlPoints / topCallTrade.entryPrice) * 100).toFixed(1) : 0;
+    }
+  }
+  if (topPutTrade && topPutTrade.strikePrice) {
+    const st = strikesList.find(s => s.strikePrice === topPutTrade.strikePrice);
+    if (st && st.putLtp > 0) {
+      topPutTrade.currentLtp = st.putLtp;
+      topPutTrade.pnlPoints = +(st.putLtp - topPutTrade.entryPrice).toFixed(2);
+      topPutTrade.pnlPct = topPutTrade.entryPrice > 0 ? +((topPutTrade.pnlPoints / topPutTrade.entryPrice) * 100).toFixed(1) : 0;
+    }
+  }
 
   const topSellerPutTrade = pkg?.topSellerPutTrade || (otmPutObj ? {
     id: `synth-seller-put-${otmPutObj.strikePrice}`,

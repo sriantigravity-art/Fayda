@@ -267,18 +267,23 @@ export class TechnicalIndicatorsEngine {
   private computeRSI(spotPrice: number, spotPctChange: number, history: SymbolPriceHistoryEntry[]) {
     let rsiVal = 50;
 
-    if (history.length >= 14) {
+    if (history.length >= 15) {
       let gains = 0;
       let losses = 0;
-      for (let i = history.length - 14; i < history.length; i++) {
-        const diff = history[i].price - history[i - 1].price;
+      const startIndex = Math.max(1, history.length - 14);
+      for (let i = startIndex; i < history.length; i++) {
+        const prev = history[i - 1];
+        const curr = history[i];
+        if (!prev || !curr) continue;
+        const diff = curr.price - prev.price;
         if (diff > 0) gains += diff;
         else losses += Math.abs(diff);
       }
-      const avgGain = gains / 14;
-      const avgLoss = losses / 14;
+      const count = history.length - startIndex;
+      const avgGain = gains / (count || 1);
+      const avgLoss = losses / (count || 1);
       if (avgLoss === 0) {
-        rsiVal = 100;
+        rsiVal = gains > 0 ? 100 : 50;
       } else {
         const rs = avgGain / avgLoss;
         rsiVal = 100 - (100 / (1 + rs));

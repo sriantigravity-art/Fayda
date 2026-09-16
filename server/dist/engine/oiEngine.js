@@ -770,6 +770,24 @@ export class OIEngine {
                     activeToKeep.push(tipsPackage.primaryTrade);
                     seenContractSymbols.add(tipsPackage.primaryTrade.contractSymbol);
                 }
+                if (tipsPackage.topCallTrade && isTradeNonDistorted(tipsPackage.topCallTrade) && (tipsPackage.topCallTrade.status === 'ACTIVE' || tipsPackage.topCallTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.topCallTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.topCallTrade);
+                        seenContractSymbols.add(tipsPackage.topCallTrade.contractSymbol);
+                    }
+                }
+                if (tipsPackage.topPutTrade && isTradeNonDistorted(tipsPackage.topPutTrade) && (tipsPackage.topPutTrade.status === 'ACTIVE' || tipsPackage.topPutTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.topPutTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.topPutTrade);
+                        seenContractSymbols.add(tipsPackage.topPutTrade.contractSymbol);
+                    }
+                }
+                if (tipsPackage.gammaTrade && isTradeNonDistorted(tipsPackage.gammaTrade) && (tipsPackage.gammaTrade.status === 'ACTIVE' || tipsPackage.gammaTrade.status === 'TARGET1_HIT')) {
+                    if (!seenContractSymbols.has(tipsPackage.gammaTrade.contractSymbol)) {
+                        activeToKeep.push(tipsPackage.gammaTrade);
+                        seenContractSymbols.add(tipsPackage.gammaTrade.contractSymbol);
+                    }
+                }
                 if (tipsPackage.hedgedSpreadTrade && isTradeNonDistorted(tipsPackage.hedgedSpreadTrade) && (tipsPackage.hedgedSpreadTrade.status === 'ACTIVE' || tipsPackage.hedgedSpreadTrade.status === 'TARGET1_HIT')) {
                     if (!seenContractSymbols.has(tipsPackage.hedgedSpreadTrade.contractSymbol)) {
                         activeToKeep.push(tipsPackage.hedgedSpreadTrade);

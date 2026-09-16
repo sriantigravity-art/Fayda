@@ -1660,7 +1660,7 @@ export class ConfluenceEngine {
         const dipEntryMin = +(entryPrice * 0.975).toFixed(2);
         const dipEntryMax = +(entryPrice * 0.990).toFixed(2);
         const breakoutEntryPrice = +(entryPrice * 1.025).toFixed(2);
-        const entryRange = `₹${entryPrice.toFixed(2)}`;
+        const entryRange = `₹${dipEntryMin.toFixed(1)} - ₹${entryPrice.toFixed(1)}`;
         const slPrice = +(entryPrice * (1 - momentumInfo.slPct / 100)).toFixed(2);
         const t1Price = +(entryPrice * (1 + momentumInfo.t1Pct / 100)).toFixed(2);
         const t2Price = +(entryPrice * (1 + momentumInfo.t2Pct / 100)).toFixed(2);
@@ -1994,7 +1994,7 @@ export class ConfluenceEngine {
                 });
                 topCallTrade = {
                     ...activeCall,
-                    entryRange: `₹${activeCall.entryPrice.toFixed(2)}`,
+                    entryRange: `₹${(activeCall.dipEntryMin || activeCall.entryPrice * 0.975).toFixed(1)} - ₹${activeCall.entryPrice.toFixed(1)}`,
                     currentLtp,
                     pnlPoints,
                     pnlPct,
@@ -2293,7 +2293,7 @@ export class ConfluenceEngine {
                     ongoingProfitBox: newCallAdvice.ongoingProfitBox,
                     isCarriedForward: callStatus === 'CARRIED_FORWARD',
                     entryPrice,
-                    entryRange: `₹${entryPrice.toFixed(2)}`,
+                    entryRange: `₹${dipMin.toFixed(1)} - ₹${entryPrice.toFixed(1)}`,
                     triggerPrice: entryPrice,
                     dipEntryMin: dipMin,
                     dipEntryMax: dipMax,
@@ -2449,7 +2449,7 @@ export class ConfluenceEngine {
                 });
                 topPutTrade = {
                     ...activePut,
-                    entryRange: `₹${activePut.entryPrice.toFixed(2)}`,
+                    entryRange: `₹${(activePut.dipEntryMin || activePut.entryPrice * 0.975).toFixed(1)} - ₹${activePut.entryPrice.toFixed(1)}`,
                     currentLtp,
                     pnlPoints,
                     pnlPct,
@@ -2748,7 +2748,7 @@ export class ConfluenceEngine {
                     ongoingProfitBox: newPutAdvice.ongoingProfitBox,
                     isCarriedForward: putStatus === 'CARRIED_FORWARD',
                     entryPrice,
-                    entryRange: `₹${entryPrice.toFixed(2)}`,
+                    entryRange: `₹${dipMin.toFixed(1)} - ₹${entryPrice.toFixed(1)}`,
                     triggerPrice: entryPrice,
                     dipEntryMin: dipMin,
                     dipEntryMax: dipMax,

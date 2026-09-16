@@ -203,7 +203,7 @@ export const TrafficSignalIcon: React.FC<{ className?: string; animated?: boolea
 );
 
 export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
-  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal, recentSurges, setOptionExpiry } = useMarket();
+  const { currentIndexState, selectedIndex, setSelectedIndex, openTradeTipModal, recentSurges, setOptionExpiry, indices } = useMarket();
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const symConfig = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
@@ -364,14 +364,21 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Purge wrong tip: premium was never this low
       }
 
-      // Look up live option strike LTP from currentIndexState
+      const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
+      const matchedSym = ALL_SYMBOLS_CONFIG.find(c => c.symbol.toUpperCase() === rawAssetSymbol.toUpperCase()) || symConfig;
+      const resolvedAssetSymbol = matchedSym?.symbol || rawAssetSymbol || selectedIndex;
+      const resolvedAssetName = matchedSym?.name || resolvedAssetSymbol;
+      const isMarketOpen = isMarketOpenForSymbol(resolvedAssetSymbol);
+
+      // Look up live option strike LTP from resolved asset strikes or currentIndexState
       const strikePrice = rawItem.strikePrice ?? rawItem.rawTip?.strikePrice;
       const optionType = rawItem.optionType ?? rawItem.rawTip?.optionType;
-      const liveStrike = currentIndexState?.strikes?.find(s => s.strikePrice === strikePrice);
+      const assetState = (resolvedAssetSymbol && indices?.[resolvedAssetSymbol as IndexSymbol]) || currentIndexState;
+      const liveStrike = assetState?.strikes?.find(s => s.strikePrice === strikePrice) || currentIndexState?.strikes?.find(s => s.strikePrice === strikePrice);
       const liveStrikeLtp = liveStrike 
         ? (optionType === 'CE' ? liveStrike.callLtp : (optionType === 'PE' ? liveStrike.putLtp : 0)) 
         : 0;
-      const ltp = (liveStrikeLtp > 0) ? liveStrikeLtp : (rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? 0);
+      const ltp = (liveStrikeLtp > 0) ? liveStrikeLtp : (rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? rawItem.entryPrice ?? 0);
 
       // Discard tips with wild feed discrepancy between entry and live LTP (e.g. ratio > 3.5)
       if (!isSeller && entry > 0 && ltp > 0 && (ltp / entry > 3.5 || entry / ltp > 3.5)) {
@@ -472,12 +479,6 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         }
       }
 
-      const rawAssetSymbol = rawItem.assetSymbol || (rawItem.rawTip as any)?.symbol || (rawItem.rawHeroSignal as any)?.symbol || (rawItem.contractSymbol ? rawItem.contractSymbol.split(' ')[0] : '') || selectedIndex;
-      const matchedSym = ALL_SYMBOLS_CONFIG.find(c => c.symbol.toUpperCase() === rawAssetSymbol.toUpperCase()) || symConfig;
-      const resolvedAssetSymbol = matchedSym?.symbol || rawAssetSymbol || selectedIndex;
-      const resolvedAssetName = matchedSym?.name || resolvedAssetSymbol;
-      const isMarketOpen = isMarketOpenForSymbol(resolvedAssetSymbol);
-
       const milestoneKey = rawItem.id || key;
       let mRecord = deckLockedMilestonesMap.get(milestoneKey);
       
@@ -525,7 +526,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           : (ltp <= entry * 1.015 && ltp >= entry * 0.88);
         if (isWithinEntry) {
           mRecord.isEntryTriggered = true;
-          mRecord.actualEntryPrice = ltp;
+          mRecord.actualEntryPrice = rawItem.entryPrice;
           mRecord.entryPriceTimeFormatted = nowFormatted;
         }
       }
@@ -558,8 +559,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const carryForwardTimeFormatted = rawItem.carryForwardTimeFormatted || rawItem.rawTip?.carryForwardTimeFormatted || '03:20 PM';
 
       const entryPriceTimeFormatted = mRecord.isEntryTriggered
-        ? (mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted)
-        : (rawItem.entryPriceTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted);
+        ? (mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.rawTip?.entryTimeFormatted)
+        : (rawItem.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.rawTip?.entryTimeFormatted);
       const target1HitTimeFormatted = mRecord.target1HitTimeFormatted || rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const target2HitTimeFormatted = mRecord.target2HitTimeFormatted || rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const stoplossTimeFormatted = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
@@ -567,8 +568,26 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
       const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : (rawItem.actionBadge || rawItem.action || 'SIGNAL');
 
+      // Calibrate realistic, distinct Perfect Entry range (Zone) so it is never identical to single live price
+      const displayEntryRange = (() => {
+        if (rawItem.entryRange && rawItem.entryRange.includes('-')) {
+          const nums = rawItem.entryRange.match(/[\d.]+/g);
+          if (nums && nums.length >= 2 && Math.abs(parseFloat(nums[0]) - parseFloat(nums[1])) > 0.2) {
+            return rawItem.entryRange;
+          }
+        }
+        if (isSeller) {
+          return `₹${+(rawItem.entryPrice * 0.97).toFixed(1)} - ₹${+(rawItem.entryPrice * 1.03).toFixed(1)} Credit`;
+        }
+        return `₹${Math.max(1, +(rawItem.entryPrice * 0.98).toFixed(1))} - ₹${+(rawItem.entryPrice * 1.015).toFixed(1)}`;
+      })();
+
       const fullItem: RecommendationTableItem = {
         ...rawItem,
+        currentLtp: ltp,
+        entryPrice: rawItem.entryPrice,
+        actualEntryPrice: mRecord.actualEntryPrice || rawItem.actualEntryPrice || rawItem.entryPrice,
+        entryRange: displayEntryRange,
         assetSymbol: resolvedAssetSymbol,
         assetName: resolvedAssetName,
         status: finalStatus,
@@ -581,7 +600,6 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         carryForwardTimeFormatted,
         callGivenTimeFormatted: mRecord.callGivenTimeFormatted,
         isEntryTriggered: mRecord.isEntryTriggered,
-        actualEntryPrice: mRecord.actualEntryPrice,
         entryPriceTimeFormatted,
         target1HitTimeFormatted,
         target2HitTimeFormatted,
@@ -3321,7 +3339,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                           {currentFlashTip.entryRange}
                         </div>
                         <div className={`text-[9px] font-mono font-bold mt-0.5 truncate ${currentFlashTip.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {currentFlashTip.isEntryTriggered ? `🟢 In: ${currentFlashTip.entryPriceTimeFormatted || 'Live'}` : `⏳ Trigger @ ₹${currentFlashTip.entryPrice?.toFixed(2) || currentFlashTip.entryRange}`}
+                          {currentFlashTip.isEntryTriggered ? `🟢 In: ${currentFlashTip.entryPriceTimeFormatted || currentFlashTip.entryTimeFormatted || 'Live'}` : `⏳ Trigger @ ₹${currentFlashTip.entryPrice?.toFixed(2) || currentFlashTip.entryRange}`}
                         </div>
                       </div>
 
