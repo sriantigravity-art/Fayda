@@ -6,6 +6,7 @@ import { calculateTargetHorizon } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
+import { getISTComponents } from '../utils/formatTime';
 import { 
   Flame, 
   Filter, 
@@ -24,10 +25,14 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-type TimeWindowFilter = 'ALL' | '5M' | '10M' | '15M' | '1H';
+interface RadarFeedProps {
+  onSelectStrike?: (strike: number) => void;
+}
 
-export const RadarFeed: React.FC = () => {
-  const { recentSurges, visibleIndices, indices, setSelectedIndex, openTradeTipModal } = useMarket();
+type TimeWindowFilter = 'ALL' | '5m' | '10m' | '15m' | '1h';
+
+export const RadarFeed: React.FC<RadarFeedProps> = ({ onSelectStrike }) => {
+  const { recentSurges, selectedIndex, setSelectedIndex, visibleIndices, indices, openTradeTipModal } = useMarket();
   const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
@@ -35,25 +40,19 @@ export const RadarFeed: React.FC = () => {
 
   // Official NSE Equity Derivatives Market Hours: 09:15 to 15:40 IST (Mon-Fri)
   const isMarketHours = () => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const currentMin = hours * 60 + minutes;
     return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
   };
 
   // Check if specific symbol market is currently open
   const isSymbolMarketOpen = (sym: string) => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const currentMin = hours * 60 + minutes;
     if (isCommodity(sym)) {
       // MCX Commodities: 09:00 to 23:30 IST
       return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);

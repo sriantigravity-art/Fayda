@@ -6,7 +6,7 @@ import { getSignalTimingData, getUserTradeAdvice } from '../utils/signalTimeHelp
 import { Zap, Target, Clock, Pause, Play, ShieldCheck, Layers, Sparkles, Timer, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { IndexSymbol, OngoingProfitBoxData, MarketMomentumRegime } from '../types';
 import { ALL_SYMBOLS_CONFIG } from '../types';
-import { formatISTTime } from '../utils/formatTime';
+import { formatISTTime, getISTComponents } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
 import { isMarketOpenForSymbol } from '../utils/lastClosedData';
 
@@ -37,25 +37,19 @@ export const HighlightSignalTicker: React.FC = () => {
 
   // Check Official Market Hours: 09:15 to 15:40 IST (Mon-Fri) for NSE/BSE Equity
   const isNseMarketHours = () => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const currentMin = hours * 60 + minutes;
     return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
   };
 
   // Check if specific symbol market is currently open
   const isSymbolMarketOpen = (sym: string) => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const currentMin = hours * 60 + minutes;
     if (isCommodity(sym)) {
       // MCX Commodities: 09:00 to 23:30 IST
       return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
@@ -515,7 +509,7 @@ export const HighlightSignalTicker: React.FC = () => {
 
   if (activeSetups.length === 0) return null;
 
-  const istTimeString = formatISTTime(currentTime, { showSeconds: true, includeSuffix: true });
+  const istTimeString = formatISTTime(null, { showSeconds: true, includeSuffix: true });
   const safeIndex = activeTipIndex % (activeSetups.length || 1);
   const currentSetup = activeSetups[safeIndex];
 

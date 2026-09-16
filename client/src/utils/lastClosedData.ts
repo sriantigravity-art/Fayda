@@ -77,14 +77,13 @@ export const LAST_CLOSED_DATA: Record<string, SymbolClosedData> = {
   TATACONSUM: { spotPrice: 1124.00, change: 0, pctChange: 0 }
 };
 
-export function isMarketOpenForSymbol(symbol: string): boolean {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const day = ist.getDay(); // 0 = Sun, 6 = Sat
-  if (day === 0 || day === 6) return false;
+import { getISTComponents } from './formatTime';
 
-  const currentMin = ist.getHours() * 60 + ist.getMinutes();
+export function isMarketOpenForSymbol(symbol: string): boolean {
+  const { hours, minutes, dayOfWeek } = getISTComponents();
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+
+  const currentMin = hours * 60 + minutes;
   const isCommodity = symbol === 'CRUDEOIL' || symbol === 'NATURALGAS' || symbol === 'GOLD' || symbol === 'SILVER' || symbol === 'COPPER' || symbol === 'ZINC';
 
   if (isCommodity) {

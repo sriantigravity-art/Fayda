@@ -49,22 +49,28 @@ export interface TradeActionAdvice {
   shouldArchiveToJournal: boolean;
 }
 
-/**
- * Format a timestamp into Indian Standard Time (IST) HH:mm:ss A or HH:mm A
- */
-export function formatIstClock(timestamp?: string | number | Date, includeSeconds = true): string {
+import { getCorrectedNow } from './formatTime';
+
+export function formatIstClock(timestamp?: string | number | Date, includeSeconds = true, includeSuffix = true): string {
   if (!timestamp) return '--:--:--';
   try {
-    const d = typeof timestamp === 'number' || typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-    if (isNaN(d.getTime())) return '--:--:--';
+    let d = typeof timestamp === 'number' || typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    if (isNaN(d.getTime())) return String(timestamp);
 
-    return d.toLocaleTimeString('en-IN', {
+    // If freshly passed as Date.now() from local uncalibrated hardware clock
+    const diffToNow = Math.abs(d.getTime() - Date.now());
+    if (diffToNow < 2000) {
+      d = getCorrectedNow();
+    }
+
+    const str = d.toLocaleTimeString('en-US', {
       timeZone: 'Asia/Kolkata',
       hour12: true,
       hour: '2-digit',
       minute: '2-digit',
       second: includeSeconds ? '2-digit' : undefined
     });
+    return includeSuffix ? `${str} IST` : str;
   } catch {
     return '--:--:--';
   }

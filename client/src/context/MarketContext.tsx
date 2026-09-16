@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { ALL_SYMBOLS_CONFIG } from '../types';
-import { formatISTTime } from '../utils/formatTime';
+import { formatISTTime, setNetworkClockDriftMs } from '../utils/formatTime';
 import type { IndexSymbol, MarketIndexState, SurgeEvent, DataSourceMode, FyersConfig, DhanConfig, ActiveBroker, NewsItem, TargetHitEvent, SquareOffEvent, HeroZeroSignal, GlobalIndexItem, ActiveTradeTipData, HighProbabilityFlashEvent, TipLifecycleFlashEvent, TipFlashEventType } from '../types';
 import { soundManager } from '../utils/audioAlert';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
@@ -523,6 +523,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+
+        if (typeof msg.serverDriftMs === 'number' && msg.serverDriftMs !== 0) {
+          setNetworkClockDriftMs(msg.serverDriftMs);
+        } else if (msg.timestamp) {
+          const serverMs = new Date(msg.timestamp).getTime();
+          if (!isNaN(serverMs)) {
+            setNetworkClockDriftMs(serverMs - Date.now());
+          }
+        }
 
         if (msg.type === 'INITIAL_STATE') {
           if (msg.recentSurges && msg.recentSurges.length > 0) {

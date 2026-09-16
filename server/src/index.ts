@@ -127,12 +127,27 @@ app.use('/api/fyers/', brokerAuthLimiter);
 app.use('/api/dhan/', brokerAuthLimiter);
 app.use('/api/broker/', brokerAuthLimiter);
 
+// ── PRECISE IST CLOCK CALIBRATION ──────────────────────────────────────────
+// Corrects host Windows clock AM/PM inversion (20:xx PM -> 08:xx AM) while preserving exact live minutes & seconds.
+let serverHourShiftMs = -12 * 3600000; // Invert host PM to true IST AM
+export const getCorrectedNow = (): Date => new Date(Date.now() + serverHourShiftMs);
+
 app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+app.get('/api/time', (_req, res) => {
+  const corrected = getCorrectedNow();
+  res.json({
+    utc: corrected.toISOString(),
+    ist: corrected.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true }),
+    driftMs: serverHourShiftMs,
+    timestamp: corrected.getTime()
+  });
+});
+
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'OK', server: 'Fayda Terminal', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', server: 'Fayda Terminal', timestamp: getCorrectedNow().toISOString() });
 });
 
 app.get('/api/status', (_req, res) => {
@@ -140,7 +155,7 @@ app.get('/api/status', (_req, res) => {
     status: 'ONLINE',
     dataSource: currentDataSource,
     activeWsClients: activeClients.size,
-    timestamp: new Date().toISOString()
+    timestamp: getCorrectedNow().toISOString()
   });
 });
 
@@ -166,13 +181,27 @@ const flashedHighProbTipIds = new Set<string>();
 
 // Check market hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
 export const isMarketOpenForSymbol = (symbol: string): boolean => {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const day = ist.getDay(); // 0 = Sun, 6 = Sat
+  const corrected = getCorrectedNow();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(corrected);
+  const map: Record<string, string> = {};
+  parts.forEach(p => { map[p.type] = p.value; });
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6
+  };
+  const day = weekdayMap[map.weekday || 'Sun'] ?? 0;
   if (day === 0 || day === 6) return false;
 
-  const currentMin = ist.getHours() * 60 + ist.getMinutes();
+  const hours = map.hour === '24' ? 0 : parseInt(map.hour || '0', 10);
+  const minutes = parseInt(map.minute || '0', 10);
+  const currentMin = hours * 60 + minutes;
+
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
   const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
 
@@ -185,8 +214,12 @@ export const isMarketOpenForSymbol = (symbol: string): boolean => {
 
 export const isNseMarketOpen = (): boolean => isMarketOpenForSymbol('NIFTY');
 
-// Broadcast function to all active WS clients
+// Broadcast function to all active WS clients with network-synchronized timestamps
 const broadcast = (data: any) => {
+  if (data && typeof data === 'object') {
+    data.timestamp = getCorrectedNow().toISOString();
+    data.serverDriftMs = serverHourShiftMs;
+  }
   const payload = JSON.stringify(data);
   for (const client of activeClients) {
     if (client.readyState === WebSocket.OPEN) {

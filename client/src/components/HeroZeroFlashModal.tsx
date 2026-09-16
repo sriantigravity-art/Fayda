@@ -10,6 +10,7 @@ import {
   TrendingDown, 
   Activity
 } from 'lucide-react';
+import { getISTComponents } from '../utils/formatTime';
 
 export const HeroZeroFlashModal: React.FC = () => {
   const { latestHeroZeroFlash, dismissHeroZeroFlash, selectedIndex } = useMarket();
@@ -18,45 +19,30 @@ export const HeroZeroFlashModal: React.FC = () => {
   const dismissRef = React.useRef(dismissHeroZeroFlash);
   dismissRef.current = dismissHeroZeroFlash;
 
-  const flashId = latestHeroZeroFlash?.id;
-
   useEffect(() => {
-    if (!flashId) {
+    if (!latestHeroZeroFlash) {
       setProgress(100);
       setSecondsRemaining(10);
       return;
     }
 
-    setProgress(100);
-    setSecondsRemaining(10);
-    const durationMs = 10000; // 10 seconds auto-dismiss
     const startTime = Date.now();
+    const duration = 10000;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const remainingMs = Math.max(0, durationMs - elapsed);
-      const pct = (remainingMs / durationMs) * 100;
-      
-      setProgress(pct);
-      setSecondsRemaining(Math.max(0, Math.ceil(remainingMs / 1000)));
+      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+      setProgress(remaining);
+      setSecondsRemaining(Math.ceil((duration - elapsed) / 1000));
 
-      if (elapsed >= durationMs) {
+      if (elapsed >= duration) {
         clearInterval(interval);
         dismissRef.current();
       }
-    }, 50);
+    }, 100);
 
-    // Guaranteed fallback timeout to ensure dismissal after 10 seconds
-    const hardTimeout = setTimeout(() => {
-      clearInterval(interval);
-      dismissRef.current();
-    }, durationMs + 100);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(hardTimeout);
-    };
-  }, [flashId]);
+    return () => clearInterval(interval);
+  }, [latestHeroZeroFlash]);
 
   if (!latestHeroZeroFlash || (latestHeroZeroFlash.symbol && selectedIndex && latestHeroZeroFlash.symbol !== selectedIndex)) {
     return null;
@@ -64,12 +50,9 @@ export const HeroZeroFlashModal: React.FC = () => {
 
   // Market hours check (exempt explicit test/demo triggers)
   const isTestOrDemo = latestHeroZeroFlash.id.startsWith('hero-zero-demo-') || latestHeroZeroFlash.id.startsWith('test-');
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const day = ist.getDay();
-  const currentMin = ist.getHours() * 60 + ist.getMinutes();
-  const isMarketOpen = day !== 0 && day !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  const { hours, minutes, dayOfWeek } = getISTComponents();
+  const currentMin = hours * 60 + minutes;
+  const isMarketOpen = dayOfWeek !== 0 && dayOfWeek !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
   if (!isMarketOpen && !isTestOrDemo) return null;
 
   const isCall = latestHeroZeroFlash.optionType === 'CE';

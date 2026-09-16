@@ -1,4 +1,5 @@
 import { isMarketOpenForSymbol } from './lastClosedData';
+import { getISTComponents } from './formatTime';
 
 export type TradeCategory = 'SCALPING' | 'INTRADAY' | 'SWING' | 'DELIVERY';
 
@@ -40,10 +41,8 @@ export interface TargetTimeHorizonResult {
  * Calculates Market Session Velocity Multipliers based on official IST Indian Trading Session Dynamics
  */
 export function getSessionVelocityDetails(symbol?: string) {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const totalMinutes = ist.getHours() * 60 + ist.getMinutes();
+  const { hours, minutes } = getISTComponents();
+  const totalMinutes = hours * 60 + minutes;
 
   let sessionVelocityMultiplier = 1.0;
   let sessionVelocityName = 'Standard Trading Speed';
@@ -190,10 +189,8 @@ export function calculateTargetHorizon(
   const distFromAtm = Math.abs(strikePrice - atmStrike);
   const targetGainPoints = Math.max(2, targetLtp - entryLtp);
 
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const ist = new Date(utc + (3600000 * 5.5));
-  const totalMinutes = ist.getHours() * 60 + ist.getMinutes();
+  const { hours, minutes } = getISTComponents();
+  const totalMinutes = hours * 60 + minutes;
 
   const { sessionVelocityName, velocityBadge } = getSessionVelocityDetails(symbol);
 

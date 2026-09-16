@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { sanitizeSpotData } from '../utils/lastClosedData';
+import { getISTComponents } from '../utils/formatTime';
 
 async function checkMcxOpen(): Promise<boolean> {
   try {
@@ -21,12 +22,9 @@ async function checkMcxOpen(): Promise<boolean> {
     const d = await res.json();
     return !!d.isOpen;
   } catch {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + 3600000 * 5.5);
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
-    const min = ist.getHours() * 60 + ist.getMinutes();
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+    const min = hours * 60 + minutes;
     return min >= 9 * 60 && min < 23 * 60 + 30;
   }
 }

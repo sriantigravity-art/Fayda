@@ -4,7 +4,7 @@ import { useTerminalMode, type TerminalMode } from '../context/TerminalModeConte
 import { useDensity, type TerminalDensity } from '../context/DensityContext';
 import { useAuth } from '../context/AuthContext';
 import { ALL_SYMBOLS_CONFIG } from '../types';
-import { formatISTTime } from '../utils/formatTime';
+import { formatISTTime, getISTComponents } from '../utils/formatTime';
 import { sanitizeSpotData } from '../utils/lastClosedData';
 import {
   Volume2,
@@ -154,20 +154,36 @@ export const HeaderBar: React.FC = () => {
 
 
 
+  // 12-hour vs 24-hour clock preference (default: 12-hour with AM/PM)
+  const [is24Hour, setIs24Hour] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('fayda_clock_24h') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleClockFormat = () => {
+    setIs24Hour(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('fayda_clock_24h', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // Live real-time clock with seconds strictly formatted in IST
   const [currentTime, setCurrentTime] = useState<string>(() => {
-    return formatISTTime(null, { showSeconds: true });
+    return formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: !is24Hour });
   });
 
   // Market Hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
   const isMarketHours = () => {
-    const now = new Date();
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const ist = new Date(utc + (3600000 * 5.5));
-    const day = ist.getDay();
-    if (day === 0 || day === 6) return false;
+    const { hours, minutes, dayOfWeek } = getISTComponents();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
-    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const currentMin = hours * 60 + minutes;
     const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
     const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
 
@@ -181,11 +197,13 @@ export const HeaderBar: React.FC = () => {
   const isLiveMarketOpen = isMarketHours();
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(formatISTTime(null, { showSeconds: true }));
-    }, 1000);
+    const update = () => {
+      setCurrentTime(formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: !is24Hour }));
+    };
+    update();
+    const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [is24Hour]);
 
   const expiryDates = currentIndexState?.expiryDates || [];
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
@@ -519,10 +537,15 @@ export const HeaderBar: React.FC = () => {
             <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
 
             {/* Live IST Clock */}
-            <div className="flex items-center space-x-1 font-mono text-terminal-muted text-[11px]">
+            <button
+              type="button"
+              onClick={toggleClockFormat}
+              className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-transparent border-0 p-0"
+              title="Indian Standard Time (IST - Asia/Kolkata). Click to toggle 12h (AM/PM) / 24h format."
+            >
               <Clock className="w-3 h-3 text-accent-sky" />
-              <span>{currentTime} IST</span>
-            </div>
+              <span className="font-semibold">{currentTime}</span>
+            </button>
           </div>
         )}
       </div>
