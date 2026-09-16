@@ -639,6 +639,9 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
     const isTargetHit = call.status === 'TARGET_HIT';
     const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
 
+    const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
+    const lotSize = call.lotSize || cfg?.lot || 50;
+
     openTradeTipModal({
       id: call.id,
       symbol: (call.symbol || 'NIFTY') as IndexSymbol,
@@ -650,9 +653,10 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       tierLabel: '📖 POST-MARKET TRADE JOURNAL LEDGER',
       sessionName: call.sessionPhase || 'Recorded Trade Call',
       confluenceScore: isTargetHit ? 95 : isNearTarget ? 88 : 78,
+      lotSize,
       entryPrice: call.entryPrice,
       entryRange: `₹${call.entryPrice.toFixed(2)}`,
-      currentLtp: call.exitLtp || call.currentLtp || call.peakLtp,
+      currentLtp: isSl ? call.stoplossPrice : isTargetHit ? call.target1Price : (call.exitLtp || call.currentLtp || call.peakLtp),
       stoplossPrice: `₹${call.stoplossPrice.toFixed(2)}`,
       stoplossPct: call.entryPrice > 0 ? parseFloat((((call.entryPrice - call.stoplossPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
       target1Price: `₹${call.target1Price.toFixed(2)}`,
@@ -1150,13 +1154,14 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 <th className="py-2.5 px-3">Time</th>
                 <th className="py-2.5 px-3">Asset / Strike</th>
                 <th className="py-2.5 px-3">Signal Source</th>
+                <th className="py-2.5 px-3 text-center">Lot Size</th>
                 <th className="py-2.5 px-3 text-right">Perfect Entry</th>
                 <th className="py-2.5 px-3 text-right">Target 1</th>
                 <th className="py-2.5 px-3 text-right">Stop Loss</th>
                 <th className="py-2.5 px-3 text-right">Peak LTP</th>
                 <th className="py-2.5 px-3 text-right">Exit / LTP</th>
                 <th className="py-2.5 px-3">Near-Target Progress</th>
-                <th className="py-2.5 px-3 text-right">P&L (Booked)</th>
+                <th className="py-2.5 px-3 text-right">P&L / Outcome (Booked)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-terminal-border/50 bg-white dark:bg-terminal-card/80">
@@ -1165,6 +1170,36 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 const isTargetHit = call.status === 'TARGET_HIT';
                 const isSlHit = call.status === 'STOPLOSS_HIT';
                 const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
+
+                const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
+                const lotSize = call.lotSize || cfg?.lot || 50;
+                const lots = call.lots || 1;
+                const totalQty = lotSize * lots;
+
+                // User directive: If stoploss is triggered, calculate entry price - stoploss with lot shown.
+                // Also profit should be calculated like this (Target - entry).
+                let points = call.pointsPnl;
+                if (isSlHit) {
+                  points = call.pointsPnl < 0 ? call.pointsPnl : +(call.stoplossPrice - call.entryPrice).toFixed(2);
+                } else if (isTargetHit) {
+                  points = call.pointsPnl > 0 ? call.pointsPnl : +(call.target1Price - call.entryPrice).toFixed(2);
+                }
+
+                const exitPrice = isSlHit 
+                  ? call.stoplossPrice 
+                  : isTargetHit 
+                  ? call.target1Price 
+                  : (call.exitLtp || call.currentLtp);
+
+                const pnlRupees = call.pnlRupees !== undefined 
+                  ? call.pnlRupees 
+                  : Math.round(points * totalQty);
+
+                const calculationFormula = isSlHit
+                  ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`
+                  : isTargetHit
+                  ? `Target ₹${call.target1Price.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts`
+                  : `LTP ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts`;
 
                 return (
                   <tr 
@@ -1202,6 +1237,13 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                       </span>
                     </td>
 
+                    {/* Lot Size */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded bg-sky-50 dark:bg-accent-sky/10 border border-sky-200 dark:border-accent-sky/30 text-accent-sky font-bold text-[10px]">
+                        {lots} Lot ({totalQty} Qty)
+                      </span>
+                    </td>
+
                     {/* Entry Level */}
                     <td className="py-3 px-3 text-right whitespace-nowrap">
                       <span className="font-bold text-terminal-text">₹{call.entryPrice.toFixed(2)}</span>
@@ -1224,7 +1266,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
                     {/* Exit / Current LTP */}
                     <td className="py-3 px-3 text-right whitespace-nowrap font-bold text-terminal-text">
-                      ₹{(call.exitLtp || call.currentLtp).toFixed(2)}
+                      ₹{exitPrice.toFixed(2)}
                     </td>
 
                     {/* Near-Target Progress Bar & Explanation */}
@@ -1252,23 +1294,28 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
                     {/* P&L / Outcome Badge */}
                     <td className="py-3 px-3 text-right whitespace-nowrap">
-                      {isTargetHit ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bull/20 text-bull border border-bull/50 font-black shadow-sm text-[11px]">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>+{call.pointsPnl} pts (+{call.pnlPct}%)</span>
+                      <div className="flex flex-col items-end space-y-0.5">
+                        {isTargetHit ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bull/20 text-bull border border-bull/50 font-black shadow-sm text-[11px]">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>+₹{Math.abs(pnlRupees).toLocaleString('en-IN')} (+{points} pts)</span>
+                          </span>
+                        ) : isSlHit ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bear/20 text-bear border border-bear/50 font-black text-[11px]">
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>-₹{Math.abs(pnlRupees).toLocaleString('en-IN')} ({points} pts)</span>
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg border font-bold text-[10px] ${
+                            points >= 0 ? 'bg-bull/10 text-bull border-bull/30' : 'bg-bear/10 text-bear border-bear/30'
+                          }`}>
+                            <span>{points >= 0 ? '+' : ''}₹{pnlRupees.toLocaleString('en-IN')} ({points >= 0 ? '+' : ''}{points} pts)</span>
+                          </span>
+                        )}
+                        <span className="text-[9px] text-terminal-muted font-mono tracking-tight">
+                          {calculationFormula} ({lots} Lot)
                         </span>
-                      ) : isSlHit ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bear/20 text-bear border border-bear/50 font-black text-[11px]">
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>{call.pointsPnl} pts ({call.pnlPct}%)</span>
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg border font-bold text-[10px] ${
-                          call.pointsPnl >= 0 ? 'bg-bull/10 text-bull border-bull/30' : 'bg-bear/10 text-bear border-bear/30'
-                        }`}>
-                          <span>{call.pointsPnl >= 0 ? '+' : ''}{call.pointsPnl} pts ({call.pnlPct}%)</span>
-                        </span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );

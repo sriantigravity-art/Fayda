@@ -133,33 +133,59 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const isDistorted = !isSeller && (rawEntry < minModalViableLtp || (ltpNum > 0 && rawEntry > 0 && (ltpNum / rawEntry > 3.5 || rawEntry / ltpNum > 3.5)));
   const entryNum = isDistorted ? ltpNum : rawEntry;
 
-  // Dynamic PnL calculation from effective entry and active LTP
-  const pnlPts = isSeller
-    ? +(entryNum - ltpNum).toFixed(2)
-    : +(ltpNum - entryNum).toFixed(2);
+  const slNum = typeof tip.stoplossPrice === 'number' 
+    ? tip.stoplossPrice 
+    : (parseFloat(String(tip.stoplossPrice).replace(/[^0-9.]/g, '')) || 0);
+
+  const t1Num = typeof tip.target1Price === 'number' 
+    ? tip.target1Price 
+    : (parseFloat(String(tip.target1Price).replace(/[^0-9.]/g, '')) || 0);
+
+  const t2Num = typeof tip.target2Price === 'number' 
+    ? tip.target2Price 
+    : (parseFloat(String(tip.target2Price).replace(/[^0-9.]/g, '')) || 0);
+
+  // Check target hit dynamically based on prices as well as historical timestamps/status
+  const isTarget2Reached = tip.status === 'TARGET2_HIT' 
+    || Boolean(tip.target2HitTimeFormatted) 
+    || Boolean(t2Num > 0 && !isSeller && ltpNum >= t2Num) 
+    || Boolean(t2Num > 0 && isSeller && ltpNum <= t2Num);
+
+  const isTarget1Reached = isTarget2Reached 
+    || tip.status === 'TARGET1_HIT' 
+    || tip.status === 'TARGET_HIT'
+    || Boolean(tip.target1HitTimeFormatted) 
+    || Boolean(t1Num > 0 && !isSeller && ltpNum >= t1Num) 
+    || Boolean(t1Num > 0 && isSeller && ltpNum <= t1Num);
+
+  const isStoplossReached = isSlHit 
+    || tip.status === 'STOPLOSS_HIT'
+    || Boolean(tip.stoplossTimeFormatted) 
+    || Boolean(slNum > 0 && !isSeller && ltpNum <= slNum) 
+    || Boolean(slNum > 0 && isSeller && ltpNum >= slNum);
+
+  // Accurate PnL calculation:
+  // User directive: If stoploss is triggered, calculate entry price - stoploss with lot shown.
+  // Also profit should be calculated like this (Target - entry).
+  let pnlPts = 0;
+  if (isStoplossReached && slNum > 0) {
+    pnlPts = isSeller ? +(entryNum - slNum).toFixed(2) : +(slNum - entryNum).toFixed(2);
+  } else if (isTarget2Reached && (t2Num > 0 || t1Num > 0)) {
+    const tgt = t2Num > 0 ? t2Num : t1Num;
+    pnlPts = isSeller ? +(entryNum - tgt).toFixed(2) : +(tgt - entryNum).toFixed(2);
+  } else if (isTarget1Reached && t1Num > 0) {
+    pnlPts = isSeller ? +(entryNum - t1Num).toFixed(2) : +(t1Num - entryNum).toFixed(2);
+  } else {
+    pnlPts = isSeller
+      ? +(entryNum - ltpNum).toFixed(2)
+      : +(ltpNum - entryNum).toFixed(2);
+  }
   const pnlPercent = entryNum > 0 ? +((pnlPts / entryNum) * 100).toFixed(1) : 0;
   const pnlInRupees = Math.round(pnlPts * lotSize);
 
   const rawPnlPoints = pnlPts;
   const rawPnlPct = pnlPercent;
   const rawPnlRupees = pnlInRupees;
-
-  // Check target hit dynamically based on prices as well as historical timestamps/status
-  const isTarget2Reached = tip.status === 'TARGET2_HIT' 
-    || Boolean(tip.target2HitTimeFormatted) 
-    || Boolean(tip.target2Price && !isSeller && ltpNum >= tip.target2Price) 
-    || Boolean(tip.target2Price && isSeller && ltpNum <= tip.target2Price);
-
-  const isTarget1Reached = isTarget2Reached 
-    || tip.status === 'TARGET1_HIT' 
-    || Boolean(tip.target1HitTimeFormatted) 
-    || Boolean(tip.target1Price && !isSeller && ltpNum >= tip.target1Price) 
-    || Boolean(tip.target1Price && isSeller && ltpNum <= tip.target1Price);
-
-  const isStoplossReached = isSlHit 
-    || Boolean(tip.stoplossTimeFormatted) 
-    || Boolean(tip.stoplossPrice && !isSeller && ltpNum <= tip.stoplossPrice) 
-    || Boolean(tip.stoplossPrice && isSeller && ltpNum >= tip.stoplossPrice);
 
   // Expiry / 0DTE expiration check: An option on expiry day with LTP <= 0.05 or off-market is EXPIRED
   const isExpired = tip.status === 'EXPIRED' || (tip.isExpiryDay && !isCommodity && (ltpNum <= 0.05 || (!isMarketOpen && tip.status !== 'CARRIED_FORWARD')));

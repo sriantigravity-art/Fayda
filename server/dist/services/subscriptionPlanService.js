@@ -16,18 +16,19 @@ function getDataPath() {
 const DEFAULT_PLANS = [
     {
         id: 'FREE',
-        name: 'Free Starter',
-        tagline: 'Essential market tracking & educational tools',
-        badge: 'STARTER',
+        name: 'Free Beta Member',
+        tagline: '2 Months All Facilities Unlocked — Full Beta Access',
+        badge: '2M FREE',
         isActive: true,
         features: [
-            'Live NSE / BSE Index Spot Tracking',
-            'Delayed Options Open Interest Matrix',
-            'Daily Pre-Market CPR Checklist',
-            'Public Trading Journal & Prediction Audit',
-            'Community Terminal Access'
+            'All Terminal Facilities Unlocked for 2 Months',
+            'Ultra-Low Latency Live Fyers & Dhan Feed',
+            '75%+ High Confluence Trade Setups & Tips',
+            '0DTE Hero-Zero Option Squeeze Detection',
+            '10 Technical Indicators Institutional Radar',
+            'Direct Fyers & Dhan 1-Click Execution'
         ],
-        entitlements: ['BASIC_TRACKING', 'COMMUNITY_ACCESS', 'CPR_CHECKLIST'],
+        entitlements: ['BASIC_TRACKING', 'COMMUNITY_ACCESS', 'CPR_CHECKLIST', 'LIVE_FEEDS', 'CONFLUENCE_MATRIX', 'SURGE_ALERTS', 'TELEGRAM_ALERTS', 'ALPHA_SIGNALS', 'WHATSAPP_SMS_ALERTS', 'BASKET_ORDERING', 'GREEKS_HEATMAP'],
         pricing: {
             MONTHLY: { price: 0, discountPct: 0, taxPct: 0, effectiveTotal: 0 },
             QUARTERLY: { price: 0, discountPct: 0, taxPct: 0, effectiveTotal: 0 },

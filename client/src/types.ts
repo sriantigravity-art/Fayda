@@ -1023,6 +1023,10 @@ export interface JournalTradeCall {
   status: TradeCallStatus;
   pointsPnl: number; // Positive for profit, negative for loss
   pnlPct: number; // Percentage gain/loss from entry
+  lotSize?: number; // Contract lot size e.g. 50 for NIFTY, 15 for BANKNIFTY
+  lots?: number; // Number of lots (default 1)
+  pnlRupees?: number; // Net profit or loss in rupees based on lots and lotSize
+  pnlCalculationFormula?: string; // e.g. 'Entry ₹100 - SL ₹80 = -20 pts (-₹1,000 on 1 Lot [50 Qty])'
   nearTargetPct: number; // 0% to 100%+ (% of target distance achieved)
   nearTargetDescription: string; // '100% Hit' or 'Reached 94% of Target (Peak ₹148 vs ₹150)'
   // Timing Milestones

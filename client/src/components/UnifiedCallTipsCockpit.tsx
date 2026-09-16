@@ -73,10 +73,28 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   const otmCallObj = strikesList.find(s => s.strikePrice >= spotPrice + step * 2) || strikesList[strikesList.length - 1];
 
   const minCockpitCutoff = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(selectedIndex) ? 20.0 : 10.0;
-  const isPkgCallValid = Boolean(pkg?.topCallTrade && pkg.topCallTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topCallTrade.pnlPct || 0) < 350 && (pkg.topCallTrade.confluenceScore || 0) >= 75);
-  const isPkgPutValid = Boolean(pkg?.topPutTrade && pkg.topPutTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topPutTrade.pnlPct || 0) < 350 && (pkg.topPutTrade.confluenceScore || 0) >= 75);
+  const isPkgCallValid = Boolean(
+    pkg?.topCallTrade && 
+    pkg.topCallTrade.status !== 'SL_HIT' && 
+    pkg.topCallTrade.status !== 'STOPLOSS_HIT' && 
+    pkg.topCallTrade.actionabilityStatus !== 'SL_HIT' && 
+    (!pkg.topCallTrade.stoplossPrice || !pkg.topCallTrade.currentLtp || pkg.topCallTrade.currentLtp > pkg.topCallTrade.stoplossPrice) &&
+    pkg.topCallTrade.entryPrice >= minCockpitCutoff && 
+    Math.abs(pkg.topCallTrade.pnlPct || 0) < 350 && 
+    (pkg.topCallTrade.confluenceScore || 0) >= 75
+  );
+  const isPkgPutValid = Boolean(
+    pkg?.topPutTrade && 
+    pkg.topPutTrade.status !== 'SL_HIT' && 
+    pkg.topPutTrade.status !== 'STOPLOSS_HIT' && 
+    pkg.topPutTrade.actionabilityStatus !== 'SL_HIT' && 
+    (!pkg.topPutTrade.stoplossPrice || !pkg.topPutTrade.currentLtp || pkg.topPutTrade.currentLtp > pkg.topPutTrade.stoplossPrice) &&
+    pkg.topPutTrade.entryPrice >= minCockpitCutoff && 
+    Math.abs(pkg.topPutTrade.pnlPct || 0) < 350 && 
+    (pkg.topPutTrade.confluenceScore || 0) >= 75
+  );
 
-  const topCallTrade = (isPkgCallValid ? pkg?.topCallTrade : null) || (atmObj ? {
+  let topCallTrade = (isPkgCallValid ? pkg?.topCallTrade : null) || (atmObj ? {
     id: `synth-call-${atmObj.strikePrice}`,
     symbol: selectedIndex,
     contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
@@ -108,7 +126,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     }
   } as any : null);
 
-  const topPutTrade = (isPkgPutValid ? pkg?.topPutTrade : null) || (atmObj ? {
+  let topPutTrade = (isPkgPutValid ? pkg?.topPutTrade : null) || (atmObj ? {
     id: `synth-put-${atmObj.strikePrice}`,
     symbol: selectedIndex,
     contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,
@@ -140,21 +158,41 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     }
   } as any : null);
 
-  // Dynamically attach real-time live option strike LTP from strikesList if available
+  // Dynamically attach real-time live option strike LTP and compute accurate PnL
   if (topCallTrade && topCallTrade.strikePrice) {
     const st = strikesList.find(s => s.strikePrice === topCallTrade.strikePrice);
     if (st && st.callLtp > 0) {
       topCallTrade.currentLtp = st.callLtp;
-      topCallTrade.pnlPoints = +(st.callLtp - topCallTrade.entryPrice).toFixed(2);
-      topCallTrade.pnlPct = topCallTrade.entryPrice > 0 ? +((topCallTrade.pnlPoints / topCallTrade.entryPrice) * 100).toFixed(1) : 0;
+      const isCallSl = (topCallTrade.stoplossPrice && st.callLtp <= topCallTrade.stoplossPrice) || topCallTrade.status === 'SL_HIT';
+      const isCallTgt = (topCallTrade.target1Price && st.callLtp >= topCallTrade.target1Price) || topCallTrade.status === 'TARGET1_HIT';
+      if (isCallSl) {
+        // User directive: if stop loss triggered, do not show in tips
+        topCallTrade = null;
+      } else if (isCallTgt) {
+        topCallTrade.pnlPoints = +(topCallTrade.target1Price - topCallTrade.entryPrice).toFixed(2);
+        topCallTrade.pnlPct = topCallTrade.entryPrice > 0 ? +((topCallTrade.pnlPoints / topCallTrade.entryPrice) * 100).toFixed(1) : 0;
+      } else {
+        topCallTrade.pnlPoints = +(st.callLtp - topCallTrade.entryPrice).toFixed(2);
+        topCallTrade.pnlPct = topCallTrade.entryPrice > 0 ? +((topCallTrade.pnlPoints / topCallTrade.entryPrice) * 100).toFixed(1) : 0;
+      }
     }
   }
   if (topPutTrade && topPutTrade.strikePrice) {
     const st = strikesList.find(s => s.strikePrice === topPutTrade.strikePrice);
     if (st && st.putLtp > 0) {
       topPutTrade.currentLtp = st.putLtp;
-      topPutTrade.pnlPoints = +(st.putLtp - topPutTrade.entryPrice).toFixed(2);
-      topPutTrade.pnlPct = topPutTrade.entryPrice > 0 ? +((topPutTrade.pnlPoints / topPutTrade.entryPrice) * 100).toFixed(1) : 0;
+      const isPutSl = (topPutTrade.stoplossPrice && st.putLtp <= topPutTrade.stoplossPrice) || topPutTrade.status === 'SL_HIT';
+      const isPutTgt = (topPutTrade.target1Price && st.putLtp >= topPutTrade.target1Price) || topPutTrade.status === 'TARGET1_HIT';
+      if (isPutSl) {
+        // User directive: if stop loss triggered, do not show in tips
+        topPutTrade = null;
+      } else if (isPutTgt) {
+        topPutTrade.pnlPoints = +(topPutTrade.target1Price - topPutTrade.entryPrice).toFixed(2);
+        topPutTrade.pnlPct = topPutTrade.entryPrice > 0 ? +((topPutTrade.pnlPoints / topPutTrade.entryPrice) * 100).toFixed(1) : 0;
+      } else {
+        topPutTrade.pnlPoints = +(st.putLtp - topPutTrade.entryPrice).toFixed(2);
+        topPutTrade.pnlPct = topPutTrade.entryPrice > 0 ? +((topPutTrade.pnlPoints / topPutTrade.entryPrice) * 100).toFixed(1) : 0;
+      }
     }
   }
 

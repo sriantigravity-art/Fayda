@@ -423,20 +423,28 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         || Boolean(stoplossPrice > 0 && !isSeller && ltp <= stoplossPrice)
         || Boolean(stoplossPrice > 0 && isSeller && ltp >= stoplossPrice);
 
+      // User directive: if the stop loss is triggered, move that in journal, dont show in tips
+      if (isSlHit || rawItem.status === 'SL_HIT' || rawItem.rawTip?.status === 'SL_HIT') {
+        return; // Purge stopped-out trade from active recommendations deck
+      }
+
       const finalStatus = isContractExpired 
         ? 'EXPIRED' 
         : isTarget2Hit 
         ? 'TARGET2_HIT' 
         : isTarget1Hit 
         ? 'TARGET1_HIT' 
-        : isSlHit 
-        ? 'SL_HIT' 
         : (rawItem.status || 'ACTIVE');
 
       // 1. P&L in points
       let points = 0;
       if (isContractExpired && !isSeller) {
         points = -entry;
+      } else if (finalStatus === 'TARGET2_HIT' && (target2Price > 0 || target1Price > 0)) {
+        const tgt = target2Price > 0 ? target2Price : target1Price;
+        points = isSeller ? (entry - tgt) : (tgt - entry);
+      } else if (finalStatus === 'TARGET1_HIT' && target1Price > 0) {
+        points = isSeller ? (entry - target1Price) : (target1Price - entry);
       } else if (entry > 0 && ltp > 0) {
         points = isSeller ? (entry - ltp) : (ltp - entry);
       } else if (rawItem.pnlPoints !== undefined && rawItem.pnlPoints !== 0) {

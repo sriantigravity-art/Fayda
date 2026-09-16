@@ -105,6 +105,9 @@ export const HighlightSignalTicker: React.FC = () => {
 
       const isTipEligible = (tip: typeof primeCall): boolean => {
         if (!tip) return false;
+        // User directive: if the stop loss is triggered, move that in journal, dont show in tips
+        if (tip.status === 'SL_HIT' || tip.status === 'STOPLOSS_HIT' || tip.actionabilityStatus === 'SL_HIT') return false;
+        if (tip.stoplossPrice && tip.currentLtp && tip.currentLtp <= tip.stoplossPrice) return false;
         if (!isPkgOffMarket) return true; // live market — show all
         // Off-market: only explicitly carried-forward tips
         return tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD';
@@ -121,7 +124,19 @@ export const HighlightSignalTicker: React.FC = () => {
         const lot = primePick.lotSize || cfg?.lot || 50;
         const entryPriceNum = typeof primePick.entryPrice === 'number' ? primePick.entryPrice : (parseFloat(String(primePick.entryPrice).replace(/[^0-9.]/g, '')) || primePick.currentLtp);
         const ltp = primePick.currentLtp || entryPriceNum;
-        const pnlPoints = primePick.pnlPoints ?? +(ltp - entryPriceNum).toFixed(2);
+        const slPriceNum = typeof primePick.stoplossPrice === 'number' ? primePick.stoplossPrice : (parseFloat(String(primePick.stoplossPrice).replace(/[^0-9.]/g, '')) || 0);
+        const t1PriceNum = typeof primePick.target1Price === 'number' ? primePick.target1Price : (parseFloat(String(primePick.target1Price).replace(/[^0-9.]/g, '')) || 0);
+
+        let pnlPoints = 0;
+        if (primePick.status === 'SL_HIT' && slPriceNum > 0) {
+          pnlPoints = +(slPriceNum - entryPriceNum).toFixed(2);
+        } else if (primePick.status === 'TARGET1_HIT' && t1PriceNum > 0) {
+          pnlPoints = +(t1PriceNum - entryPriceNum).toFixed(2);
+        } else if (primePick.pnlPoints !== undefined) {
+          pnlPoints = primePick.pnlPoints;
+        } else {
+          pnlPoints = +(ltp - entryPriceNum).toFixed(2);
+        }
         const pnlPct = primePick.pnlPct ?? (entryPriceNum > 0 ? +((pnlPoints / entryPriceNum) * 100).toFixed(2) : 0);
         const pnlRupees = primePick.pnlRupees ?? Math.round(pnlPoints * lot);
 
@@ -204,46 +219,48 @@ export const HighlightSignalTicker: React.FC = () => {
         const pTgt = parseFloat(String(pick.suggestedContract.target || '').replace(/[^0-9.]/g, '')) || (pLtp * 1.35);
         const isSlHit = pLtp > 0 && pSl > 0 && pLtp <= pSl;
 
-        const horizon = calculateTargetHorizon(
-          sym,
-          pick.strikePrice,
-          atmStrike,
-          pick.optionType,
-          pLtp,
-          pTgt,
-          pick.surgeScore,
-          daysToExpiry ?? 2,
-          pcr?.atmPlusMinus5Pcr ?? 1.0,
-          isIndex
-        );
+        if (!isSlHit) {
+          const horizon = calculateTargetHorizon(
+            sym,
+            pick.strikePrice,
+            atmStrike,
+            pick.optionType,
+            pLtp,
+            pTgt,
+            pick.surgeScore,
+            daysToExpiry ?? 2,
+            pcr?.atmPlusMinus5Pcr ?? 1.0,
+            isIndex
+          );
 
-        return {
-          symbol: sym,
-          strike: pick.suggestedContract.symbol,
-          action: pick.tradeAction === 'BUY_CALL' ? 'BUY CALL' : 'BUY PUT',
-          isBull,
-          isLiveSignal: true,
-          ltp: pick.suggestedContract.ltp,
-          entry: pick.suggestedContract.recommendedEntry,
-          exitSL: pick.suggestedContract.stoploss,
-          target: pick.suggestedContract.target,
-          riskReward: pick.suggestedContract.riskReward || '1:2.0',
-          score: pick.surgeScore,
-          rawTimestamp: pick.timestamp || lastUpdated || new Date().toISOString(),
-          time: pick.timeFormatted || fallbackTime,
-          isStoplossHit: isSlHit,
-          horizon,
-          breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
-          faydaStrategyMatch: pick.faydaStrategyMatch || (faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined),
-          multiLegAlternative: pick.multiLegAlternative || (multiLegStrategy ? {
-            spreadName: multiLegStrategy.strategyName,
-            legsSummary: multiLegStrategy.description,
-            maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
-            maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
-            breakeven: multiLegStrategy.upperBreakeven || 0,
-            marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
-          } : undefined)
-        };
+          return {
+            symbol: sym,
+            strike: pick.suggestedContract.symbol,
+            action: pick.tradeAction === 'BUY_CALL' ? 'BUY CALL' : 'BUY PUT',
+            isBull,
+            isLiveSignal: true,
+            ltp: pick.suggestedContract.ltp,
+            entry: pick.suggestedContract.recommendedEntry,
+            exitSL: pick.suggestedContract.stoploss,
+            target: pick.suggestedContract.target,
+            riskReward: pick.suggestedContract.riskReward || '1:2.0',
+            score: pick.surgeScore,
+            rawTimestamp: pick.timestamp || lastUpdated || new Date().toISOString(),
+            time: pick.timeFormatted || fallbackTime,
+            isStoplossHit: false,
+            horizon,
+            breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
+            faydaStrategyMatch: pick.faydaStrategyMatch || (faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined),
+            multiLegAlternative: pick.multiLegAlternative || (multiLegStrategy ? {
+              spreadName: multiLegStrategy.strategyName,
+              legsSummary: multiLegStrategy.description,
+              maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
+              maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
+              breakeven: multiLegStrategy.upperBreakeven || 0,
+              marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
+            } : undefined)
+          };
+        }
       }
 
       // 3. Live reference setup for currently open symbols

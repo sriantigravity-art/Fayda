@@ -1373,6 +1373,9 @@ export class ConfluenceEngine {
             }
             // Automatically move completed or hit trade into Trade Journal!
             if (milestoneRecordedStatus && params.symbol && params.strikePrice && params.optionType) {
+                const exitLtpForJournal = milestoneRecordedStatus === 'STOPLOSS_HIT'
+                    ? params.stoplossPrice
+                    : (milestoneRecordedStatus === 'TARGET_HIT' ? params.target1Price : params.currentLtp);
                 signalLedgerService.recordOrUpdateMilestone({
                     symbol: params.symbol,
                     strikePrice: params.strikePrice,
@@ -1383,7 +1386,7 @@ export class ConfluenceEngine {
                     target1Price: params.target1Price,
                     target2Price: params.target2Price,
                     stoplossPrice: params.stoplossPrice,
-                    currentLtp: params.currentLtp,
+                    currentLtp: exitLtpForJournal,
                     callGivenTimeFormatted,
                     entryPriceTimeFormatted,
                     target1HitTimeFormatted,
@@ -1749,16 +1752,24 @@ export class ConfluenceEngine {
         else {
             actionabilityStatus = 'IN_ENTRY_ZONE';
         }
-        // Calculate Rupee P&L based on status
+        // Calculate Rupee P&L and points based on status
+        let effectivePnlPoints = pnlPoints;
+        let effectivePnlPct = pnlPct;
         let primPnlRupees = 0;
         if (primStatus === 'TARGET1_HIT') {
-            primPnlRupees = Math.round((t1Price - entryPrice) * instrumentLot);
+            effectivePnlPoints = +(t1Price - entryPrice).toFixed(2);
+            effectivePnlPct = entryPrice > 0 ? +((effectivePnlPoints / entryPrice) * 100).toFixed(1) : 0;
+            primPnlRupees = Math.round(effectivePnlPoints * instrumentLot);
         }
         else if (primStatus === 'TARGET2_HIT') {
-            primPnlRupees = Math.round((t2Price - entryPrice) * instrumentLot);
+            effectivePnlPoints = +(t2Price - entryPrice).toFixed(2);
+            effectivePnlPct = entryPrice > 0 ? +((effectivePnlPoints / entryPrice) * 100).toFixed(1) : 0;
+            primPnlRupees = Math.round(effectivePnlPoints * instrumentLot);
         }
         else if (primStatus === 'SL_HIT') {
-            primPnlRupees = Math.round((slPrice - entryPrice) * instrumentLot);
+            effectivePnlPoints = +(slPrice - entryPrice).toFixed(2);
+            effectivePnlPct = entryPrice > 0 ? -Math.abs(+(((entryPrice - slPrice) / entryPrice) * 100).toFixed(1)) : 0;
+            primPnlRupees = Math.round(effectivePnlPoints * instrumentLot);
         }
         else {
             primPnlRupees = Math.round(pnlPoints * instrumentLot);
@@ -1766,8 +1777,8 @@ export class ConfluenceEngine {
         // Market-Tailored Carry-Forward Advice
         const primAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
             status: primStatus,
-            pnlPoints,
-            pnlPct,
+            pnlPoints: effectivePnlPoints,
+            pnlPct: effectivePnlPct,
             pnlRupees: primPnlRupees,
             currentLtp,
             t1Pct: momentumInfo.t1Pct,
@@ -1791,86 +1802,92 @@ export class ConfluenceEngine {
         if (isDirectional) {
             primScore = Math.min(98, primScore + 4);
         }
-        primaryTrade = {
-            id: `prim-${symbol}-${sessionInfo.session}-${targetStrike}-${optType}`,
-            symbol,
-            tier: 'PRIMARY_MOMENTUM',
-            tierLabel: '🎯 Primary Directional Momentum Call',
-            tradingRole: 'BUYER',
-            executionType: 'NET_DEBIT',
-            session: sessionInfo.session,
-            sessionName: sessionInfo.sessionName,
-            action: primAction,
-            contractSymbol,
-            strikePrice: targetStrike,
-            optionType: optType,
-            entryTime: primMilestones.callGivenTime,
-            entryTimeFormatted: primMilestones.callGivenTimeFormatted,
-            callGivenTime: primMilestones.callGivenTime,
-            callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
-            isEntryTriggered: primMilestones.isEntryTriggered,
-            actualEntryPrice: primMilestones.actualEntryPrice,
-            entryPriceTime: primMilestones.entryPriceTime,
-            entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
-            target1HitTime: primMilestones.target1HitTime,
-            target1HitTimeFormatted: primMilestones.target1HitTimeFormatted,
-            target2HitTime: primMilestones.target2HitTime,
-            target2HitTimeFormatted: primMilestones.target2HitTimeFormatted,
-            stoplossTime: primMilestones.stoplossTime,
-            stoplossTimeFormatted: primMilestones.stoplossTimeFormatted,
-            halfProfitBookTime: primMilestones.halfProfitBookTime,
-            halfProfitBookTimeFormatted: primMilestones.halfProfitBookTimeFormatted,
-            bookedTime: primMilestones.bookedTime,
-            bookedTimeFormatted: primMilestones.bookedTimeFormatted,
-            carryForwardTime,
-            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-            carryForwardSuggestion: primCarrySuggestion,
-            carryForwardAdvice: primCarryAdvice,
-            marketRegime: momentumInfo.regime,
-            momentumDescription: momentumInfo.description,
-            expiryDate: activeExpiryDate,
-            daysToExpiry,
-            isExpiryDay: momentumInfo.isExpiryDay,
-            nextExpiryDate,
-            nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${targetStrike} ${optType}`,
-            ongoingProfitBox: primOngoingProfitBox,
-            isCarriedForward: primStatus === 'CARRIED_FORWARD',
-            entryPrice,
-            entryRange,
-            triggerPrice,
-            dipEntryMin,
-            dipEntryMax,
-            breakoutEntryPrice,
-            actionabilityStatus,
-            pnlPoints,
-            pnlPct,
-            pnlRupees: primPnlRupees,
-            currentLtp,
-            stoplossPrice: slPrice,
-            stoplossPct: momentumInfo.slPct,
-            target1Price: t1Price,
-            target1Pct: momentumInfo.t1Pct,
-            target2Price: t2Price,
-            target2Pct: momentumInfo.t2Pct,
-            riskReward: '1:2.8',
-            confluenceScore: primScore,
-            confluenceBreakdown: primConfluence,
-            status: primStatus,
-            strategyMatches: {
-                faydaRadarConfluence: true,
-                oiActivitySurge: !!pcr && (preferBull ? pcr.overallPcr >= 1.0 : pcr.overallPcr <= 0.95),
-                faydaStrategy9Ema: !!faydaStrategy && (faydaStrategy.strategyNumber === 9 || faydaStrategy.confidenceScore >= 75),
-                multiTimeframeBreakout: !!patternBreakout && patternBreakout.predictedBreakout.direction !== 'RANGEBOUND',
-                multiLegSpreadConfirmed: !!multiLegStrategy,
-                gammaExplosionConfirmed: !!heroZeroSignals && heroZeroSignals.length > 0
-            },
-            strategyTag: `${stratId} + ${patternName} Breakout`,
-            explanations: {
-                beginner: `🎯 SYSTEM ADVISORY: BUY ${targetStrike} ${optType} | Entry Zone: ₹${entryPrice.toFixed(2)} (or dip ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)}) | Target 1: ₹${t1Price.toFixed(2)} | Stoploss: ₹${slPrice.toFixed(2)} | Rule: Max risk ₹${Math.round(entryPrice * 0.20 * 50)}/lot; book 50% at Target 1.`,
-                intermediate: `⚡ SYSTEM DIRECTIVE: ${stratId} + ${patternName} Breakout | Trigger: >₹${breakoutEntryPrice.toFixed(2)} | Dip Range: ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} | SL: ₹${slPrice.toFixed(2)} (-20%) | Action: Trail SL to cost upon Target 1.`,
-                expert: `📊 SYSTEM QUANT METRICS: Delta: ${preferBull ? '+0.52' : '-0.52'} | Gamma: 0.046 | IV: ${strikeObj?.iv || 13.5}% | Flow: 1-Min Delta OI institutional execution | VWAP Support: Aligned with CPR | R:R: 1:2.8.`
-            }
-        };
+        // User directive: If stop loss is triggered, move to journal, do not show in active tips
+        if (primStatus === 'SL_HIT') {
+            primaryTrade = null;
+        }
+        else {
+            primaryTrade = {
+                id: `prim-${symbol}-${sessionInfo.session}-${targetStrike}-${optType}`,
+                symbol,
+                tier: 'PRIMARY_MOMENTUM',
+                tierLabel: '🎯 Primary Directional Momentum Call',
+                tradingRole: 'BUYER',
+                executionType: 'NET_DEBIT',
+                session: sessionInfo.session,
+                sessionName: sessionInfo.sessionName,
+                action: primAction,
+                contractSymbol,
+                strikePrice: targetStrike,
+                optionType: optType,
+                entryTime: primMilestones.callGivenTime,
+                entryTimeFormatted: primMilestones.callGivenTimeFormatted,
+                callGivenTime: primMilestones.callGivenTime,
+                callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
+                isEntryTriggered: primMilestones.isEntryTriggered,
+                actualEntryPrice: primMilestones.actualEntryPrice,
+                entryPriceTime: primMilestones.entryPriceTime,
+                entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
+                target1HitTime: primMilestones.target1HitTime,
+                target1HitTimeFormatted: primMilestones.target1HitTimeFormatted,
+                target2HitTime: primMilestones.target2HitTime,
+                target2HitTimeFormatted: primMilestones.target2HitTimeFormatted,
+                stoplossTime: primMilestones.stoplossTime,
+                stoplossTimeFormatted: primMilestones.stoplossTimeFormatted,
+                halfProfitBookTime: primMilestones.halfProfitBookTime,
+                halfProfitBookTimeFormatted: primMilestones.halfProfitBookTimeFormatted,
+                bookedTime: primMilestones.bookedTime,
+                bookedTimeFormatted: primMilestones.bookedTimeFormatted,
+                carryForwardTime,
+                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                carryForwardSuggestion: primCarrySuggestion,
+                carryForwardAdvice: primCarryAdvice,
+                marketRegime: momentumInfo.regime,
+                momentumDescription: momentumInfo.description,
+                expiryDate: activeExpiryDate,
+                daysToExpiry,
+                isExpiryDay: momentumInfo.isExpiryDay,
+                nextExpiryDate,
+                nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${targetStrike} ${optType}`,
+                ongoingProfitBox: primOngoingProfitBox,
+                isCarriedForward: primStatus === 'CARRIED_FORWARD',
+                entryPrice,
+                entryRange,
+                triggerPrice,
+                dipEntryMin,
+                dipEntryMax,
+                breakoutEntryPrice,
+                actionabilityStatus,
+                pnlPoints: effectivePnlPoints,
+                pnlPct: effectivePnlPct,
+                pnlRupees: primPnlRupees,
+                currentLtp,
+                stoplossPrice: slPrice,
+                stoplossPct: momentumInfo.slPct,
+                target1Price: t1Price,
+                target1Pct: momentumInfo.t1Pct,
+                target2Price: t2Price,
+                target2Pct: momentumInfo.t2Pct,
+                riskReward: '1:2.8',
+                confluenceScore: primScore,
+                confluenceBreakdown: primConfluence,
+                status: primStatus,
+                strategyMatches: {
+                    faydaRadarConfluence: true,
+                    oiActivitySurge: !!pcr && (preferBull ? pcr.overallPcr >= 1.0 : pcr.overallPcr <= 0.95),
+                    faydaStrategy9Ema: !!faydaStrategy && (faydaStrategy.strategyNumber === 9 || faydaStrategy.confidenceScore >= 75),
+                    multiTimeframeBreakout: !!patternBreakout && patternBreakout.predictedBreakout.direction !== 'RANGEBOUND',
+                    multiLegSpreadConfirmed: !!multiLegStrategy,
+                    gammaExplosionConfirmed: !!heroZeroSignals && heroZeroSignals.length > 0
+                },
+                strategyTag: `${stratId} + ${patternName} Breakout`,
+                explanations: {
+                    beginner: `🎯 SYSTEM ADVISORY: BUY ${targetStrike} ${optType} | Entry Zone: ₹${entryPrice.toFixed(2)} (or dip ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)}) | Target 1: ₹${t1Price.toFixed(2)} | Stoploss: ₹${slPrice.toFixed(2)} | Rule: Max risk ₹${Math.round(entryPrice * 0.20 * 50)}/lot; book 50% at Target 1.`,
+                    intermediate: `⚡ SYSTEM DIRECTIVE: ${stratId} + ${patternName} Breakout | Trigger: >₹${breakoutEntryPrice.toFixed(2)} | Dip Range: ₹${dipEntryMin.toFixed(2)}–₹${dipEntryMax.toFixed(2)} | Target 1: ₹${t1Price.toFixed(2)} | SL: ₹${slPrice.toFixed(2)} (-20%) | Action: Trail SL to cost upon Target 1.`,
+                    expert: `📊 SYSTEM QUANT METRICS: Delta: ${preferBull ? '+0.52' : '-0.52'} | Gamma: 0.046 | IV: ${strikeObj?.iv || 13.5}% | Flow: 1-Min Delta OI institutional execution | VWAP Support: Aligned with CPR | R:R: 1:2.8.`
+                }
+            };
+        }
         // ── 2B. HIGH-PROBABILITY HOURLY TOP CALL & TOP PUT (STRICTLY 1-2 PER HOUR) ──
         const slotHour = ist.getHours();
         const slotDateStr = `${ist.getFullYear()}-${String(ist.getMonth() + 1).padStart(2, '0')}-${String(ist.getDate()).padStart(2, '0')}`;
@@ -1968,26 +1985,36 @@ export class ConfluenceEngine {
                 else {
                     actionabilityStatus = 'IN_ENTRY_ZONE';
                 }
+                let callPnlPoints = pnlPoints;
+                let callPnlPct = pnlPct;
                 let callPnlRupees = 0;
                 if (status === 'EXPIRED') {
                     callPnlRupees = -Math.round(activeCall.entryPrice * instrumentLot);
                 }
                 else if (status === 'TARGET1_HIT') {
-                    callPnlRupees = Math.round((activeCall.target1Price - activeCall.entryPrice) * instrumentLot);
+                    callPnlPoints = +(activeCall.target1Price - activeCall.entryPrice).toFixed(2);
+                    callPnlPct = activeCall.entryPrice > 0 ? +((callPnlPoints / activeCall.entryPrice) * 100).toFixed(1) : 0;
+                    callPnlRupees = Math.round(callPnlPoints * instrumentLot);
                 }
                 else if (status === 'TARGET2_HIT') {
-                    callPnlRupees = Math.round(((activeCall.target2Price || activeCall.target1Price) - activeCall.entryPrice) * instrumentLot);
+                    const tgt = activeCall.target2Price || activeCall.target1Price;
+                    callPnlPoints = +(tgt - activeCall.entryPrice).toFixed(2);
+                    callPnlPct = activeCall.entryPrice > 0 ? +((callPnlPoints / activeCall.entryPrice) * 100).toFixed(1) : 0;
+                    callPnlRupees = Math.round(callPnlPoints * instrumentLot);
                 }
                 else if (status === 'SL_HIT') {
-                    callPnlRupees = Math.round((activeCall.stoplossPrice - activeCall.entryPrice) * instrumentLot);
+                    // Strictly entryPrice - stoplossPrice
+                    callPnlPoints = +(activeCall.stoplossPrice - activeCall.entryPrice).toFixed(2);
+                    callPnlPct = activeCall.entryPrice > 0 ? -Math.abs(+(((activeCall.entryPrice - activeCall.stoplossPrice) / activeCall.entryPrice) * 100).toFixed(1)) : 0;
+                    callPnlRupees = Math.round(callPnlPoints * instrumentLot);
                 }
                 else {
                     callPnlRupees = Math.round(pnlPoints * instrumentLot);
                 }
                 const callAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status,
-                    pnlPoints,
-                    pnlPct,
+                    pnlPoints: callPnlPoints,
+                    pnlPct: callPnlPct,
                     pnlRupees: callPnlRupees,
                     currentLtp,
                     t1Pct: activeCall.target1Pct || momentumInfo.t1Pct,
@@ -2001,44 +2028,51 @@ export class ConfluenceEngine {
                     confluenceScore: activeCall.confluenceScore,
                     marketRegime: activeCall.marketRegime || momentumInfo.regime
                 });
-                topCallTrade = {
-                    ...activeCall,
-                    entryRange: `₹${(activeCall.dipEntryMin || activeCall.entryPrice * 0.975).toFixed(1)} - ₹${activeCall.entryPrice.toFixed(1)}`,
-                    currentLtp,
-                    pnlPoints,
-                    pnlPct,
-                    pnlRupees: callPnlRupees,
-                    carryForwardSuggestion: callAdvice.carryForwardSuggestion,
-                    carryForwardAdvice: callAdvice.carryForwardAdvice,
-                    actionabilityStatus,
-                    status,
-                    bookedTime: callMilestones.bookedTime,
-                    bookedTimeFormatted: callMilestones.bookedTimeFormatted,
-                    isEntryTriggered: callMilestones.isEntryTriggered,
-                    actualEntryPrice: callMilestones.actualEntryPrice,
-                    entryPriceTime: callMilestones.entryPriceTime,
-                    entryPriceTimeFormatted: callMilestones.entryPriceTimeFormatted,
-                    target1HitTime: callMilestones.target1HitTime,
-                    target1HitTimeFormatted: callMilestones.target1HitTimeFormatted,
-                    target2HitTime: callMilestones.target2HitTime,
-                    target2HitTimeFormatted: callMilestones.target2HitTimeFormatted,
-                    stoplossTime: callMilestones.stoplossTime,
-                    stoplossTimeFormatted: callMilestones.stoplossTimeFormatted,
-                    halfProfitBookTime: callMilestones.halfProfitBookTime,
-                    halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
-                    carryForwardTime,
-                    carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-                    isCarriedForward: status === 'CARRIED_FORWARD',
-                    marketRegime: activeCall.marketRegime || momentumInfo.regime,
-                    momentumDescription: activeCall.momentumDescription || momentumInfo.description,
-                    expiryDate: activeCall.expiryDate || activeExpiryDate,
-                    daysToExpiry,
-                    isExpiryDay: momentumInfo.isExpiryDay,
-                    nextExpiryDate,
-                    nextExpiryContractSymbol: activeCall.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activeCall.strikePrice} CE`,
-                    ongoingProfitBox: callAdvice.ongoingProfitBox
-                };
-                slotEntry.calls[0] = topCallTrade;
+                // User directive: If stop loss is triggered, move to journal, do not show in active tips
+                if (status === 'SL_HIT') {
+                    slotEntry.calls = [];
+                    topCallTrade = null;
+                }
+                else {
+                    topCallTrade = {
+                        ...activeCall,
+                        entryRange: `₹${(activeCall.dipEntryMin || activeCall.entryPrice * 0.975).toFixed(1)} - ₹${activeCall.entryPrice.toFixed(1)}`,
+                        currentLtp,
+                        pnlPoints: callPnlPoints,
+                        pnlPct: callPnlPct,
+                        pnlRupees: callPnlRupees,
+                        carryForwardSuggestion: callAdvice.carryForwardSuggestion,
+                        carryForwardAdvice: callAdvice.carryForwardAdvice,
+                        actionabilityStatus,
+                        status,
+                        bookedTime: callMilestones.bookedTime,
+                        bookedTimeFormatted: callMilestones.bookedTimeFormatted,
+                        isEntryTriggered: callMilestones.isEntryTriggered,
+                        actualEntryPrice: callMilestones.actualEntryPrice,
+                        entryPriceTime: callMilestones.entryPriceTime,
+                        entryPriceTimeFormatted: callMilestones.entryPriceTimeFormatted,
+                        target1HitTime: callMilestones.target1HitTime,
+                        target1HitTimeFormatted: callMilestones.target1HitTimeFormatted,
+                        target2HitTime: callMilestones.target2HitTime,
+                        target2HitTimeFormatted: callMilestones.target2HitTimeFormatted,
+                        stoplossTime: callMilestones.stoplossTime,
+                        stoplossTimeFormatted: callMilestones.stoplossTimeFormatted,
+                        halfProfitBookTime: callMilestones.halfProfitBookTime,
+                        halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
+                        carryForwardTime,
+                        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                        isCarriedForward: status === 'CARRIED_FORWARD',
+                        marketRegime: activeCall.marketRegime || momentumInfo.regime,
+                        momentumDescription: activeCall.momentumDescription || momentumInfo.description,
+                        expiryDate: activeCall.expiryDate || activeExpiryDate,
+                        daysToExpiry,
+                        isExpiryDay: momentumInfo.isExpiryDay,
+                        nextExpiryDate,
+                        nextExpiryContractSymbol: activeCall.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activeCall.strikePrice} CE`,
+                        ongoingProfitBox: callAdvice.ongoingProfitBox
+                    };
+                    slotEntry.calls[0] = topCallTrade;
+                }
             }
         }
         if (!topCallTrade) {
@@ -2423,26 +2457,36 @@ export class ConfluenceEngine {
                 else {
                     actionabilityStatus = 'IN_ENTRY_ZONE';
                 }
+                let putPnlPoints = pnlPoints;
+                let putPnlPct = pnlPct;
                 let putPnlRupees = 0;
                 if (status === 'EXPIRED') {
                     putPnlRupees = -Math.round(activePut.entryPrice * instrumentLot);
                 }
                 else if (status === 'TARGET1_HIT') {
-                    putPnlRupees = Math.round((activePut.target1Price - activePut.entryPrice) * instrumentLot);
+                    putPnlPoints = +(activePut.target1Price - activePut.entryPrice).toFixed(2);
+                    putPnlPct = activePut.entryPrice > 0 ? +((putPnlPoints / activePut.entryPrice) * 100).toFixed(1) : 0;
+                    putPnlRupees = Math.round(putPnlPoints * instrumentLot);
                 }
                 else if (status === 'TARGET2_HIT') {
-                    putPnlRupees = Math.round(((activePut.target2Price || activePut.target1Price) - activePut.entryPrice) * instrumentLot);
+                    const tgt = activePut.target2Price || activePut.target1Price;
+                    putPnlPoints = +(tgt - activePut.entryPrice).toFixed(2);
+                    putPnlPct = activePut.entryPrice > 0 ? +((putPnlPoints / activePut.entryPrice) * 100).toFixed(1) : 0;
+                    putPnlRupees = Math.round(putPnlPoints * instrumentLot);
                 }
                 else if (status === 'SL_HIT') {
-                    putPnlRupees = Math.round((activePut.stoplossPrice - activePut.entryPrice) * instrumentLot);
+                    // Strictly entryPrice - stoplossPrice
+                    putPnlPoints = +(activePut.stoplossPrice - activePut.entryPrice).toFixed(2);
+                    putPnlPct = activePut.entryPrice > 0 ? -Math.abs(+(((activePut.entryPrice - activePut.stoplossPrice) / activePut.entryPrice) * 100).toFixed(1)) : 0;
+                    putPnlRupees = Math.round(putPnlPoints * instrumentLot);
                 }
                 else {
                     putPnlRupees = Math.round(pnlPoints * instrumentLot);
                 }
                 const putAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status,
-                    pnlPoints,
-                    pnlPct,
+                    pnlPoints: putPnlPoints,
+                    pnlPct: putPnlPct,
                     pnlRupees: putPnlRupees,
                     currentLtp,
                     t1Pct: activePut.target1Pct || momentumInfo.t1Pct,
@@ -2456,44 +2500,51 @@ export class ConfluenceEngine {
                     confluenceScore: activePut.confluenceScore,
                     marketRegime: activePut.marketRegime || momentumInfo.regime
                 });
-                topPutTrade = {
-                    ...activePut,
-                    entryRange: `₹${(activePut.dipEntryMin || activePut.entryPrice * 0.975).toFixed(1)} - ₹${activePut.entryPrice.toFixed(1)}`,
-                    currentLtp,
-                    pnlPoints,
-                    pnlPct,
-                    pnlRupees: putPnlRupees,
-                    carryForwardSuggestion: putAdvice.carryForwardSuggestion,
-                    carryForwardAdvice: putAdvice.carryForwardAdvice,
-                    actionabilityStatus,
-                    status,
-                    bookedTime: putMilestones.bookedTime,
-                    bookedTimeFormatted: putMilestones.bookedTimeFormatted,
-                    isEntryTriggered: putMilestones.isEntryTriggered,
-                    actualEntryPrice: putMilestones.actualEntryPrice,
-                    entryPriceTime: putMilestones.entryPriceTime,
-                    entryPriceTimeFormatted: putMilestones.entryPriceTimeFormatted,
-                    target1HitTime: putMilestones.target1HitTime,
-                    target1HitTimeFormatted: putMilestones.target1HitTimeFormatted,
-                    target2HitTime: putMilestones.target2HitTime,
-                    target2HitTimeFormatted: putMilestones.target2HitTimeFormatted,
-                    stoplossTime: putMilestones.stoplossTime,
-                    stoplossTimeFormatted: putMilestones.stoplossTimeFormatted,
-                    halfProfitBookTime: putMilestones.halfProfitBookTime,
-                    halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
-                    carryForwardTime,
-                    carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-                    isCarriedForward: status === 'CARRIED_FORWARD',
-                    marketRegime: activePut.marketRegime || momentumInfo.regime,
-                    momentumDescription: activePut.momentumDescription || momentumInfo.description,
-                    expiryDate: activePut.expiryDate || activeExpiryDate,
-                    daysToExpiry,
-                    isExpiryDay: momentumInfo.isExpiryDay,
-                    nextExpiryDate,
-                    nextExpiryContractSymbol: activePut.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activePut.strikePrice} PE`,
-                    ongoingProfitBox: putAdvice.ongoingProfitBox
-                };
-                slotEntry.puts[0] = topPutTrade;
+                // User directive: If stop loss is triggered, move to journal, do not show in active tips
+                if (status === 'SL_HIT') {
+                    slotEntry.puts = [];
+                    topPutTrade = null;
+                }
+                else {
+                    topPutTrade = {
+                        ...activePut,
+                        entryRange: `₹${(activePut.dipEntryMin || activePut.entryPrice * 0.975).toFixed(1)} - ₹${activePut.entryPrice.toFixed(1)}`,
+                        currentLtp,
+                        pnlPoints: putPnlPoints,
+                        pnlPct: putPnlPct,
+                        pnlRupees: putPnlRupees,
+                        carryForwardSuggestion: putAdvice.carryForwardSuggestion,
+                        carryForwardAdvice: putAdvice.carryForwardAdvice,
+                        actionabilityStatus,
+                        status,
+                        bookedTime: putMilestones.bookedTime,
+                        bookedTimeFormatted: putMilestones.bookedTimeFormatted,
+                        isEntryTriggered: putMilestones.isEntryTriggered,
+                        actualEntryPrice: putMilestones.actualEntryPrice,
+                        entryPriceTime: putMilestones.entryPriceTime,
+                        entryPriceTimeFormatted: putMilestones.entryPriceTimeFormatted,
+                        target1HitTime: putMilestones.target1HitTime,
+                        target1HitTimeFormatted: putMilestones.target1HitTimeFormatted,
+                        target2HitTime: putMilestones.target2HitTime,
+                        target2HitTimeFormatted: putMilestones.target2HitTimeFormatted,
+                        stoplossTime: putMilestones.stoplossTime,
+                        stoplossTimeFormatted: putMilestones.stoplossTimeFormatted,
+                        halfProfitBookTime: putMilestones.halfProfitBookTime,
+                        halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
+                        carryForwardTime,
+                        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                        isCarriedForward: status === 'CARRIED_FORWARD',
+                        marketRegime: activePut.marketRegime || momentumInfo.regime,
+                        momentumDescription: activePut.momentumDescription || momentumInfo.description,
+                        expiryDate: activePut.expiryDate || activeExpiryDate,
+                        daysToExpiry,
+                        isExpiryDay: momentumInfo.isExpiryDay,
+                        nextExpiryDate,
+                        nextExpiryContractSymbol: activePut.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${activePut.strikePrice} PE`,
+                        ongoingProfitBox: putAdvice.ongoingProfitBox
+                    };
+                    slotEntry.puts[0] = topPutTrade;
+                }
             }
         }
         if (!topPutTrade) {
@@ -3526,76 +3577,81 @@ export class ConfluenceEngine {
                     carryForwardTimeFormatted = timeFormatted;
                 }
             }
-            gammaTrade = {
-                id: `gamma-${symbol}-${sessionInfo.session}-${topHz.strike}-${topHz.optionType}`,
-                symbol,
-                tier: 'GAMMA_0DTE',
-                tierLabel: '⚡ 0DTE Gamma Explosion Sniper (Hero-or-Zero)',
-                session: sessionInfo.session,
-                sessionName: sessionInfo.sessionName,
-                action: topHz.optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
-                contractSymbol,
-                strikePrice: topHz.strike,
-                optionType: topHz.optionType,
-                entryTime: gammaMilestones.callGivenTime,
-                entryTimeFormatted: gammaMilestones.callGivenTimeFormatted,
-                callGivenTime: gammaMilestones.callGivenTime,
-                callGivenTimeFormatted: gammaMilestones.callGivenTimeFormatted,
-                isEntryTriggered: gammaMilestones.isEntryTriggered,
-                actualEntryPrice: gammaMilestones.actualEntryPrice,
-                entryPriceTime: gammaMilestones.entryPriceTime,
-                entryPriceTimeFormatted: gammaMilestones.entryPriceTimeFormatted,
-                target1HitTime: gammaMilestones.target1HitTime,
-                target1HitTimeFormatted: gammaMilestones.target1HitTimeFormatted,
-                target2HitTime: gammaMilestones.target2HitTime,
-                target2HitTimeFormatted: gammaMilestones.target2HitTimeFormatted,
-                stoplossTime: gammaMilestones.stoplossTime,
-                stoplossTimeFormatted: gammaMilestones.stoplossTimeFormatted,
-                bookedTime: gammaMilestones.bookedTime,
-                bookedTimeFormatted: gammaMilestones.bookedTimeFormatted,
-                carryForwardTime,
-                carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-                carryForwardSuggestion: '🛑 SYSTEM DIRECTIVE: 0DTE Expiry Warning | Action: Close by 03:25 PM | Rule: Expiring contracts settle at ₹0.00; never carry overnight.',
-                isCarriedForward: gammaStatus === 'CARRIED_FORWARD',
-                entryPrice,
-                entryRange: `₹${entryPrice.toFixed(2)}`,
-                triggerPrice: entryPrice,
-                dipEntryMin: +(entryPrice * 0.90).toFixed(2),
-                dipEntryMax: entryPrice,
-                breakoutEntryPrice: +(entryPrice * 1.08).toFixed(2),
-                actionabilityStatus: pnlPct >= 5.0 ? 'RUNNING_PROFIT' : 'AT_TRIGGER',
-                pnlPoints,
-                pnlPct,
-                pnlRupees: Math.round(pnlPoints * instrumentLot),
-                currentLtp: topHz.ltp,
-                stoplossPrice: topHz.stoploss,
-                stoplossPct: topHz.stoplossPct,
-                target1Price: topHz.target3x,
-                target1Pct: 200,
-                target2Price: topHz.target5x,
-                target2Pct: 400,
-                riskReward: topHz.riskReward,
-                confluenceScore: topHz.gammaScore,
-                status: gammaStatus,
-                strategyMatches: {
-                    faydaRadarConfluence: true,
-                    oiActivitySurge: true,
-                    faydaStrategy9Ema: false,
-                    multiTimeframeBreakout: true,
-                    multiLegSpreadConfirmed: false,
-                    gammaExplosionConfirmed: true
-                },
-                strategyTag: `${topHz.squeezeType} (Gamma Score: ${topHz.gammaScore})`,
-                gammaDetails: {
-                    gammaScore: topHz.gammaScore,
-                    multiplierTarget: '3.5x to 5.0x Multiplier'
-                },
-                explanations: {
-                    beginner: `⚡ SYSTEM HIGH-ALPHA DIRECTIVE: 0DTE Gamma Sniper | Contract: ${topHz.contractSymbol} | Entry: ₹${topHz.ltp.toFixed(1)} | Target: 3x–5x Multiplier | Stoploss: ₹${topHz.stoploss.toFixed(1)} | Rule: High reward with controlled risk.`,
-                    intermediate: `🎯 SYSTEM DIRECTIVE: 0DTE Gamma Squeeze | Low Stoploss: ₹${topHz.stoploss.toFixed(1)} | Target 1 (3x): ₹${topHz.target3x.toFixed(1)} | Target 2 (5x): ₹${topHz.target5x.toFixed(1)} | Trigger: Institutional short-squeeze confirmed.`,
-                    expert: `📊 SYSTEM QUANT METRICS: Gamma Score: ${topHz.gammaScore} | Gamma: ${topHz.gamma} | Volume Velocity: ${topHz.volumeVelocity}x | 1-Min Delta OI: ${topHz.oiChange1m} | Status: Gamma explosion active.`
-                }
-            };
+            if (gammaStatus === 'SL_HIT') {
+                gammaTrade = null;
+            }
+            else {
+                gammaTrade = {
+                    id: `gamma-${symbol}-${sessionInfo.session}-${topHz.strike}-${topHz.optionType}`,
+                    symbol,
+                    tier: 'GAMMA_0DTE',
+                    tierLabel: '⚡ 0DTE Gamma Explosion Sniper (Hero-or-Zero)',
+                    session: sessionInfo.session,
+                    sessionName: sessionInfo.sessionName,
+                    action: topHz.optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
+                    contractSymbol,
+                    strikePrice: topHz.strike,
+                    optionType: topHz.optionType,
+                    entryTime: gammaMilestones.callGivenTime,
+                    entryTimeFormatted: gammaMilestones.callGivenTimeFormatted,
+                    callGivenTime: gammaMilestones.callGivenTime,
+                    callGivenTimeFormatted: gammaMilestones.callGivenTimeFormatted,
+                    isEntryTriggered: gammaMilestones.isEntryTriggered,
+                    actualEntryPrice: gammaMilestones.actualEntryPrice,
+                    entryPriceTime: gammaMilestones.entryPriceTime,
+                    entryPriceTimeFormatted: gammaMilestones.entryPriceTimeFormatted,
+                    target1HitTime: gammaMilestones.target1HitTime,
+                    target1HitTimeFormatted: gammaMilestones.target1HitTimeFormatted,
+                    target2HitTime: gammaMilestones.target2HitTime,
+                    target2HitTimeFormatted: gammaMilestones.target2HitTimeFormatted,
+                    stoplossTime: gammaMilestones.stoplossTime,
+                    stoplossTimeFormatted: gammaMilestones.stoplossTimeFormatted,
+                    bookedTime: gammaMilestones.bookedTime,
+                    bookedTimeFormatted: gammaMilestones.bookedTimeFormatted,
+                    carryForwardTime,
+                    carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+                    carryForwardSuggestion: '🛑 SYSTEM DIRECTIVE: 0DTE Expiry Warning | Action: Close by 03:25 PM | Rule: Expiring contracts settle at ₹0.00; never carry overnight.',
+                    isCarriedForward: gammaStatus === 'CARRIED_FORWARD',
+                    entryPrice,
+                    entryRange: `₹${entryPrice.toFixed(2)}`,
+                    triggerPrice: entryPrice,
+                    dipEntryMin: +(entryPrice * 0.90).toFixed(2),
+                    dipEntryMax: entryPrice,
+                    breakoutEntryPrice: +(entryPrice * 1.08).toFixed(2),
+                    actionabilityStatus: pnlPct >= 5.0 ? 'RUNNING_PROFIT' : 'AT_TRIGGER',
+                    pnlPoints,
+                    pnlPct,
+                    pnlRupees: Math.round(pnlPoints * instrumentLot),
+                    currentLtp: topHz.ltp,
+                    stoplossPrice: topHz.stoploss,
+                    stoplossPct: topHz.stoplossPct,
+                    target1Price: topHz.target3x,
+                    target1Pct: 200,
+                    target2Price: topHz.target5x,
+                    target2Pct: 400,
+                    riskReward: topHz.riskReward,
+                    confluenceScore: topHz.gammaScore,
+                    status: gammaStatus,
+                    strategyMatches: {
+                        faydaRadarConfluence: true,
+                        oiActivitySurge: true,
+                        faydaStrategy9Ema: false,
+                        multiTimeframeBreakout: true,
+                        multiLegSpreadConfirmed: false,
+                        gammaExplosionConfirmed: true
+                    },
+                    strategyTag: `${topHz.squeezeType} (Gamma Score: ${topHz.gammaScore})`,
+                    gammaDetails: {
+                        gammaScore: topHz.gammaScore,
+                        multiplierTarget: '3.5x to 5.0x Multiplier'
+                    },
+                    explanations: {
+                        beginner: `⚡ SYSTEM HIGH-ALPHA DIRECTIVE: 0DTE Gamma Sniper | Contract: ${topHz.contractSymbol} | Entry: ₹${topHz.ltp.toFixed(1)} | Target: 3x–5x Multiplier | Stoploss: ₹${topHz.stoploss.toFixed(1)} | Rule: High reward with controlled risk.`,
+                        intermediate: `🎯 SYSTEM DIRECTIVE: 0DTE Gamma Squeeze | Low Stoploss: ₹${topHz.stoploss.toFixed(1)} | Target 1 (3x): ₹${topHz.target3x.toFixed(1)} | Target 2 (5x): ₹${topHz.target5x.toFixed(1)} | Trigger: Institutional short-squeeze confirmed.`,
+                        expert: `📊 SYSTEM QUANT METRICS: Gamma Score: ${topHz.gammaScore} | Gamma: ${topHz.gamma} | Volume Velocity: ${topHz.volumeVelocity}x | 1-Min Delta OI: ${topHz.oiChange1m} | Status: Gamma explosion active.`
+                    }
+                };
+            }
         }
         else {
             // Clean Standby Mode (Prevents Overtrading)

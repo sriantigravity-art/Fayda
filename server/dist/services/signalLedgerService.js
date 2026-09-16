@@ -235,6 +235,7 @@ class SignalLedgerService {
             return todayCallsForSymbol[0];
         }
         const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
+        const lotSize = cfg?.lot || 50;
         let category = 'OPTIONS';
         if (cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY') {
             category = 'COMMODITIES';
@@ -269,6 +270,10 @@ class SignalLedgerService {
             status: 'ACTIVE',
             pointsPnl: 0,
             pnlPct: 0,
+            lotSize,
+            lots: 1,
+            pnlRupees: 0,
+            pnlCalculationFormula: `1 Lot (${lotSize} Qty) Active`,
             nearTargetPct: 0,
             nearTargetDescription: 'Active In Progress',
             callGivenTime: signal.callGivenTimeFormatted || timeFormatted,
@@ -321,22 +326,46 @@ class SignalLedgerService {
                 call.stoplossTime = data.stoplossTimeFormatted;
                 call.stoplossHitTime = data.stoplossTimeFormatted;
             }
-            const pnlPoints = +(data.currentLtp - call.entryPrice).toFixed(2);
-            const pnlPct = +(((data.currentLtp - call.entryPrice) / call.entryPrice) * 100).toFixed(1);
+            const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
+            const lotSize = call.lotSize || cfg?.lot || 50;
+            call.lotSize = lotSize;
+            call.lots = 1;
             if (data.status) {
                 call.status = data.status;
-                if (data.status === 'TARGET_HIT' || data.status === 'STOPLOSS_HIT') {
-                    call.exitLtp = +data.currentLtp.toFixed(2);
-                    call.pointsPnl = pnlPoints;
+                if (data.status === 'TARGET_HIT') {
+                    const exitPrice = call.target1Price || data.currentLtp;
+                    const points = +(exitPrice - call.entryPrice).toFixed(2);
+                    const pnlPct = call.entryPrice > 0 ? +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+                    const rupees = Math.round(points * lotSize);
+                    call.exitLtp = +exitPrice.toFixed(2);
+                    call.pointsPnl = points;
                     call.pnlPct = pnlPct;
-                    if (data.status === 'TARGET_HIT') {
-                        call.nearTargetPct = 100;
-                        call.nearTargetDescription = `🎯 100% Target Hit (+${pnlPoints} pts / +${pnlPct}%)`;
-                    }
-                    else {
-                        call.nearTargetPct = 0;
-                        call.nearTargetDescription = `🛑 Stoploss Hit (${pnlPoints} pts / ${pnlPct}%)`;
-                    }
+                    call.pnlRupees = rupees;
+                    call.nearTargetPct = 100;
+                    call.pnlCalculationFormula = `Target ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                    call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                }
+                else if (data.status === 'STOPLOSS_HIT') {
+                    // Strictly calculate from Entry Price - Stoploss with lot, NOT floating LTP
+                    const exitPrice = call.stoplossPrice;
+                    const points = +(call.stoplossPrice - call.entryPrice).toFixed(2);
+                    const pnlPct = call.entryPrice > 0 ? -Math.abs(+(((call.entryPrice - call.stoplossPrice) / call.entryPrice) * 100).toFixed(1)) : 0;
+                    const rupees = Math.round(points * lotSize);
+                    call.exitLtp = +exitPrice.toFixed(2);
+                    call.pointsPnl = points;
+                    call.pnlPct = pnlPct;
+                    call.pnlRupees = rupees;
+                    call.nearTargetPct = 0;
+                    call.pnlCalculationFormula = `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                    call.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                }
+                else {
+                    const points = +(data.currentLtp - call.entryPrice).toFixed(2);
+                    const pnlPct = call.entryPrice > 0 ? +(((data.currentLtp - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+                    call.pointsPnl = points;
+                    call.pnlPct = pnlPct;
+                    call.pnlRupees = Math.round(points * lotSize);
+                    call.pnlCalculationFormula = `LTP ₹${data.currentLtp.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 }
             }
             this.saveToFile();
@@ -365,14 +394,23 @@ class SignalLedgerService {
             const target = call.target1Price;
             const sl = call.stoplossPrice;
             const targetDelta = target - entry;
+            const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
+            const lotSize = call.lotSize || cfg?.lot || 50;
+            call.lotSize = lotSize;
+            call.lots = 1;
             // Check Target 1 Hit
             if (liveLtp >= target) {
                 call.status = 'TARGET_HIT';
-                call.exitLtp = +liveLtp.toFixed(2);
-                call.pointsPnl = +(liveLtp - entry).toFixed(2);
-                call.pnlPct = +(((liveLtp - entry) / entry) * 100).toFixed(1);
+                call.exitLtp = +target.toFixed(2);
+                const points = +(target - entry).toFixed(2);
+                const pnlPct = entry > 0 ? +(((target - entry) / entry) * 100).toFixed(1) : 0;
+                const rupees = Math.round(points * lotSize);
+                call.pointsPnl = points;
+                call.pnlPct = pnlPct;
+                call.pnlRupees = rupees;
                 call.nearTargetPct = 100;
-                call.nearTargetDescription = `🎯 100% Target Hit (+${call.pointsPnl} pts)`;
+                call.pnlCalculationFormula = `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 call.targetHitTime = this.getIstTimeFormatted();
                 hasChanges = true;
                 continue;
@@ -385,17 +423,24 @@ class SignalLedgerService {
                     call.status = 'PARTIAL_PROFIT';
                     call.exitLtp = +liveLtp.toFixed(2);
                     call.pointsPnl = +(liveLtp - entry).toFixed(2);
-                    call.pnlPct = +(((liveLtp - entry) / entry) * 100).toFixed(1);
+                    call.pnlPct = entry > 0 ? +(((liveLtp - entry) / entry) * 100).toFixed(1) : 0;
+                    call.pnlRupees = Math.round(call.pointsPnl * lotSize);
                     call.nearTargetDescription = `🛡️ Profit Protected (Peak reached ${Math.round((achievedDelta / targetDelta) * 100)}% of Target)`;
                     call.halfProfitBookTime = this.getIstTimeFormatted();
                 }
                 else {
+                    // Strictly calculate from Entry Price - Stoploss with lot, NOT floating LTP
                     call.status = 'STOPLOSS_HIT';
-                    call.exitLtp = +liveLtp.toFixed(2);
-                    call.pointsPnl = -(+(entry - liveLtp).toFixed(2));
-                    call.pnlPct = -Math.abs(+(((entry - liveLtp) / entry) * 100).toFixed(1));
+                    call.exitLtp = +sl.toFixed(2);
+                    const points = +(sl - entry).toFixed(2);
+                    const pnlPct = entry > 0 ? -Math.abs(+(((entry - sl) / entry) * 100).toFixed(1)) : 0;
+                    const rupees = Math.round(points * lotSize);
+                    call.pointsPnl = points;
+                    call.pnlPct = pnlPct;
+                    call.pnlRupees = rupees;
                     call.nearTargetPct = 0;
-                    call.nearTargetDescription = `🛑 Stoploss Hit (${call.pointsPnl} pts)`;
+                    call.pnlCalculationFormula = `Entry ₹${entry.toFixed(2)} - SL ₹${sl.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                    call.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${entry.toFixed(2)} - SL ₹${sl.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                     call.stoplossHitTime = this.getIstTimeFormatted();
                 }
                 hasChanges = true;
@@ -407,7 +452,9 @@ class SignalLedgerService {
                 const nearness = Math.min(100, Math.round((achievedDelta / targetDelta) * 100));
                 call.nearTargetPct = nearness;
                 call.pointsPnl = +(liveLtp - entry).toFixed(2);
-                call.pnlPct = +(((liveLtp - entry) / entry) * 100).toFixed(1);
+                call.pnlPct = entry > 0 ? +(((liveLtp - entry) / entry) * 100).toFixed(1) : 0;
+                call.pnlRupees = Math.round(call.pointsPnl * lotSize);
+                call.pnlCalculationFormula = `LTP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${call.pointsPnl} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 if (nearness >= 80) {
                     call.status = 'NEAR_TARGET';
                     call.nearTargetDescription = `⚡ ${nearness}% Near Target (Peak ₹${call.peakLtp.toFixed(2)} vs ₹${target.toFixed(2)})`;
@@ -859,6 +906,12 @@ class SignalLedgerService {
                 const id = `seed_${dStr}_${item.symbol}_${item.strikePrice}_${itemIdx}`;
                 const timeFormatted = item.timeOffset;
                 const entryRange = `₹${item.entryPrice.toFixed(2)}`;
+                const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === item.symbol);
+                const lotSize = cfg?.lot || 50;
+                const pnlRupees = Math.round(item.pointsPnl * lotSize);
+                const pnlCalculationFormula = item.status === 'STOPLOSS_HIT'
+                    ? `Entry ₹${item.entryPrice.toFixed(2)} - SL ₹${item.stoplossPrice.toFixed(2)} = ${item.pointsPnl} pts (${pnlRupees >= 0 ? '+' : ''}₹${pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+                    : `Target ₹${item.target1Price.toFixed(2)} - Entry ₹${item.entryPrice.toFixed(2)} = +${item.pointsPnl} pts (+₹${pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 const entry = {
                     id,
                     date: dStr,
@@ -883,6 +936,10 @@ class SignalLedgerService {
                     status: item.status,
                     pointsPnl: item.pointsPnl,
                     pnlPct: item.pnlPct,
+                    lotSize,
+                    lots: 1,
+                    pnlRupees,
+                    pnlCalculationFormula,
                     nearTargetPct: item.nearTargetPct,
                     nearTargetDescription: item.nearTargetDescription,
                     targetHitTime: item.status === 'TARGET_HIT' ? timeFormatted : undefined,
