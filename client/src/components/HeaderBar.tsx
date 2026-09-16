@@ -489,65 +489,67 @@ export const HeaderBar: React.FC = () => {
           })}
         </div>
 
-        {/* Desktop View: Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry, Clock) */}
-        {currentIndexState && (
-          <div className="hidden md:flex items-center space-x-2 sm:space-x-3 text-xs font-sans ml-auto shrink-0">
-            {/* Expiry Selector Dropdown */}
-            {expiryDates.length > 0 && (
-              <div className="flex items-center space-x-1 font-mono">
-                <Calendar className="w-3.5 h-3.5 text-terminal-muted hidden sm:inline" />
-                <select
-                  value={selectedExpiry}
-                  onChange={(e) => setOptionExpiry(e.target.value)}
-                  className="bg-terminal-panel border border-terminal-border rounded-lg px-2 py-0.5 text-xs font-mono font-semibold text-terminal-text focus:outline-none focus:border-accent-sky cursor-pointer transition"
-                >
-                  {expiryDates.map((exp: string, idx: number) => (
-                    <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
-                      {exp} {idx === 0 ? '(Near)' : ''}
-                    </option>
-                  ))}
-                </select>
+        {/* Desktop View: Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry) + Live Clock */}
+        <div className="hidden md:flex items-center space-x-2 sm:space-x-3 text-xs font-sans ml-auto shrink-0">
+          {currentIndexState && (
+            <>
+              {/* Expiry Selector Dropdown */}
+              {expiryDates.length > 0 && (
+                <div className="flex items-center space-x-1 font-mono">
+                  <Calendar className="w-3.5 h-3.5 text-terminal-muted hidden sm:inline" />
+                  <select
+                    value={selectedExpiry}
+                    onChange={(e) => setOptionExpiry(e.target.value)}
+                    className="bg-terminal-panel border border-terminal-border rounded-lg px-2 py-0.5 text-xs font-mono font-semibold text-terminal-text focus:outline-none focus:border-accent-sky cursor-pointer transition"
+                  >
+                    {expiryDates.map((exp: string, idx: number) => (
+                      <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
+                        {exp} {idx === 0 ? '(Near)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+
+              <div className="hidden sm:flex items-center space-x-1">
+                <span className="text-terminal-muted font-medium text-[11px]">ATM:</span>
+                <span className="font-mono font-bold text-terminal-text">{currentIndexState.atmStrike}</span>
               </div>
-            )}
 
-            <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
 
-            <div className="hidden sm:flex items-center space-x-1">
-              <span className="text-terminal-muted font-medium text-[11px]">ATM:</span>
-              <span className="font-mono font-bold text-terminal-text">{currentIndexState.atmStrike}</span>
-            </div>
+              <div className="hidden sm:flex items-center space-x-1">
+                <span className="text-terminal-muted font-medium text-[11px]">PCR:</span>
+                <span className={`font-mono font-bold ${isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
+                  }`}>
+                  {activePcr.toFixed(2)}
+                </span>
+              </div>
 
-            <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
 
-            <div className="hidden sm:flex items-center space-x-1">
-              <span className="text-terminal-muted font-medium text-[11px]">PCR:</span>
-              <span className={`font-mono font-bold ${isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
-                }`}>
-                {activePcr.toFixed(2)}
-              </span>
-            </div>
+              <div className="hidden sm:flex items-center space-x-1">
+                <span className="text-terminal-muted font-medium text-[11px]">Expiry:</span>
+                <span className="font-mono font-bold text-terminal-text">{daysToExpiry}d</span>
+              </div>
 
-            <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+            </>
+          )}
 
-            <div className="hidden sm:flex items-center space-x-1">
-              <span className="text-terminal-muted font-medium text-[11px]">Expiry:</span>
-              <span className="font-mono font-bold text-terminal-text">{daysToExpiry}d</span>
-            </div>
-
-            <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
-
-            {/* Live IST Clock */}
-            <button
-              type="button"
-              onClick={toggleClockFormat}
-              className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-transparent border-0 p-0"
-              title="Indian Standard Time (IST - Asia/Kolkata). Click to toggle 12h (AM/PM) / 24h format."
-            >
-              <Clock className="w-3 h-3 text-accent-sky" />
-              <span className="font-semibold">{currentTime}</span>
-            </button>
-          </div>
-        )}
+          {/* Live IST Clock — Always visible */}
+          <button
+            type="button"
+            onClick={toggleClockFormat}
+            className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-transparent border-0 p-0"
+            title="Indian Standard Time (IST - Asia/Kolkata). Click to toggle 12h (AM/PM) / 24h format."
+          >
+            <Clock className="w-3 h-3 text-accent-sky" />
+            <span className="font-semibold">{currentTime}</span>
+          </button>
+        </div>
       </div>
 
       {/* Modals & Drawers */}

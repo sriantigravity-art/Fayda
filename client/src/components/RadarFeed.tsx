@@ -6,7 +6,7 @@ import { calculateTargetHorizon } from '../utils/tradeHorizon';
 import { getSignalTimingData, getUserTradeAdvice, formatIstClock } from '../utils/signalTimeHelper';
 import { PostMarketTradeJournal } from './PostMarketTradeJournal';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
-import { getISTComponents } from '../utils/formatTime';
+import { getISTComponents, formatISTTime } from '../utils/formatTime';
 import { 
   Flame, 
   Filter, 
@@ -104,9 +104,7 @@ export const RadarFeed: React.FC<RadarFeedProps> = ({ onSelectStrike }) => {
   const formatIstTime = (timestamp?: string, defaultStr?: string) => {
     if (!timestamp) return defaultStr || '';
     try {
-      const d = new Date(timestamp);
-      if (isNaN(d.getTime())) return defaultStr || '';
-      return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+      return formatISTTime(timestamp, { showSeconds: true, includeSuffix: false, hour12: true }) || defaultStr || '';
     } catch {
       return defaultStr || '';
     }

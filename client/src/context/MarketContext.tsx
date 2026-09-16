@@ -37,8 +37,10 @@ interface MarketContextType {
   // Fyers Provider
   fyersConfig: FyersConfig;
   connectFyers: (appId: string, accessToken: string, secretKey?: string) => Promise<{ success: boolean; message: string; userName?: string }>;
-  exchangeAuthCode: (appId: string, secretKey: string, authCode: string) => Promise<{ success: boolean; message: string; userName?: string; accessToken?: string }>;
+  exchangeAuthCode: (appId: string, secretKey: string, authCode: string, pin?: string) => Promise<{ success: boolean; message: string; userName?: string; accessToken?: string }>;
   refreshFyersToken: (pin?: string) => Promise<{ success: boolean; message: string; config?: any; userName?: string }>;
+  saveFyersPin: (pin: string) => Promise<{ success: boolean; message: string; config?: any; userName?: string }>;
+  testFyersRenewal: () => Promise<{ success: boolean; message: string; config?: any }>;
   latestExtremeSurge: SurgeEvent | null;
   dismissExtremeBanner: () => void;
   // Flash News Engine
@@ -1374,16 +1376,18 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const exchangeAuthCode = async (appId: string, secretKey: string, authCode: string) => {
+  const exchangeAuthCode = async (appId: string, secretKey: string, authCode: string, pin?: string) => {
     try {
-      const json = await fetchBackendJson('/api/fyers/exchange-authcode', 'POST', { appId, secretKey, authCode });
+      const json = await fetchBackendJson('/api/fyers/exchange-authcode', 'POST', { appId, secretKey, authCode, pin });
       if (json.success) {
         setFyersConfig({
           appId: appId.includes('-') ? appId : `${appId}-100`,
           secretKey,
           accessToken: json.accessToken || '',
           isConnected: true,
-          userName: json.userName
+          userName: json.userName,
+          hasPin: !!pin,
+          hasRefreshToken: true
         });
         setActiveBroker('FYERS');
         setEffectiveBroker('FYERS');
@@ -1402,7 +1406,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setFyersConfig((prev) => ({
           ...prev,
           isConnected: true,
-          userName: json.config?.userName || json.userName || prev.userName
+          userName: json.config?.userName || json.userName || prev.userName,
+          hasPin: json.config?.hasPin ?? prev.hasPin,
+          nextDailyRenewalAt: json.config?.nextDailyRenewalAt,
+          autoRenewalStatus: json.config?.autoRenewalStatus
         }));
         setActiveBroker('FYERS');
         setEffectiveBroker('FYERS');
@@ -1411,6 +1418,44 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return json;
     } catch (err: any) {
       return { success: false, message: err.message || 'Token refresh failed' };
+    }
+  };
+
+  const saveFyersPin = async (pin: string) => {
+    try {
+      const json = await fetchBackendJson('/api/fyers/save-pin', 'POST', { pin });
+      if (json.success) {
+        setFyersConfig((prev) => ({
+          ...prev,
+          ...(json.config || {}),
+          hasPin: true,
+          isConnected: json.config?.isConnected ?? prev.isConnected,
+          userName: json.userName || json.config?.userName || prev.userName
+        }));
+        if (json.config?.isConnected) {
+          setActiveBroker('FYERS');
+          setEffectiveBroker('FYERS');
+          try { localStorage.setItem('fayda_active_broker', 'FYERS'); } catch {}
+        }
+      }
+      return json;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to save PIN' };
+    }
+  };
+
+  const testFyersRenewal = async () => {
+    try {
+      const json = await fetchBackendJson('/api/fyers/test-renewal', 'POST');
+      if (json.success) {
+        setFyersConfig((prev) => ({
+          ...prev,
+          ...(json.config || {})
+        }));
+      }
+      return json;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Renewal test failed' };
     }
   };
 
@@ -1517,6 +1562,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         connectFyers,
         exchangeAuthCode,
         refreshFyersToken,
+        saveFyersPin,
+        testFyersRenewal,
         latestExtremeSurge,
         dismissExtremeBanner,
         newsList,

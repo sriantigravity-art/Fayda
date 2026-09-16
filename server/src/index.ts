@@ -127,22 +127,20 @@ app.use('/api/fyers/', brokerAuthLimiter);
 app.use('/api/dhan/', brokerAuthLimiter);
 app.use('/api/broker/', brokerAuthLimiter);
 
-// ── PRECISE IST CLOCK CALIBRATION ──────────────────────────────────────────
-// Corrects host Windows clock AM/PM inversion (20:xx PM -> 08:xx AM) while preserving exact live minutes & seconds.
-let serverHourShiftMs = -12 * 3600000; // Invert host PM to true IST AM
-export const getCorrectedNow = (): Date => new Date(Date.now() + serverHourShiftMs);
+// ── SYSTEM TIME (STRICT HOST OS TIME) ──────────────────────────────────────
+export const getCorrectedNow = (): Date => new Date();
 
 app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 app.get('/api/time', (_req, res) => {
-  const corrected = getCorrectedNow();
+  const now = new Date();
   res.json({
-    utc: corrected.toISOString(),
-    ist: corrected.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true }),
-    driftMs: serverHourShiftMs,
-    timestamp: corrected.getTime()
+    utc: now.toISOString(),
+    ist: now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true }),
+    driftMs: 0,
+    timestamp: now.getTime()
   });
 });
 
@@ -214,11 +212,11 @@ export const isMarketOpenForSymbol = (symbol: string): boolean => {
 
 export const isNseMarketOpen = (): boolean => isMarketOpenForSymbol('NIFTY');
 
-// Broadcast function to all active WS clients with network-synchronized timestamps
+// Broadcast function to all active WS clients (strict system time)
 const broadcast = (data: any) => {
   if (data && typeof data === 'object') {
-    data.timestamp = getCorrectedNow().toISOString();
-    data.serverDriftMs = serverHourShiftMs;
+    data.timestamp = new Date().toISOString();
+    data.serverDriftMs = 0;
   }
   const payload = JSON.stringify(data);
   for (const client of activeClients) {
@@ -710,6 +708,25 @@ if (hasFyersConfig) {
   currentDataSource = 'NSE_LIVE';
   startNsePolling();
 }
+
+// Hook Fyers Daily 9:00 AM Trading Day Auto-Renewal callback
+fyersService.onTokenRenewed = (cfg) => {
+  console.log(`[Fyers] 🔔 Daily 9:00 AM Trading Day Auto-Renewal triggered — switching active broker to FYERS`);
+  brokerManager.setActiveBroker('FYERS');
+  currentDataSource = 'FYERS_LIVE';
+  startFyersPolling();
+
+  broadcast({
+    type: 'BROKER_UPDATE',
+    fyersConfig: fyersService.getPublicConfig(),
+    dhanConfig: dhanService.getPublicConfig(),
+    activeBroker: brokerManager.getActiveBroker(),
+    effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+    dataSource: currentDataSource,
+    isMarketOpen: isNseMarketOpen(),
+    timestamp: new Date().toISOString()
+  });
+};
 
 // WebSocket connection lifecycle
 wss.on('connection', async (ws: WebSocket) => {
@@ -1651,11 +1668,12 @@ app.post('/api/fyers/exchange-authcode', requireAdminAuth, async (req, res) => {
   const appId = (req.body.appId || cfg.appId || 'KMSSMU5OGR-100').trim();
   const secretKey = (req.body.secretKey || cfg.secretKey || 'MVADUMZWBM').trim();
   const authCode = req.body.authCode;
+  const pin = req.body.pin;
   if (!authCode) {
     return res.status(400).json({ success: false, message: 'Missing authCode' });
   }
 
-  const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode);
+  const result = await fyersService.exchangeAuthCode(appId, secretKey, authCode, pin);
 
   if (result.success) {
     brokerManager.setActiveBroker('FYERS');
@@ -1687,6 +1705,57 @@ app.post('/api/fyers/refresh-token', requireAdminAuth, async (req, res) => {
     currentDataSource = 'FYERS_LIVE';
     startFyersPolling();
     fyersService.scheduleNextDailyRenewal();
+
+    broadcast({
+      type: 'BROKER_UPDATE',
+      fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+      dataSource: currentDataSource,
+      isMarketOpen: isNseMarketOpen(),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  res.json({ success: result.success, message: result.message, config: fyersService.getPublicConfig() });
+});
+
+// Save 4-Digit Trading PIN for Fyers Automated Daily 9:00 AM Renewal
+app.post('/api/fyers/save-pin', requireAdminAuth, async (req, res) => {
+  const { pin } = req.body || {};
+  if (!pin || typeof pin !== 'string' || !pin.trim()) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid 4-digit PIN.' });
+  }
+
+  const result = await fyersService.savePin(pin.trim());
+  if (result.success && fyersService.getConfig().isConnected) {
+    brokerManager.setActiveBroker('FYERS');
+    currentDataSource = 'FYERS_LIVE';
+    startFyersPolling();
+
+    broadcast({
+      type: 'BROKER_UPDATE',
+      fyersConfig: fyersService.getPublicConfig(),
+      dhanConfig: dhanService.getPublicConfig(),
+      activeBroker: brokerManager.getActiveBroker(),
+      effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+      dataSource: currentDataSource,
+      isMarketOpen: isNseMarketOpen(),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  res.json({ success: result.success, message: result.message, config: fyersService.getPublicConfig(), userName: result.userName });
+});
+
+// Test Daily 9:00 AM Renewal Endpoint
+app.post('/api/fyers/test-renewal', requireAdminAuth, async (_req, res) => {
+  const result = await fyersService.executeRenewalWithRetries(1, 1);
+  if (result.success) {
+    brokerManager.setActiveBroker('FYERS');
+    currentDataSource = 'FYERS_LIVE';
+    startFyersPolling();
 
     broadcast({
       type: 'BROKER_UPDATE',

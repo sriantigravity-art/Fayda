@@ -480,6 +480,9 @@ export interface FyersConfig {
   refreshToken?: string;
   tokenRefreshedAt?: string;
   refreshTokenExpiresAt?: string;
+  hasPin?: boolean;
+  nextDailyRenewalAt?: string;
+  autoRenewalStatus?: string;
 }
 
 export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';

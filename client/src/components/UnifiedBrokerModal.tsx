@@ -73,6 +73,8 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     connectFyers, 
     exchangeAuthCode, 
     refreshFyersToken,
+    saveFyersPin,
+    testFyersRenewal,
     activeBroker, 
     effectiveBroker,
     selectBroker 
@@ -241,11 +243,11 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     setFyersStatusMsg(null);
 
     const cleanAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : `${fyersAppId.trim()}-100`;
-    const res = await exchangeAuthCode(cleanAppId, (fyersSecretKey.trim() || 'MVADUMZWBM'), code);
+    const res = await exchangeAuthCode(cleanAppId, (fyersSecretKey.trim() || 'MVADUMZWBM'), code, fyersPin.trim());
     setFyersLoading(false);
 
     if (res.success) {
-      setFyersStatusMsg({ success: true, text: `✅ Fyers Connected as ${res.userName || 'Trader'}! Live stream active.` });
+      setFyersStatusMsg({ success: true, text: `✅ Fyers Connected as ${res.userName || 'Trader'}! Daily 9:00 AM auto-renewal is ACTIVE on trading days.` });
       selectBroker('FYERS');
       setIsListeningClipboard(false);
       setCountdown(0);
@@ -277,10 +279,11 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       if (rememberPin) {
         try { localStorage.setItem('fyers_pin', fyersPin.trim()); } catch {}
       }
-      const res = await refreshFyersToken(fyersPin.trim());
+      // Save PIN permanently to server configuration and execute immediate renewal
+      const res = await saveFyersPin(fyersPin.trim());
       setFyersLoading(false);
       if (res.success) {
-        setFyersStatusMsg({ success: true, text: `✅ Fyers Connected in 1-Click as ${res.userName || 'Trader'}! Live stream active.` });
+        setFyersStatusMsg({ success: true, text: `✅ Fyers Connected & PIN Saved! Active as ${res.userName || 'Trader'}. Daily 9:00 AM auto-renewal is now ACTIVE on all trading days.` });
         selectBroker('FYERS');
       } else {
         setFyersStatusMsg({ success: false, text: `❌ ${res.message || 'Token refresh failed. Please verify PIN.'}` });
@@ -288,6 +291,23 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     } catch (err: any) {
       setFyersLoading(false);
       setFyersStatusMsg({ success: false, text: `❌ ${err.message || 'Connection failed'}` });
+    }
+  };
+
+  const handleTestFyersRenewal = async () => {
+    setFyersLoading(true);
+    setFyersStatusMsg(null);
+    try {
+      const res = await testFyersRenewal();
+      setFyersLoading(false);
+      if (res.success) {
+        setFyersStatusMsg({ success: true, text: `✅ Daily 9:00 AM Auto-Renewal Test Passed! Connected as ${fyersConfig.userName || 'Trader'}.` });
+      } else {
+        setFyersStatusMsg({ success: false, text: `❌ Auto-Renewal Test: ${res.message || 'Verification failed. Please check PIN.'}` });
+      }
+    } catch (err: any) {
+      setFyersLoading(false);
+      setFyersStatusMsg({ success: false, text: `❌ ${err.message || 'Test failed'}` });
     }
   };
 
@@ -764,27 +784,39 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                           {fyersConfig.hasRefreshToken && (
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 flex items-center gap-1">
                               <Repeat2 className="w-2.5 h-2.5" />
-                              AUTO-RENEW ON
+                              9:00 AM AUTO-RENEW ACTIVE
+                            </span>
+                          )}
+                          {fyersConfig.hasPin && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-sky-500/10 text-sky-400 border border-sky-500/25">
+                              PIN SAVED
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-terminal-muted mt-0.5">
                           App ID: <strong className="text-terminal-text font-mono">{fyersConfig.appId}</strong> • User: <strong className="text-terminal-text">{fyersConfig.userName || 'Trader'}</strong>
                         </p>
+                        {/* Next Scheduled 9:00 AM Renewal */}
+                        {fyersConfig.nextDailyRenewalAt && (
+                          <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                            <CalendarClock className="w-3 h-3" />
+                            <span>Next 9:00 AM Renewal: {new Date(fyersConfig.nextDailyRenewalAt).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })} at 09:00:00 AM IST (Trading Day)</span>
+                          </div>
+                        )}
                         {/* Expiry countdown */}
                         {(() => {
                           const { label, urgent, expired } = formatTimeRemaining(fyersConfig.tokenExpiresAt);
                           if (!fyersConfig.tokenExpiresAt) return null;
                           return (
-                            <div className={`flex items-center gap-1 mt-1 text-[10px] font-mono font-semibold ${
+                            <div className={`flex items-center gap-1 mt-0.5 text-[10px] font-mono font-semibold ${
                               expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-terminal-muted'
                             }`}>
                               <Clock className="w-3 h-3" />
                               {expired 
                                 ? fyersConfig.hasRefreshToken 
-                                  ? '⏳ Token expired — auto-renewal pending at 6:32 AM IST'
+                                  ? '⏳ Daily token expired — auto-renewal runs at 9:00 AM IST on trading days'
                                   : '⚠️ Token expired — please reconnect'
-                                : `Token expires in: ${label}${fyersConfig.hasRefreshToken ? ' (auto-renewal active)' : ''}`
+                                : `Token expires in: ${label}${fyersConfig.hasRefreshToken ? ' (daily 9:00 AM renewal active)' : ''}`
                               }
                             </div>
                           );
@@ -818,9 +850,9 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                         <span>
                           {expired
                             ? fyersConfig.hasRefreshToken
-                              ? '⏳ Access token expired. Server will auto-renew at 6:32 AM IST using your saved refresh token. No action needed.'
-                              : '⛔ Access token expired. Please generate a new token using the Auth Code flow below.'
-                            : '⚠️ Fyers access token expiring soon. It will auto-renew at 6:32 AM IST if refresh token is available.'}
+                              ? '⏳ Daily token expired. Server will auto-renew at 9:00 AM IST on the next trading day using your saved PIN. No manual action needed!'
+                              : '⛔ Session expired. Please generate a new token using the Auth Code flow below.'
+                            : '⚠️ Fyers access token expiring soon. It will auto-renew at 9:00 AM IST on the next trading day.'}
                         </span>
                       </div>
                     );
@@ -840,7 +872,7 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                   }`}
                 >
                   <Zap className="w-3.5 h-3.5 text-yellow-300" />
-                  <span>⚡ 1-Click Connect (PIN)</span>
+                  <span>⚡ 9:00 AM Auto-Renew (PIN)</span>
                 </button>
                 <button
                   type="button"
@@ -883,14 +915,21 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                       <div>Secret: <strong className="text-terminal-text">MVADUMZWBM</strong></div>
                     </div>
                     <p className="text-[11px] text-terminal-muted leading-relaxed">
-                      Valid 15-day server session is active. Enter your 4-digit Fyers login PIN below to connect instantly in 1 click!
+                      Fyers API v3 requires your 4-digit Trading PIN to renew tokens. Save your PIN once below and the terminal will automatically fetch a fresh token <strong>every trading day at 9:00 AM IST</strong> without opening the Fyers website!
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-mono font-bold text-terminal-text mb-1">
-                      Enter 4-Digit Fyers Login PIN <span className="text-bear">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-mono font-bold text-terminal-text">
+                        Enter 4-Digit Fyers Trading PIN <span className="text-bear">*</span>
+                      </label>
+                      {fyersConfig.hasPin && (
+                        <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1">
+                          <Check className="w-3 h-3" /> PIN Stored on Server
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="password"
                       maxLength={6}
@@ -909,19 +948,31 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                         onChange={(e) => setRememberPin(e.target.checked)}
                         className="rounded accent-sky-500"
                       />
-                      <span>Save PIN for automatic daily 6:30 AM renewal</span>
+                      <span>Save PIN permanently for automatic daily 9:00 AM renewal on trading days</span>
                     </label>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleFyersOneClickRefresh}
-                    disabled={fyersLoading || !fyersPin.trim()}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
-                  >
-                    {fyersLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-yellow-300" />}
-                    <span>⚡ One-Click Connect Fyers</span>
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleFyersOneClickRefresh}
+                      disabled={fyersLoading || !fyersPin.trim()}
+                      className="py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
+                    >
+                      {fyersLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-yellow-300" />}
+                      <span>Save PIN &amp; Connect Live</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTestFyersRenewal}
+                      disabled={fyersLoading}
+                      className="py-3 px-4 rounded-xl bg-terminal-panel hover:bg-terminal-border border border-terminal-border text-terminal-text font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+                    >
+                      <Repeat2 className="w-4 h-4 text-emerald-400" />
+                      <span>⚡ Test 9:00 AM Renewal</span>
+                    </button>
+                  </div>
                 </div>
               ) : fyersSubTab === 'AUTH_CODE' ? (
                 <div className="space-y-3.5">
@@ -960,6 +1011,25 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                     <Copy className="w-4 h-4" />
                     <span>📋 Paste from Clipboard &amp; Connect (1-Click)</span>
                   </button>
+
+                  <div className="p-2.5 rounded-xl bg-terminal-panel border border-terminal-border space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-mono font-bold text-terminal-text">
+                        4-Digit Fyers PIN (Enables 9:00 AM Auto-Renew)
+                      </label>
+                      {fyersConfig.hasPin && (
+                        <span className="text-[9px] font-mono text-emerald-500 font-bold">● Stored</span>
+                      )}
+                    </div>
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={fyersPin}
+                      onChange={(e) => setFyersPin(e.target.value)}
+                      placeholder="Enter 4-digit PIN (e.g. 1234)"
+                      className="w-full px-3 py-1.5 text-xs font-mono tracking-widest text-center bg-terminal-card border border-terminal-border rounded-lg text-terminal-text focus:outline-none focus:border-sky-500 transition"
+                    />
+                  </div>
 
                   <div>
                     <label className="block text-[11px] font-mono font-bold text-terminal-muted mb-1">

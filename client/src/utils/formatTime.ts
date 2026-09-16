@@ -3,58 +3,32 @@
  * Ensures consistent 100% accurate IST timestamps everywhere across desktop, mobile, cloud & browsers.
  */
 
-// ── ATOMIC NETWORK TIME SYNCHRONIZATION ─────────────────────────────────────
-// Corrects host Windows clock AM/PM inversion (-12 hours) while preserving exact live minutes & seconds.
-const getInitialDrift = (): number => {
-  try {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('fayda_ampm_flip');
-      if (saved === 'false') return 0;
-    }
-  } catch {}
-  return -12 * 3600000; // Default: calibrate 20:xx PM -> 08:xx AM
+// ── STRICT LOCAL SYSTEM TIME (NO OFFSETS) ──────────────────────────────────
+try {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('fayda_ampm_flip');
+  }
+} catch {}
+
+let networkClockDriftMs = 0;
+
+export const setNetworkClockDriftMs = (_driftMs: number) => {
+  networkClockDriftMs = 0;
 };
 
-let networkClockDriftMs = getInitialDrift();
+export const getNetworkClockDriftMs = (): number => 0;
 
-export const setNetworkClockDriftMs = (driftMs: number) => {
-  networkClockDriftMs = driftMs;
-};
-
-export const getNetworkClockDriftMs = (): number => networkClockDriftMs;
-
-export const toggleAmPmFlip = (): boolean => {
-  networkClockDriftMs = networkClockDriftMs === 0 ? -12 * 3600000 : 0;
-  try {
-    localStorage.setItem('fayda_ampm_flip', networkClockDriftMs === 0 ? 'false' : 'true');
-  } catch {}
-  return networkClockDriftMs !== 0;
-};
+export const toggleAmPmFlip = (): boolean => false;
 
 export const getCorrectedNow = (baseDate?: Date | number): Date => {
-  const base = typeof baseDate === 'number' ? baseDate : (baseDate instanceof Date ? baseDate.getTime() : Date.now());
-  return new Date(base + networkClockDriftMs);
+  if (baseDate instanceof Date) return baseDate;
+  if (typeof baseDate === 'number') return new Date(baseDate);
+  return new Date();
 };
 
 export const syncClientNetworkTime = async () => {
-  try {
-    const res = await fetch('/api/time', { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (typeof data.driftMs === 'number') {
-        networkClockDriftMs = data.driftMs;
-        return;
-      }
-    }
-  } catch {
-    // Silently continue if offline
-  }
+  // Pure local system time
 };
-
-if (typeof window !== 'undefined') {
-  syncClientNetworkTime();
-  setInterval(syncClientNetworkTime, 2 * 60 * 1000);
-}
 
 export const getISTComponents = (dateInput?: string | number | Date | null): {
   year: number;
@@ -67,12 +41,12 @@ export const getISTComponents = (dateInput?: string | number | Date | null): {
 } => {
   let d: Date;
   if (!dateInput) {
-    d = getCorrectedNow();
+    d = new Date();
   } else if (dateInput instanceof Date) {
     d = dateInput;
   } else {
     d = new Date(dateInput);
-    if (isNaN(d.getTime())) d = getCorrectedNow();
+    if (isNaN(d.getTime())) d = new Date();
   }
 
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -122,7 +96,7 @@ export const formatISTTime = (
   const hour12 = options?.hour12 ?? true; // Standard 12-hour AM/PM format by default
 
   if (!dateInput) {
-    const d = getCorrectedNow();
+    const d = new Date();
     const str = d.toLocaleTimeString('en-US', {
       timeZone: 'Asia/Kolkata',
       hour12,
@@ -136,11 +110,9 @@ export const formatISTTime = (
   try {
     let d: Date;
     if (dateInput instanceof Date) {
-      const diffToNow = Math.abs(dateInput.getTime() - Date.now());
-      d = diffToNow < 5000 ? getCorrectedNow(dateInput) : dateInput;
+      d = dateInput;
     } else if (typeof dateInput === 'number') {
-      const diffToNow = Math.abs(dateInput - Date.now());
-      d = diffToNow < 5000 ? getCorrectedNow(dateInput) : new Date(dateInput);
+      d = new Date(dateInput);
     } else if (typeof dateInput === 'string') {
       const trimmed = dateInput.trim();
       // Already formatted as "HH:mm(:ss)? AM/PM (IST)?"

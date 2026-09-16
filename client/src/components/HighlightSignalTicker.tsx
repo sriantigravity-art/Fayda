@@ -507,9 +507,22 @@ export const HighlightSignalTicker: React.FC = () => {
     setSecondsLeft(7);
   };
 
+  // Live real-time IST clock ticking every 1s
+  const [liveClockTime, setLiveClockTime] = useState<string>(() =>
+    formatISTTime(null, { showSeconds: true, includeSuffix: true })
+  );
+
+  useEffect(() => {
+    const update = () => {
+      setLiveClockTime(formatISTTime(null, { showSeconds: true, includeSuffix: true }));
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   if (activeSetups.length === 0) return null;
 
-  const istTimeString = formatISTTime(null, { showSeconds: true, includeSuffix: true });
   const safeIndex = activeTipIndex % (activeSetups.length || 1);
   const currentSetup = activeSetups[safeIndex];
 
@@ -574,7 +587,7 @@ export const HighlightSignalTicker: React.FC = () => {
             {/* System Time in IST */}
             <div className="flex items-center space-x-1 font-mono text-[9px] text-accent-cyan bg-terminal-card px-1.5 py-0.5 rounded border border-terminal-border">
               <Clock className="w-2.5 h-2.5 text-accent-cyan shrink-0" />
-              <span className="font-bold">{istTimeString}</span>
+              <span className="font-bold">{liveClockTime}</span>
             </div>
           </div>
         </div>
@@ -689,7 +702,7 @@ export const HighlightSignalTicker: React.FC = () => {
         <div className="flex items-center space-x-2 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg border border-terminal-border/60 shadow-sm">
           <div className="flex items-center space-x-1 font-mono text-xs text-accent-cyan font-bold">
             <Clock className="w-3.5 h-3.5 text-accent-cyan" />
-            <span>{istTimeString}</span>
+            <span>{liveClockTime}</span>
           </div>
 
           <div className="h-3 w-[1px] bg-terminal-border mx-0.5" />

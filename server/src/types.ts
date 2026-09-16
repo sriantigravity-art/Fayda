@@ -514,12 +514,16 @@ export interface FyersConfig {
   tokenIssuedAt?: string;
   /** Fyers 4-digit account PIN for seamless validate-refresh-token renewal */
   pin?: string;
-  /** Fyers refresh token — valid for 15 days. Used for daily auto-renewal at 6:30 AM IST. */
+  /** Fyers refresh token — valid for 15 days. Used for daily auto-renewal at 9:00 AM IST on trading days. */
   refreshToken?: string;
   /** ISO timestamp of the last successful auto-refresh via refresh_token */
   tokenRefreshedAt?: string;
   /** ISO timestamp when the refresh_token itself expires (15 days from initial login) */
   refreshTokenExpiresAt?: string;
+  /** Optional Fyers User ID (e.g. YS04036) */
+  fyId?: string;
+  /** Optional TOTP secret for automated 2FA login */
+  totpKey?: string;
 }
 
 export interface PublicFyersConfig {
@@ -531,10 +535,16 @@ export interface PublicFyersConfig {
   tokenIssuedAt?: string;
   /** ISO timestamp when the access token JWT expires (decoded from JWT exp claim) */
   tokenExpiresAt?: string;
-  /** True if a refresh token is stored — server will auto-renew daily at 6:30 AM IST */
+  /** True if a refresh token is stored — server will auto-renew daily at 9:00 AM IST on trading days */
   hasRefreshToken?: boolean;
   tokenRefreshedAt?: string;
   refreshTokenExpiresAt?: string;
+  /** True if user's 4-digit Fyers PIN is stored for automated renewal */
+  hasPin?: boolean;
+  /** ISO timestamp of the next scheduled 9:00 AM IST trading day renewal */
+  nextDailyRenewalAt?: string;
+  /** Human-readable status of the 9:00 AM renewal schedule */
+  autoRenewalStatus?: string;
 }
 
 export type ActiveBroker = 'DHAN' | 'FYERS' | 'SIMULATOR';

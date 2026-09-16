@@ -13,6 +13,75 @@ const findConfigPath = () => {
     return p1;
 };
 const CONFIG_PATH = findConfigPath();
+// Major Indian Market Holidays (NSE / BSE / MCX) for 2026/2027 (YYYY-MM-DD)
+const MARKET_HOLIDAYS_SET = new Set([
+    '2026-01-26', // Republic Day
+    '2026-02-17', // Mahashivratri
+    '2026-03-03', // Holi
+    '2026-03-20', // Id-Ul-Fitr
+    '2026-04-03', // Good Friday
+    '2026-04-14', // Dr. Ambedkar Jayanti
+    '2026-05-01', // Maharashtra Day
+    '2026-05-27', // Bakri Id
+    '2026-08-15', // Independence Day
+    '2026-09-04', // Milad-un-Nabi
+    '2026-10-02', // Mahatma Gandhi Jayanti
+    '2026-10-20', // Dussehra
+    '2026-11-08', // Diwali (Laxmi Pujan)
+    '2026-11-10', // Diwali Balipratipada
+    '2026-11-24', // Gurunanak Jayanti
+    '2026-12-25', // Christmas
+]);
+/** Returns true if the given date is an active Indian trading day (Monday to Friday, excluding holidays). */
+export const isIndianTradingDay = (date) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const yyyyMmDd = formatter.format(date);
+    const dayFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short'
+    });
+    const weekday = dayFormatter.format(date);
+    if (weekday === 'Sat' || weekday === 'Sun')
+        return false;
+    if (MARKET_HOLIDAYS_SET.has(yyyyMmDd))
+        return false;
+    return true;
+};
+/**
+ * Returns the exact Date corresponding to the next 09:00:00 AM IST on an active trading day.
+ * 09:00:00 IST corresponds to 03:30:00.000 UTC.
+ */
+export const getNextTradingDay9AmIST = (fromDate = new Date()) => {
+    const istFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false
+    });
+    const parts = istFormatter.formatToParts(fromDate);
+    const map = {};
+    parts.forEach(p => { if (p.type !== 'literal')
+        map[p.type] = parseInt(p.value, 10); });
+    // Today at 09:00:00 AM IST in UTC (03:30:00 UTC)
+    const candidateIST = new Date(Date.UTC(map.year, map.month - 1, map.day, 3, 30, 0, 0));
+    if (candidateIST.getTime() > fromDate.getTime() && isIndianTradingDay(candidateIST)) {
+        return candidateIST;
+    }
+    let checkDate = new Date(candidateIST.getTime() + 24 * 3600 * 1000);
+    while (!isIndianTradingDay(checkDate)) {
+        checkDate = new Date(checkDate.getTime() + 24 * 3600 * 1000);
+    }
+    return checkDate;
+};
 export class FyersService {
     config = {
         appId: '',
@@ -179,80 +248,98 @@ export class FyersService {
             return true; // assume valid if no expiry recorded
         return Date.now() < new Date(this.config.refreshTokenExpiresAt).getTime();
     }
-    // ── Daily auto-renewal scheduler ─────────────────────────────────────────────
+    // ── Daily auto-renewal scheduler (9:00 AM IST on Trading Days) ───────────────
     dailyRenewalTimer = null;
+    renewalRetryTimer = null;
     /**
-     * Schedules the next 6:30 AM IST access token renewal.
-     * Called after every successful connection (initial or refresh).
-     * Fyers invalidates all access tokens between 6:00–6:30 AM IST daily.
+     * Schedules the next 9:00 AM IST access token renewal on trading days (Mon–Fri, excluding holidays).
+     * Called automatically after server boot and after every successful connection.
      */
     scheduleNextDailyRenewal() {
-        if (this.dailyRenewalTimer)
+        if (this.dailyRenewalTimer) {
             clearTimeout(this.dailyRenewalTimer);
-        if (!this.isRefreshTokenValid())
-            return; // nothing to schedule with
-        const msUntilRenewal = this.msUntilNextFyersReset();
-        const minutesUntil = Math.round(msUntilRenewal / 60000);
-        console.log(`[Fyers] Daily token renewal scheduled in ${minutesUntil} minutes (at 6:30 AM IST)`);
+            this.dailyRenewalTimer = null;
+        }
+        if (this.renewalRetryTimer) {
+            clearTimeout(this.renewalRetryTimer);
+            this.renewalRetryTimer = null;
+        }
+        const nextTarget = getNextTradingDay9AmIST();
+        const msUntilRenewal = Math.max(nextTarget.getTime() - Date.now(), 5000);
+        const hoursUntil = (msUntilRenewal / 3600000).toFixed(1);
+        const targetStringIST = nextTarget.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        console.log(`[Fyers] ⏰ Next 9:00 AM IST trading day renewal scheduled for ${targetStringIST} (in ${hoursUntil} hours)`);
         this.dailyRenewalTimer = setTimeout(async () => {
-            console.log('[Fyers] ⏰ 6:30 AM IST — running scheduled daily token renewal...');
-            const res = await this.refreshAccessToken();
-            if (res.success) {
-                console.log(`[Fyers] ✅ Scheduled renewal succeeded — active as ${res.userName}`);
-                this.scheduleNextDailyRenewal(); // schedule tomorrow's renewal
-                // Notify any active broadcast listeners via callback
-                this.onTokenRenewed?.(this.config);
+            console.log(`[Fyers] ⏰ 9:00 AM IST — running scheduled trading day token renewal...`);
+            await this.executeRenewalWithRetries();
+        }, msUntilRenewal);
+    }
+    /**
+     * Executes scheduled renewal with up to 3 automatic retries (9:00 AM, 9:02 AM, 9:05 AM)
+     * before the market opens at 9:15 AM.
+     */
+    async executeRenewalWithRetries(attempt = 1, maxAttempts = 3) {
+        const res = await this.refreshAccessToken();
+        if (res.success) {
+            console.log(`[Fyers] ✅ 9:00 AM IST Renewal succeeded — active as ${res.userName}`);
+            this.scheduleNextDailyRenewal();
+            this.onTokenRenewed?.(this.config);
+            return res;
+        }
+        else {
+            console.warn(`[Fyers] ⚠️ 9:00 AM IST Renewal attempt ${attempt}/${maxAttempts} failed: ${res.message}`);
+            if (attempt < maxAttempts) {
+                const retryDelayMs = attempt === 1 ? 120000 : 180000; // retry after 2m (9:02 AM), then 3m (9:05 AM)
+                console.log(`[Fyers] ⏳ Scheduling automatic renewal retry in ${retryDelayMs / 1000}s...`);
+                this.renewalRetryTimer = setTimeout(() => {
+                    this.executeRenewalWithRetries(attempt + 1, maxAttempts);
+                }, retryDelayMs);
             }
             else {
-                console.warn(`[Fyers] ❌ Scheduled renewal failed: ${res.message}`);
-                this.scheduleNextDailyRenewal(); // retry same slot tomorrow anyway
+                console.error(`[Fyers] ❌ All 9:00 AM IST renewal attempts exhausted for today. Please verify PIN or re-login with Auth Code.`);
+                this.scheduleNextDailyRenewal(); // Reschedule for next trading day
             }
-        }, msUntilRenewal);
+            return res;
+        }
     }
     /** Callback invoked after a successful auto-renewal (server index.ts wires this up) */
     onTokenRenewed = null;
-    /** Returns milliseconds until the next 6:32 AM IST (01:02 UTC). */
-    msUntilNextFyersReset() {
-        const now = new Date();
-        // 6:32 AM IST is 01:02 UTC
-        const target = new Date(now);
-        target.setUTCHours(1, 2, 0, 0);
-        if (now.getTime() >= target.getTime()) {
-            target.setUTCDate(target.getUTCDate() + 1);
-        }
-        return Math.max(target.getTime() - now.getTime(), 60000); // minimum 1 min
-    }
     // ── Refresh Token Exchange ────────────────────────────────────────────────────
     /**
      * Uses the stored Fyers refresh_token to obtain a fresh access_token.
-     * No browser interaction required. Refresh tokens are valid for 15 days.
+     * Fyers API v3 requires 4-digit PIN for validate-refresh-token.
+     * Refresh tokens are valid for 14-15 days and are automatically rotated.
      *
      * Fyers endpoint: POST https://api-t1.fyers.in/api/v3/validate-refresh-token
      * Body: { grant_type, appIdHash, refresh_token, pin }
      */
     async refreshAccessToken(pinOverride) {
         if (!this.config.refreshToken) {
-            return { success: false, message: 'No refresh token stored. Please login via auth code first.' };
+            return { success: false, message: 'No refresh token stored. Please login via auth code once.' };
         }
         if (!this.config.appId || !this.config.secretKey) {
             return { success: false, message: 'App ID and Secret Key are required for token refresh.' };
         }
         if (!this.isRefreshTokenValid()) {
-            return { success: false, message: 'Refresh token has expired (15-day limit). Please login via auth code to get a new refresh token.' };
+            return { success: false, message: 'Refresh token has expired (15-day limit reached). Please login via auth code to generate a new 15-day session.' };
+        }
+        const pinToSend = (pinOverride || this.config.pin || '').trim();
+        if (!pinToSend) {
+            return {
+                success: false,
+                message: 'Fyers 4-digit Trading PIN is required for token renewal. Please enter and save your PIN.'
+            };
         }
         try {
             const hashInput = `${this.config.appId}:${this.config.secretKey}`;
             const appIdHash = crypto.createHash('sha256').update(hashInput).digest('hex');
-            console.log(`[Fyers] Refreshing access token for appId: ${this.config.appId}...`);
-            const pinToSend = pinOverride || this.config.pin;
+            console.log(`[Fyers] Refreshing access token for appId: ${this.config.appId} using PIN...`);
             const requestBody = {
                 grant_type: 'refresh_token',
                 appIdHash,
-                refresh_token: this.config.refreshToken
+                refresh_token: this.config.refreshToken,
+                pin: pinToSend
             };
-            if (pinToSend) {
-                requestBody.pin = pinToSend;
-            }
             const response = await fetch('https://api-t1.fyers.in/api/v3/validate-refresh-token', {
                 method: 'POST',
                 headers: {
@@ -272,31 +359,41 @@ export class FyersService {
             }
             if (json?.s === 'ok' && json.access_token) {
                 this.config.accessToken = json.access_token;
-                // Fyers may rotate the refresh token on renewal — capture if returned
+                // Fyers rotates the refresh token on renewal — capture it to extend session by another 14 days
                 if (json.refresh_token) {
                     this.config.refreshToken = json.refresh_token;
+                    const expiry = new Date();
+                    expiry.setDate(expiry.getDate() + 14);
+                    this.config.refreshTokenExpiresAt = expiry.toISOString();
                 }
-                if (pinOverride) {
-                    this.config.pin = pinOverride;
-                }
+                this.config.pin = pinToSend;
                 this.config.isConnected = true;
                 this.config.tokenRefreshedAt = new Date().toISOString();
-                this.config.tokenIssuedAt = new Date().toISOString(); // new daily token issued now
+                this.config.tokenIssuedAt = new Date().toISOString();
                 this.config.lastConnected = new Date().toISOString();
                 const validateRes = await this.validateConnection();
                 const userName = validateRes.userName || this.config.userName || 'SRS';
                 this.config.userName = userName;
                 this.savePersistedConfig();
-                console.log(`[Fyers] ✅ Token refreshed successfully. Access token valid until tomorrow 6:30 AM IST.`);
-                return { success: true, message: `Token refreshed. Connected as ${userName}.`, userName };
+                console.log(`[Fyers] ✅ Token refreshed successfully with PIN. Active as ${userName}.`);
+                this.scheduleNextDailyRenewal();
+                return { success: true, message: `Token refreshed successfully. Connected as ${userName}.`, userName };
             }
             else {
                 const msg = json?.message || `Fyers refresh failed (code: ${json?.code || response.status})`;
-                // Refresh token itself might have expired
+                if (json?.message?.includes('SEBI regulations') || json?.message?.includes('disabled to comply')) {
+                    return {
+                        success: false,
+                        message: 'Fyers has disabled background refresh tokens to comply with SEBI daily 2FA regulations. Please use Option 2 ("Launch Fyers Login") — our 1-click auto-detector captures your daily token instantly.'
+                    };
+                }
                 if (json?.code === 16 || json?.message?.toLowerCase().includes('expired')) {
-                    this.config.refreshToken = undefined; // clear invalid refresh token
+                    this.config.refreshToken = undefined;
                     this.savePersistedConfig();
-                    return { success: false, message: 'Refresh token expired (15-day limit reached). Please login via auth code to renew.' };
+                    return { success: false, message: 'Fyers session expired. Please login via Auth Code once to start a new session.' };
+                }
+                if (json?.code === -502 || json?.message?.toLowerCase().includes('pin')) {
+                    return { success: false, message: 'Invalid Fyers PIN. Please verify your 4-digit Trading PIN.' };
                 }
                 return { success: false, message: msg };
             }
@@ -304,6 +401,43 @@ export class FyersService {
         catch (err) {
             return { success: false, message: err.message || 'Network error during token refresh.' };
         }
+    }
+    /**
+     * Saves the user's 4-digit Fyers Trading PIN and tests renewal immediately if a refresh token is present.
+     */
+    async savePin(pin) {
+        const cleanPin = pin.trim();
+        if (!cleanPin) {
+            return { success: false, message: 'Please provide a valid 4-digit PIN.' };
+        }
+        this.config.pin = cleanPin;
+        this.savePersistedConfig();
+        console.log(`[Fyers] 📌 4-Digit Trading PIN saved to configuration.`);
+        if (this.config.refreshToken) {
+            console.log(`[Fyers] Testing token renewal with newly saved PIN...`);
+            const res = await this.refreshAccessToken(cleanPin);
+            if (res.success) {
+                this.scheduleNextDailyRenewal();
+                return {
+                    success: true,
+                    message: `PIN saved and verified with Fyers! Connected as ${res.userName}. Daily 9:00 AM auto-renewal is ACTIVE.`,
+                    userName: res.userName,
+                    config: this.getPublicConfig()
+                };
+            }
+            else {
+                return {
+                    success: false,
+                    message: `PIN saved, but token renewal failed: ${res.message}. If your 15-day refresh token expired, please log in via Auth Code once.`,
+                    config: this.getPublicConfig()
+                };
+            }
+        }
+        return {
+            success: true,
+            message: 'PIN saved! Please connect via Auth Code once to activate automated 9:00 AM renewals.',
+            config: this.getPublicConfig()
+        };
     }
     setConfig(appId, accessToken, secretKey) {
         let cleanAppId = appId.trim();
@@ -332,6 +466,19 @@ export class FyersService {
             }
         }
         catch { }
+        const nextRenewal = getNextTradingDay9AmIST();
+        const hasValidRefresh = !!this.config.refreshToken && this.isRefreshTokenValid();
+        const hasPin = !!this.config.pin;
+        let autoRenewalStatus = 'IDLE';
+        if (hasValidRefresh && hasPin) {
+            autoRenewalStatus = 'ACTIVE_9AM_TRADING_DAYS';
+        }
+        else if (hasValidRefresh && !hasPin) {
+            autoRenewalStatus = 'PIN_REQUIRED';
+        }
+        else if (!hasValidRefresh) {
+            autoRenewalStatus = 'AUTH_CODE_REQUIRED';
+        }
         return {
             appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
             isConnected: this.config.isConnected,
@@ -339,12 +486,15 @@ export class FyersService {
             lastConnected: this.config.lastConnected,
             tokenIssuedAt: this.config.tokenIssuedAt,
             tokenExpiresAt,
-            hasRefreshToken: !!this.config.refreshToken && this.isRefreshTokenValid(),
+            hasRefreshToken: hasValidRefresh,
             tokenRefreshedAt: this.config.tokenRefreshedAt,
             refreshTokenExpiresAt: this.config.refreshTokenExpiresAt,
+            hasPin,
+            nextDailyRenewalAt: nextRenewal.toISOString(),
+            autoRenewalStatus
         };
     }
-    async exchangeAuthCode(appId, secretKey, authCode) {
+    async exchangeAuthCode(appId, secretKey, authCode, pin) {
         let cleanAppId = appId.trim();
         if (cleanAppId && !cleanAppId.includes('-')) {
             cleanAppId = `${cleanAppId}-100`;
@@ -405,12 +555,15 @@ export class FyersService {
                 this.config.accessToken = json.access_token;
                 this.config.isConnected = true;
                 this.config.lastConnected = new Date().toISOString();
-                // ── Capture refresh_token (valid 15 days, enables daily auto-renewal) ──
+                this.config.tokenIssuedAt = new Date().toISOString();
+                if (pin && pin.trim()) {
+                    this.config.pin = pin.trim();
+                }
+                // ── Capture refresh_token (valid 15 days, enables daily 9:00 AM auto-renewal) ──
                 if (json.refresh_token) {
                     this.config.refreshToken = json.refresh_token;
-                    // Refresh token expires 15 days from now at 6:30 AM IST
                     const expiry = new Date();
-                    expiry.setDate(expiry.getDate() + 14); // conservative: 14 days
+                    expiry.setDate(expiry.getDate() + 14); // 14 days
                     this.config.refreshTokenExpiresAt = expiry.toISOString();
                     console.log(`[Fyers] Refresh token captured — valid until ${expiry.toLocaleDateString('en-IN')}`);
                 }
@@ -418,12 +571,12 @@ export class FyersService {
                 const userName = validateRes.userName || this.config.userName || 'SRS';
                 this.config.userName = userName;
                 this.savePersistedConfig();
-                // Start the daily auto-renewal scheduler
+                // Start the daily 9:00 AM auto-renewal scheduler
                 this.scheduleNextDailyRenewal();
                 return {
                     success: true,
                     message: json.refresh_token
-                        ? `Authenticated successfully as ${userName}! Daily auto-renewal active (15-day refresh token captured).`
+                        ? `Authenticated successfully as ${userName}! Daily 9:00 AM trading day renewal is ACTIVE (15-day session captured).`
                         : `Authenticated successfully as ${userName}!`,
                     userName,
                     accessToken: json.access_token,

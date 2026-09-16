@@ -36,7 +36,8 @@ import {
   Flame,
   FileSpreadsheet,
   List,
-  Columns2
+  Columns2,
+  AlertTriangle
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS' | 'CALLS' | 'PUTS';
