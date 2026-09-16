@@ -117,7 +117,7 @@ export const OptionsDataTableModal: React.FC = () => {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-3 md:p-5 overflow-hidden">
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-1 sm:p-3 md:p-5 overflow-hidden">
       {/* Backdrop */}
       <div 
         onClick={handleClose}

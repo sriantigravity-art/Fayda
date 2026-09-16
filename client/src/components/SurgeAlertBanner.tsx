@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { 
   Zap, 
@@ -293,8 +294,8 @@ export const SurgeAlertBanner: React.FC = () => {
       {/* ─────────────────────────────────────────────────────────────
           2. STANDALONE CENTERED MODALBOX (Theme Aware: Pure Light / Dark)
          ───────────────────────────────────────────────────────────── */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[120000] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
           {/* Backdrop Blur Overlay */}
           <div
             onClick={toggleModal}
@@ -841,7 +842,8 @@ export const SurgeAlertBanner: React.FC = () => {
               <span>Side: <strong className="text-bear">{sideFilter === 'ALL' ? 'All Sides' : sideFilter === 'CE' ? 'Calls (CE) Only' : 'Puts (PE) Only'}</strong></span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { 
   Flame, 
@@ -57,9 +58,9 @@ export const HeroZeroFlashModal: React.FC = () => {
 
   const isCall = latestHeroZeroFlash.optionType === 'CE';
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+      className="fixed inset-0 z-[120000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) dismissHeroZeroFlash();
       }}
@@ -203,6 +204,7 @@ export const HeroZeroFlashModal: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

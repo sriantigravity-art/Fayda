@@ -120,7 +120,7 @@ export const PrimeHighProbabilityFlashModal: React.FC = () => {
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           dismissHighProbFlash();

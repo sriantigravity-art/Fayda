@@ -365,7 +365,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-terminal-card border border-terminal-border rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto no-scrollbar shadow-[0_25px_60px_rgba(0,0,0,0.9)] flex flex-col font-sans select-none ring-1 ring-white/10">
         
         {/* Modal Top Header */}

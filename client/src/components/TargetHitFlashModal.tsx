@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { 
   Target, 
@@ -54,8 +55,8 @@ export const TargetHitFlashModal: React.FC = () => {
 
   const isBull = latestTargetHit.isBull;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-lg bg-terminal-card border-2 border-bull/90 rounded-3xl p-5 sm:p-6 shadow-[0_0_80px_rgba(0,245,155,0.6)] overflow-hidden font-mono text-terminal-text animate-in zoom-in-95 duration-200">
         {/* Top 5-Second Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-terminal-bg">
@@ -178,6 +179,7 @@ export const TargetHitFlashModal: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

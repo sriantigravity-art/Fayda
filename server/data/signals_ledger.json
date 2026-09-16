@@ -1425,9 +1425,9 @@
     "nearTargetPct": 0,
     "nearTargetDescription": "🛑 Stoploss Hit (-10.75 pts / -43%)",
     "callGivenTime": "03:15 PM IST",
-    "entryPriceTimeFormatted": "10:16 PM IST",
-    "stoplossTime": "10:17 PM IST",
-    "stoplossHitTime": "10:17 PM IST",
+    "entryPriceTimeFormatted": "11:00 PM IST",
+    "stoplossTime": "11:02 PM IST",
+    "stoplossHitTime": "11:02 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
     "exitLtp": 14.25
   }

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
@@ -1735,9 +1736,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     const isSeller = selectedItem.role === 'SELLER' || selectedItem.optionType === 'SPREAD';
     const isGamma = selectedItem.category === 'GAMMA';
 
-    return (
+    return createPortal(
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200 select-text"
+        className="fixed inset-0 z-[120000] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200 select-text"
         onClick={() => setSelectedItemId(null)}
       >
         <div 
@@ -2090,7 +2091,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
         )}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 

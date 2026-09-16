@@ -196,7 +196,7 @@ export const TradeLifecycleFlashModal: React.FC = () => {
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[110] flex items-center justify-center p-3.5 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none"
+      className="fixed inset-0 z-[120000] flex items-center justify-center p-3.5 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           dismissLifecycleFlash();

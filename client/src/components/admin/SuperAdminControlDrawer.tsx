@@ -134,7 +134,7 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[115000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+    <div className="fixed inset-0 z-[120000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
       <div className="relative w-full max-w-4xl max-h-[88vh] bg-terminal-card border border-accent-purple/50 rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
         {/* Pinned Drawer Top Header */}
         <div className="shrink-0 flex items-center justify-between p-4 border-b border-terminal-border bg-terminal-panel/80">

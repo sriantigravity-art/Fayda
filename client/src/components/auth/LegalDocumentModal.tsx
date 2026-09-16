@@ -31,7 +31,7 @@ export const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[110000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+    <div className="fixed inset-0 z-[120000] overflow-y-auto bg-black/85 backdrop-blur-md p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
       <div className="relative w-full max-w-3xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
         {/* Pinned Modal Top Header */}
         <div className="shrink-0 flex items-center justify-between p-4 border-b border-terminal-border bg-terminal-panel/80">

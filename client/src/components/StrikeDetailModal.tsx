@@ -106,7 +106,7 @@ Combined Straddle: ₹${combinedPremium.toFixed(2)} | Range: ${lowerBreakeven.to
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[105000] overflow-y-auto p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none">
+    <div className="fixed inset-0 z-[120000] overflow-y-auto p-2 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none">
       {/* Animated Backdrop */}
       <div 
         onClick={handleClose}

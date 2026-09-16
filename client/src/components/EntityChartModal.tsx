@@ -136,7 +136,7 @@ export const EntityChartModal: React.FC = () => {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden">
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden">
       {/* Backdrop */}
       <div 
         onClick={handleClose}

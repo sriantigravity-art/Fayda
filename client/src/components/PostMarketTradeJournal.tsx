@@ -1324,7 +1324,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
     return createPortal(
       <div 
         onClick={onClose}
-        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto"
+        className="fixed inset-0 z-[120000] flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto"
       >
         <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center my-auto">
           {content}

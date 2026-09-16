@@ -327,7 +327,7 @@ Generated via Fayda Trading Terminal`;
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop with animated blur & fade */}
       <div
         onClick={handleClose}
@@ -878,7 +878,7 @@ Generated via Fayda Trading Terminal`;
       {/* 4. DEDICATED DEPTH ANALYSIS MODAL OVERLAYS (OPENED ON DEMAND)             */}
       {/* ========================================================================= */}
       {activeDepthModal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[120010] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
           {/* Submodal backdrop */}
           <div
             onClick={() => setActiveDepthModal(null)}

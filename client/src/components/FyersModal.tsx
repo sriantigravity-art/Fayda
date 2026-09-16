@@ -186,7 +186,7 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[99999] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in"
+      className="fixed inset-0 z-[120000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in"
       style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();

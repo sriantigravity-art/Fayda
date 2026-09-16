@@ -70,7 +70,7 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
+    <div className="fixed inset-0 z-[120000] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-4 md:p-6 flex min-h-full items-center justify-center select-none animate-fade-in">
       <div className="relative w-full max-w-xl max-h-[88vh] bg-terminal-card border border-terminal-border rounded-2xl shadow-elevated flex flex-col overflow-hidden my-auto animate-scale-up">
         {/* Pinned Header */}
         <div className="shrink-0 flex items-center justify-between border-b border-terminal-border p-4 sm:p-5 bg-terminal-panel/80">

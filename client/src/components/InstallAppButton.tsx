@@ -81,7 +81,7 @@ export const InstallAppButton: React.FC = () => {
 
       {/* iOS Safari Installation Guide Modal */}
       {showIosGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[120000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-terminal-card border border-terminal-border rounded-2xl p-4 max-w-sm w-full font-mono shadow-2xl space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-terminal-border">
               <span className="font-bold text-xs text-terminal-text flex items-center gap-1.5">

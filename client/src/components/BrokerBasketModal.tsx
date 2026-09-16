@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Copy, 
   Check, 
@@ -85,8 +86,8 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
     setTimeout(() => setIsSimulated(false), 3000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 font-mono select-none animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[120000] flex items-center justify-center p-3 sm:p-4 md:p-6 font-mono select-none animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
         onClick={onClose}
@@ -229,7 +230,8 @@ export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
