@@ -441,7 +441,7 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Target */}
-        <div className="hidden md:flex items-center gap-1 text-[10px] font-mono shrink-0">
+        <div className="hidden 2xl:flex items-center gap-1 text-[10px] font-mono shrink-0">
           <span className="text-emerald-400 dark:text-emerald-700 text-[9px] uppercase font-bold">Target:</span>
           <span className="font-bold text-emerald-300 dark:text-emerald-700">{item.target}</span>
         </div>
@@ -467,7 +467,7 @@ export const HighlightSignalTicker: React.FC = () => {
         )}
 
         {/* Timing */}
-        <div className="hidden lg:flex items-center gap-1 text-[9px] font-mono text-slate-300 dark:text-slate-600 shrink-0">
+        <div className="hidden 2xl:flex items-center gap-1 text-[9px] font-mono text-slate-300 dark:text-slate-600 shrink-0">
           <Clock className="w-2.5 h-2.5 text-accent-cyan dark:text-sky-600" />
           <span>{timing.givenTimeShort}</span>
         </div>
@@ -528,7 +528,7 @@ export const HighlightSignalTicker: React.FC = () => {
 
   return (
     <div 
-      className="w-full bg-terminal-panel/95 border-b border-terminal-border backdrop-blur-md overflow-hidden select-none relative group z-20 shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+      className="w-full bg-terminal-panel/95 border-b border-terminal-border backdrop-blur-md overflow-hidden select-none relative group shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={() => setIsHovered(true)}
@@ -536,12 +536,12 @@ export const HighlightSignalTicker: React.FC = () => {
       onTouchCancel={() => setIsHovered(false)}
     >
       {/* ========================================================================= */}
-      {/* MOBILE LAYOUT: LINE 1 = RADAR + TIME + CONTROLS | LINE 2 = 7s FLASH TIP   */}
+      {/* MOBILE & TABLET LAYOUT (< xl): LINE 1 = RADAR + TIME | LINE 2 = 7s FLASH   */}
       {/* ========================================================================= */}
-      <div className="flex flex-col sm:hidden py-1 px-2.5 space-y-1">
+      <div className="flex flex-col xl:hidden py-1 px-2.5 space-y-1">
         {/* LINE 1: FAYDA RADAR BRAND (LEFT) + SYSTEM TIME & CONTROLS (RIGHT) */}
         <div className="flex items-center justify-between gap-2 pt-0.5">
-          <div className="flex items-center space-x-1.5 min-w-0">
+          <div className="flex items-center space-x-1.5 min-w-0 shrink-0">
             <div className="p-1 rounded-md bg-accent-cyan/15 border border-accent-cyan/40 text-accent-cyan shrink-0">
               <Zap className="w-3 h-3 animate-pulse" />
             </div>
@@ -557,7 +557,7 @@ export const HighlightSignalTicker: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 shrink-0">
             {/* Quick 7s Navigation */}
             <button
               type="button"
@@ -607,7 +607,7 @@ export const HighlightSignalTicker: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center">
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center justify-start">
             {currentSetup && renderSetupItem(currentSetup, `mob-single-${safeIndex}`)}
           </div>
         </div>
@@ -622,16 +622,16 @@ export const HighlightSignalTicker: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* DESKTOP LAYOUT (>= sm): INLINE SINGLE 7-SECOND FLASHING TRADE TIP         */}
+      {/* DESKTOP LAYOUT (>= xl): STREAMLINED SINGLE ROW WITH ZERO OVERLAPS         */}
       {/* ========================================================================= */}
-      <div className="hidden sm:flex items-center py-2 px-3 relative min-h-[48px] justify-between">
-        {/* Left Sticky Label */}
-        <div className="flex items-center space-x-1.5 pr-3 mr-2 border-r border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg shadow-sm border border-terminal-border/60">
+      <div className="hidden xl:flex items-center py-1.5 px-3 relative min-h-[44px] justify-between gap-3">
+        {/* Left Brand Label */}
+        <div className="flex items-center space-x-1.5 pr-2.5 border-r border-terminal-border/70 shrink-0 bg-terminal-card/80 py-1 px-2 rounded-lg border border-terminal-border/50 shadow-sm">
           <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-600 dark:text-amber-400'} animate-pulse`} />
-          <span className="text-xs font-black tracking-wider uppercase text-terminal-text">
+          <span className="text-xs font-black tracking-wider uppercase text-terminal-text whitespace-nowrap">
             {isBeginner ? '🧭 MARKET COMPASS' : isIntermediate ? '🧭 FAYDA RADAR' : '🔬 QUANT COMPASS'}
           </span>
-          <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
+          <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold whitespace-nowrap ${
             isLiveNseMarket 
               ? 'bg-bull/20 text-bull border border-bull/40' 
               : 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
@@ -641,30 +641,17 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Center: EXACTLY ONE TRADE TIP SHOWN AT A TIME FOR 7 SECONDS */}
-        <div className="flex-1 flex items-center justify-center space-x-3 px-2 min-w-0">
+        <div className="flex-1 flex items-center justify-center gap-2 min-w-0 overflow-hidden">
           {/* Flash Indicator Pill */}
-          <div className="flex items-center space-x-1.5 bg-amber-500/15 border border-amber-500/35 px-2.5 py-1 rounded-lg shrink-0">
+          <div className="flex items-center space-x-1 bg-amber-500/15 border border-amber-500/35 px-2 py-0.5 rounded-lg shrink-0">
             <Zap className="w-3 h-3 text-amber-600 dark:text-amber-400 animate-pulse" />
-            <span className="text-[10px] font-mono font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider">
-              7s Flash Tip
+            <span className="text-[10px] font-mono font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider whitespace-nowrap">
+              7s Flash
             </span>
-            <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-900/60 px-1.5 py-0.2 rounded border border-slate-300 dark:border-slate-700">
+            <span className="text-[9.5px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-900/60 px-1 py-0.2 rounded border border-slate-300 dark:border-slate-700 whitespace-nowrap">
               {safeIndex + 1} of {activeSetups.length}
             </span>
           </div>
-
-          {/* Active Momentum Regime Pill */}
-          {(currentSetup as any)?.marketRegime && (
-            <div className={`hidden md:flex items-center space-x-1 px-2 py-1 rounded-lg border font-mono text-[9.5px] font-black uppercase tracking-wider shrink-0 ${
-              (currentSetup as any).isExpiryDay 
-                ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                : (currentSetup as any).marketRegime === 'SIDEWAYS_CHOP'
-                ? 'bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/40'
-                : 'bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/40'
-            }`}>
-              <span>{(currentSetup as any).isExpiryDay ? '⚡ 0DTE EXPIRY' : (currentSetup as any).marketRegime === 'SIDEWAYS_CHOP' ? '🐢 SIDEWAYS SCALP' : '⚡ FAST MOMENTUM'}</span>
-            </div>
-          )}
 
           {/* Quick Prev Tip Button */}
           <button
@@ -677,7 +664,7 @@ export const HighlightSignalTicker: React.FC = () => {
           </button>
 
           {/* The Single Active Trade Tip Card */}
-          <div className="transition-all duration-300 ease-in-out shrink-0">
+          <div className="transition-all duration-300 ease-in-out shrink-0 max-w-full overflow-hidden">
             {currentSetup && renderSetupItem(currentSetup, `desktop-single-${safeIndex}`)}
           </div>
 
@@ -692,15 +679,15 @@ export const HighlightSignalTicker: React.FC = () => {
           </button>
 
           {/* 7-Second Countdown Timer Badge */}
-          <div className="flex items-center space-x-1 font-mono text-[10px] text-sky-700 dark:text-sky-300 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded-md shrink-0" title="Auto-advancing to next tip in 7 seconds">
+          <div className="flex items-center space-x-1 font-mono text-[9.5px] text-sky-700 dark:text-sky-300 bg-sky-500/10 border border-sky-500/30 px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap" title="Auto-advancing to next tip in 7 seconds">
             <Timer className="w-3 h-3 text-sky-600 dark:text-sky-400 animate-pulse" />
             <span>Next in {secondsLeft}s</span>
           </div>
         </div>
 
         {/* Right System Time & Play/Pause Controls */}
-        <div className="flex items-center space-x-2 pl-2 ml-2 border-l border-terminal-border/80 shrink-0 z-10 bg-terminal-card py-1 px-2.5 rounded-lg border border-terminal-border/60 shadow-sm">
-          <div className="flex items-center space-x-1 font-mono text-xs text-accent-cyan font-bold">
+        <div className="flex items-center space-x-2 pl-2 border-l border-terminal-border/70 shrink-0 bg-terminal-card/80 py-1 px-2 rounded-lg border border-terminal-border/50 shadow-sm">
+          <div className="flex items-center space-x-1 font-mono text-xs text-accent-cyan font-bold whitespace-nowrap">
             <Clock className="w-3.5 h-3.5 text-accent-cyan" />
             <span>{liveClockTime}</span>
           </div>
@@ -710,7 +697,7 @@ export const HighlightSignalTicker: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
-            className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer flex items-center gap-1 text-[11px] font-mono"
+            className="p-1 rounded text-terminal-muted hover:text-terminal-text transition cursor-pointer flex items-center gap-1 text-[11px] font-mono whitespace-nowrap"
             title={isPaused ? "Resume 7-second auto flash" : "Pause on this trade tip"}
           >
             {isPaused ? (
