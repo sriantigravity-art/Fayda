@@ -61,7 +61,7 @@ const DashboardContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-hidden">
+    <div className="min-h-screen bg-terminal-bg text-terminal-text flex flex-col selection:bg-accent-sky selection:text-white font-sans antialiased pb-28 md:pb-12 xl:pb-8 w-full max-w-[100vw] overflow-x-clip">
       {/* Right Side Docked International Indices Drawer with Vertical Toggle */}
       {panelVisibility.globalSidebar && <GlobalIndicesSidebar />}
 
@@ -88,8 +88,12 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Terminal Workspace */}
       <main className="flex-1 px-2 sm:px-4 py-2.5 sm:py-3.5 max-w-[1840px] w-full mx-auto flex flex-col space-y-3.5">
-        {/* ⭐ TOP COMMAND CENTER: All Trade Recommendations & Tips in Tabular Format Under Section Headings */}
-        {panelVisibility.tradeGuidance && <TopTradeRecommendationsDeck />}
+        {/* ⭐ TOP COMMAND CENTER: All Trade Recommendations & Tips in Tabular Format Under Section Headings (Desktop/Tablet) */}
+        {panelVisibility.tradeGuidance && (
+          <div className="hidden md:block w-full max-w-full">
+            <TopTradeRecommendationsDeck />
+          </div>
+        )}
 
         {/* Tactical Strike Slider (ATM ±3 Steps) & 10 Technical Indicators Deck */}
         <TacticalStrikeSliderRadar />

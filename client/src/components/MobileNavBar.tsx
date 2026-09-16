@@ -465,7 +465,7 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
       {/* ========================================================================= */}
       <nav 
         aria-label="Mobile Navigation Bar"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-terminal-card/98 backdrop-blur-lg border-t border-terminal-border px-2 py-1 flex items-center justify-around shadow-[0_-4px_25px_rgba(0,0,0,0.6)] select-none h-14 pb-safe touch-manipulation"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-terminal-card/98 backdrop-blur-lg border-t border-terminal-border px-1 py-1 flex items-center justify-between shadow-[0_-4px_25px_rgba(0,0,0,0.6)] select-none h-14 pb-safe touch-manipulation w-full max-w-full overflow-hidden"
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key && !isSettingsOpen;
@@ -480,16 +480,16 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
                 setIsSettingsOpen(false);
                 onTabChange(tab.key);
               }}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
+              className={`flex flex-col items-center justify-center flex-1 min-w-0 h-full py-0.5 px-0.5 rounded-lg transition cursor-pointer touch-manipulation active:scale-95 ${
                 isActive
                   ? 'text-accent-sky font-bold'
                   : 'text-terminal-muted hover:text-terminal-text active:text-accent-sky'
               }`}
             >
-              <div className={`p-1 rounded-lg transition ${isActive ? 'bg-accent-sky/15 text-accent-sky' : ''}`}>
-                <Icon className="w-4 h-4" />
+              <div className={`p-1 rounded-md transition shrink-0 ${isActive ? 'bg-accent-sky/15 text-accent-sky' : ''}`}>
+                <Icon className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[10px] font-sans mt-0.5 tracking-tight font-medium">
+              <span className="text-[9px] font-sans mt-0.5 tracking-tight font-medium truncate max-w-full">
                 {tab.label}
               </span>
             </button>
@@ -501,19 +501,19 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
           id="mobile-tab-settings"
           type="button"
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className={`flex flex-col items-center justify-center flex-1 h-full py-1 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
+          className={`flex flex-col items-center justify-center flex-1 min-w-0 h-full py-0.5 px-0.5 rounded-lg transition cursor-pointer touch-manipulation active:scale-95 ${
             isSettingsOpen
               ? 'text-accent-sky font-bold'
               : 'text-terminal-muted hover:text-accent-sky active:text-accent-sky'
           }`}
           title="Open Terminal Settings, Mode, Audio & Tools"
         >
-          <div className={`p-1 rounded-lg transition ${isSettingsOpen ? 'bg-accent-sky/20 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.3)] rotate-45' : ''}`}>
-            <Settings className="w-4 h-4 transition-transform duration-200" />
+          <div className={`p-1 rounded-md transition shrink-0 ${isSettingsOpen ? 'bg-accent-sky/20 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.3)] rotate-45' : ''}`}>
+            <Settings className="w-4 h-4 transition-transform duration-200 shrink-0" />
           </div>
-          <span className="text-[10px] font-sans mt-0.5 tracking-tight font-medium flex items-center gap-0.5">
+          <span className="text-[9px] font-sans mt-0.5 tracking-tight font-medium flex items-center justify-center gap-0.5 truncate max-w-full">
             <span>Settings</span>
-            <ChevronUp className={`w-2.5 h-2.5 transition-transform duration-200 ${isSettingsOpen ? 'rotate-180 text-accent-sky' : ''}`} />
+            <ChevronUp className={`w-2 h-2 shrink-0 transition-transform duration-200 ${isSettingsOpen ? 'rotate-180 text-accent-sky' : ''}`} />
           </span>
         </button>
       </nav>

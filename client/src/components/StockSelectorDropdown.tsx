@@ -233,7 +233,7 @@ export const StockSelectorDropdown: React.FC = () => {
 
       {/* Popover Watchlist Dropdown Panel */}
       {isOpen && (
-        <div className="fixed sm:absolute left-2 sm:left-0 top-12 sm:top-full mt-1 w-[calc(100vw-16px)] sm:w-[480px] max-h-[520px] bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
+        <div className="fixed sm:absolute left-2 sm:left-0 top-12 sm:top-full mt-1 w-[calc(100vw-16px)] sm:w-[480px] max-h-[520px] bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border rounded-2xl shadow-2xl z-[9999] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-xs">
           {/* Header & Search Input */}
           <div className="p-3 border-b border-slate-200 dark:border-terminal-border bg-slate-50 dark:bg-terminal-panel space-y-2">
             <div className="relative">

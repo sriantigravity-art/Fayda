@@ -64,7 +64,7 @@ export const ToolsDropdown: React.FC<ToolsDropdownProps> = ({
 
       {/* Flyout Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl shadow-2xl p-2.5 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border backdrop-blur-xl ${
+        <div className={`absolute right-0 mt-2 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm rounded-2xl shadow-2xl p-2.5 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border backdrop-blur-xl ${
           isDark
             ? 'bg-[#0c1220]/95 border-slate-800 text-slate-100 shadow-black/80'
             : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-400/40'

@@ -441,7 +441,7 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Target */}
-        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
+        <div className="hidden md:flex items-center gap-1 text-[10px] font-mono shrink-0">
           <span className="text-emerald-400 dark:text-emerald-700 text-[9px] uppercase font-bold">Target:</span>
           <span className="font-bold text-emerald-300 dark:text-emerald-700">{item.target}</span>
         </div>

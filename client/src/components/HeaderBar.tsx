@@ -225,18 +225,18 @@ export const HeaderBar: React.FC = () => {
   const isFyersActive = !!(fyersConfig && (fyersConfig.isConnected || fyersConfig.accessToken || fyersConfig.hasToken));
 
   return (
-    <header className="sticky top-0 z-40 bg-terminal-card/95 backdrop-blur-md border-b border-terminal-border px-2.5 sm:px-4 py-1.5 select-none shadow-subtle flex flex-col space-y-1.5">
+    <header className="sticky top-0 z-[120] bg-terminal-card/95 backdrop-blur-md border-b border-terminal-border px-2 sm:px-4 py-1 sm:py-1.5 select-none shadow-subtle flex flex-col space-y-1 w-full max-w-full">
       {/* ========================================================================= */}
       {/* TIER 1: PRIMARY ACTION & CONTROL BAR */}
       {/* ========================================================================= */}
-      <div className="flex items-center justify-between gap-2 max-w-[1840px] w-full mx-auto">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 max-w-[1840px] w-full mx-auto min-w-0">
 
         {/* LEFT SECTION: BRAND + ASSET SELECTOR + SPOT METRICS */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0 min-w-0">
+        <div className="flex items-center space-x-1 sm:space-x-2 shrink min-w-0">
           {/* Logo & Brand Name */}
           <div className="flex items-center space-x-1.5 shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-accent-sky/15 flex items-center justify-center border border-accent-sky/30 shadow-subtle shrink-0">
-              <img src="/favicon-32x32.png" className="w-4 h-4 object-contain" alt="Fayda" />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-sky/15 flex items-center justify-center border border-accent-sky/30 shadow-subtle shrink-0">
+              <img src="/favicon-32x32.png" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" alt="Fayda" />
             </div>
             <div className="hidden sm:flex flex-col leading-none">
               <span className="font-bold text-xs tracking-tight text-terminal-text">FAYDA PRO</span>
@@ -263,20 +263,20 @@ export const HeaderBar: React.FC = () => {
               : 'text-slate-400 bg-slate-500/15 border-slate-500/30';
             return (
               <div
-                className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[10px] font-mono shrink-0 cursor-pointer"
+                className="flex items-center space-x-1 sm:space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[9px] sm:text-[10px] font-mono shrink-0 cursor-pointer"
                 title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Active Broker: ${brokerLabel} | Data Feed: ${feedLabel} | Exchange: ${exchange}`}
                 onClick={() => setIsFyersModalOpen(true)}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
                 <span className="text-terminal-muted font-bold">
                   {isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}
                 </span>
                 {/* Broker badge — updates when user switches broker */}
-                <span className={`hidden sm:inline text-[9px] px-1 py-0.2 rounded border font-black ${brokerColor}`}>
+                <span className={`hidden md:inline text-[9px] px-1 py-0.2 rounded border font-black ${brokerColor}`}>
                   {brokerLabel}
                 </span>
                 {/* Exchange badge — updates when user switches index */}
-                <span className="hidden sm:inline text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted border border-terminal-border">
+                <span className="hidden lg:inline text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted border border-terminal-border">
                   {exchange}
                 </span>
               </div>
@@ -296,7 +296,7 @@ export const HeaderBar: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsFyersModalOpen(true)}
-            className={`flex items-center space-x-1.5 px-2 py-1 rounded-xl border text-xs font-sans font-bold transition cursor-pointer shrink-0 shadow-sm ${
+            className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-xl border text-[11px] sm:text-xs font-sans font-bold transition cursor-pointer shrink-0 shadow-sm ${
               effectiveBroker === 'DHAN'
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                 : effectiveBroker === 'FYERS'
@@ -315,7 +315,7 @@ export const HeaderBar: React.FC = () => {
                 : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
             }
           >
-            <KeyRound className={`w-3.5 h-3.5 ${
+            <KeyRound className={`w-3.5 h-3.5 shrink-0 ${
               effectiveBroker === 'DHAN'
                 ? 'text-emerald-500 animate-pulse'
                 : effectiveBroker === 'FYERS'
@@ -335,44 +335,48 @@ export const HeaderBar: React.FC = () => {
             </span>
           </button>
 
-          {/* 2. Grouped Trading Tools Dropdown (Trade Journal, Risk Calc, Command Palette, SEBI Legal) */}
-          <ToolsDropdown
-            onOpenJournal={() => setIsJournalModalOpen(true)}
-            onOpenRiskCalc={() => setIsRiskModalOpen(true)}
-            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-            onOpenLegal={() => {
-              setActiveLegalDoc('RISK_DISCLOSURE');
-              setIsLegalModalOpen(true);
-            }}
-          />
+          {/* 2. Grouped Trading Tools Dropdown (Visible on md+; on mobile in bottom Settings sheet) */}
+          <div className="hidden md:inline-block">
+            <ToolsDropdown
+              onOpenJournal={() => setIsJournalModalOpen(true)}
+              onOpenRiskCalc={() => setIsRiskModalOpen(true)}
+              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+              onOpenLegal={() => {
+                setActiveLegalDoc('RISK_DISCLOSURE');
+                setIsLegalModalOpen(true);
+              }}
+            />
+          </div>
 
-          {/* 3. Grouped Mode & Workspace Settings Dropdown (Beginner/Interm/Expert, Density, Audio, SuperAdmin) */}
-          <WorkspaceSettingsDropdown
-            mode={mode}
-            setMode={setMode}
-            density={density}
-            setDensity={setDensity}
-            isMuted={isMuted}
-            toggleMute={toggleMute}
-            isSuperAdmin={isSuperAdmin}
-            onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
-          />
+          {/* 3. Grouped Mode & Workspace Settings Dropdown (Visible on md+; on mobile in bottom Settings sheet) */}
+          <div className="hidden md:inline-block">
+            <WorkspaceSettingsDropdown
+              mode={mode}
+              setMode={setMode}
+              density={density}
+              setDensity={setDensity}
+              isMuted={isMuted}
+              toggleMute={toggleMute}
+              isSuperAdmin={isSuperAdmin}
+              onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+            />
+          </div>
 
-          {/* 4. Light / Dark Theme Toggle */}
+          {/* 4. Light / Dark Theme Toggle (Visible on md+) */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-1.5 rounded-xl bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 shadow-sm"
+            className="hidden md:inline-flex p-1.5 rounded-xl bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 shadow-sm"
             title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
           >
             {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
           </button>
 
-          {/* 5. Fullscreen Toggle */}
+          {/* 5. Fullscreen Toggle (Visible on lg+) */}
           <button
             type="button"
             onClick={toggleFullscreen}
-            className={`p-1.5 rounded-xl border transition cursor-pointer shrink-0 shadow-sm ${
+            className={`hidden lg:inline-flex p-1.5 rounded-xl border transition cursor-pointer shrink-0 shadow-sm ${
               isFullscreen
                 ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
                 : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
@@ -511,9 +515,9 @@ export const HeaderBar: React.FC = () => {
                 </div>
               )}
 
-              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden lg:block" />
 
-              <div className="hidden sm:flex items-center space-x-1">
+              <div className="hidden lg:flex items-center space-x-1">
                 <span className="text-terminal-muted font-medium text-[11px]">ATM:</span>
                 <span className="font-mono font-bold text-terminal-text">{currentIndexState.atmStrike}</span>
               </div>
@@ -528,9 +532,9 @@ export const HeaderBar: React.FC = () => {
                 </span>
               </div>
 
-              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden lg:block" />
 
-              <div className="hidden sm:flex items-center space-x-1">
+              <div className="hidden lg:flex items-center space-x-1">
                 <span className="text-terminal-muted font-medium text-[11px]">Expiry:</span>
                 <span className="font-mono font-bold text-terminal-text">{daysToExpiry}d</span>
               </div>

@@ -2838,14 +2838,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       {/* ========================================================================= */}
       <div className="px-3.5 sm:px-4 py-3 bg-slate-50/70 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Category Tabs */}
-        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold flex-wrap">
+        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold overflow-x-auto no-scrollbar flex-nowrap max-w-full">
           <button
             type="button"
             onClick={() => {
               setActiveTab('ALL');
               setOptionSideFilter('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'ALL' && optionSideFilter === 'ALL'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2864,7 +2864,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               setOptionSideFilter('CE');
               if (viewMode === 'SPLIT') setViewMode('LIST');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               optionSideFilter === 'CE'
                 ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400'
@@ -2884,7 +2884,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               setOptionSideFilter('PE');
               if (viewMode === 'SPLIT') setViewMode('LIST');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               optionSideFilter === 'PE'
                 ? 'bg-rose-500 text-white font-black shadow-md shadow-rose-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400'
@@ -2903,7 +2903,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               setActiveTab('GAMMA');
               setOptionSideFilter('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'GAMMA'
                 ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2921,7 +2921,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               setActiveTab('SELLERS');
               setOptionSideFilter('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               activeTab === 'SELLERS'
                 ? 'bg-purple-500 text-white font-black shadow-md shadow-purple-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2935,11 +2935,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold self-start md:self-auto flex-wrap">
+        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold self-start md:self-auto overflow-x-auto no-scrollbar flex-nowrap max-w-full">
           <button
             type="button"
             onClick={() => setViewMode('LIST')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               viewMode === 'LIST'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2956,7 +2956,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               setViewMode('SPLIT');
               setOptionSideFilter('ALL');
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`hidden md:flex px-3 py-1.5 rounded-lg transition-all items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               viewMode === 'SPLIT'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2970,7 +2970,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           <button
             type="button"
             onClick={() => setViewMode('TABLE')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               viewMode === 'TABLE'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
@@ -2984,7 +2984,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           <button
             type="button"
             onClick={() => setViewMode('FLASH')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               viewMode === 'FLASH'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'

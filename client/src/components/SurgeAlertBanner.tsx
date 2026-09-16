@@ -265,7 +265,7 @@ export const SurgeAlertBanner: React.FC = () => {
         <button
           type="button"
           onClick={toggleModal}
-          className="fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 flex items-center justify-center p-2.5 sm:py-3.5 sm:px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
+          className="hidden sm:flex fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 items-center justify-center py-3.5 px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
           title="Open Flash Surge Radar Modal"
         >
           {/* Mobile View (< sm): Compact Glowing Right-Edge Icon */}

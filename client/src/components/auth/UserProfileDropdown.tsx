@@ -148,21 +148,21 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
           {isSuperAdmin ? <Crown className="w-3.5 h-3.5" /> : (firstName || 'T').charAt(0).toUpperCase()}
         </div>
 
-        <span className="inline-block max-w-[90px] sm:max-w-[130px] truncate font-bold text-xs text-terminal-text">
+        <span className="hidden sm:inline-block max-w-[120px] truncate font-bold text-xs text-terminal-text">
           {firstName}
         </span>
 
         {/* Plan Pill */}
-        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border font-bold ${badge.bg}`}>
+        <span className={`hidden md:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded border font-bold ${badge.bg}`}>
           {badge.label}
         </span>
 
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Flyout Profile & Logout Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-84 rounded-2xl shadow-2xl p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
+        <div className={`absolute right-0 mt-2 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm rounded-2xl shadow-2xl p-3.5 sm:p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
           isDark
             ? 'bg-[#0c1220] border-slate-800 text-slate-100 shadow-black/80'
             : 'bg-white border-slate-200 text-slate-800 shadow-slate-400/40'

@@ -59,7 +59,7 @@ export const TopSubscribeDropdown: React.FC = () => {
         {/* Top Middle Subscribe / Access Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`group flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 shadow-md transform hover:scale-[1.02] active:scale-95 ${
+          className={`group flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 shadow-md transform hover:scale-[1.02] active:scale-95 shrink-0 ${
             isSuperAdmin
               ? 'bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-purple-900/40 border border-purple-400/50'
               : isPaid
@@ -78,37 +78,40 @@ export const TopSubscribeDropdown: React.FC = () => {
         >
           {isSuperAdmin ? (
             <>
-              <Crown className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-              <span>SUPERADMIN DESK</span>
+              <Crown className="w-3.5 h-3.5 text-yellow-300 animate-pulse shrink-0" />
+              <span className="sm:hidden">ADMIN</span>
+              <span className="hidden sm:inline">SUPERADMIN DESK</span>
               <span className="hidden md:inline-block bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold">
                 MASTER
               </span>
             </>
           ) : isPaid ? (
             <>
-              {currentPlan === 'DIAMOND' ? <Crown className="w-3.5 h-3.5 text-yellow-300" /> : <Award className="w-3.5 h-3.5 text-current" />}
-              <span>{currentPlan} MEMBER</span>
+              {currentPlan === 'DIAMOND' ? <Crown className="w-3.5 h-3.5 text-yellow-300 shrink-0" /> : <Award className="w-3.5 h-3.5 text-current shrink-0" />}
+              <span className="sm:hidden">{currentPlan}</span>
+              <span className="hidden sm:inline">{currentPlan} MEMBER</span>
               {user?.daysRemaining !== undefined && (
-                <span className="opacity-90 font-mono text-[11px] bg-black/20 px-1.5 py-0.5 rounded-full">
-                  {user.daysRemaining}d left
+                <span className="opacity-90 font-mono text-[10px] sm:text-[11px] bg-black/20 px-1.5 py-0.5 rounded-full">
+                  {user.daysRemaining}d
                 </span>
               )}
             </>
           ) : (
             <>
-              <Zap className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300 animate-bounce" />
-              <span className="tracking-wide">SUBSCRIBE NOW</span>
+              <Zap className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300 animate-bounce shrink-0" />
+              <span className="sm:hidden tracking-wide">SUBSCRIBE</span>
+              <span className="hidden sm:inline tracking-wide">SUBSCRIBE NOW</span>
               <span className="hidden md:inline-block bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-semibold">
                 PLANS
               </span>
             </>
           )}
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Interactive Dropdown Panel */}
         {isOpen && (
-          <div className={`absolute left-1/2 -translate-x-1/2 mt-2 w-80 sm:w-96 rounded-2xl shadow-2xl p-4 z-[999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
+          <div className={`absolute left-1/2 -translate-x-1/2 mt-2 w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm rounded-2xl shadow-2xl p-3 sm:p-4 z-[999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
             isDark
               ? 'bg-[#0c1220] border-cyan-500/30 shadow-cyan-950/60 text-slate-100'
               : 'bg-white border-slate-200 shadow-slate-400/40 text-slate-800'

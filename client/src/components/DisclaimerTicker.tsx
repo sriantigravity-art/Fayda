@@ -12,16 +12,17 @@ export const DisclaimerTicker: React.FC = () => {
   return (
     <aside 
       aria-label="SEBI Statutory Compliance Ticker"
-      className="fixed bottom-14 md:bottom-0 left-0 right-0 w-full z-40 md:z-50 bg-terminal-panel/95 backdrop-blur-md border-t border-amber/40 shadow-md py-1.5 px-3 flex items-center select-none"
+      className="fixed bottom-14 md:bottom-0 left-0 right-0 w-full z-40 md:z-50 bg-terminal-panel/95 backdrop-blur-md border-t border-amber/40 shadow-md py-0.5 sm:py-1 px-2 sm:px-3 flex items-center select-none h-6 sm:h-7 overflow-hidden"
     >
       {/* Permanent Fixed Compliance Badge on Left */}
-      <div className="flex items-center space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber/20 text-amber border border-amber/50 shrink-0 mr-2 sm:mr-3 font-mono font-black text-[10px] shadow-sm" title="SEBI Statutory Compliance: Educational & Analytical Observation Only">
-        <ShieldAlert className="w-3.5 h-3.5 text-amber shrink-0 animate-pulse" />
+      <div className="flex items-center space-x-1 sm:space-x-1.5 px-1 sm:px-1.5 py-0.2 rounded bg-amber/20 text-amber border border-amber/50 shrink-0 mr-1.5 sm:mr-3 font-mono font-black text-[9px] sm:text-[10px] shadow-sm" title="SEBI Statutory Compliance: Educational & Analytical Observation Only">
+        <ShieldAlert className="w-3 h-3 text-amber shrink-0 animate-pulse" />
+        <span className="sm:hidden">SEBI</span>
         <span className="hidden sm:inline">SEBI COMPLIANCE: EDUCATIONAL ONLY</span>
       </div>
 
       {/* Infinite Seamless Scrolling Disclaimer Stream */}
-      <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center">
+      <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 max-w-full relative flex items-center pointer-events-none">
         <div className="flex animate-marquee-seamless whitespace-nowrap text-[10px] sm:text-[11px] font-mono text-terminal-muted/90 font-medium">
           {/* First loop */}
           <div className="flex items-center space-x-8 shrink-0 pr-8">
