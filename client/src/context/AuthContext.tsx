@@ -318,6 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!prev) return prev;
           return {
             ...prev,
+            avatarUrl: sub.avatarUrl || sub.extendedProfile?.avatarUrl || prev.avatarUrl,
             subscriberId: sub.subscriberId || prev.subscriberId,
             plan: sub.plan || prev.plan,
             billingCycle: sub.billingCycle || prev.billingCycle,
@@ -408,6 +409,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               username: (sub as any).username || sub.fullName || sub.email?.split('@')[0],
               email: sub.email,
               mobile: sub.mobile,
+              avatarUrl: sub.avatarUrl || sub.extendedProfile?.avatarUrl,
               role: sub.role === 'SUPERADMIN' ? 'SUPERADMIN' : 'USER',
               plan: sub.plan || 'FREE',
               billingCycle: sub.billingCycle || 'MONTHLY',
@@ -470,6 +472,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: 'superadmin',
         email: 'srikantsr@vertexinfo.co.in',
         mobile: '+919876500700',
+        avatarUrl: localStorage.getItem('fayda_auth_user') ? (() => {
+          try {
+            return JSON.parse(localStorage.getItem('fayda_auth_user') || '{}').avatarUrl;
+          } catch {
+            return undefined;
+          }
+        })() : undefined,
         role: 'SUPERADMIN',
         plan: 'DIAMOND',
         billingCycle: 'ANNUAL',
@@ -511,6 +520,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: (sub as any).username || sub.fullName || sub.email?.split('@')[0],
         email: sub.email,
         mobile: sub.mobile,
+        avatarUrl: sub.avatarUrl || sub.extendedProfile?.avatarUrl,
         role: 'USER',
         plan: sub.plan || (data.plan as any) || 'FREE',
         billingCycle: sub.billingCycle || 'MONTHLY',

@@ -142,8 +142,8 @@ export const MobileNavBar: React.FC<MobileNavBarProps> = ({
               <div className="flex items-center space-x-3 min-w-0">
                 {/* Left Round Small Profile Avatar */}
                 <div className="w-12 h-12 rounded-full border-2 border-accent-sky/50 bg-terminal-card overflow-hidden flex items-center justify-center shrink-0 shadow-subtle">
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
+                  {(user.avatarUrl || user.extendedProfile?.avatarUrl) ? (
+                    <img src={user.avatarUrl || user.extendedProfile?.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-accent-sky/20 text-accent-sky font-black text-lg flex items-center justify-center">
                       {(user.fullName || (user as any).username || user.email || 'T').charAt(0).toUpperCase()}

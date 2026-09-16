@@ -325,8 +325,10 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
           isDark ? 'border-slate-800 bg-[#0c1220]' : 'border-slate-200 bg-white'
         }`}>
           <div className="flex items-center space-x-3">
-            <div className={`p-2.5 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 ${
-              isSuperAdmin
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 overflow-hidden ${
+              avatarUrl || user?.avatarUrl || user?.extendedProfile?.avatarUrl
+                ? 'border-2 border-cyan-500/60 ring-1 ring-cyan-500/30'
+                : isSuperAdmin
                 ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white'
                 : currentPlan === 'GOLD'
                 ? 'bg-gradient-to-tr from-amber-500 to-yellow-500 text-black'
@@ -336,7 +338,17 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                 : 'bg-blue-100 text-blue-700 border border-blue-300'
             }`}>
-              {isSuperAdmin ? <Crown className="w-5 h-5 text-yellow-300" /> : (user?.fullName?.charAt(0) || 'U').toUpperCase()}
+              {(avatarUrl || user?.avatarUrl || user?.extendedProfile?.avatarUrl) ? (
+                <img
+                  src={avatarUrl || user?.avatarUrl || user?.extendedProfile?.avatarUrl}
+                  alt={user?.fullName || 'User'}
+                  className="w-full h-full object-cover rounded-2xl"
+                />
+              ) : isSuperAdmin ? (
+                <Crown className="w-5 h-5 text-yellow-300" />
+              ) : (
+                (user?.fullName?.charAt(0) || 'U').toUpperCase()
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">

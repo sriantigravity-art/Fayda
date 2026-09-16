@@ -26,7 +26,16 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
 
   const [isOpen, setIsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const rawAvatarUrl = user?.avatarUrl || user?.extendedProfile?.avatarUrl;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [rawAvatarUrl]);
+
+  const avatarUrl = !imageError ? rawAvatarUrl : undefined;
 
   // Close when clicking outside
   useEffect(() => {
@@ -133,9 +142,11 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         }`}
         title={`My Profile & Account (${user.fullName} • ${subscriberId})`}
       >
-        {/* Avatar circle */}
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-          isSuperAdmin
+        {/* Avatar circle / image */}
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0 shadow-sm ${
+          avatarUrl
+            ? 'border border-accent-sky/60 ring-1 ring-accent-sky/30'
+            : isSuperAdmin
             ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white'
             : currentPlan === 'GOLD' || currentPlan === 'PRO'
             ? 'bg-gradient-to-tr from-amber-500 to-yellow-500 text-black'
@@ -145,7 +156,18 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
             : 'bg-blue-100 text-blue-700 border border-blue-300'
         }`}>
-          {isSuperAdmin ? <Crown className="w-3.5 h-3.5" /> : (firstName || 'T').charAt(0).toUpperCase()}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="w-full h-full object-cover rounded-full"
+              onError={() => setImageError(true)}
+            />
+          ) : isSuperAdmin ? (
+            <Crown className="w-3.5 h-3.5" />
+          ) : (
+            (firstName || 'T').charAt(0).toUpperCase()
+          )}
         </div>
 
         <span className="hidden sm:inline-block max-w-[120px] truncate font-bold text-xs text-terminal-text">
@@ -170,8 +192,10 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
           {/* Section 1: User Identity Header */}
           <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 ${
-                isSuperAdmin
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 overflow-hidden ${
+                avatarUrl
+                  ? 'border-2 border-accent-sky/60 ring-2 ring-accent-sky/30'
+                  : isSuperAdmin
                   ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-purple-500/20'
                   : currentPlan === 'GOLD' || currentPlan === 'PRO'
                   ? 'bg-gradient-to-tr from-amber-500 to-yellow-500 text-black shadow-amber-500/20'
@@ -181,7 +205,18 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                   : 'bg-blue-100 text-blue-700 border border-blue-300'
               }`}>
-                {isSuperAdmin ? <Crown className="w-5 h-5 text-yellow-300" /> : (firstName || 'T').charAt(0).toUpperCase()}
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover rounded-2xl"
+                    onError={() => setImageError(true)}
+                  />
+                ) : isSuperAdmin ? (
+                  <Crown className="w-5 h-5 text-yellow-300" />
+                ) : (
+                  (firstName || 'T').charAt(0).toUpperCase()
+                )}
               </div>
 
               <div className="min-w-0">

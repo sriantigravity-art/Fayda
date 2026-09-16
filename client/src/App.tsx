@@ -214,8 +214,8 @@ const DashboardContent: React.FC = () => {
                 title={`Logged in as ${user.fullName || (user as any).username || user.email?.split('@')[0] || 'User'} (${user.role}) - Click to edit profile`}
               >
                 <div className="w-6 h-6 rounded-full border border-accent-sky/50 bg-accent-sky/20 text-accent-sky font-bold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
+                  {(user.avatarUrl || user.extendedProfile?.avatarUrl) ? (
+                    <img src={user.avatarUrl || user.extendedProfile?.avatarUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
                   ) : (
                     (user.fullName || (user as any).username || user.email || 'T').charAt(0).toUpperCase()
                   )}
