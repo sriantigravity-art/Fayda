@@ -496,6 +496,21 @@ export class FyersService {
     }
   }
 
+  public clearConfig() {
+    this.config = {
+      appId: this.config.appId || 'KMSSMU5OGR-100',
+      secretKey: this.config.secretKey || 'MVADUMZWBM',
+      accessToken: '',
+      isConnected: false,
+      userName: undefined,
+      lastConnected: undefined,
+      tokenIssuedAt: undefined,
+      refreshToken: undefined,
+      pin: this.config.pin
+    };
+    this.savePersistedConfig();
+  }
+
   public getConfig(): FyersConfig {
     return this.config;
   }

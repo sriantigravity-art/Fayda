@@ -34,9 +34,9 @@ interface MarketContextType {
   dhanConfig: DhanConfig;
   connectDhan: (clientId: string, accessToken: string) => Promise<{ success: boolean; message: string; userName?: string }>;
   disconnectDhan: () => Promise<void>;
-  // Fyers Provider
   fyersConfig: FyersConfig;
   connectFyers: (appId: string, accessToken: string, secretKey?: string) => Promise<{ success: boolean; message: string; userName?: string }>;
+  disconnectFyers: () => Promise<void>;
   exchangeAuthCode: (appId: string, secretKey: string, authCode: string, pin?: string) => Promise<{ success: boolean; message: string; userName?: string; accessToken?: string }>;
   refreshFyersToken: (pin?: string) => Promise<{ success: boolean; message: string; config?: any; userName?: string }>;
   saveFyersPin: (pin: string) => Promise<{ success: boolean; message: string; config?: any; userName?: string }>;
@@ -1496,6 +1496,25 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const disconnectFyers = async () => {
+    try {
+      await fetchBackendJson('/api/fyers/disconnect', 'POST', {});
+      setFyersConfig((prev) => ({
+        ...prev,
+        accessToken: '',
+        isConnected: false,
+        userName: undefined,
+        refreshToken: undefined
+      }));
+      if (activeBroker === 'FYERS') {
+        setActiveBroker(dhanConfig.isConnected ? 'DHAN' : 'SIMULATOR');
+        setEffectiveBroker(dhanConfig.isConnected ? 'DHAN' : 'SIMULATOR');
+      }
+    } catch (err) {
+      console.warn('Fyers disconnect error:', err);
+    }
+  };
+
   const selectBroker = async (broker: ActiveBroker) => {
     setActiveBroker(broker);
     try { localStorage.setItem('fayda_active_broker', broker); } catch {}
@@ -1560,6 +1579,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         disconnectDhan,
         fyersConfig,
         connectFyers,
+        disconnectFyers,
         exchangeAuthCode,
         refreshFyersToken,
         saveFyersPin,
@@ -1634,6 +1654,8 @@ export const useMarket = (): MarketContextType => {
       connectDhan: async () => ({ success: false, message: 'Fallback' }),
       disconnectDhan: async () => {},
       fyersConfig: { isConfigured: false, appId: '', hasToken: false },
+      connectFyers: async () => ({ success: false, message: 'Fallback' }),
+      disconnectFyers: async () => {},
       setFyersConfig: () => {},
       latestTargetHitEvent: null,
       dismissTargetHitAlert: () => {},

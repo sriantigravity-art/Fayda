@@ -1522,6 +1522,25 @@ app.post('/api/dhan/disconnect', requireAdminAuth, (req, res) => {
   res.json({ success: true, message: 'Disconnected from Dhan' });
 });
 
+app.post('/api/fyers/disconnect', requireAdminAuth, (req, res) => {
+  fyersService.clearConfig();
+  if (brokerManager.getActiveBroker() === 'FYERS') {
+    brokerManager.setActiveBroker(dhanService.getConfig().isConnected ? 'DHAN' : 'SIMULATOR');
+  }
+
+  broadcast({
+    type: 'BROKER_UPDATE',
+    dhanConfig: dhanService.getPublicConfig(),
+    fyersConfig: fyersService.getPublicConfig(),
+    activeBroker: brokerManager.getActiveBroker(),
+    effectiveBroker: brokerManager.getEffectiveLiveBroker(),
+    dataSource: currentDataSource,
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, message: 'Disconnected from Fyers' });
+});
+
 // ── UNIFIED BROKER SWITCHER ENDPOINTS ─────────────────────────────────────────
 app.post('/api/broker/select', requireAdminAuth, (req, res) => {
   const { broker } = req.body;
