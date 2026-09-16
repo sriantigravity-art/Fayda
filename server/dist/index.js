@@ -126,6 +126,7 @@ app.get('/api/status', (_req, res) => {
     });
 });
 const engine = new OIEngine();
+engine.clearSessionTrades();
 const activeClients = new Set();
 let currentDataSource = 'NSE_LIVE'; // Default to NSE on Railway (no Fyers credentials)
 let nsePollTimer = null;
@@ -873,6 +874,8 @@ app.post('/api/admin/reset-session', requireAdminAuth, (req, res) => {
         flashedHighProbTipIds.clear();
         // 2. Clear the signals ledger (in-memory + file)
         signalLedgerService.clearAll();
+        // 3. Clear all engine session and hourly trades cache
+        engine.clearSessionTrades();
         console.log('[Admin] Session reset: cleared cachedIndexStates, flashedHighProbTipIds, and signals ledger.');
         res.json({ success: true, message: 'Session reset complete. Fresh tips will generate on next market poll.' });
     }

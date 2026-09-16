@@ -72,7 +72,11 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   const otmPutObj = strikesList.find(s => s.strikePrice <= spotPrice - step * 2) || strikesList[0];
   const otmCallObj = strikesList.find(s => s.strikePrice >= spotPrice + step * 2) || strikesList[strikesList.length - 1];
 
-  const topCallTrade = pkg?.topCallTrade || (atmObj ? {
+  const minCockpitCutoff = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(selectedIndex) ? 20.0 : 10.0;
+  const isPkgCallValid = Boolean(pkg?.topCallTrade && pkg.topCallTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topCallTrade.pnlPct || 0) < 350);
+  const isPkgPutValid = Boolean(pkg?.topPutTrade && pkg.topPutTrade.entryPrice >= minCockpitCutoff && Math.abs(pkg.topPutTrade.pnlPct || 0) < 350);
+
+  const topCallTrade = (isPkgCallValid ? pkg?.topCallTrade : null) || (atmObj ? {
     id: `synth-call-${atmObj.strikePrice}`,
     symbol: selectedIndex,
     contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
@@ -104,7 +108,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     }
   } as any : null);
 
-  const topPutTrade = pkg?.topPutTrade || (atmObj ? {
+  const topPutTrade = (isPkgPutValid ? pkg?.topPutTrade : null) || (atmObj ? {
     id: `synth-put-${atmObj.strikePrice}`,
     symbol: selectedIndex,
     contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,

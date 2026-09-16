@@ -352,6 +352,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         ? rawItem.actualEntryPrice
         : (rawItem.entryPrice ?? rawItem.rawTip?.entryPrice ?? 0);
 
+      // Realistic Minimum Viable Buyer Premium Cutoff:
+      // In Indian indices (Nifty, BankNifty), options premiums for valid directional setups
+      // are never 1 rupee or penny prices. Filter out wrong / distorted tips.
+      const minViableCutoff = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(selectedIndex) ? 20.0 : 10.0;
+      if (!isSeller && (entry < minViableCutoff || (rawItem.entryPrice && rawItem.entryPrice < minViableCutoff))) {
+        return; // Purge wrong tip: premium was never this low
+      }
+
       // Look up live option strike LTP from currentIndexState
       const strikePrice = rawItem.strikePrice ?? rawItem.rawTip?.strikePrice;
       const optionType = rawItem.optionType ?? rawItem.rawTip?.optionType;
@@ -360,6 +368,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         ? (optionType === 'CE' ? liveStrike.callLtp : (optionType === 'PE' ? liveStrike.putLtp : 0)) 
         : 0;
       const ltp = (liveStrikeLtp > 0) ? liveStrikeLtp : (rawItem.currentLtp ?? rawItem.rawTip?.currentLtp ?? 0);
+
+      // Discard tips with wild feed discrepancy between entry and live LTP (e.g. ratio > 3.5)
+      if (!isSeller && entry > 0 && ltp > 0 && (ltp / entry > 3.5 || entry / ltp > 3.5)) {
+        return; // Purge distorted tip where live price completely jumped
+      }
 
       const isContractExpired = Boolean(
         rawItem.status === 'EXPIRED' ||

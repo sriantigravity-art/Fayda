@@ -119,14 +119,19 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     ? (optType === 'CE' ? liveStrike.callLtp : (optType === 'PE' ? liveStrike.putLtp : 0))
     : 0;
 
-  const entryNum = (tip.isEntryTriggered && tip.actualEntryPrice) 
+  let rawEntry = (tip.isEntryTriggered && tip.actualEntryPrice) 
     ? tip.actualEntryPrice 
     : (typeof tip.entryPrice === 'number' 
       ? tip.entryPrice 
       : (parseFloat(String(tip.entryPrice).replace(/[^0-9.]/g, '')) || (tip.currentLtp || 100)));
 
   // Current active LTP is liveOptionLtp if available, otherwise tip.currentLtp
-  const ltpNum = (liveOptionLtp && liveOptionLtp > 0) ? liveOptionLtp : (tip.currentLtp || entryNum);
+  const ltpNum = (liveOptionLtp && liveOptionLtp > 0) ? liveOptionLtp : (tip.currentLtp || rawEntry);
+
+  // Guard against wrong/corrupted penny tips where premium was distorted (e.g. ₹1.04 entry vs ₹277 live LTP)
+  const minModalViableLtp = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(tip.symbol) ? 20.0 : 10.0;
+  const isDistorted = !isSeller && (rawEntry < minModalViableLtp || (ltpNum > 0 && rawEntry > 0 && (ltpNum / rawEntry > 3.5 || rawEntry / ltpNum > 3.5)));
+  const entryNum = isDistorted ? ltpNum : rawEntry;
 
   // Dynamic PnL calculation from effective entry and active LTP
   const pnlPts = isSeller

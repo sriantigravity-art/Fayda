@@ -945,37 +945,42 @@ export class OIEngine {
         // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
         const activeToKeep: UnifiedSmartTip[] = [];
         const seenContractSymbols = new Set<string>();
+        const minViableLtp = ConfluenceEngine.getMinViableBuyerLtp(symbol, daysToExpiry <= 0);
 
-        if (tipsPackage.primaryTrade && (tipsPackage.primaryTrade.status === 'ACTIVE' || tipsPackage.primaryTrade.status === 'TARGET1_HIT')) {
+        const isTradeNonDistorted = (t: UnifiedSmartTip) => {
+          return !ConfluenceEngine.isTradePriceDistorted(t, t.currentLtp, minViableLtp);
+        };
+
+        if (tipsPackage.primaryTrade && isTradeNonDistorted(tipsPackage.primaryTrade) && (tipsPackage.primaryTrade.status === 'ACTIVE' || tipsPackage.primaryTrade.status === 'TARGET1_HIT')) {
           activeToKeep.push(tipsPackage.primaryTrade);
           seenContractSymbols.add(tipsPackage.primaryTrade.contractSymbol);
         }
-        if (tipsPackage.hedgedSpreadTrade && (tipsPackage.hedgedSpreadTrade.status === 'ACTIVE' || tipsPackage.hedgedSpreadTrade.status === 'TARGET1_HIT')) {
+        if (tipsPackage.hedgedSpreadTrade && isTradeNonDistorted(tipsPackage.hedgedSpreadTrade) && (tipsPackage.hedgedSpreadTrade.status === 'ACTIVE' || tipsPackage.hedgedSpreadTrade.status === 'TARGET1_HIT')) {
           if (!seenContractSymbols.has(tipsPackage.hedgedSpreadTrade.contractSymbol)) {
             activeToKeep.push(tipsPackage.hedgedSpreadTrade);
             seenContractSymbols.add(tipsPackage.hedgedSpreadTrade.contractSymbol);
           }
         }
-        if (tipsPackage.topSellerPutTrade && (tipsPackage.topSellerPutTrade.status === 'ACTIVE' || tipsPackage.topSellerPutTrade.status === 'TARGET1_HIT')) {
+        if (tipsPackage.topSellerPutTrade && isTradeNonDistorted(tipsPackage.topSellerPutTrade) && (tipsPackage.topSellerPutTrade.status === 'ACTIVE' || tipsPackage.topSellerPutTrade.status === 'TARGET1_HIT')) {
           if (!seenContractSymbols.has(tipsPackage.topSellerPutTrade.contractSymbol)) {
             activeToKeep.push(tipsPackage.topSellerPutTrade);
             seenContractSymbols.add(tipsPackage.topSellerPutTrade.contractSymbol);
           }
         }
-        if (tipsPackage.topSellerCallTrade && (tipsPackage.topSellerCallTrade.status === 'ACTIVE' || tipsPackage.topSellerCallTrade.status === 'TARGET1_HIT')) {
+        if (tipsPackage.topSellerCallTrade && isTradeNonDistorted(tipsPackage.topSellerCallTrade) && (tipsPackage.topSellerCallTrade.status === 'ACTIVE' || tipsPackage.topSellerCallTrade.status === 'TARGET1_HIT')) {
           if (!seenContractSymbols.has(tipsPackage.topSellerCallTrade.contractSymbol)) {
             activeToKeep.push(tipsPackage.topSellerCallTrade);
             seenContractSymbols.add(tipsPackage.topSellerCallTrade.contractSymbol);
           }
         }
-        if (tipsPackage.topSellerNeutralTrade && (tipsPackage.topSellerNeutralTrade.status === 'ACTIVE' || tipsPackage.topSellerNeutralTrade.status === 'TARGET1_HIT')) {
+        if (tipsPackage.topSellerNeutralTrade && isTradeNonDistorted(tipsPackage.topSellerNeutralTrade) && (tipsPackage.topSellerNeutralTrade.status === 'ACTIVE' || tipsPackage.topSellerNeutralTrade.status === 'TARGET1_HIT')) {
           if (!seenContractSymbols.has(tipsPackage.topSellerNeutralTrade.contractSymbol)) {
             activeToKeep.push(tipsPackage.topSellerNeutralTrade);
             seenContractSymbols.add(tipsPackage.topSellerNeutralTrade.contractSymbol);
           }
         }
         for (const cf of tipsPackage.carriedForwardTrades) {
-          if (!seenContractSymbols.has(cf.contractSymbol)) {
+          if (isTradeNonDistorted(cf) && !seenContractSymbols.has(cf.contractSymbol)) {
             activeToKeep.push(cf);
             seenContractSymbols.add(cf.contractSymbol);
           }
@@ -1015,5 +1020,14 @@ export class OIEngine {
       if (isComm) return isMcxOpen;
       return isNseOpen;
     }).slice(0, limit);
+  }
+
+  public clearSessionTrades(symbol?: IndexSymbol): void {
+    if (symbol) {
+      this.sessionTradesHistory.delete(symbol);
+    } else {
+      this.sessionTradesHistory.clear();
+    }
+    ConfluenceEngine.clearHourlyTrades(symbol);
   }
 }
