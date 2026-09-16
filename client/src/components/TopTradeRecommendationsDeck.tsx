@@ -37,7 +37,10 @@ import {
   FileSpreadsheet,
   List,
   Columns2,
-  AlertTriangle
+  AlertTriangle,
+  BookOpen,
+  Compass,
+  HelpCircle
 } from 'lucide-react';
 
 export type DeckCategory = 'ALL' | 'BUYERS' | 'SELLERS' | 'GAMMA' | 'BREAKOUTS' | 'CALLS' | 'PUTS';
@@ -227,7 +230,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
   const [activeTab, setActiveTab] = useState<DeckCategory>('ALL');
   const [optionSideFilter, setOptionSideFilter] = useState<OptionSideFilter>('ALL');
-  const [viewMode, setViewMode] = useState<DeckViewMode>('FLASH');
+  const [viewMode, setViewMode] = useState<DeckViewMode>('LIST');
+  const [showGuide, setShowGuide] = useState<boolean>(false);
   const [flashIndex, setFlashIndex] = useState<number>(0);
   const [flashSecondsLeft, setFlashSecondsLeft] = useState<number>(7);
   const [isFlashPaused, setIsFlashPaused] = useState<boolean>(false);
@@ -1371,6 +1375,19 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return base.filter(item => item.optionType === 'PE' || item.action === 'BUY_PUT');
   }, [items, activeTab]);
 
+  // Top prime high-confluence Call & Put for Featured Instant Pick Spotlight
+  const primeCall = useMemo(() => {
+    if (callItems.length === 0) return null;
+    const scored = callItems.filter(i => i.role === 'BUYER');
+    return scored.find(i => i.confluenceScore >= 80) || scored[0] || callItems[0] || null;
+  }, [callItems]);
+
+  const primePut = useMemo(() => {
+    if (putItems.length === 0) return null;
+    const scored = putItems.filter(i => i.role === 'BUYER');
+    return scored.find(i => i.confluenceScore >= 80) || scored[0] || putItems[0] || null;
+  }, [putItems]);
+
   // Counts for each tab badge
   const counts = useMemo(() => {
     return {
@@ -2338,6 +2355,179 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     );
   };
 
+  // High-Impact Featured Signal Card for Instant 1-Second Setup Pick
+  const renderFeaturedSignalCard = (
+    item: RecommendationTableItem,
+    type: 'CALL' | 'PUT'
+  ) => {
+    const isCall = type === 'CALL';
+    const isProfitable = item.isProfitable;
+    const ltpDiff = item.currentLtp - item.entryPrice;
+    const strikeLabel = item.strikePrice
+      ? `${item.strikePrice.toLocaleString('en-IN')} ${item.optionType}`
+      : item.contractSymbol;
+
+    return (
+      <div
+        key={`featured-${item.id}`}
+        onClick={() => handleOpenTipModal(item)}
+        className={`relative p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer overflow-hidden group shadow-md hover:shadow-xl select-none flex flex-col justify-between ${
+          isCall
+            ? 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/40 hover:border-emerald-500 dark:bg-gradient-to-br dark:from-emerald-950/30 dark:via-[#091523] dark:to-transparent'
+            : 'bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border-rose-500/40 hover:border-rose-500 dark:bg-gradient-to-br dark:from-rose-950/30 dark:via-[#170c18] dark:to-transparent'
+        }`}
+      >
+        {/* Top Accent Stripe */}
+        <div className={`absolute top-0 left-0 right-0 h-1.5 ${isCall ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+
+        {/* Top Badges Row */}
+        <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
+              isCall
+                ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/20'
+                : 'bg-rose-500 text-white shadow-rose-500/20'
+            }`}>
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span>{isCall ? 'BUY CALL (CE)' : 'BUY PUT (PE)'}</span>
+            </span>
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase bg-amber-500/15 text-amber-900 dark:text-accent-gold border border-amber-500/30">
+              {item.confluenceScore}% Confluence
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[10.5px] font-mono">
+            {item.isEntryTriggered ? (
+              <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>In Zone @ ₹{(item.actualEntryPrice || item.entryPrice).toFixed(1)}</span>
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-md font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <Timer className="w-3 h-3" />
+                <span>Trigger @ ₹{item.entryPrice.toFixed(1)}</span>
+              </span>
+            )}
+            {item.target1HitTimeFormatted && (
+              <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                <Award className="w-3 h-3" />
+                <span>T1 Hit</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Contract & Live Price Row */}
+        <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                {item.assetName || item.assetSymbol || selectedIndex}
+              </span>
+              <span className="text-slate-400">•</span>
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                Lot: {lotSize}
+              </span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-mono font-black text-slate-900 dark:text-white tracking-tight group-hover:text-amber-500 transition-colors">
+              {strikeLabel}
+            </h3>
+          </div>
+
+          <div className="text-right">
+            <div className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400">Live Premium</div>
+            <div className="flex items-baseline gap-2 justify-end">
+              <span className={`text-xl sm:text-2xl font-mono font-black ${
+                isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
+              }`}>
+                ₹{item.currentLtp.toFixed(1)}
+              </span>
+              <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+                isProfitable 
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' 
+                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+              }`}>
+                {ltpDiff >= 0 ? '+' : ''}₹{Math.round(ltpDiff * lotSize).toLocaleString('en-IN')} ({item.pnlPct >= 0 ? '+' : ''}{item.pnlPct}%)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3-Column Execution Matrix */}
+        <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 font-mono mb-3">
+          {/* Entry Zone */}
+          <div>
+            <span className="text-[9px] uppercase text-slate-400 dark:text-slate-500 block font-bold">Perfect Entry</span>
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate block">
+              {item.entryRange || `₹${item.entryPrice.toFixed(2)}`}
+            </span>
+            <span className="text-[9.5px] text-slate-500 dark:text-slate-400 block mt-0.5">
+              Given: {item.callGivenTimeFormatted || item.entryTimeFormatted}
+            </span>
+          </div>
+
+          {/* Target 1 */}
+          <div>
+            <span className="text-[9px] uppercase text-emerald-700 dark:text-emerald-400 block font-bold">Target 1 (+{item.target1Pct}%)</span>
+            <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 truncate block">
+              ₹{item.target1Price.toFixed(1)}
+            </span>
+            <span className="text-[9.5px] text-emerald-600/80 dark:text-emerald-400/80 block mt-0.5">
+              +{Math.max(0, Math.round(item.target1Price - item.entryPrice))} pts / lot
+            </span>
+          </div>
+
+          {/* Stop Loss */}
+          <div>
+            <span className="text-[9px] uppercase text-rose-700 dark:text-rose-400 block font-bold">Stop Loss (-{item.stoplossPct}%)</span>
+            <span className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400 truncate block">
+              ₹{item.stoplossPrice.toFixed(1)}
+            </span>
+            <span className="text-[9.5px] text-rose-600/80 dark:text-rose-400/80 block mt-0.5">
+              Risk Shield
+            </span>
+          </div>
+        </div>
+
+        {/* Strategy Tag & Quick Actions */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans line-clamp-1 flex-1">
+            {item.strategyTag}
+          </p>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => handleCopySetup(item, e)}
+              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+              title="Copy trade setup"
+            >
+              {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => handleOpenCalc(item, e)}
+              className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 transition cursor-pointer"
+              title="Calculate Position & Risk"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenTipModal(item);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black transition flex items-center gap-1 shadow-xs cursor-pointer"
+            >
+              <span>Details ↗</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section 
       id="top-trade-recommendations-command-center"
@@ -2345,90 +2535,200 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       className="w-full bg-white dark:bg-gradient-to-b dark:from-[#0b1424] dark:via-[#0e172a] dark:to-[#080d1a] border border-amber-400/60 dark:border-accent-gold/40 rounded-2xl shadow-lg dark:shadow-[0_4px_30px_rgba(255,184,0,0.12)] overflow-hidden transition-all duration-200 select-none font-sans"
     >
       {/* ========================================================================= */}
-      {/* ── TOP HEADER STRIP: BRANDING + SECTION TABS + RISK CALCULATOR ────────── */}
+      {/* ── 1. MASTER HEADER: TITLE, BRANDING, PURPOSE BADGE & UTILITIES ───────── */}
       {/* ========================================================================= */}
-      <div className="p-3 sm:p-4 bg-slate-50/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        {/* Title & Pulse Indicator */}
-        <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-slate-900/90 dark:bg-slate-950 text-amber-500 border border-slate-700/80 dark:border-slate-700/90 shadow-md flex items-center justify-center shrink-0">
-            <TrafficSignalIcon className="w-6 h-6" animated={true} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-mono font-black text-slate-900 dark:text-white tracking-wide uppercase flex items-center gap-2">
-                <TrafficSignalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" animated={true} />
-                <span>Fayda Signals</span>
-                <span className="hidden sm:inline-block text-xs font-semibold text-slate-500 dark:text-terminal-muted lowercase font-sans">
-                  (Top Command Center)
-                </span>
-              </h2>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/80 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                <span>Live Priority</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-                {selectedIndex} • Lot: {lotSize}
-              </span>
-              {/* ── Expiry Badge ── */}
-              {!isCommodity && activeExpiryDate && (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 border ${
-                  isExpiryDay
-                    ? 'bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700 animate-pulse'
-                    : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800/60'
-                }`}>
-                  {isExpiryDay ? '⚡' : '📅'} {activeExpiryDate}{isExpiryDay ? ' • 0DTE' : ''}
-                </span>
-              )}
+      <div className="p-3.5 sm:p-5 bg-slate-50/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800/80 flex flex-col gap-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          {/* Title & Pulse Indicator */}
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-500/20 via-slate-900 to-slate-950 text-amber-500 border border-amber-500/40 shadow-lg shadow-amber-500/10 flex items-center justify-center shrink-0">
+              <TrafficSignalIcon className="w-6 h-6" animated={true} />
             </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono mt-0.5 flex items-center gap-2">
-              <span>{isBeginner ? 'Safe high-probability setups with defined profit targets & stop loss' : isExpert ? 'Multi-indicator alpha confluence with Greek profiles & delta order flow' : 'Institutional momentum setups & probability-of-profit credit spreads'}</span>
-              <span className="text-slate-400 dark:text-slate-600">•</span>
-              <span className="text-amber-700 dark:text-amber-400 font-bold">10-Factor Confluence</span>
-            </p>
-            {/* ── 0DTE Alert Banner ── */}
-            {isExpiryDay && !isCommodity && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-red-700 dark:text-red-400 flex items-center gap-1">
-                  {isOffMarket 
-                    ? '🛑 0DTE CONTRACTS EXPIRED AT 03:30 PM — Today\'s contracts settled at ₹0.00 / intrinsic cash value.'
-                    : '⚠️ 0DTE TODAY (SEBI Rules) — Options CANNOT be carried overnight. Square off by 03:25 PM IST. To continue, manually open next-expiry contract.'}
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-mono font-black text-slate-900 dark:text-white tracking-wide uppercase flex items-center gap-2">
+                  <span>Fayda Signals</span>
+                </h2>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/80 flex items-center gap-1.5 shadow-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Live AI Engine</span>
                 </span>
-                {nextExpiryDate && setOptionExpiry && (
-                  <button
-                    type="button"
-                    onClick={() => setOptionExpiry(nextExpiryDate)}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 transition-all cursor-pointer flex items-center gap-1"
-                    title={`Open fresh Next Expiry (${nextExpiryDate}) contract for BTST — SEBI requires manual close + re-open`}
-                  >
-                    🌙 Open Fresh Next Expiry ({nextExpiryDate}) for BTST →
-                  </button>
+                <span className="px-2.5 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                  {selectedIndex} • Lot: {lotSize}
+                </span>
+                {/* ── Expiry Badge ── */}
+                {!isCommodity && activeExpiryDate && (
+                  <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-mono font-black uppercase tracking-wider flex items-center gap-1 border ${
+                    isExpiryDay
+                      ? 'bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700 animate-pulse'
+                      : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800/60'
+                  }`}>
+                    {isExpiryDay ? '⚡ 0DTE Expiry:' : '📅 Expiry:'} {activeExpiryDate}
+                  </span>
                 )}
               </div>
-            )}
-            {/* ── Expiry Switcher Pills (when multiple expiries available) ── */}
-            {!isCommodity && upcomingExpiries.length > 1 && !isExpiryDay && (
-              <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="text-[9px] font-mono text-slate-500 dark:text-slate-500 uppercase">Expiry:</span>
-                {upcomingExpiries.slice(0, 3).map((exp) => (
-                  <button
-                    key={exp}
-                    type="button"
-                    onClick={() => setOptionExpiry(exp)}
-                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-all cursor-pointer ${
-                      exp === activeExpiryDate
-                        ? 'bg-amber-500 text-slate-900 border-amber-400'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    {exp === activeExpiryDate ? '✓ ' : ''}{exp}
-                  </button>
-                ))}
-              </div>
-            )}
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-sans mt-0.5 flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {isBeginner 
+                    ? 'Safe high-probability option buyer & seller setups with defined profit targets & stop loss.' 
+                    : isExpert 
+                    ? 'Multi-indicator alpha confluence with Greek profiles, delta order flow & institutional breakout setups.' 
+                    : 'Institutional momentum setups & probability-of-profit credit spreads.'}
+                </span>
+                <span className="text-slate-400 dark:text-slate-600 hidden sm:inline">•</span>
+                <span className="text-amber-600 dark:text-amber-400 font-mono font-bold text-[11px]">10-Factor Confluence</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Quick Guide Toggle & Utility Actions */}
+          <div className="flex items-center gap-2 flex-wrap self-start lg:self-center">
+            {/* Guide Button */}
+            <button
+              type="button"
+              onClick={() => setShowGuide(prev => !prev)}
+              className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                showGuide
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-amber-500/20'
+                  : 'bg-slate-100 dark:bg-slate-900/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+              }`}
+              title="Toggle Quick Guide on how to read and trade Fayda Signals"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>How it Works</span>
+              <span className="text-[10px] px-1 rounded bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300">?</span>
+            </button>
+
+            {/* Flash Surge Trigger */}
+            <button
+              type="button"
+              onClick={() => handleOpenSurgeModal()}
+              className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                activeSurgesForSymbol.length > 0
+                  ? 'bg-rose-500/15 text-bear border-bear/60 hover:bg-bear/25 animate-pulse shadow-[0_0_12px_rgba(255,59,105,0.25)]'
+                  : 'bg-slate-100 dark:bg-slate-900/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+              }`}
+              title="Open 1-minute real-time institutional Flash Surge Radar"
+            >
+              <Zap className={`w-3.5 h-3.5 ${activeSurgesForSymbol.length > 0 ? 'text-bear fill-bear' : 'text-slate-400'}`} />
+              <span>Surges</span>
+              <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+                activeSurgesForSymbol.length > 0 ? 'bg-bear text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}>
+                {activeSurgesForSymbol.length}
+              </span>
+            </button>
+
+            {/* Risk Calculator */}
+            <button
+              type="button"
+              onClick={() => {
+                setCalcParams({
+                  ltp: items[0]?.currentLtp || 100,
+                  sl: items[0]?.stoplossPrice || 80,
+                  target: items[0]?.target1Price || 140
+                });
+                setIsRiskModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-300 dark:border-sky-800/80 text-sky-800 dark:text-sky-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title="Open Capital & Risk Calculator"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Risk Calc</span>
+            </button>
           </div>
         </div>
 
-        {/* ── Directional Consensus & Market Guidance Banner (Answers: Which side to take?) ── */}
+        {/* ── Collapsible "How Fayda Signals Work" Explainer Card ── */}
+        {showGuide && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-sky-500/10 to-purple-500/10 border border-amber-500/30 dark:border-amber-400/25 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-amber-500" />
+                <span className="font-mono font-black text-xs uppercase text-slate-900 dark:text-white tracking-wider">
+                  How Fayda Signals Work — 3 Easy Steps to Trade
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xs font-mono cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-sans">
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 font-mono font-black text-emerald-700 dark:text-emerald-400 text-[11px] uppercase mb-1">
+                  <span>1️⃣ Check Market Direction</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 text-[11.5px] leading-relaxed">
+                  Glance at the <strong>Institutional Direction</strong> banner below. If <strong>BULLISH</strong>, focus on <strong>CALLS (CE)</strong>. If <strong>BEARISH</strong>, focus on <strong>PUTS (PE)</strong>. If <strong>RANGEBOUND</strong>, deploy hedged credit spreads.
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 font-mono font-black text-sky-700 dark:text-sky-400 text-[11px] uppercase mb-1">
+                  <span>2️⃣ Wait for Entry Zone</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 text-[11.5px] leading-relaxed">
+                  Every tip gives you a <strong>Perfect Entry</strong> range (e.g. ₹125 - ₹128). Enter when the live price triggers inside the zone with high Confluence (&gt;80%). Avoid chasing if price is already past Target 1.
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 font-mono font-black text-purple-700 dark:text-purple-400 text-[11px] uppercase mb-1">
+                  <span>3️⃣ Book Profits & Protect Capital</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 text-[11.5px] leading-relaxed">
+                  Book <strong>50% profits at Target 1 (+25%)</strong> and immediately trail Stop Loss to cost (break-even). Ride the remaining quantity to <strong>Target 2 (+50%)</strong>. Strict SL shield is mandatory!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 0DTE Alert Banner ── */}
+        {isExpiryDay && !isCommodity && (
+          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-mono font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>{isOffMarket 
+                ? '0DTE CONTRACTS EXPIRED AT 03:30 PM — Today\'s contracts settled at ₹0.00 / intrinsic cash value.'
+                : '0DTE TODAY (SEBI Rules) — Options cannot be carried overnight. Square off by 03:25 PM IST. Open fresh next-expiry contract for BTST.'}</span>
+            </span>
+            {nextExpiryDate && setOptionExpiry && (
+              <button
+                type="button"
+                onClick={() => setOptionExpiry(nextExpiryDate)}
+                className="px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-black bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+              >
+                🌙 Open Next Expiry ({nextExpiryDate}) for BTST →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Expiry Switcher Pills (when multiple expiries available) ── */}
+        {!isCommodity && upcomingExpiries.length > 1 && !isExpiryDay && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">Expiry Date:</span>
+            {upcomingExpiries.slice(0, 4).map((exp) => (
+              <button
+                key={exp}
+                type="button"
+                onClick={() => setOptionExpiry(exp)}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                  exp === activeExpiryDate
+                    ? 'bg-amber-500 text-slate-900 border-amber-400 shadow-xs'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:hover:bg-slate-700'
+                }`}
+              >
+                {exp === activeExpiryDate ? '✓ ' : ''}{exp}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Directional Consensus & Market Guidance Banner ── */}
         <div className={`p-3 rounded-xl border text-xs font-mono flex flex-col md:flex-row md:items-center justify-between gap-2.5 transition-all ${
           directionalBias === 'BULLISH'
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
@@ -2477,239 +2777,192 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             </span>
           </div>
         </div>
+      </div>
 
-        {/* Section Tabs, View Switcher & Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle: 7s Flash Solo vs Actionable List vs Quick Focus Buttons vs Tabular Matrix */}
-          <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
-            <button
-              type="button"
-              onClick={() => setViewMode('FLASH')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'FLASH'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="Flash trade tips for 7 seconds one after another (solo focus)"
-            >
-              <Zap className={`w-3.5 h-3.5 ${viewMode === 'FLASH' ? 'text-slate-950' : 'text-amber-500'} animate-pulse`} />
-              <span>⚡ 7s Flash Solo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('LIST')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'LIST'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="View recommendations in comprehensive actionable list format"
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>📝 Detailed List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('BUTTONS')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'BUTTONS'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="View recommendations as interactive quick-focus buttons"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>⚡ Quick Buttons</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('TABLE')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'TABLE'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="View recommendations in complete 9-column tabular matrix"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>📋 Full Table</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode('SPLIT');
-                setOptionSideFilter('ALL');
-              }}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'SPLIT'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="View Calls and Puts side-by-side in separate columns"
-            >
-              <Columns2 className="w-3.5 h-3.5" />
-              <span>⚖️ Side-by-Side</span>
-            </button>
-          </div>
-
-          {/* ── Option Type Filter Pills (CALL vs PUT vs BOTH) ────────────────── */}
-          <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
-            <button
-              type="button"
-              onClick={() => setOptionSideFilter('ALL')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                optionSideFilter === 'ALL'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-              title="Show both Call & Put setups"
-            >
-              <span>Both (CE & PE)</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${optionSideFilter === 'ALL' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                {counts.ALL}
+      {/* ========================================================================= */}
+      {/* ── ⭐ FEATURED PRIME ACTIONABLE SETUPS SPOTLIGHT (INSTANT 1-SECOND PICK) ── */}
+      {/* ========================================================================= */}
+      {(primeCall || primePut) && (
+        <div className="p-3.5 sm:p-4 bg-gradient-to-b from-slate-100/70 via-white to-slate-50/50 dark:from-[#0c152a] dark:via-[#090f1f] dark:to-[#070b16] border-b border-slate-200 dark:border-slate-800/80">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+              <span className="text-xs font-mono font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider">
+                Top Prime High-Probability Setups (Instant Pick)
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setOptionSideFilter('CE');
-                if (viewMode === 'SPLIT') setViewMode('LIST');
-              }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                optionSideFilter === 'CE'
-                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400'
-              }`}
-              title="Filter and view only Bullish Call (CE) setups"
-            >
-              <span className={`w-2 h-2 rounded-full ${optionSideFilter === 'CE' ? 'bg-slate-950' : 'bg-emerald-500'} animate-pulse`} />
-              <span>🟢 Calls (CE)</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${optionSideFilter === 'CE' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'}`}>
-                {counts.CALLS}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setOptionSideFilter('PE');
-                if (viewMode === 'SPLIT') setViewMode('LIST');
-              }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                optionSideFilter === 'PE'
-                  ? 'bg-rose-500 text-white font-black shadow-md shadow-rose-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400'
-              }`}
-              title="Filter and view only Bearish Put (PE) setups"
-            >
-              <span className={`w-2 h-2 rounded-full ${optionSideFilter === 'PE' ? 'bg-white' : 'bg-rose-500'} animate-pulse`} />
-              <span>🔴 Puts (PE)</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${optionSideFilter === 'PE' ? 'bg-white/20 text-white font-black' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'}`}>
-                {counts.PUTS}
-              </span>
-            </button>
-          </div>
-
-          {/* Section Filter Pills */}
-          <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold">
-            <button
-              type="button"
-              onClick={() => setActiveTab('ALL')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'ALL'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-            >
-              <span>🎯 All Setups</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'ALL' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                {counts.ALL}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('BUYERS')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'BUYERS'
-                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-            >
-              <span>🟢 Buyers</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'BUYERS' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                {counts.BUYERS}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('SELLERS')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'SELLERS'
-                  ? 'bg-purple-500 text-white font-black shadow-md shadow-purple-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-            >
-              <span>🛡️ Sellers & Spreads</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'SELLERS' ? 'bg-white/25 text-white font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                {counts.SELLERS}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('GAMMA')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'GAMMA'
-                  ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/30'
-                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-            >
-              <span>⚡ 0DTE Hero</span>
-              <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'GAMMA' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                {counts.GAMMA}
-              </span>
-            </button>
-          </div>
-
-          {/* ⚡ Flash Surge Confluence Drawer / Modal Trigger */}
-          <button
-            type="button"
-            onClick={() => handleOpenSurgeModal()}
-            className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
-              activeSurgesForSymbol.length > 0
-                ? 'bg-gradient-to-r from-rose-500/15 via-bear/20 to-rose-500/15 text-bear border-bear/60 hover:bg-bear/25 animate-pulse shadow-[0_0_12px_rgba(255,59,105,0.25)]'
-                : 'bg-slate-200/80 dark:bg-slate-900/90 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-800'
-            }`}
-            title="Open 1-minute real-time institutional Flash Surge Radar"
-          >
-            <Zap className={`w-3.5 h-3.5 ${activeSurgesForSymbol.length > 0 ? 'text-bear fill-bear' : 'text-slate-400'}`} />
-            <span>{isBeginner ? '⚡ High Demand' : '⚡ Flash Surges'}</span>
-            <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
-              activeSurgesForSymbol.length > 0 ? 'bg-bear text-white' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-            }`}>
-              {activeSurgesForSymbol.length}
+            </div>
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 hidden sm:inline">
+              Highest confluence algorithm picks • Click any card for full blueprint
             </span>
-          </button>
+          </div>
 
-          {/* Risk Calculator Launcher */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+            {primeCall && renderFeaturedSignalCard(primeCall, 'CALL')}
+            {primePut && renderFeaturedSignalCard(primePut, 'PUT')}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ── UNIFIED FILTER & VIEW CONTROLS TOOLBAR ─────────────────────────────── */}
+      {/* ========================================================================= */}
+      <div className="px-3.5 sm:px-4 py-3 bg-slate-50/70 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Category Tabs */}
+        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold flex-wrap">
           <button
             type="button"
             onClick={() => {
-              setCalcParams({
-                ltp: items[0]?.currentLtp || 100,
-                sl: items[0]?.stoplossPrice || 80,
-                target: items[0]?.target1Price || 140
-              });
-              setIsRiskModalOpen(true);
+              setActiveTab('ALL');
+              setOptionSideFilter('ALL');
             }}
-            className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-300 dark:border-sky-800/80 text-sky-800 dark:text-sky-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
-            title="Open Capital & Risk Calculator"
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'ALL' && optionSideFilter === 'ALL'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
           >
-            <Calculator className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Position Calc</span>
+            <span>🎯 All Setups</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'ALL' && optionSideFilter === 'ALL' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+              {counts.ALL}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('BUYERS');
+              setOptionSideFilter('CE');
+              if (viewMode === 'SPLIT') setViewMode('LIST');
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              optionSideFilter === 'CE'
+                ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>🟢 Calls (CE)</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] ${optionSideFilter === 'CE' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'}`}>
+              {counts.CALLS}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('BUYERS');
+              setOptionSideFilter('PE');
+              if (viewMode === 'SPLIT') setViewMode('LIST');
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              optionSideFilter === 'PE'
+                ? 'bg-rose-500 text-white font-black shadow-md shadow-rose-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span>🔴 Puts (PE)</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] ${optionSideFilter === 'PE' ? 'bg-white/20 text-white font-black' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'}`}>
+              {counts.PUTS}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('GAMMA');
+              setOptionSideFilter('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'GAMMA'
+                ? 'bg-cyan-500 text-slate-950 font-black shadow-md shadow-cyan-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+          >
+            <span>⚡ 0DTE Hero</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'GAMMA' ? 'bg-slate-950/20 text-slate-950 font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+              {counts.GAMMA}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('SELLERS');
+              setOptionSideFilter('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'SELLERS'
+                ? 'bg-purple-500 text-white font-black shadow-md shadow-purple-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+          >
+            <span>🛡️ Spreads</span>
+            <span className={`px-1.5 py-0.2 rounded text-[10px] ${activeTab === 'SELLERS' ? 'bg-white/25 text-white font-black' : 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+              {counts.SELLERS}
+            </span>
+          </button>
+        </div>
+
+        {/* View Mode Switcher */}
+        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 gap-1 text-xs font-mono font-bold self-start md:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setViewMode('LIST')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'LIST'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+            title="View full actionable trade cards (Default)"
+          >
+            <List className="w-3.5 h-3.5" />
+            <span>🎴 Cards View</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('SPLIT');
+              setOptionSideFilter('ALL');
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'SPLIT'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+            title="View Calls and Puts side-by-side in separate columns"
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            <span>⚖️ Side-by-Side</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('TABLE')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'TABLE'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+            title="View complete 9-column matrix"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>📋 Table</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('FLASH')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              viewMode === 'FLASH'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30'
+                : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+            }`}
+            title="Flash trade tips for 7 seconds one after another (solo focus)"
+          >
+            <Zap className={`w-3.5 h-3.5 ${viewMode === 'FLASH' ? 'text-slate-950' : 'text-amber-500'} animate-pulse`} />
+            <span>⚡ 7s Spotlight</span>
           </button>
         </div>
       </div>
