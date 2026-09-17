@@ -22,7 +22,9 @@ interface MarketContextType {
   isConnected: boolean;
   isMuted: boolean;
   toggleMute: () => void;
-  testSound: () => void;
+  testSound: (soundType?: 'targetHit' | 'extreme' | 'strong' | 'chime') => void;
+  soundVolume: number;
+  setSoundVolume: (volume: number) => void;
   setOptionExpiry: (expiry: string) => Promise<void>;
   dataSource: DataSourceMode;
   setDataSource: (mode: DataSourceMode) => Promise<void>;
@@ -1280,14 +1282,25 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [selectedIndex]);
 
+  const [soundVolume, setSoundVolumeState] = useState<number>(() => soundManager.getVolume());
+
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
     soundManager.setMuted(next);
   };
 
-  const testSound = () => {
-    soundManager.playExtremeAlert();
+  const setSoundVolume = (vol: number) => {
+    soundManager.setVolume(vol);
+    setSoundVolumeState(vol);
+  };
+
+  const testSound = (soundType?: 'targetHit' | 'extreme' | 'strong' | 'chime') => {
+    if (soundType === 'targetHit') soundManager.playTargetHitAlert();
+    else if (soundType === 'extreme') soundManager.playExtremeAlert();
+    else if (soundType === 'strong') soundManager.playStrongAlert();
+    else if (soundType === 'chime') soundManager.playChime();
+    else soundManager.playChime();
   };
 
   const fetchBackendJson = async (endpointPath: string, method = 'POST', data?: any): Promise<any> => {
@@ -1568,6 +1581,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isMuted,
         toggleMute,
         testSound,
+        soundVolume,
+        setSoundVolume,
         setOptionExpiry,
         dataSource,
         setDataSource,
@@ -1639,6 +1654,8 @@ export const useMarket = (): MarketContextType => {
       isMuted: false,
       toggleMute: () => {},
       testSound: () => {},
+      soundVolume: 0.5,
+      setSoundVolume: () => {},
       latestSurgeEvent: null,
       dismissSurgeAlert: () => {},
       strikeRange: 200,
