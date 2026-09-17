@@ -4,6 +4,7 @@ import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
 import { isMarketOpenForSymbol } from '../utils/lastClosedData';
+import { getISTComponents } from '../utils/formatTime';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { TradePayoffSimulator } from './TradePayoffSimulator';
@@ -260,6 +261,24 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     };
     window.addEventListener('radar_strike_selected', handleRadarStrike);
     return () => window.removeEventListener('radar_strike_selected', handleRadarStrike);
+  }, []);
+
+  // Show BTST / Overnight Guidance only near market close (>= 02:45 PM IST)
+  const [isNearClose, setIsNearClose] = useState<boolean>(() => {
+    const { hours, minutes } = getISTComponents();
+    const currentMinutes = hours * 60 + minutes;
+    // 14:45 (02:45 PM IST) onwards until 16:00 (04:00 PM IST)
+    return currentMinutes >= (14 * 60 + 45) && currentMinutes <= (16 * 60);
+  });
+
+  useEffect(() => {
+    const checkTime = () => {
+      const { hours, minutes } = getISTComponents();
+      const currentMinutes = hours * 60 + minutes;
+      setIsNearClose(currentMinutes >= (14 * 60 + 45) && currentMinutes <= (16 * 60));
+    };
+    const timer = setInterval(checkTime, 30000);
+    return () => clearInterval(timer);
   }, []);
 
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
@@ -1918,8 +1937,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
         </div>
 
-        {/* BTST/Overnight Guidance Banner */}
-        {selectedItem.carryForwardSuggestion && (
+        {/* BTST/Overnight Guidance Banner - Shown only near market close (>= 02:45 PM IST) */}
+        {selectedItem.carryForwardSuggestion && (isNearClose || selectedItem.isCarriedForward) && (
           <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-3 flex items-start gap-2.5 text-xs font-mono">
             <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
               🌙
@@ -2281,8 +2300,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               {item.strategyTag}
             </p>
 
-            {/* BTST/Overnight Guidance Strip */}
-            {item.carryForwardSuggestion && (
+            {/* BTST/Overnight Guidance Strip - Shown only near market close (>= 02:45 PM IST) */}
+            {item.carryForwardSuggestion && (isNearClose || item.isCarriedForward) && (
               <div className="mt-1.5 p-2 rounded-lg bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-2 text-[11px] font-mono text-purple-900 dark:text-purple-200">
                 <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">🌙 BTST/Overnight Guidance ({item.carryForwardTimeFormatted || '03:20 PM'}) — SEBI:</span>
                 <span className="text-slate-600 dark:text-slate-300 truncate">{item.carryForwardSuggestion}</span>
@@ -3319,8 +3338,8 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       <span className="font-semibold">{currentFlashTip.strategyTag}</span>
                     </div>
 
-                    {/* Carry Forward Suggestion Banner */}
-                    {currentFlashTip.carryForwardSuggestion && (
+                    {/* Carry Forward Suggestion Banner - Shown only near market close (>= 02:45 PM IST) */}
+                    {currentFlashTip.carryForwardSuggestion && (isNearClose || currentFlashTip.isCarriedForward) && (
                       <div className="p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 my-2.5 flex items-start gap-2.5 text-xs font-mono">
                         <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-300 shrink-0 mt-0.5">
                           🌙
@@ -4136,7 +4155,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                                 BTST Window: {item.carryForwardTimeFormatted || '03:20 PM'}
                               </span>
                             )}
-                            {item.carryForwardSuggestion && (
+                            {item.carryForwardSuggestion && (isNearClose || item.isCarriedForward) && (
                               <span className="text-purple-600 dark:text-purple-400 font-medium truncate max-w-[200px]" title={item.carryForwardSuggestion}>
                                 🌙 {item.carryForwardSuggestion}
                               </span>
