@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type Theme = 'dark' | 'light';
+export type DesignStyle = 'INTERNATIONAL_PRO' | 'BLOOMBERG_PITCH' | 'SWISS_LIGHT' | 'CLASSIC_TERMINAL';
 export type DarkPreset = 'OBSIDIAN_PRO' | 'CLASSIC_DARK';
 export type LightPreset = 'ALABASTER_PRO' | 'CLASSIC_LIGHT';
+export type StyleDensity = 'STANDARD' | 'COMPACT';
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,6 +14,10 @@ interface ThemeContextType {
   setDarkPreset: (preset: DarkPreset) => void;
   lightPreset: LightPreset;
   setLightPreset: (preset: LightPreset) => void;
+  designStyle: DesignStyle;
+  setDesignStyle: (style: DesignStyle) => void;
+  styleDensity: StyleDensity;
+  setStyleDensity: (density: StyleDensity) => void;
 }
 
 const defaultThemeContext: ThemeContextType = {
@@ -21,7 +27,11 @@ const defaultThemeContext: ThemeContextType = {
   darkPreset: 'OBSIDIAN_PRO',
   setDarkPreset: () => {},
   lightPreset: 'ALABASTER_PRO',
-  setLightPreset: () => {}
+  setLightPreset: () => {},
+  designStyle: 'INTERNATIONAL_PRO',
+  setDesignStyle: () => {},
+  styleDensity: 'STANDARD',
+  setStyleDensity: () => {}
 };
 
 const ThemeContext = createContext<ThemeContextType>(defaultThemeContext);
@@ -57,11 +67,35 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
+  const [designStyle, setDesignStyleState] = useState<DesignStyle>(() => {
+    try {
+      const saved = localStorage.getItem('fayda_design_style') as DesignStyle;
+      if (saved === 'INTERNATIONAL_PRO' || saved === 'BLOOMBERG_PITCH' || saved === 'SWISS_LIGHT' || saved === 'CLASSIC_TERMINAL') {
+        return saved;
+      }
+      return 'INTERNATIONAL_PRO';
+    } catch {
+      return 'INTERNATIONAL_PRO';
+    }
+  });
+
+  const [styleDensity, setStyleDensityState] = useState<StyleDensity>(() => {
+    try {
+      const saved = localStorage.getItem('fayda_style_density') as StyleDensity;
+      if (saved === 'STANDARD' || saved === 'COMPACT') return saved;
+      return 'STANDARD';
+    } catch {
+      return 'STANDARD';
+    }
+  });
+
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
     root.setAttribute('data-dark-preset', darkPreset);
     root.setAttribute('data-light-preset', lightPreset);
+    root.setAttribute('data-style-engine', designStyle);
+    root.setAttribute('data-density-mode', styleDensity);
 
     if (theme === 'light') {
       root.classList.add('light');
@@ -75,13 +109,23 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('oi_radar_theme', theme);
       localStorage.setItem('fayda_dark_preset', darkPreset);
       localStorage.setItem('fayda_light_preset', lightPreset);
+      localStorage.setItem('fayda_design_style', designStyle);
+      localStorage.setItem('fayda_style_density', styleDensity);
     } catch (e) {
       console.warn('Could not save theme preferences:', e);
     }
-  }, [theme, darkPreset, lightPreset]);
+  }, [theme, darkPreset, lightPreset, designStyle, styleDensity]);
 
   const toggleTheme = () => {
-    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
+    setThemeState(prev => {
+      const nextTheme = prev === 'dark' ? 'light' : 'dark';
+      if (nextTheme === 'light' && designStyle === 'INTERNATIONAL_PRO') {
+        setDesignStyleState('SWISS_LIGHT');
+      } else if (nextTheme === 'dark' && designStyle === 'SWISS_LIGHT') {
+        setDesignStyleState('INTERNATIONAL_PRO');
+      }
+      return nextTheme;
+    });
   };
 
   const setTheme = (t: Theme) => {
@@ -96,6 +140,25 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLightPresetState(preset);
   };
 
+  const setDesignStyle = (style: DesignStyle) => {
+    setDesignStyleState(style);
+    if (style === 'INTERNATIONAL_PRO') {
+      setThemeState('dark');
+      setDarkPresetState('OBSIDIAN_PRO');
+    } else if (style === 'BLOOMBERG_PITCH') {
+      setThemeState('dark');
+      setDarkPresetState('CLASSIC_DARK');
+    } else if (style === 'SWISS_LIGHT') {
+      setThemeState('light');
+      setLightPresetState('ALABASTER_PRO');
+    }
+    // If 'CLASSIC_TERMINAL', keep user's current theme
+  };
+
+  const setStyleDensity = (density: StyleDensity) => {
+    setStyleDensityState(density);
+  };
+
   return (
     <ThemeContext.Provider value={{
       theme,
@@ -104,7 +167,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       darkPreset,
       setDarkPreset,
       lightPreset,
-      setLightPreset
+      setLightPreset,
+      designStyle,
+      setDesignStyle,
+      styleDensity,
+      setStyleDensity
     }}>
       {children}
     </ThemeContext.Provider>

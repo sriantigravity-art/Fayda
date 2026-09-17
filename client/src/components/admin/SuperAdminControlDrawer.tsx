@@ -24,7 +24,7 @@ import {
   Sparkles,
   Check
 } from 'lucide-react';
-import { useTheme, type DarkPreset, type LightPreset } from '../../context/ThemeContext';
+import { useTheme, type DarkPreset, type LightPreset, type DesignStyle, type StyleDensity } from '../../context/ThemeContext';
 import { SubscriberManagementPanel } from './SubscriberManagementPanel';
 import { SignalCommandCenter } from './SignalCommandCenter';
 import { Target, Send } from 'lucide-react';
@@ -48,7 +48,18 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
     consentAuditLogs 
   } = useAuth();
 
-  const { theme, toggleTheme, darkPreset, setDarkPreset, lightPreset, setLightPreset } = useTheme();
+  const { 
+    theme, 
+    toggleTheme, 
+    darkPreset, 
+    setDarkPreset, 
+    lightPreset, 
+    setLightPreset,
+    designStyle,
+    setDesignStyle,
+    styleDensity,
+    setStyleDensity
+  } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'PANELS' | 'THEMES' | 'AUDIT_LOGS' | 'LEGAL_DOCS' | 'SUBSCRIBERS' | 'SIGNALS'>('PANELS');
 
@@ -371,6 +382,260 @@ export const SuperAdminControlDrawer: React.FC<SuperAdminControlDrawerProps> = (
                     >
                       Toggle Mode
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── PRIMARY: INTERACTIVE RADIO BUTTON STYLE ENGINE SELECTOR ── */}
+              <div className="space-y-3.5 p-4 rounded-xl bg-terminal-panel/60 border border-purple-500/30 shadow-sm">
+                <div className="flex items-center justify-between border-b border-terminal-border pb-2.5">
+                  <div className="flex items-center space-x-2">
+                    <Radio className="w-4 h-4 text-purple-400" />
+                    <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-terminal-text">
+                      Active Design Style & Fintech Engine (Radio Selector)
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-terminal-muted hidden sm:inline">
+                      Live Engine:
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                      {designStyle.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Style 1: International Pro Dark */}
+                  <label
+                    onClick={() => setDesignStyle('INTERNATIONAL_PRO')}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
+                      designStyle === 'INTERNATIONAL_PRO'
+                        ? 'bg-purple-500/15 border-purple-500 shadow-md ring-2 ring-purple-500/50'
+                        : 'bg-terminal-card/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-card'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <input
+                            type="radio"
+                            name="superadmin_design_style"
+                            checked={designStyle === 'INTERNATIONAL_PRO'}
+                            onChange={() => setDesignStyle('INTERNATIONAL_PRO')}
+                            className="w-4 h-4 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                          />
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            International Pro Dark
+                          </span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                          INSTITUTIONAL
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-terminal-muted leading-relaxed pl-6.5">
+                        TradingView & Linear inspired deep slate obsidian canvas (#0A0D14), frosted glassmorphic cards, hairline borders, jewel emerald (#089981) and ruby crimson (#F23645) signals.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60 pl-6.5">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Tokens:</span>
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#0A0D14]" title="Canvas: #0A0D14" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#10141F]" title="Card: #10141F" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#089981]" title="Bull: #089981" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#F23645]" title="Bear: #F23645" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#6366F1]" title="Indigo: #6366F1" />
+                    </div>
+                  </label>
+
+                  {/* Style 2: Bloomberg Pitch Black */}
+                  <label
+                    onClick={() => setDesignStyle('BLOOMBERG_PITCH')}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
+                      designStyle === 'BLOOMBERG_PITCH'
+                        ? 'bg-purple-500/15 border-purple-500 shadow-md ring-2 ring-purple-500/50'
+                        : 'bg-terminal-card/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-card'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <input
+                            type="radio"
+                            name="superadmin_design_style"
+                            checked={designStyle === 'BLOOMBERG_PITCH'}
+                            onChange={() => setDesignStyle('BLOOMBERG_PITCH')}
+                            className="w-4 h-4 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                          />
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Bloomberg Pitch Black
+                          </span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          OLED PRO
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-terminal-muted leading-relaxed pl-6.5">
+                        Pure pitch-black canvas (#000000), razor-sharp borders, neon mint (#00E676) calls, neon crimson (#FF1744) puts, and phosphor amber (#FFAB00) accents. Zero eye strain.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60 pl-6.5">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Tokens:</span>
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#000000]" title="Canvas: #000000" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#0A0A0C]" title="Card: #0A0A0C" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#00E676]" title="Bull: #00E676" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#FF1744]" title="Bear: #FF1744" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#FFAB00]" title="Amber: #FFAB00" />
+                    </div>
+                  </label>
+
+                  {/* Style 3: Swiss Clean Light */}
+                  <label
+                    onClick={() => setDesignStyle('SWISS_LIGHT')}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
+                      designStyle === 'SWISS_LIGHT'
+                        ? 'bg-purple-500/15 border-purple-500 shadow-md ring-2 ring-purple-500/50'
+                        : 'bg-terminal-card/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-card'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <input
+                            type="radio"
+                            name="superadmin_design_style"
+                            checked={designStyle === 'SWISS_LIGHT'}
+                            onChange={() => setDesignStyle('SWISS_LIGHT')}
+                            className="w-4 h-4 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                          />
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Swiss Clean Light
+                          </span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                          FINTECH LIGHT
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-terminal-muted leading-relaxed pl-6.5">
+                        Crisp minimalist alabaster canvas (#F6F8FB), pure white card surfaces, deep charcoal typography, royal sapphire accents. Stripe & Revolut inspired clarity.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60 pl-6.5">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Tokens:</span>
+                      <span className="w-4 h-4 rounded border border-slate-300 bg-[#F6F8FB]" title="Canvas: #F6F8FB" />
+                      <span className="w-4 h-4 rounded border border-slate-300 bg-[#FFFFFF]" title="Card: #FFFFFF" />
+                      <span className="w-4 h-4 rounded border border-slate-300 bg-[#10955D]" title="Bull: #10955D" />
+                      <span className="w-4 h-4 rounded border border-slate-300 bg-[#E11D48]" title="Bear: #E11D48" />
+                      <span className="w-4 h-4 rounded border border-slate-300 bg-[#2563EB]" title="Sapphire: #2563EB" />
+                    </div>
+                  </label>
+
+                  {/* Style 4: Classic Fayda Terminal (Revert Option) */}
+                  <label
+                    onClick={() => setDesignStyle('CLASSIC_TERMINAL')}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
+                      designStyle === 'CLASSIC_TERMINAL'
+                        ? 'bg-bull/15 border-bull shadow-md ring-2 ring-bull/50'
+                        : 'bg-terminal-card/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-card'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <input
+                            type="radio"
+                            name="superadmin_design_style"
+                            checked={designStyle === 'CLASSIC_TERMINAL'}
+                            onChange={() => setDesignStyle('CLASSIC_TERMINAL')}
+                            className="w-4 h-4 text-bull bg-terminal-bg border-terminal-border focus:ring-bull cursor-pointer"
+                          />
+                          <span className="font-bold text-xs font-mono text-terminal-text">
+                            Classic Fayda Terminal
+                          </span>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-bull/20 text-bull border border-bull/40 flex items-center gap-1">
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>1-CLICK REVERT</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-terminal-muted leading-relaxed pl-6.5">
+                        Original terminal styling preserved 100% as-is for complete backward-compatibility and zero risk. Select anytime to instantly restore original look.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 pt-2 border-t border-terminal-border/60 pl-6.5">
+                      <span className="text-[9px] font-mono text-terminal-muted mr-1">Tokens:</span>
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#080B10]" title="Canvas: #080B10" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#0D131C]" title="Card: #0D131C" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#22C55E]" title="Bull: #22C55E" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#F43F5E]" title="Bear: #F43F5E" />
+                      <span className="w-4 h-4 rounded border border-white/20 bg-[#00E5FF]" title="Cyan: #00E5FF" />
+                    </div>
+                  </label>
+                </div>
+
+                {/* ── LAYOUT DENSITY RADIO SELECTOR ── */}
+                <div className="mt-4 pt-3.5 border-t border-terminal-border/80">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs font-bold font-mono text-terminal-text flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-accent-sky" />
+                      <span>Layout Density & Data Scaling</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-terminal-muted">
+                      Mode: <strong>{styleDensity}</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <label
+                      onClick={() => setStyleDensity('STANDARD')}
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                        styleDensity === 'STANDARD'
+                          ? 'bg-accent-sky/15 border-accent-sky text-terminal-text ring-1 ring-accent-sky/50'
+                          : 'bg-terminal-card/50 border-terminal-border hover:bg-terminal-card text-terminal-muted'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="superadmin_density_mode"
+                          checked={styleDensity === 'STANDARD'}
+                          onChange={() => setStyleDensity('STANDARD')}
+                          className="w-3.5 h-3.5 text-accent-sky cursor-pointer"
+                        />
+                        <div>
+                          <span className="text-xs font-bold font-mono block">Modern Institutional</span>
+                          <span className="text-[10px] text-terminal-muted block">Balanced spacing & rounded cards</span>
+                        </div>
+                      </div>
+                      {styleDensity === 'STANDARD' && <Check className="w-3.5 h-3.5 text-accent-sky" />}
+                    </label>
+
+                    <label
+                      onClick={() => setStyleDensity('COMPACT')}
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                        styleDensity === 'COMPACT'
+                          ? 'bg-accent-sky/15 border-accent-sky text-terminal-text ring-1 ring-accent-sky/50'
+                          : 'bg-terminal-card/50 border-terminal-border hover:bg-terminal-card text-terminal-muted'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="superadmin_density_mode"
+                          checked={styleDensity === 'COMPACT'}
+                          onChange={() => setStyleDensity('COMPACT')}
+                          className="w-3.5 h-3.5 text-accent-sky cursor-pointer"
+                        />
+                        <div>
+                          <span className="text-xs font-bold font-mono block">Compact Scalper Pro</span>
+                          <span className="text-[10px] text-terminal-muted block">High-density tight tables & maximum data</span>
+                        </div>
+                      </div>
+                      {styleDensity === 'COMPACT' && <Check className="w-3.5 h-3.5 text-accent-sky" />}
+                    </label>
                   </div>
                 </div>
               </div>

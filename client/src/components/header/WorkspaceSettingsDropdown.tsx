@@ -35,7 +35,7 @@ export const WorkspaceSettingsDropdown: React.FC<WorkspaceSettingsDropdownProps>
   isSuperAdmin,
   onOpenAdminDrawer
 }) => {
-  const { theme } = useTheme();
+  const { theme, designStyle, setDesignStyle } = useTheme();
   const isDark = theme === 'dark';
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -181,8 +181,126 @@ export const WorkspaceSettingsDropdown: React.FC<WorkspaceSettingsDropdownProps>
             </div>
           </div>
 
+          {/* Section: Active Design Style (Radio Selector) */}
+          <div className="pt-2.5 space-y-2 border-t border-terminal-border/80">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-terminal-muted flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>Design System Style</span>
+              </span>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">
+                {designStyle === 'INTERNATIONAL_PRO' ? 'Intl Pro' : designStyle === 'BLOOMBERG_PITCH' ? 'Bloomberg' : designStyle === 'SWISS_LIGHT' ? 'Swiss Light' : 'Classic'}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              {/* International Pro */}
+              <label
+                onClick={() => setDesignStyle('INTERNATIONAL_PRO')}
+                className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-sans transition flex items-center justify-between cursor-pointer ${
+                  designStyle === 'INTERNATIONAL_PRO'
+                    ? 'bg-purple-500/15 text-purple-300 font-bold border border-purple-500/40'
+                    : isDark ? 'hover:bg-slate-800/80 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="workspace_design_style"
+                    checked={designStyle === 'INTERNATIONAL_PRO'}
+                    onChange={() => setDesignStyle('INTERNATIONAL_PRO')}
+                    className="w-3.5 h-3.5 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold block text-left">🌐 International Pro Dark</span>
+                    <span className="text-[9px] text-terminal-muted block text-left">Deep slate canvas & jewel trading signals</span>
+                  </div>
+                </div>
+                {designStyle === 'INTERNATIONAL_PRO' && <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+              </label>
+
+              {/* Bloomberg Pitch Black */}
+              <label
+                onClick={() => setDesignStyle('BLOOMBERG_PITCH')}
+                className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-sans transition flex items-center justify-between cursor-pointer ${
+                  designStyle === 'BLOOMBERG_PITCH'
+                    ? 'bg-purple-500/15 text-purple-300 font-bold border border-purple-500/40'
+                    : isDark ? 'hover:bg-slate-800/80 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="workspace_design_style"
+                    checked={designStyle === 'BLOOMBERG_PITCH'}
+                    onChange={() => setDesignStyle('BLOOMBERG_PITCH')}
+                    className="w-3.5 h-3.5 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold block text-left">⚡ Bloomberg Pitch Black</span>
+                    <span className="text-[9px] text-terminal-muted block text-left">Pure pitch OLED canvas & neon signals</span>
+                  </div>
+                </div>
+                {designStyle === 'BLOOMBERG_PITCH' && <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+              </label>
+
+              {/* Swiss Clean Light */}
+              <label
+                onClick={() => setDesignStyle('SWISS_LIGHT')}
+                className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-sans transition flex items-center justify-between cursor-pointer ${
+                  designStyle === 'SWISS_LIGHT'
+                    ? 'bg-purple-500/15 text-purple-300 font-bold border border-purple-500/40'
+                    : isDark ? 'hover:bg-slate-800/80 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="workspace_design_style"
+                    checked={designStyle === 'SWISS_LIGHT'}
+                    onChange={() => setDesignStyle('SWISS_LIGHT')}
+                    className="w-3.5 h-3.5 text-purple-600 bg-terminal-bg border-terminal-border focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold block text-left">☀️ Swiss Clean Light</span>
+                    <span className="text-[9px] text-terminal-muted block text-left">Minimalist fintech light canvas</span>
+                  </div>
+                </div>
+                {designStyle === 'SWISS_LIGHT' && <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+              </label>
+
+              {/* Classic Fayda Terminal (1-Click Revert) */}
+              <label
+                onClick={() => setDesignStyle('CLASSIC_TERMINAL')}
+                className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-sans transition flex items-center justify-between cursor-pointer ${
+                  designStyle === 'CLASSIC_TERMINAL'
+                    ? 'bg-bull/15 text-bull font-bold border border-bull/40'
+                    : isDark ? 'hover:bg-slate-800/80 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="workspace_design_style"
+                    checked={designStyle === 'CLASSIC_TERMINAL'}
+                    onChange={() => setDesignStyle('CLASSIC_TERMINAL')}
+                    className="w-3.5 h-3.5 text-bull bg-terminal-bg border-terminal-border focus:ring-bull cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-bold block text-left flex items-center gap-1">
+                      <span>Classic Fayda Terminal</span>
+                      <span className="text-[8px] px-1 py-0.1 rounded bg-bull/20 text-bull font-mono font-bold">REVERT</span>
+                    </span>
+                    <span className="text-[9px] text-terminal-muted block text-left">Restore original legacy styling</span>
+                  </div>
+                </div>
+                {designStyle === 'CLASSIC_TERMINAL' && <Check className="w-3.5 h-3.5 text-bull shrink-0" />}
+              </label>
+            </div>
+          </div>
+
           {/* Section 2: Display Density & Sound Chimes */}
-          <div className="pt-2.5 space-y-2">
+          <div className="pt-2.5 space-y-2 border-t border-terminal-border/80">
             <div className="px-1 text-[10px] font-mono font-bold uppercase tracking-wider text-terminal-muted">
               Display & Audio Preferences
             </div>

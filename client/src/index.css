@@ -6,40 +6,106 @@
 
 :root,
 [data-theme="dark"],
+[data-style-engine="INTERNATIONAL_PRO"],
 [data-theme="dark"][data-dark-preset="OBSIDIAN_PRO"] {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
 
-  /* Obsidian Onyx Institutional Pro Palette (Default Dark) */
-  --color-terminal-bg: 9 10 15;            /* #090A0F True Obsidian */
-  --color-terminal-card: 17 19 26;         /* #11131A Frosted Surface Layer 1 */
-  --color-terminal-panel: 24 27 36;        /* #181B24 Surface Layer 2 */
-  --color-terminal-elevated: 32 37 49;     /* #202531 Elevated Elements */
-  --color-terminal-border: 35 39 51;       /* #232733 Subtle Hairline Borders */
-  --color-terminal-border-subtle: 26 29 38;/* #1A1D26 Micro Borders */
-  --color-terminal-hover: 30 35 46;        /* #1E232E Interactive Hover */
-  --color-terminal-text: 248 250 252;      /* #F8FAFC Primary text */
-  --color-terminal-muted: 148 163 184;     /* #94A3B8 Secondary text */
+  /* International Pro: Deep Obsidian Slate Institutional Palette */
+  --color-terminal-bg: 10 13 20;           /* #0A0D14 TradingView / Linear Deep Canvas */
+  --color-terminal-card: 16 20 31;        /* #10141F Frosted Layer 1 */
+  --color-terminal-panel: 22 28 42;       /* #161C2A Interactive Surface */
+  --color-terminal-elevated: 30 38 56;    /* #1E2638 Elevated Header/Controls */
+  --color-terminal-border: 34 43 64;      /* #222B40 Ultra-subtle Hairline Border */
+  --color-terminal-border-subtle: 24 30 45;/* #181E2D Micro-divider */
+  --color-terminal-hover: 28 35 52;       /* #1C2334 Interactive Hover */
+  --color-terminal-text: 248 250 252;     /* #F8FAFC Primary Crisp White */
+  --color-terminal-muted: 148 163 184;    /* #94A3B8 Secondary Slate */
   
-  /* Semantic Trading Signals (Jewel Tone Clarity) */
-  --color-bull: 16 185 129;                /* #10B981 Mint Emerald */
-  --color-bull-subtle: 16 185 129 / 0.12;
-  --color-bull-border: 16 185 129 / 0.35;
+  /* Semantic Trading Signals (TradingView High-Precision Jewels) */
+  --color-bull: 8 153 129;                /* #089981 TradingView Emerald */
+  --color-bull-subtle: 8 153 129 / 0.14;
+  --color-bull-border: 8 153 129 / 0.40;
   
-  --color-bear: 244 63 94;                 /* #F43F5E Coral Crimson */
-  --color-bear-subtle: 244 63 94 / 0.12;
-  --color-bear-border: 244 63 94 / 0.35;
+  --color-bear: 242 54 69;                /* #F23645 TradingView Crimson */
+  --color-bear-subtle: 242 54 69 / 0.14;
+  --color-bear-border: 242 54 69 / 0.40;
   
-  --color-amber: 245 158 11;               /* #F59E0B Champagne Gold */
-  --color-amber-subtle: 245 158 11 / 0.12;
-  --color-amber-border: 245 158 11 / 0.35;
+  --color-amber: 245 158 11;              /* #F59E0B Champagne Gold */
+  --color-amber-subtle: 245 158 11 / 0.14;
+  --color-amber-border: 245 158 11 / 0.40;
   
-  --color-accent-cyan: 56 189 248;         /* #38BDF8 Sky Cyan */
-  --color-accent-sky: 99 102 241;          /* #6366F1 Electric Indigo */
-  --color-accent-purple: 168 85 247;       /* #A855F7 Radiant Violet */
+  --color-accent-cyan: 56 189 248;        /* #38BDF8 Sky Cyan */
+  --color-accent-sky: 99 102 241;         /* #6366F1 Electric Indigo */
+  --color-accent-purple: 168 85 247;      /* #A855F7 Radiant Violet */
+}
+
+/* Bloomberg Pure OLED Pitch Black Preset */
+[data-style-engine="BLOOMBERG_PITCH"] {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color-scheme: dark;
+
+  --color-terminal-bg: 0 0 0;             /* #000000 Pure Pitch Black */
+  --color-terminal-card: 10 10 12;        /* #0A0A0C Pure Dark Card */
+  --color-terminal-panel: 18 18 22;       /* #121216 Surface */
+  --color-terminal-elevated: 28 28 34;    /* #1C1C22 Elevated */
+  --color-terminal-border: 38 38 48;      /* #262630 Clean 1px border */
+  --color-terminal-border-subtle: 24 24 30;
+  --color-terminal-hover: 28 28 36;
+  --color-terminal-text: 255 255 255;     /* Pure White */
+  --color-terminal-muted: 156 163 175;
+  
+  --color-bull: 0 230 118;                /* #00E676 Neon High-Contrast Mint */
+  --color-bull-subtle: 0 230 118 / 0.15;
+  --color-bull-border: 0 230 118 / 0.45;
+  
+  --color-bear: 255 23 68;                /* #FF1744 Neon High-Contrast Crimson */
+  --color-bear-subtle: 255 23 68 / 0.15;
+  --color-bear-border: 255 23 68 / 0.45;
+  
+  --color-amber: 255 171 0;               /* #FFAB00 Bloomberg Amber */
+  --color-amber-subtle: 255 171 0 / 0.15;
+  --color-amber-border: 255 171 0 / 0.45;
+  
+  --color-accent-cyan: 0 229 255;         /* #00E5FF Phosphor Cyan */
+  --color-accent-sky: 0 176 255;          /* #00B0FF Vivid Sky */
+  --color-accent-purple: 213 0 249;       /* #D500F9 Electric Neon Purple */
+}
+
+/* Swiss Clean Light Preset (Stripe / Revolut Fintech Style) */
+[data-style-engine="SWISS_LIGHT"] {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color-scheme: light;
+
+  --color-terminal-bg: 246 248 251;       /* #F6F8FB Crisp Canvas */
+  --color-terminal-card: 255 255 255;     /* Pure White Card */
+  --color-terminal-panel: 241 245 250;    /* Soft Surface */
+  --color-terminal-elevated: 228 234 242; /* Elevated Controls */
+  --color-terminal-border: 226 232 240;   /* #E2E8F0 Subtle Border */
+  --color-terminal-border-subtle: 238 242 248;
+  --color-terminal-hover: 238 243 249;
+  --color-terminal-text: 15 23 42;        /* #0F172A Deep Charcoal */
+  --color-terminal-muted: 100 116 139;    /* #64748B Slate */
+  
+  --color-bull: 16 149 93;                /* #10955D Forest Green */
+  --color-bull-subtle: 16 149 93 / 0.12;
+  --color-bull-border: 16 149 93 / 0.35;
+  
+  --color-bear: 225 29 72;                /* #E11D48 Carmine Red */
+  --color-bear-subtle: 225 29 72 / 0.12;
+  --color-bear-border: 225 29 72 / 0.35;
+  
+  --color-amber: 217 119 6;               /* #D97706 Amber */
+  --color-amber-subtle: 217 119 6 / 0.12;
+  --color-amber-border: 217 119 6 / 0.35;
+  
+  --color-accent-cyan: 2 132 199;         /* #0284C7 Sky */
+  --color-accent-sky: 79 70 229;          /* #4F46E5 Royal Indigo */
+  --color-accent-purple: 124 58 237;      /* #7C3AED Royal Violet */
 }
 
 /* Classic Terminal Dark Preset */
+[data-style-engine="CLASSIC_TERMINAL"][data-theme="dark"],
 [data-theme="dark"][data-dark-preset="CLASSIC_DARK"] {
   --color-terminal-bg: 8 11 16;            /* #080B10 Base canvas */
   --color-terminal-card: 13 19 28;         /* #0D131C Surface Layer 1 */
@@ -383,4 +449,52 @@ body.terminal-fullscreen-active {
 .animate-modal-exit {
   animation: modalZoomOut 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ── International Institutional Styling Utilities ──────────────────────── */
+
+/* Tabular Financial Numbers (No Jitter During Live High-Frequency WebSocket Ticks) */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Glassmorphic Institutional Card Surfaces */
+.glass-panel {
+  background: rgba(var(--color-terminal-card), 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(var(--color-terminal-border), 0.7);
+}
+
+.glass-panel-subtle {
+  background: rgba(var(--color-terminal-panel), 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(var(--color-terminal-border-subtle), 0.6);
+}
+
+/* International Pro Card Header Treatment */
+.widget-header-badge {
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ── Layout Density Control (Interactive Switcher) ───────────────────────── */
+[data-density-mode="COMPACT"] main {
+  gap: 0.5rem !important;
+}
+
+[data-density-mode="COMPACT"] .card-compact-mode {
+  padding: 0.5rem 0.75rem !important;
+}
+
+[data-density-mode="COMPACT"] table th,
+[data-density-mode="COMPACT"] table td {
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  font-size: 0.75rem !important;
+}
+
 
