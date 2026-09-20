@@ -3088,7 +3088,7 @@
     "entryPriceTimeFormatted": "03:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "15:56:34 IST"
+    "targetHitTime": "16:37:59 IST"
   },
   {
     "id": "call_2026-09-20_NIFTYNXT50_71900_PE_SELL",
@@ -3123,7 +3123,7 @@
     "entryPriceTimeFormatted": "03:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹90.69.",
     "exitLtp": 5,
-    "targetHitTime": "15:56:42 IST"
+    "targetHitTime": "16:38:08 IST"
   },
   {
     "id": "call_2026-09-20_BANKNIFTY_56300_PE_SELL",
@@ -3158,7 +3158,7 @@
     "entryPriceTimeFormatted": "03:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹112.66.",
     "exitLtp": 6.29,
-    "targetHitTime": "15:57:27 IST"
+    "targetHitTime": "16:37:41 IST"
   },
   {
     "id": "call_2026-09-20_NIFTY_23500_CE_BUY_CALL",
@@ -3497,7 +3497,7 @@
     "nearTargetDescription": "🛑 Stoploss Hit: Entry ₹25.00 - SL ₹20.00 = -5 pts (₹-600 on 1 Lot [120 Qty])",
     "callGivenTime": "03:15 PM IST",
     "entryPriceTimeFormatted": "03:15 PM IST",
-    "stoplossHitTime": "15:56:34 IST",
+    "stoplossHitTime": "16:37:59 IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹25.00. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
     "exitLtp": 20
   },
@@ -3532,7 +3532,7 @@
     "nearTargetDescription": "🛑 Stoploss Hit: Entry ₹35.00 - SL ₹28.00 = -7 pts (₹-455 on 1 Lot [65 Qty])",
     "callGivenTime": "03:15 PM IST",
     "entryPriceTimeFormatted": "03:15 PM IST",
-    "stoplossHitTime": "15:57:39 IST",
+    "stoplossHitTime": "16:38:12 IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹35.00. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
     "exitLtp": 28
   }

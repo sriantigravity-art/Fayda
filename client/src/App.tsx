@@ -396,8 +396,10 @@ const MainDashboard: React.FC = () => {
 
 const DashboardGate: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) {
-    return <TerminalLoginGate />;
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  if (!isAuthenticated && !isDemoMode) {
+    return <TerminalLoginGate onLaunchDemo={() => setIsDemoMode(true)} />;
   }
   return <MainDashboard />;
 };
