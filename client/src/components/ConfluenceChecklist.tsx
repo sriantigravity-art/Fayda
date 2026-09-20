@@ -1,16 +1,31 @@
 import React from 'react';
-import { ShieldCheck, CheckCircle2, Award, Zap, Activity } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ShieldCheck, CheckCircle2, Award, Zap, Activity, X } from 'lucide-react';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import type { TipConfluenceBreakdown } from '../types';
 
-export const ConfluenceChecklist: React.FC<{
+export interface ConfluenceChecklistProps {
+  isOpen?: boolean;
+  onClose?: () => void;
   breakdown?: TipConfluenceBreakdown;
   role?: 'BUYER' | 'SELLER';
   score?: number;
-}> = ({ breakdown, role = 'BUYER', score = 85 }) => {
+  action?: string;
+  symbol?: string;
+}
+
+export const ConfluenceChecklist: React.FC<ConfluenceChecklistProps> = ({ 
+  isOpen = true,
+  onClose,
+  breakdown, 
+  role = 'BUYER', 
+  score = 85,
+  action,
+  symbol
+}) => {
   const { isBeginner, isIntermediate, isExpert, mode } = useTerminalMode();
 
-  if (!breakdown) return null;
+  if (!isOpen || !breakdown) return null;
 
   // Factor definitions customized dynamically per trader mode
   const getFactorLabel = (key: string, defaultLabel: string): string => {
@@ -60,13 +75,13 @@ export const ConfluenceChecklist: React.FC<{
     { key: 'maxPain', defaultLabel: '10. Max Pain Magnetic Strike', weight: 3, item: breakdown.maxPain },
   ];
 
-  return (
+  const content = (
     <div 
       onClick={(e) => e.stopPropagation()}
-      className="mt-3 p-3.5 rounded-xl bg-slate-900/95 dark:bg-black/90 border border-slate-700/80 dark:border-terminal-border/90 text-left space-y-2.5 shadow-xl"
+      className="p-3.5 sm:p-4 rounded-xl bg-slate-900/95 dark:bg-[#0c1017] border border-slate-700/80 dark:border-terminal-border/90 text-left space-y-2.5 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
     >
-      {/* Header bar with Mode Badge */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 dark:border-terminal-border/60 pb-2">
+      {/* Header bar with Mode Badge & Close button */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 dark:border-terminal-border/60 pb-2.5">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-accent-gold" />
           <div>
@@ -80,7 +95,7 @@ export const ConfluenceChecklist: React.FC<{
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border ${
             isBeginner
               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
@@ -93,39 +108,66 @@ export const ConfluenceChecklist: React.FC<{
           <span className="px-2 py-0.5 rounded text-[11px] font-mono font-black bg-accent-gold/20 text-accent-gold border border-accent-gold/40">
             🎯 {breakdown.totalConfluenceScore}% / 100%
           </span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Grid of 10 Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-        {factors.map(f => {
+        {factors.map((f) => {
+          const isConfirmed = f.item?.confirmed;
+          const scoreVal = f.item?.score ?? 0;
+          const details = f.item?.details || (isConfirmed ? 'Condition confirmed by quantitative engine' : 'Condition divergent / unconfirmed');
           const label = getFactorLabel(f.key, f.defaultLabel);
+
           return (
             <div 
               key={f.key}
-              className={`p-2 rounded-lg border flex flex-col justify-between space-y-1 transition-all ${
-                f.item?.confirmed 
-                  ? 'bg-emerald-950/40 border-emerald-500/40 text-slate-200' 
-                  : 'bg-slate-800/40 border-slate-700/60 text-slate-400'
+              className={`p-2 rounded-lg border transition ${
+                isConfirmed 
+                  ? 'bg-emerald-950/20 dark:bg-emerald-950/30 border-emerald-500/40 hover:border-emerald-500/70' 
+                  : 'bg-slate-800/40 dark:bg-slate-900/50 border-slate-700/60 hover:border-slate-600'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold truncate">
-                  {f.item?.confirmed ? (
+              <div className="flex items-start justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {isConfirmed ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   ) : (
-                    <span className="w-3.5 h-3.5 rounded-full border border-slate-500 shrink-0 flex items-center justify-center text-[9px] text-slate-500">•</span>
+                    <div className="w-3.5 h-3.5 rounded-full border border-slate-500 flex items-center justify-center text-[8px] text-slate-400 shrink-0">
+                      •
+                    </div>
                   )}
-                  <span className="truncate" title={label}>{label}</span>
+                  <span className={`font-mono font-bold truncate text-[11px] ${
+                    isConfirmed ? 'text-emerald-300 dark:text-emerald-200' : 'text-slate-400'
+                  }`}>
+                    {label}
+                  </span>
                 </div>
-                <span className={`font-mono text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 ml-1.5 ${
-                  f.item?.confirmed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-400'
-                }`}>
-                  {f.item?.score || 0}/{f.weight} pts
-                </span>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] font-mono text-slate-400">{f.weight}% Wt</span>
+                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black ${
+                    isConfirmed 
+                      ? 'bg-emerald-500/25 text-emerald-300' 
+                      : 'bg-slate-700 text-slate-400'
+                  }`}>
+                    {scoreVal}
+                  </span>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-300 dark:text-terminal-muted leading-tight pl-5">
-                {f.item?.details || (isBeginner ? 'Awaiting market safety confirmation' : 'Awaiting tick trigger')}
+
+              <p className="text-[10px] text-slate-400 dark:text-slate-300 mt-1 pl-5 font-sans leading-tight line-clamp-2">
+                {details}
               </p>
             </div>
           );

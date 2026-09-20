@@ -8,7 +8,7 @@ import type { IndexSymbol, OngoingProfitBoxData, MarketMomentumRegime } from '..
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime, getISTComponents } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
-import { isMarketOpenForSymbol } from '../utils/lastClosedData';
+import { isMarketOpenForSymbol, isCommoditySymbol, getSafeTipTimeFormatted } from '../utils/marketHours';
 
 export const HighlightSignalTicker: React.FC = () => {
   const { indices, visibleIndices, setSelectedIndex, selectedIndex, openTradeTipModal } = useMarket();
@@ -35,13 +35,13 @@ export const HighlightSignalTicker: React.FC = () => {
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
   const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
 
-  // Check Official Market Hours: 09:15 to 15:40 IST (Mon-Fri) for NSE/BSE Equity
+  // Check Official Market Hours: 09:00 to 15:40 IST (Mon-Fri) for NSE/BSE Equity
   const isNseMarketHours = () => {
     const { hours, minutes, dayOfWeek } = getISTComponents();
     if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
     const currentMin = hours * 60 + minutes;
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   };
 
   // Check if specific symbol market is currently open
@@ -54,25 +54,20 @@ export const HighlightSignalTicker: React.FC = () => {
       // MCX Commodities: 09:00 to 23:30 IST
       return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
     }
-    // NSE / BSE Equity & Index Derivatives: 09:15 to 15:40 IST
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    // NSE / BSE Equity & Index Derivatives: 09:00 to 15:40 IST
+    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   };
 
   const isLiveNseMarket = isNseMarketHours();
 
   // Determine symbols to scan based on active market hours
   const symbolsToScan = React.useMemo(() => {
-    if (isLiveNseMarket) {
+    // Keep user's visible indices so they see carry forward setups for their tracked symbols (Nifty, BankNifty, etc.)
+    if (visibleIndices && visibleIndices.length > 0) {
       return visibleIndices;
     }
-    // After NSE hours: Strictly scan only open MCX Commodities!
-    const activeCommoditiesInVisible = visibleIndices.filter(s => isCommodity(s) && isSymbolMarketOpen(s));
-    if (activeCommoditiesInVisible.length > 0) {
-      return activeCommoditiesInVisible;
-    }
-    // If user has only equity symbols selected in visibleIndices, provide live open MCX commodities
-    return COMMODITY_SYMBOLS.filter(c => isSymbolMarketOpen(c));
-  }, [visibleIndices, isLiveNseMarket, currentTime]);
+    return ALL_SYMBOLS_CONFIG.slice(0, 5).map(c => c.symbol as IndexSymbol);
+  }, [visibleIndices]);
 
   // Build list of active setups across eligible open symbols
   const activeSetups = React.useMemo(() => {
@@ -107,15 +102,19 @@ export const HighlightSignalTicker: React.FC = () => {
         if (!tip) return false;
         // User directive: if the stop loss is triggered, move that in journal, dont show in tips
         if (tip.status === 'SL_HIT' || tip.status === 'STOPLOSS_HIT' || tip.actionabilityStatus === 'SL_HIT') return false;
+        if (tip.status === 'INTRADAY_CLOSED' || tip.actionabilityStatus === 'SQUARE_OFF') return false;
         if (tip.stoplossPrice && tip.currentLtp && tip.currentLtp <= tip.stoplossPrice) return false;
         if (!isPkgOffMarket) return true; // live market — show all
-        // Off-market: only explicitly carried-forward tips
-        return tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD';
+        // Off-market: only researched carry-forward tips
+        return (tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD');
       };
 
       const primePick = (isTipEligible(primeCall) ? primeCall : null)
         || (isTipEligible(primePut) ? primePut : null);
-      const fallbackTime = formatISTTime(lastUpdated || new Date());
+      const isSymOpen = isSymbolMarketOpen(sym);
+      const fallbackTime = isSymOpen
+        ? formatISTTime(lastUpdated || new Date())
+        : (isCommodity(sym) ? '11:30 PM IST' : '03:15 PM IST');
 
       // 1. Absolute Priority: Mirror the Prime High-Probability Tip so there is ONE single source of truth
       if (primePick) {
@@ -164,7 +163,7 @@ export const HighlightSignalTicker: React.FC = () => {
           riskReward: primePick.riskReward || '1:2.5',
           score: primePick.confluenceScore,
           rawTimestamp: primePick.entryTimeFormatted || lastUpdated || new Date().toISOString(),
-          time: primePick.entryTimeFormatted || fallbackTime,
+          time: getSafeTipTimeFormatted(sym, primePick.entryTimeFormatted || fallbackTime, primePick.isCarriedForward),
           isStoplossHit: primePick.status === 'SL_HIT',
           status: primePick.status,
           ongoingProfitBox,
@@ -172,9 +171,9 @@ export const HighlightSignalTicker: React.FC = () => {
           momentumDescription: primePick.momentumDescription,
           isExpiryDay: primePick.isExpiryDay,
           callGivenTime: primePick.callGivenTime,
-          callGivenTimeFormatted: primePick.callGivenTimeFormatted || primePick.entryTimeFormatted || fallbackTime,
+          callGivenTimeFormatted: getSafeTipTimeFormatted(sym, primePick.callGivenTimeFormatted || primePick.entryTimeFormatted || fallbackTime, primePick.isCarriedForward),
           entryPriceTime: primePick.entryPriceTime,
-          entryPriceTimeFormatted: primePick.entryPriceTimeFormatted || primePick.entryTimeFormatted || fallbackTime,
+          entryPriceTimeFormatted: getSafeTipTimeFormatted(sym, primePick.entryPriceTimeFormatted || primePick.entryTimeFormatted || fallbackTime, primePick.isCarriedForward),
           target1HitTime: primePick.target1HitTime,
           target1HitTimeFormatted: primePick.target1HitTimeFormatted,
           target2HitTime: primePick.target2HitTime,
@@ -246,7 +245,7 @@ export const HighlightSignalTicker: React.FC = () => {
             riskReward: pick.suggestedContract.riskReward || '1:2.0',
             score: pick.surgeScore,
             rawTimestamp: pick.timestamp || lastUpdated || new Date().toISOString(),
-            time: pick.timeFormatted || fallbackTime,
+            time: getSafeTipTimeFormatted(sym, pick.timeFormatted || fallbackTime),
             isStoplossHit: false,
             horizon,
             breakoutStatus: pick.breakoutStatus || (patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined),
@@ -307,7 +306,7 @@ export const HighlightSignalTicker: React.FC = () => {
         riskReward: dyn.riskReward,
         score: 88,
         rawTimestamp,
-        time: fallbackTime,
+        time: getSafeTipTimeFormatted(sym, fallbackTime),
         isStoplossHit: isSlHit,
         horizon,
         breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined,
@@ -417,16 +416,24 @@ export const HighlightSignalTicker: React.FC = () => {
         <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
           isSl
             ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50 dark:bg-rose-100 dark:text-rose-900 dark:border-rose-300'
+            : !isMarketOpen
+            ? 'bg-purple-500/25 text-purple-200 border border-purple-500/50 dark:bg-purple-100 dark:text-purple-900 dark:border-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.3)]'
             : isBull
             ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 dark:bg-emerald-100 dark:text-emerald-900 dark:border-emerald-300'
             : 'bg-rose-500/25 text-rose-300 border border-rose-500/50 dark:bg-rose-100 dark:text-rose-900 dark:border-rose-300'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isBull ? 'bg-emerald-400 dark:bg-emerald-600 animate-pulse' : 'bg-rose-400 dark:bg-rose-600 animate-pulse'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            !isMarketOpen
+              ? 'bg-purple-400 dark:bg-purple-600'
+              : isBull 
+              ? 'bg-emerald-400 dark:bg-emerald-600 animate-pulse' 
+              : 'bg-rose-400 dark:bg-rose-600 animate-pulse'
+          }`} />
           <span>
             {!isMarketOpen && isSl
               ? 'SL HIT (CLOSED)'
               : !isMarketOpen
-              ? (isBull ? 'CALL (CLOSED)' : 'PUT (CLOSED)')
+              ? (isBull ? '🌙 CARRY FORWARD (BTST)' : '🌙 CARRY FORWARD (STBT)')
               : isSl
               ? 'SQUARE OFF'
               : isBull
@@ -451,9 +458,9 @@ export const HighlightSignalTicker: React.FC = () => {
           <span className="font-bold text-sky-300 dark:text-sky-700">{item.entry}</span>
         </div>
 
-        {/* Live LTP */}
+        {/* Live / Close LTP */}
         <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">LTP:</span>
+          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">{isMarketOpen ? 'LTP:' : 'Close:'}</span>
           <span className="font-black text-amber-300 dark:text-amber-700">₹{(item.ltp || 0).toFixed(1)}</span>
         </div>
 
@@ -563,14 +570,20 @@ export const HighlightSignalTicker: React.FC = () => {
               <Zap className="w-3 h-3 animate-pulse" />
             </div>
             <span className="text-[10px] font-bold tracking-tight uppercase text-terminal-text truncate">
-              {isBeginner ? '🧭 MARKET COMPASS' : isExpert ? '🔬 QUANT RADAR' : '🧭 FAYDA RADAR'}
+              {isBeginner ? '🧭 MARKET COMPASS' : '🔬 QUANT COMPASS'}
             </span>
             <span className={`text-[8.5px] font-mono px-1.5 py-0.2 rounded font-bold shrink-0 ${
               isLiveNseMarket 
                 ? 'bg-bull/20 text-bull border border-bull/40' 
-                : 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
+                : isCommodity(currentSetup?.symbol || '')
+                ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
+                : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
             }`}>
-              {isLiveNseMarket ? 'LIVE NSE' : 'MCX LIVE'}
+              {isLiveNseMarket 
+                ? 'LIVE NSE' 
+                : isCommodity(currentSetup?.symbol || '') 
+                ? 'MCX LIVE' 
+                : 'BROADER MARKET CLOSED'}
             </span>
           </div>
 
@@ -644,16 +657,22 @@ export const HighlightSignalTicker: React.FC = () => {
       <div className="hidden xl:flex items-center py-1.5 px-3 relative min-h-[44px] justify-between gap-3">
         {/* Left Brand Label */}
         <div className="flex items-center space-x-1.5 pr-2.5 border-r border-terminal-border/70 shrink-0 bg-terminal-card/80 py-1 px-2 rounded-lg border border-terminal-border/50 shadow-sm">
-          <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : 'text-amber-600 dark:text-amber-400'} animate-pulse`} />
+          <Zap className={`w-3.5 h-3.5 ${isLiveNseMarket ? 'text-accent-cyan' : isCommodity(currentSetup?.symbol || '') ? 'text-amber-600 dark:text-amber-400' : 'text-purple-400'} ${isLiveNseMarket ? 'animate-pulse' : ''}`} />
           <span className="text-xs font-black tracking-wider uppercase text-terminal-text whitespace-nowrap">
-            {isBeginner ? '🧭 MARKET COMPASS' : isIntermediate ? '🧭 FAYDA RADAR' : '🔬 QUANT COMPASS'}
+            {isBeginner ? '🧭 MARKET COMPASS' : '🔬 QUANT COMPASS'}
           </span>
           <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold whitespace-nowrap ${
             isLiveNseMarket 
               ? 'bg-bull/20 text-bull border border-bull/40' 
-              : 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
+              : isCommodity(currentSetup?.symbol || '')
+              ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
+              : 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.25)]'
           }`}>
-            {isLiveNseMarket ? 'LIVE NSE' : 'MCX COMMODITIES LIVE'}
+            {isLiveNseMarket 
+              ? 'LIVE NSE' 
+              : isCommodity(currentSetup?.symbol || '') 
+              ? 'MCX COMMODITIES LIVE' 
+              : '🌙 CARRY FORWARD RADAR'}
           </span>
         </div>
 

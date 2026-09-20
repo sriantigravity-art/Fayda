@@ -978,7 +978,16 @@ export interface GlobalIndexItem {
 }
 
 export type AssetCategory = 'ALL' | 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
-export type TradeCallStatus = 'TARGET_HIT' | 'STOPLOSS_HIT' | 'NEAR_TARGET' | 'ACTIVE' | 'EXPIRED';
+export type TradeCallStatus =
+  | 'TARGET_HIT'
+  | 'STOPLOSS_HIT'
+  | 'NEAR_TARGET'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'SQUARE_OFF'
+  | 'INTRADAY_CLOSED'
+  | 'BTST'
+  | 'CARRY_FORWARD';
 
 export type MarketMomentumRegime = 
   | 'SIDEWAYS_CHOP'             // Low ATR, narrow range, balanced PCR -> Small Scalp Targets (10% - 15%)
@@ -1005,7 +1014,7 @@ export interface JournalTradeCall {
   strikePrice: number;
   optionType: 'CE' | 'PE' | 'FUT' | 'EQ';
   action: 'BUY_CALL' | 'BUY_PUT' | 'BUY' | 'SELL';
-  signalSource: 'OI_SURGE' | 'HERO_ZERO' | 'BREAKOUT' | 'CONFLUENCE';
+  signalSource: 'OI_SURGE' | 'HERO_ZERO' | 'BREAKOUT' | 'CONFLUENCE' | 'UNIFIED_QUANTUM';
   entryPrice: number;
   recommendedEntryRange: string; // '₹120.00 - ₹122.40'
   target1Price: number;
@@ -1084,6 +1093,7 @@ export interface JournalReportResponse {
 }
 
 export type MarketSessionWindow =
+  | 'PRE_MARKET_DISCOVERY'      // 09:00 - 09:15 IST
   | 'MORNING_POWER_OPEN'        // 09:15 - 10:00 IST
   | 'MID_MORNING_TREND'         // 10:00 - 12:00 IST
   | 'MIDDAY_EUROPE_SPREAD'      // 12:00 - 14:30 IST
@@ -1151,7 +1161,7 @@ export interface UnifiedSmartTip {
   dipEntryMin?: number;
   dipEntryMax?: number;
   breakoutEntryPrice?: number;
-  actionabilityStatus?: 'IN_ENTRY_ZONE' | 'AT_TRIGGER' | 'RUNNING_PROFIT' | 'DIP_OPPORTUNITY' | 'TRAIL_SL' | 'TARGET_HIT' | 'SL_HIT';
+  actionabilityStatus?: 'IN_ENTRY_ZONE' | 'AT_TRIGGER' | 'RUNNING_PROFIT' | 'DIP_OPPORTUNITY' | 'TRAIL_SL' | 'TARGET_HIT' | 'SL_HIT' | 'SQUARE_OFF';
   pnlPoints?: number;
   pnlPct?: number;
   pnlRupees?: number;
@@ -1164,7 +1174,21 @@ export interface UnifiedSmartTip {
   target2Pct: number;
   riskReward: string;
   confluenceScore: number; // 0 - 100
-  status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED';
+  quantumScore?: number; // Unified 0 - 100% score fusing Surge (35%) + Confluence (45%) + Structure (20%)
+  surgeVelocityScore?: number; // 0 - 100
+  surgeConfirmationLevel?: 'NORMAL' | 'MODERATE' | 'STRONG' | 'EXTREME';
+  surgeDetails?: {
+    surgeScore: number;
+    surgeLevel: string;
+    oiChangePct: number;
+    volumeSpikeRatio: number;
+    flowDirection: 'CALL_SURGE' | 'PUT_SURGE' | 'NEUTRAL';
+  };
+  unifiedSignalThesis?: string; // Concise one-line plain English thesis fusing surge + confluence + levels
+  status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED' | 'INTRADAY_CLOSED' | 'SQUARE_OFF';
+  isBtstResearched?: boolean;
+  btstRationale?: string;
+  squareOffReason?: string;
   bookedTime?: string;
   bookedTimeFormatted?: string;
   carryForwardTime?: string;

@@ -50,6 +50,7 @@ export interface TradeActionAdvice {
 }
 
 import { getCorrectedNow } from './formatTime';
+import { isMarketOpenForSymbol, isCommoditySymbol } from './marketHours';
 
 export function formatIstClock(timestamp?: string | number | Date, includeSeconds = true, includeSuffix = true): string {
   if (!timestamp) return '--:--:--';
@@ -82,7 +83,8 @@ export function formatIstClock(timestamp?: string | number | Date, includeSecond
 export function getSignalTimingData(
   givenTimestamp?: string | number | Date,
   validUntilMinutes = 30,
-  currentLiveMs = Date.now()
+  currentLiveMs = Date.now(),
+  options?: { isOffMarket?: boolean; isCarriedForward?: boolean; symbol?: string }
 ): SignalTimingData {
   let givenDate: Date;
   if (!givenTimestamp) {
@@ -94,6 +96,24 @@ export function getSignalTimingData(
     givenDate = givenTimestamp;
   }
 
+  const sym = options?.symbol;
+  const isCommodity = sym ? isCommoditySymbol(sym) : false;
+  const isMarketOpen = sym ? isMarketOpenForSymbol(sym) : (options?.isOffMarket ? false : true);
+
+  // If market is closed for non-commodity and givenDate is at night/pre-open, clamp to session close
+  let givenTimeFormatted = formatIstClock(givenDate, true);
+  let givenTimeShort = formatIstClock(givenDate, false);
+
+  if (!isMarketOpen && !isCommodity && (givenDate.getHours() >= 16 || givenDate.getHours() < 9)) {
+    givenTimeFormatted = options?.isCarriedForward ? '03:20:00 PM IST' : '03:15:00 PM IST';
+    givenTimeShort = options?.isCarriedForward ? '03:20 PM' : '03:15 PM';
+  }
+
+  let liveTimeFormatted = formatIstClock(currentLiveMs, true);
+  if (!isMarketOpen) {
+    liveTimeFormatted = isCommodity ? '11:30:00 PM IST' : '03:40:00 PM IST';
+  }
+
   const givenMs = givenDate.getTime();
   const elapsedMs = Math.max(0, currentLiveMs - givenMs);
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
@@ -101,28 +121,36 @@ export function getSignalTimingData(
 
   // Elapsed formatted representation
   let elapsedFormatted = 'Just now';
-  if (elapsedSeconds < 60) {
+  if (!isMarketOpen) {
+    elapsedFormatted = 'Session Closed';
+  } else if (elapsedSeconds < 60) {
     elapsedFormatted = `${elapsedSeconds}s`;
   } else {
     const remSec = elapsedSeconds % 60;
     elapsedFormatted = remSec > 0 ? `${elapsedMinutes}m ${remSec}s` : `${elapsedMinutes}m`;
   }
 
-  const givenTimeFormatted = formatIstClock(givenDate, true);
-  const givenTimeShort = formatIstClock(givenDate, false);
-  const liveTimeFormatted = formatIstClock(currentLiveMs, true);
-
-  const formulaText = `${liveTimeFormatted} - ${givenTimeFormatted} = ${elapsedFormatted}`;
+  const formulaText = !isMarketOpen 
+    ? `${givenTimeShort} • Closed at 03:40 PM IST`
+    : `${liveTimeFormatted} - ${givenTimeFormatted} = ${elapsedFormatted}`;
 
   const maxMin = Math.max(5, validUntilMinutes);
   const remainingMinutes = Math.max(0, maxMin - elapsedMinutes);
   const progressPct = Math.min(100, Math.round((elapsedMinutes / maxMin) * 100));
-  const isExpired = elapsedMinutes >= maxMin;
+  const isExpired = isMarketOpen && elapsedMinutes >= maxMin;
 
   // Determine actionability status
   let actionability: SignalTimingData['actionability'];
 
-  if (elapsedMinutes < 3) {
+  if (!isMarketOpen || options?.isCarriedForward) {
+    actionability = {
+      status: 'ACTIVE',
+      badge: '🌙 CARRY FORWARD (BTST/STBT)',
+      tagClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      advice: 'Overnight Carry-Forward position. Reopens next working day at 09:00 AM IST.',
+      canTrade: true
+    };
+  } else if (elapsedMinutes < 3) {
     actionability = {
       status: 'PRIME',
       badge: '🟢 PRIME ENTRY (<3m)',
@@ -209,7 +237,7 @@ export function getUserTradeAdvice(params: {
       badgeLabel: '🛑 CONTRACT EXPIRED — (₹0.00)',
       badgeClass: 'bg-rose-950/80 text-rose-300 border border-rose-600/50 shadow-[0_0_12px_rgba(244,63,94,0.3)]',
       buttonLabel: 'Expired (Shift to Next Expiry)',
-      explanation: '🛑 SYSTEM DIRECTIVE: Contract expired at 03:30 PM (settled at ₹0.00). Do NOT hold. Roll over to next weekly expiry.',
+      explanation: '🛑 SYSTEM DIRECTIVE: Contract expired at 03:40 PM (settled at ₹0.00). Do NOT hold. Roll over to next weekly expiry.',
       pnlPoints: -cleanEntry,
       pnlPct: -100,
       isTargetAchieved: false,

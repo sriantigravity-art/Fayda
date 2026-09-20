@@ -209,7 +209,8 @@ export const isMarketOpenForSymbol = (symbol: string): boolean => {
     return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
   }
 
-  return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  // NSE and BSE reopen at 09:00 AM (pre-open/open) and close at 03:40 PM IST
+  return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
 };
 
 export const isNseMarketOpen = (): boolean => isMarketOpenForSymbol('NIFTY');

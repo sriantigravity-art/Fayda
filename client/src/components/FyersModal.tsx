@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
+import { getApiBase } from '../utils/apiBase';
 import { 
   KeyRound, 
   X, 
@@ -106,7 +107,11 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
         onClose();
       }, 1400);
     } else {
-      setStatusMsg({ success: false, text: res.message || 'Failed to exchange Auth Code. Please verify your Secret Key.' });
+      let msg = res.message || 'Failed to exchange Auth Code. Please verify your Secret Key.';
+      if (msg.includes('Application not found') || msg.includes('offline on Railway')) {
+        msg = `Railway backend is offline (404: Application not found). Frontend cannot reach ${getApiBase()}. Please check your Railway deployment.`;
+      }
+      setStatusMsg({ success: false, text: msg });
     }
   };
 

@@ -53,7 +53,7 @@ export const HeroZeroFlashModal: React.FC = () => {
   const isTestOrDemo = latestHeroZeroFlash.id.startsWith('hero-zero-demo-') || latestHeroZeroFlash.id.startsWith('test-');
   const { hours, minutes, dayOfWeek } = getISTComponents();
   const currentMin = hours * 60 + minutes;
-  const isMarketOpen = dayOfWeek !== 0 && dayOfWeek !== 6 && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+  const isMarketOpen = dayOfWeek !== 0 && dayOfWeek !== 6 && currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   if (!isMarketOpen && !isTestOrDemo) return null;
 
   const isCall = latestHeroZeroFlash.optionType === 'CE';

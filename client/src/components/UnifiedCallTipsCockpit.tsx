@@ -1615,7 +1615,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
               </div>
               <div className="text-[11px] text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
                 <Clock className="w-3 h-3 text-accent-cyan" />
-                <span>{pkg?.sessionWindowTime || '09:15 - 15:30 IST'}</span>
+                <span>{pkg?.sessionWindowTime || '09:15 - 15:40 IST'}</span>
                 <span className="text-terminal-border">•</span>
                 <span className="text-accent-cyan font-bold">
                   {isBeginner 

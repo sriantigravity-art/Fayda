@@ -68,6 +68,9 @@ interface RecommendationTableItem {
   carryForwardTimeFormatted?: string;
   carryForwardSuggestion?: string;
   isCarriedForward?: boolean;
+  isBtstResearched?: boolean;
+  btstRationale?: string;
+  squareOffReason?: string;
   entryRange: string;
   entryPrice: number;
   currentLtp: number;
@@ -447,12 +450,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Purge stopped-out trade from active recommendations deck
       }
 
+      const isCallOption = rawItem.optionType === 'CE' || rawItem.action === 'BUY_CALL' || rawItem.contractSymbol?.includes('CE');
+      const isPutOption = rawItem.optionType === 'PE' || rawItem.action === 'BUY_PUT' || rawItem.contractSymbol?.includes('PE');
       const finalStatus = isContractExpired 
         ? 'EXPIRED' 
         : isTarget2Hit 
         ? 'TARGET2_HIT' 
         : isTarget1Hit 
         ? 'TARGET1_HIT' 
+        : !isMarketOpen
+        ? 'CARRIED_FORWARD'
         : (rawItem.status || 'ACTIVE');
 
       // 1. P&L in points
@@ -499,6 +506,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       let suggestion = rawItem.carryForwardSuggestion || rawItem.rawTip?.carryForwardSuggestion;
       if (isContractExpired) {
         suggestion = '🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Status: Settled at ₹0.00 | Action: Square off record. Do NOT hold. Open fresh position in Next Expiry if continuing.';
+      } else if (!isMarketOpen) {
+        if (isSeller) {
+          suggestion = '🛡️ SYSTEM SELLER DIRECTIVE: CARRY FORWARD (OVERNIGHT THETA) | Action: Overnight defined risk hold | Rule: Theta decay accrues overnight in your favour (>75% POP); review pre-market gap at 09:00 AM.';
+        } else if (isCallOption) {
+          suggestion = `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (BTST) | Action: Hold overnight into next session open (09:15 AM IST) | Rule: Target morning gap-up / momentum continuation; maintain trailing SL at cost ₹${(rawItem.entryPrice || entry).toFixed(1)}.`;
+        } else {
+          suggestion = `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (STBT) | Action: Hold overnight into next session open (09:15 AM IST) | Rule: Target morning gap-down / momentum continuation; maintain trailing SL at cost ₹${(rawItem.entryPrice || entry).toFixed(1)}.`;
+        }
       } else if (!suggestion) {
         if (isSeller) {
           suggestion = '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour | Rule: Maintain defined hedge; close before 03:25 PM if spot approaches sold strike.';
@@ -594,7 +609,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const stoplossTimeFormatted = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
       const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
-      const actionBadge = isContractExpired ? 'EXPIRED (₹0.00)' : (rawItem.actionBadge || rawItem.action || 'SIGNAL');
+      const actionBadge = isContractExpired 
+        ? 'EXPIRED (₹0.00)' 
+        : (!isMarketOpen && (finalStatus === 'CARRIED_FORWARD' || rawItem.status === 'INTRADAY_CLOSED' || rawItem.action === 'INTRADAY_CLOSED' || !rawItem.actionBadge))
+        ? (isSeller ? 'CARRY FORWARD (CREDIT)' : isCallOption ? 'CARRY FORWARD (BTST)' : isPutOption ? 'CARRY FORWARD (STBT)' : 'CARRY FORWARD')
+        : (rawItem.actionBadge || rawItem.action || 'SIGNAL');
 
       // Calibrate realistic, distinct Perfect Entry range (Zone) so it is never identical to single live price
       const displayEntryRange = (() => {
@@ -624,6 +643,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         pnlPct: pct,
         pnlRupees: rupees,
         isProfitable,
+        isCarriedForward: !isMarketOpen ? true : (rawItem.isCarriedForward ?? (finalStatus === 'CARRIED_FORWARD')),
         carryForwardSuggestion: suggestion,
         carryForwardTimeFormatted,
         callGivenTimeFormatted: mRecord.callGivenTimeFormatted,
@@ -1717,7 +1737,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
   const handleCopySetup = (item: RecommendationTableItem, e: React.MouseEvent) => {
     e.stopPropagation();
     const text = [
-      `🚦 [FAYDA SIGNALS] LIVE SIGNAL`,
+      isMarketOpen ? `🚦 [FAYDA SIGNALS] LIVE SIGNAL` : `🌙 [FAYDA SIGNALS] CARRY FORWARD (BTST / STBT) SETUP`,
       `⚡ SYMBOL: ${item.contractSymbol}`,
       `🏷️ ACTION: ${item.actionBadge} (${item.role === 'SELLER' ? 'Option Seller • Net Credit' : 'Option Buyer • Net Debit'})`,
       `💰 PERFECT ENTRY: ${item.entryRange} (LTP: ₹${item.currentLtp.toFixed(2)})`,
@@ -2288,9 +2308,14 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                     <span>{item.status === 'SL_HIT' ? 'Loss Booked:' : 'Profit Booked:'} {item.bookedTimeFormatted}</span>
                   </span>
                 )}
-                {(item.isCarriedForward || item.carryForwardTimeFormatted) && (
+                {item.status === 'CARRIED_FORWARD' && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-1">
-                    <span>BTST Window: {item.carryForwardTimeFormatted || item.entryTimeFormatted}</span>
+                    <span>🌙 Researched BTST: {item.carryForwardTimeFormatted || item.entryTimeFormatted}</span>
+                  </span>
+                )}
+                {(item.status === 'INTRADAY_CLOSED' || item.rawTip?.actionabilityStatus === 'SQUARE_OFF') && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                    <span>⚠️ Squared Off at Close</span>
                   </span>
                 )}
               </div>
@@ -2300,10 +2325,16 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
               {item.strategyTag}
             </p>
 
-            {/* BTST/Overnight Guidance Strip - Shown only near market close (>= 02:45 PM IST) */}
-            {item.carryForwardSuggestion && (isNearClose || item.isCarriedForward) && (
+            {/* Square Off / BTST Guidance Strip */}
+            {(item.status === 'INTRADAY_CLOSED' || item.rawTip?.actionabilityStatus === 'SQUARE_OFF') && (
+              <div className="mt-1.5 p-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 flex items-center gap-2 text-[11px] font-mono text-amber-900 dark:text-amber-200">
+                <span className="font-bold text-amber-700 dark:text-amber-400 shrink-0">⚠️ SQUARE OFF DIRECTIVE:</span>
+                <span className="text-slate-600 dark:text-slate-300 truncate">{item.squareOffReason || item.carryForwardSuggestion || 'Target/SL unreached at market close. Position squared off at CMP and archived to Journal.'}</span>
+              </div>
+            )}
+            {item.carryForwardSuggestion && (isNearClose || item.isCarriedForward) && item.status !== 'INTRADAY_CLOSED' && (
               <div className="mt-1.5 p-2 rounded-lg bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-2 text-[11px] font-mono text-purple-900 dark:text-purple-200">
-                <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">🌙 BTST/Overnight Guidance ({item.carryForwardTimeFormatted || '03:20 PM'}) — SEBI:</span>
+                <span className="font-bold text-purple-700 dark:text-purple-400 shrink-0">🌙 {item.isBtstResearched ? 'Researched BTST Directive' : 'BTST/Overnight Guidance'} ({item.carryForwardTimeFormatted || '03:20 PM'}) — SEBI:</span>
                 <span className="text-slate-600 dark:text-slate-300 truncate">{item.carryForwardSuggestion}</span>
               </div>
             )}
@@ -2324,7 +2355,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
 
             {/* Live LTP & P&L */}
             <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
-              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Live LTP</span>
+              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">{isMarketOpen ? 'Live LTP' : 'Closing LTP'}</span>
               <div className="flex items-baseline justify-between">
                 <span className={`text-xs font-mono font-black ${
                   isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
@@ -2751,7 +2782,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             <span className="text-[11px] font-mono font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
               <span>⚠️</span>
               <span>{isOffMarket 
-                ? '0DTE CONTRACTS EXPIRED AT 03:30 PM — Today\'s contracts settled at ₹0.00 / intrinsic cash value.'
+                ? '0DTE CONTRACTS EXPIRED AT 03:40 PM — Today\'s contracts settled at ₹0.00 / intrinsic cash value.'
                 : '0DTE TODAY (SEBI Rules) — Options cannot be carried overnight. Square off by 03:25 PM IST. Open fresh next-expiry contract for BTST.'}</span>
             </span>
             {nextExpiryDate && setOptionExpiry && (
@@ -3100,7 +3131,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono font-black uppercase text-amber-600 dark:text-accent-gold tracking-wider">
-                        ⚡ 7-Second Live Flash Spotlight
+                        {isMarketOpen ? '⚡ 7-Second Live Flash Spotlight' : '🌙 7-Second Carry Forward & BTST Spotlight'}
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
                         Tip {safeFlashIndex + 1} of {filteredItems.length}
@@ -4016,7 +4047,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                 <th className="py-2.5 px-3 w-[140px]">
                   <div className="flex flex-col">
                     <span>Entry Zone</span>
-                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">Live LTP</span>
+                    <span className="text-[9px] font-normal text-slate-500 dark:text-slate-500 lowercase">{isMarketOpen ? 'Live LTP' : 'Closing LTP'}</span>
                   </div>
                 </th>
                 <th className="py-2.5 px-3 w-[130px]">
@@ -4175,7 +4206,12 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                       {/* 2. ACTION & ROLE */}
                       <td className="py-3 px-3">
                         <div className="flex flex-col items-start gap-1">
-                          {isSpread ? (
+                          {item.actionBadge.includes('CARRY FORWARD') ? (
+                            <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 shadow-[0_0_8px_rgba(168,85,247,0.25)] flex items-center gap-1">
+                              <span>🌙</span>
+                              <span>{item.actionBadge}</span>
+                            </span>
+                          ) : isSpread ? (
                             <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700/80 shadow-sm flex items-center gap-1">
                               <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                               <span>{item.actionBadge}</span>
@@ -4225,11 +4261,15 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
                               : `⏳ Trigger @ ₹${item.entryPrice.toFixed(2)}`}
                           </span>
                           <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono">
-                            <span className="text-slate-500 dark:text-slate-400">LTP:</span>
+                            <span className="text-slate-500 dark:text-slate-400">{isMarketOpen ? 'LTP:' : 'Closing LTP:'}</span>
                             <span className="font-black text-slate-900 dark:text-white">
                               ₹{item.currentLtp.toFixed(1)}
                             </span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {isMarketOpen ? (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" title="Market Closed — Last Close LTP" />
+                            )}
                           </div>
                         </div>
                       </td>

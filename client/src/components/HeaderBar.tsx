@@ -38,7 +38,8 @@ import {
   FileText,
   Menu,
   ChevronDown,
-  BarChart2
+  BarChart2,
+  Layers
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { UnifiedBrokerModal } from './UnifiedBrokerModal';
@@ -54,8 +55,14 @@ import { UserProfileEditModal } from './profile/UserProfileEditModal';
 import { TopSubscribeDropdown } from './subscription/TopSubscribeDropdown';
 import { UserProfileDropdown } from './auth/UserProfileDropdown';
 import { FastSubscriptionModal } from './subscription/FastSubscriptionModal';
-import { ToolsDropdown } from './header/ToolsDropdown';
 import { WorkspaceSettingsDropdown } from './header/WorkspaceSettingsDropdown';
+import { ExploreMegaMenu } from './header/ExploreMegaMenu';
+import { TradePayoffSimulatorModal } from './TradePayoffSimulatorModal';
+import { SoundSettingsModal } from './SoundSettingsModal';
+import { McxOfflineModal } from './McxOfflineModal';
+import { MarketHolidaysModal } from './MarketHolidaysModal';
+import { useTradingPersona } from '../context/TradingPersonaContext';
+import { useWatchlist } from '../context/WatchlistContext';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -80,14 +87,19 @@ export const HeaderBar: React.FC = () => {
     isConnected,
     isMuted,
     toggleMute,
-    testSound
+    testSound,
+    openChartModal,
+    openOptionsDataModal
   } = useMarket();
 
   const { theme, toggleTheme } = useTheme();
   const { mode, setMode } = useTerminalMode();
   const { density, setDensity } = useDensity();
-  const { user, isAuthenticated, isSuperAdmin, logout, panelVisibility } = useAuth();
+  const { user, isAuthenticated, isSuperAdmin, logout, panelVisibility, togglePanelVisibility } = useAuth();
+  const { metadata: personaMetadata, setIsPersonaModalOpen } = useTradingPersona();
+  const { activeWatchlist, setIsWatchlistDrawerOpen } = useWatchlist();
 
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isFyersModalOpen, setIsFyersModalOpen] = useState(false);
   const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
@@ -100,7 +112,39 @@ export const HeaderBar: React.FC = () => {
   const [profileEditTab, setProfileEditTab] = useState<'PROFILE' | 'PASSWORD' | 'MEMBERSHIP'>('PROFILE');
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [subscribeDefaultPlan, setSubscribeDefaultPlan] = useState<'FREE' | 'SILVER' | 'GOLD' | 'DIAMOND'>('GOLD');
+  const [isPayoffModalOpen, setIsPayoffModalOpen] = useState(false);
+  const [isSoundModalOpen, setIsSoundModalOpen] = useState(false);
+  const [isMcxModalOpen, setIsMcxModalOpen] = useState(false);
+  const [mcxModalSymbol, setMcxModalSymbol] = useState('CRUDEOIL');
+  const [isHolidaysModalOpen, setIsHolidaysModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
+
+  const handleNavigateToPanel = (panelId: string, panelVisibilityKey?: string, mobileTab?: string) => {
+    if (panelVisibilityKey && (panelVisibility as any)[panelVisibilityKey] === false) {
+      togglePanelVisibility(panelVisibilityKey as any);
+    }
+
+    if (mobileTab) {
+      window.dispatchEvent(new CustomEvent('fayda-switch-mobile-tab', { detail: { tab: mobileTab } }));
+    }
+
+    if (panelId === 'panel-trade-registry') {
+      window.dispatchEvent(new CustomEvent('fayda-show-trade-registry'));
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById(panelId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.remove('facility-target-highlight');
+        void el.offsetWidth;
+        el.classList.add('facility-target-highlight');
+        setTimeout(() => {
+          el.classList.remove('facility-target-highlight');
+        }, 2600);
+      }
+    }, 120);
+  };
 
   // Global Keyboard Shortcuts: Ctrl+K / Cmd+K (Palette), F11 (Fullscreen), and F (Fullscreen)
   useEffect(() => {
@@ -191,7 +235,8 @@ export const HeaderBar: React.FC = () => {
       return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
     }
 
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    // NSE & BSE open at 09:00 AM (pre-open/open) and close at 03:40 PM IST
+    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   };
 
   const isLiveMarketOpen = isMarketHours();
@@ -227,12 +272,12 @@ export const HeaderBar: React.FC = () => {
   return (
     <header className="sticky top-0 z-[120] bg-terminal-card/95 backdrop-blur-md border-b border-terminal-border px-2 sm:px-4 py-1 sm:py-1.5 select-none shadow-subtle flex flex-col space-y-1 w-full max-w-full">
       {/* ========================================================================= */}
-      {/* TIER 1: PRIMARY ACTION & CONTROL BAR */}
+      {/* ROW 1: PRIMARY TOP HEADER BAR */}
       {/* ========================================================================= */}
-      <div className="flex items-center justify-between gap-1 sm:gap-2 max-w-[1840px] w-full mx-auto min-w-0">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3 max-w-[1840px] w-full mx-auto min-w-0 py-0.5">
 
-        {/* LEFT SECTION: BRAND + ASSET SELECTOR + SPOT METRICS */}
-        <div className="flex items-center space-x-1 sm:space-x-2 shrink min-w-0">
+        {/* LEFT SECTION: BRAND + ASSET SELECTOR + CONTEXT METRICS + CLOSED/LIVE NSE + CONNECT BROKER */}
+        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0 min-w-0">
           {/* Logo & Brand Name */}
           <div className="flex items-center space-x-1.5 shrink-0">
             <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-sky/15 flex items-center justify-center border border-accent-sky/30 shadow-subtle shrink-0">
@@ -249,254 +294,11 @@ export const HeaderBar: React.FC = () => {
           {/* Quick Stock / Index Selector Dropdown */}
           <StockSelectorDropdown />
 
-          {/* Live / Closed Market & Data Feed Indicator — shows active broker + correct exchange */}
-          {(() => {
-            const symCfg = ALL_SYMBOLS_CONFIG.find(s => s.symbol === selectedIndex);
-            const exchange = symCfg?.exchange === 'BSE' ? 'BSE' : symCfg?.exchange === 'MCX' || symCfg?.category === 'COMMODITIES' ? 'MCX' : 'NSE';
-            const resolvedBroker = effectiveBroker && effectiveBroker !== 'SIMULATOR' ? effectiveBroker : activeBroker;
-            const brokerLabel = resolvedBroker === 'FYERS' ? 'FYERS' : resolvedBroker === 'DHAN' ? 'DHAN' : 'PAPER';
-            const feedLabel = resolvedBroker === 'FYERS' ? 'Fyers API v3' : resolvedBroker === 'DHAN' ? 'DhanHQ Live' : `${exchange} Official Feed (Simulator)`;
-            const brokerColor = resolvedBroker === 'FYERS'
-              ? 'text-sky-400 bg-sky-500/15 border-sky-500/40'
-              : resolvedBroker === 'DHAN'
-              ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40'
-              : 'text-slate-400 bg-slate-500/15 border-slate-500/30';
-            return (
-              <div
-                className="flex items-center space-x-1 sm:space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel border border-terminal-border text-[9px] sm:text-[10px] font-mono shrink-0 cursor-pointer"
-                title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Active Broker: ${brokerLabel} | Data Feed: ${feedLabel} | Exchange: ${exchange}`}
-                onClick={() => setIsFyersModalOpen(true)}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
-                <span className="text-terminal-muted font-bold">
-                  {isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}
-                </span>
-                {/* Broker badge — updates when user switches broker */}
-                <span className={`hidden md:inline text-[9px] px-1 py-0.2 rounded border font-black ${brokerColor}`}>
-                  {brokerLabel}
-                </span>
-                {/* Exchange badge — updates when user switches index */}
-                <span className="hidden lg:inline text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted border border-terminal-border">
-                  {exchange}
-                </span>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* CENTER SECTION: PROMINENT TOP-MIDDLE SUBSCRIBER MANAGEMENT & DROPDOWN */}
-        <div className="flex items-center justify-center shrink-0 z-30">
-          <TopSubscribeDropdown />
-        </div>
-
-        {/* RIGHT SECTION: STREAMLINED & GROUPED ACTIONS & TOOLS */}
-        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-
-          {/* 1. Unified Broker Connect Button */}
-          <button
-            type="button"
-            onClick={() => setIsFyersModalOpen(true)}
-            className={`flex items-center space-x-1 px-1.5 sm:px-2 py-1 rounded-xl border text-[11px] sm:text-xs font-sans font-bold transition cursor-pointer shrink-0 shadow-sm ${
-              effectiveBroker === 'DHAN'
-                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
-                : effectiveBroker === 'FYERS'
-                ? 'bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400'
-                : dhanConfig.isConnected
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
-              }`}
-            title={
-              effectiveBroker === 'DHAN'
-                ? 'DhanHQ API Connected (25 req/s Live)'
-                : effectiveBroker === 'FYERS'
-                ? 'Fyers API v3 Connected'
-                : dhanConfig.isConnected
-                ? 'DhanHQ Connected (Trading Execution Ready • Live Data via NSE Feed)'
-                : 'Connect Broker (Dhan / Fyers / Angel / Zerodha)'
-            }
-          >
-            <KeyRound className={`w-3.5 h-3.5 shrink-0 ${
-              effectiveBroker === 'DHAN'
-                ? 'text-emerald-500 animate-pulse'
-                : effectiveBroker === 'FYERS'
-                ? 'text-sky-500 animate-pulse'
-                : dhanConfig.isConnected
-                ? 'text-emerald-500'
-                : 'text-accent-sky'
-            }`} />
-            <span className="hidden sm:inline">
-              {effectiveBroker === 'DHAN'
-                ? 'Dhan Live'
-                : effectiveBroker === 'FYERS'
-                ? 'Fyers Live'
-                : dhanConfig.isConnected
-                ? (dhanConfig.hasDataApi === false ? 'Dhan (Trade)' : 'Dhan Live')
-                : 'Connect'}
-            </span>
-          </button>
-
-          {/* 2. Grouped Trading Tools Dropdown (Visible on md+; on mobile in bottom Settings sheet) */}
-          <div className="hidden md:inline-block">
-            <ToolsDropdown
-              onOpenJournal={() => setIsJournalModalOpen(true)}
-              onOpenRiskCalc={() => setIsRiskModalOpen(true)}
-              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-              onOpenLegal={() => {
-                setActiveLegalDoc('RISK_DISCLOSURE');
-                setIsLegalModalOpen(true);
-              }}
-            />
-          </div>
-
-          {/* 3. Grouped Mode & Workspace Settings Dropdown (Visible on md+; on mobile in bottom Settings sheet) */}
-          <div className="hidden md:inline-block">
-            <WorkspaceSettingsDropdown
-              mode={mode}
-              setMode={setMode}
-              density={density}
-              setDensity={setDensity}
-              isMuted={isMuted}
-              toggleMute={toggleMute}
-              isSuperAdmin={isSuperAdmin}
-              onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
-            />
-          </div>
-
-          {/* 4. Light / Dark Theme Toggle (Visible on md+) */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="hidden md:inline-flex p-1.5 rounded-xl bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 shadow-sm"
-            title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-          >
-            {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
-          </button>
-
-          {/* 5. Fullscreen Toggle (Visible on lg+) */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className={`hidden lg:inline-flex p-1.5 rounded-xl border transition cursor-pointer shrink-0 shadow-sm ${
-              isFullscreen
-                ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
-                : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
-            }`}
-            title={isFullscreen ? 'Exit Fullscreen (F11 / Esc / F)' : 'Enter Fullscreen (F11 / F)'}
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* 6. Dedicated User Account Section & Profile / Password / Logout Dropdown */}
-          <UserProfileDropdown
-            onOpenAuthModal={() => setIsAuthModalOpen(true)}
-            onOpenSubscribeModal={(plan) => {
-              if (plan) setSubscribeDefaultPlan(plan);
-              setIsSubscribeModalOpen(true);
-            }}
-            onOpenProfileEdit={(tab) => {
-              setProfileEditTab(tab || 'PROFILE');
-              setIsProfileEditOpen(true);
-            }}
-            onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
-          />
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* TIER 2: MULTI-INDEX STRIP + EXPIRY PICKER & LIVE CONTEXT METRICS */}
-      {/* ========================================================================= */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-terminal-border/60 max-w-[1840px] w-full mx-auto text-xs">
-
-        {/* Mobile View: Expiry Date Dropdown positioned on the Left */}
-        {currentIndexState && expiryDates.length > 0 && (
-          <div className="flex md:hidden items-center space-x-1 font-mono shrink-0">
-            <Calendar className="w-3 h-3 text-accent-cyan" />
-            <select
-              value={selectedExpiry}
-              onChange={(e) => setOptionExpiry(e.target.value)}
-              className="bg-terminal-panel border border-terminal-border rounded-lg px-1.5 py-0.5 text-[10px] font-mono font-bold text-accent-cyan focus:outline-none focus:border-accent-sky cursor-pointer transition shadow-sm max-w-[115px]"
-              title="Select Contract Expiry"
-            >
-              {expiryDates.map((exp: string, idx: number) => (
-                <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
-                  {exp} {idx === 0 ? '(Near)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Multi-Index Mini Ticker Strip */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
-          {visibleIndices.map((sym: string) => {
-            const isSelected = selectedIndex === sym;
-            const rawState = sym === selectedIndex ? currentIndexState : indices[sym];
-            const sanitized = sanitizeSpotData(sym, rawState);
-
-            const receivedAt = sym === selectedIndex
-              ? (indicesReceivedAt[selectedIndex] ?? 0)
-              : (indicesReceivedAt[sym] ?? 0);
-            const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 300000;
-
-            const isGhost = typeof sanitized.change === 'number' && Math.abs(sanitized.change - 84.80) < 0.05;
-            const pts = (isFresh && !isGhost) ? sanitized.change : null;
-            const pct = (isFresh && !isGhost) ? sanitized.pctChange : null;
-            const isPos = (pts ?? 0) >= 0;
-
-            return (
-              <div
-                key={sym}
-                onClick={() => {
-                  if (sym !== selectedIndex) {
-                    setSelectedIndex(sym as any);
-                  }
-                }}
-                className={`group flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${isSelected
-                    ? 'bg-accent-sky/15 border-accent-sky/50 shadow-subtle'
-                    : 'bg-terminal-panel/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
-                  }`}
-              >
-                <div className="flex items-center space-x-1 font-mono font-bold text-[10px] sm:text-[11px]">
-                  <span className="text-terminal-text">{sym}</span>
-                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-accent-sky" />}
-                </div>
-                <div className="flex items-baseline space-x-1 font-mono text-[10px] sm:text-[11px]">
-                  <span className="text-terminal-text font-bold tabular-nums">
-                    ₹{sanitized.spotPrice > 0 ? sanitized.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </span>
-                  {pct !== null ? (
-                    <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
-                      {isPos ? '+' : ''}{pct.toFixed(2)}%
-                    </span>
-                  ) : (
-                    <span className="text-[9px] sm:text-[10px] text-terminal-muted tabular-nums animate-pulse">…</span>
-                  )}
-                </div>
-
-                {/* Close / Unpin Asset Button */}
-                {visibleIndices.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleIndexVisibility(sym as any);
-                    }}
-                    className="p-0.5 -mr-0.5 rounded-full text-terminal-muted hover:text-rose-400 hover:bg-rose-500/15 transition-all opacity-70 hover:opacity-100 cursor-pointer"
-                    title={`Close ${sym} from bar`}
-                    aria-label={`Close ${sym}`}
-                  >
-                    <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Desktop View: Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry) + Live Clock */}
-        <div className="hidden md:flex items-center space-x-2 sm:space-x-3 text-xs font-sans ml-auto shrink-0">
+          {/* Expiry Selector + Live Context Metrics (ATM, PCR, Days to Expiry) beside top header asset name */}
           {currentIndexState && (
-            <>
+            <div className="hidden md:flex items-center space-x-1.5 sm:space-x-2 font-mono text-xs shrink-0">
+              <div className="h-4 w-[1px] bg-terminal-border shrink-0" />
+
               {/* Expiry Selector Dropdown */}
               {expiryDates.length > 0 && (
                 <div className="flex items-center space-x-1 font-mono">
@@ -504,7 +306,8 @@ export const HeaderBar: React.FC = () => {
                   <select
                     value={selectedExpiry}
                     onChange={(e) => setOptionExpiry(e.target.value)}
-                    className="bg-terminal-panel border border-terminal-border rounded-lg px-2 py-0.5 text-xs font-mono font-semibold text-terminal-text focus:outline-none focus:border-accent-sky cursor-pointer transition"
+                    className="bg-terminal-panel border border-terminal-border rounded-lg px-2 py-0.5 text-xs font-mono font-semibold text-terminal-text focus:outline-none focus:border-accent-sky cursor-pointer transition shadow-xs"
+                    title="Select Contract Expiry"
                   >
                     {expiryDates.map((exp: string, idx: number) => (
                       <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
@@ -526,31 +329,377 @@ export const HeaderBar: React.FC = () => {
 
               <div className="hidden sm:flex items-center space-x-1">
                 <span className="text-terminal-muted font-medium text-[11px]">PCR:</span>
-                <span className={`font-mono font-bold ${isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'
-                  }`}>
+                <span className={`font-mono font-bold ${isBullishSentiment ? 'text-bull' : isBearishSentiment ? 'text-bear' : 'text-amber'}`}>
                   {activePcr.toFixed(2)}
                 </span>
               </div>
 
-              <div className="h-3 w-[1px] bg-terminal-border hidden lg:block" />
+              <div className="h-3 w-[1px] bg-terminal-border hidden xl:block" />
 
-              <div className="hidden lg:flex items-center space-x-1">
+              <div className="hidden xl:flex items-center space-x-1">
                 <span className="text-terminal-muted font-medium text-[11px]">Expiry:</span>
                 <span className="font-mono font-bold text-terminal-text">{daysToExpiry}d</span>
               </div>
 
-              <div className="h-3 w-[1px] bg-terminal-border hidden sm:block" />
-            </>
+              <div className="h-3 w-[1px] bg-terminal-border shrink-0" />
+            </div>
           )}
 
-          {/* Live IST Clock — Always visible */}
+          {/* Live / Closed Market & Data Feed Indicator — shows active broker + correct exchange */}
+          {(() => {
+            const symCfg = ALL_SYMBOLS_CONFIG.find(s => s.symbol === selectedIndex);
+            const exchange = symCfg?.exchange === 'BSE' ? 'BSE' : symCfg?.exchange === 'MCX' || symCfg?.category === 'COMMODITIES' ? 'MCX' : 'NSE';
+            const resolvedBroker = effectiveBroker && effectiveBroker !== 'SIMULATOR' ? effectiveBroker : activeBroker;
+            const brokerLabel = resolvedBroker === 'FYERS' ? 'FYERS' : resolvedBroker === 'DHAN' ? 'DHAN' : 'PAPER';
+            const feedLabel = resolvedBroker === 'FYERS' ? 'Fyers API v3' : resolvedBroker === 'DHAN' ? 'DhanHQ Live' : `${exchange} Official Feed (Simulator)`;
+            const brokerColor = resolvedBroker === 'FYERS'
+              ? 'text-sky-400 bg-sky-500/15 border-sky-500/40'
+              : resolvedBroker === 'DHAN'
+              ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40'
+              : 'text-slate-400 bg-slate-500/15 border-slate-500/30';
+            return (
+              <div
+                className="flex items-center space-x-1 sm:space-x-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-terminal-panel hover:bg-terminal-hover border border-terminal-border hover:border-accent-sky/50 text-[9px] sm:text-[10px] font-mono shrink-0 cursor-pointer transition shadow-xs"
+                title={`Market is ${isConnected ? (isLiveMarketOpen ? 'LIVE (Open)' : 'CLOSED') : 'OFFLINE'} | Active Broker: ${brokerLabel} | Data Feed: ${feedLabel} | Exchange: ${exchange} • Click to view Official F&O Expiry & Market Holiday Calendar`}
+                onClick={() => setIsHolidaysModalOpen(true)}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConnected && isLiveMarketOpen ? 'bg-bull animate-pulse' : isConnected ? 'bg-amber animate-pulse' : 'bg-bear'}`} />
+                <span className="text-terminal-muted font-bold">
+                  {isConnected ? (isLiveMarketOpen ? 'LIVE' : 'CLOSED') : 'OFFLINE'}
+                </span>
+                {/* Broker badge — updates when user switches broker */}
+                <span className={`hidden md:inline text-[9px] px-1 py-0.2 rounded border font-black ${brokerColor}`}>
+                  {brokerLabel}
+                </span>
+                {/* Exchange badge — updates when user switches index */}
+                <span className="hidden lg:inline text-[9px] px-1 py-0.2 rounded bg-terminal-elevated text-terminal-muted border border-terminal-border">
+                  {exchange}
+                </span>
+              </div>
+            );
+          })()}
+
+          {/* Connect Broker Button placed right beside CLOSED NSE */}
+          <button
+            type="button"
+            onClick={() => setIsFyersModalOpen(true)}
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 sm:py-1 rounded-lg border text-[10px] sm:text-[11px] font-mono font-bold transition cursor-pointer shrink-0 shadow-xs ${
+              isFyersActive
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25'
+                : dhanConfig?.isConnected
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-muted hover:text-terminal-text'
+            }`}
+            title="Connect / Switch Broker (Fyers API v3 / DhanHQ Live / Paper Simulator)"
+          >
+            <Zap className="w-3 h-3 text-accent-cyan shrink-0" />
+            <span className="hidden sm:inline">
+              {isFyersActive ? 'Fyers Live' : dhanConfig?.isConnected ? 'Dhan Live' : 'Connect Broker'}
+            </span>
+            <span className="sm:hidden">
+              {isFyersActive ? 'Fyers' : dhanConfig?.isConnected ? 'Dhan' : 'Broker'}
+            </span>
+          </button>
+        </div>
+
+        {/* RIGHT SECTION: THEME, FULLSCREEN & PROFILE (Super Admin Control Centre inside profile) */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+          {/* Light / Dark Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg bg-terminal-panel border border-terminal-border text-terminal-muted hover:text-terminal-text transition cursor-pointer shrink-0 shadow-xs"
+            title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-accent-sky" /> : <Sun className="w-3.5 h-3.5 text-amber" />}
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className={`hidden sm:inline-flex p-1.5 rounded-lg border transition cursor-pointer shrink-0 shadow-xs ${
+              isFullscreen
+                ? 'bg-accent-sky/20 border-accent-sky/50 text-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.25)]'
+                : 'bg-terminal-panel hover:bg-terminal-border border-terminal-border text-terminal-muted hover:text-terminal-text'
+            }`}
+            title={isFullscreen ? 'Exit Fullscreen (F11 / Esc / F)' : 'Enter Fullscreen (F11 / F)'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Dedicated User Account Section & Profile (Super Admin Control Centre inside) */}
+          <UserProfileDropdown
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onOpenSubscribeModal={(plan) => {
+              if (plan) setSubscribeDefaultPlan(plan);
+              setIsSubscribeModalOpen(true);
+            }}
+            onOpenProfileEdit={(tab) => {
+              setProfileEditTab(tab || 'PROFILE');
+              setIsProfileEditOpen(true);
+            }}
+            onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+          />
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ROW 2: EXPLORE, PERSONA, WATCHLIST, TOOLS + BECOME A MEMBER, SEARCH, EXPERT MODE */}
+      {/* ========================================================================= */}
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-terminal-border/60 max-w-[1840px] w-full mx-auto text-xs min-w-0 overflow-x-auto no-scrollbar">
+
+        {/* LEFT: EXPLORE MEGA MENU, PERSONA FOCUS, WATCHLIST, JOURNAL, RISK CALC, PAYOFF */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 py-0.5">
+          {/* Explore Mega Menu Dropdown */}
+          <div className="relative inline-block">
+            <button
+              type="button"
+              onClick={() => setIsExploreOpen((prev) => !prev)}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer shrink-0 border shadow-xs ${
+                isExploreOpen
+                  ? 'bg-accent-sky/20 border-accent-sky text-accent-sky shadow-[0_0_12px_rgba(0,229,255,0.25)]'
+                  : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border text-terminal-text hover:text-accent-sky'
+              }`}
+              title="Explore all 24+ market facilities, trading radars & analytics tools"
+            >
+              <Sparkles className="w-3 h-3 text-accent-sky animate-pulse shrink-0" />
+              <span>Explore</span>
+              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExploreOpen ? 'rotate-180 text-accent-sky' : ''}`} />
+            </button>
+
+            <ExploreMegaMenu
+              isOpen={isExploreOpen}
+              onClose={() => setIsExploreOpen(false)}
+              onOpenJournal={() => setIsJournalModalOpen(true)}
+              onOpenRiskCalc={() => setIsRiskModalOpen(true)}
+              onOpenPayoffSimulator={() => setIsPayoffModalOpen(true)}
+              onOpenFyers={() => setIsFyersModalOpen(true)}
+              onOpenSound={() => setIsSoundModalOpen(true)}
+              onOpenSubscription={(plan) => {
+                if (plan) setSubscribeDefaultPlan(plan);
+                setIsSubscribeModalOpen(true);
+              }}
+              onOpenProfile={(tab) => {
+                setProfileEditTab(tab || 'PROFILE');
+                setIsProfileEditOpen(true);
+              }}
+              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+              onOpenLegal={(doc) => {
+                if (doc) setActiveLegalDoc(doc);
+                setIsLegalModalOpen(true);
+              }}
+              onOpenAdmin={() => setIsAdminDrawerOpen(true)}
+              onOpenChart={(sym) => openChartModal(sym)}
+              onOpenOptionsTable={(sym) => openOptionsDataModal(sym)}
+              onOpenMcx={(sym) => {
+                setMcxModalSymbol(sym || 'CRUDEOIL');
+                setIsMcxModalOpen(true);
+              }}
+              onOpenHolidays={() => setIsHolidaysModalOpen(true)}
+              onNavigateToPanel={handleNavigateToPanel}
+            />
+          </div>
+
+          {/* Persona Focus Quick-Switch Pill */}
+          <button
+            type="button"
+            onClick={() => setIsPersonaModalOpen(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-gradient-to-r from-sky-500/15 via-blue-500/10 to-indigo-500/15 hover:from-sky-500/25 hover:to-indigo-500/25 border border-sky-500/40 text-[11px] font-mono font-bold text-sky-400 hover:text-sky-300 transition shadow-xs cursor-pointer shrink-0"
+            title="Choose Trading Focus: Option Buyer/Seller, Derivatives, Equities, Commodities, All"
+          >
+            <span>{personaMetadata.icon}</span>
+            <span className="font-extrabold">{personaMetadata.shortTitle}</span>
+            <ChevronDown className="w-3 h-3 text-sky-400/70" />
+          </button>
+
+          {/* Multi-Asset Watchlist Manager Button */}
+          <button
+            type="button"
+            onClick={() => setIsWatchlistDrawerOpen(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[11px] font-mono font-bold text-amber-500 hover:text-amber-400 transition cursor-pointer shrink-0 shadow-xs"
+            title="Open Multi-Asset Watchlist (Stocks, Option Strikes, MCX Commodities)"
+          >
+            <Layers className="w-3 h-3 text-amber-500 shrink-0" />
+            <span>Watchlist</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-500/20 text-amber-400 font-extrabold">
+              {activeWatchlist.items.length}
+            </span>
+          </button>
+
+          <div className="h-4 w-[1px] bg-terminal-border/80 hidden sm:block shrink-0 mx-0.5" />
+
+          {/* Trade Journal Quick Link */}
+          <button
+            type="button"
+            onClick={() => setIsJournalModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-medium transition cursor-pointer shrink-0 shadow-xs"
+            title="Post-Market Trade Journal & Strategy Audit"
+          >
+            <FileText className="w-3 h-3 text-purple-400 shrink-0" />
+            <span>Journal</span>
+          </button>
+
+          {/* Risk Calculator Quick Link */}
+          <button
+            type="button"
+            onClick={() => setIsRiskModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-medium transition cursor-pointer shrink-0 shadow-xs"
+            title="Risk & Position Size Calculator"
+          >
+            <Calculator className="w-3 h-3 text-accent-sky shrink-0" />
+            <span className="hidden sm:inline">Risk Calc</span>
+            <span className="sm:hidden">Risk</span>
+          </button>
+
+          {/* Trade Payoff Simulator Quick Link */}
+          <button
+            type="button"
+            onClick={() => setIsPayoffModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-medium transition cursor-pointer shrink-0 shadow-xs"
+            title="Options Trade Payoff & P&L Simulator"
+          >
+            <Sliders className="w-3 h-3 text-emerald-400 shrink-0" />
+            <span>Payoff</span>
+          </button>
+        </div>
+
+        {/* RIGHT: BECOME A MEMBER, SEARCH, EXPERT MODE BUTTON (Moved to 2nd line) */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0 py-0.5 ml-auto">
+          {/* Become a Member Dropdown */}
+          <TopSubscribeDropdown />
+
+          {/* Command Palette Quick Search (Ctrl+K) */}
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-terminal-panel hover:bg-terminal-hover border border-terminal-border text-terminal-muted hover:text-terminal-text text-[11px] font-mono transition cursor-pointer shrink-0 shadow-xs"
+            title="Command Palette & Quick Search (Ctrl + K)"
+          >
+            <Search className="w-3.5 h-3.5 text-accent-sky shrink-0" />
+            <span className="hidden sm:inline text-terminal-text font-bold">Search</span>
+            <kbd className="hidden lg:inline text-[9px] px-1 py-0.2 rounded bg-terminal-card border border-terminal-border text-terminal-muted">⌘K</kbd>
+          </button>
+
+          {/* Mode & Workspace Settings Dropdown (Expert mode) */}
+          <div className="inline-block">
+            <WorkspaceSettingsDropdown
+              mode={mode}
+              setMode={setMode}
+              density={density}
+              setDensity={setDensity}
+              isMuted={isMuted}
+              toggleMute={toggleMute}
+              isSuperAdmin={isSuperAdmin}
+              onOpenAdminDrawer={() => setIsAdminDrawerOpen(true)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ROW 3: ALL SELECTED ASSETS TICKER STRIP + REAL-TIME IST CLOCK */}
+      {/* ========================================================================= */}
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-terminal-border/50 max-w-[1840px] w-full mx-auto text-xs min-w-0">
+        {/* Left Container: Mobile Expiry Picker + Multi-Index Mini Ticker Strip */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar flex-1 min-w-0 py-0.5">
+          {/* Mobile View: Expiry Date Dropdown positioned on the Left */}
+          {currentIndexState && expiryDates.length > 0 && (
+            <div className="flex md:hidden items-center space-x-1 font-mono shrink-0">
+              <Calendar className="w-3 h-3 text-accent-cyan" />
+              <select
+                value={selectedExpiry}
+                onChange={(e) => setOptionExpiry(e.target.value)}
+                className="bg-terminal-panel border border-terminal-border rounded-lg px-1.5 py-0.5 text-[10px] font-mono font-bold text-accent-cyan focus:outline-none focus:border-accent-sky cursor-pointer transition shadow-sm max-w-[115px]"
+                title="Select Contract Expiry"
+              >
+                {expiryDates.map((exp: string, idx: number) => (
+                  <option key={idx} value={exp} className="bg-terminal-card text-terminal-text">
+                    {exp} {idx === 0 ? '(Near)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Multi-Index Mini Ticker Strip: Pinned Assets (GOLD, CRUDEOIL, NIFTY 50, BANK NIFTY, etc.) */}
+          <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
+            {visibleIndices.map((sym: string) => {
+              const isSelected = selectedIndex === sym;
+              const rawState = sym === selectedIndex ? currentIndexState : indices[sym];
+              const sanitized = sanitizeSpotData(sym, rawState);
+
+              const receivedAt = sym === selectedIndex
+                ? (indicesReceivedAt[selectedIndex] ?? 0)
+                : (indicesReceivedAt[sym] ?? 0);
+              const isFresh = receivedAt > 0 && (Date.now() - receivedAt) <= 300000;
+
+              const isGhost = typeof sanitized.change === 'number' && Math.abs(sanitized.change - 84.80) < 0.05;
+              const pts = (isFresh && !isGhost) ? sanitized.change : null;
+              const pct = (isFresh && !isGhost) ? sanitized.pctChange : null;
+              const isPos = (pts ?? 0) >= 0;
+
+              return (
+                <div
+                  key={sym}
+                  onClick={() => {
+                    if (sym !== selectedIndex) {
+                      setSelectedIndex(sym as any);
+                    }
+                  }}
+                  className={`group flex-shrink-0 px-2 py-0.5 rounded-lg border transition cursor-pointer select-none font-sans flex items-center space-x-1.5 sm:space-x-2 ${
+                    isSelected
+                      ? 'bg-accent-sky/15 border-accent-sky/50 shadow-subtle'
+                      : 'bg-terminal-panel/60 border-terminal-border hover:border-terminal-border/80 hover:bg-terminal-panel'
+                  }`}
+                >
+                  <div className="flex items-center space-x-1 font-mono font-bold text-[10px] sm:text-[11px]">
+                    <span className="text-terminal-text">{sym}</span>
+                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-accent-sky" />}
+                  </div>
+                  <div className="flex items-baseline space-x-1 font-mono text-[10px] sm:text-[11px]">
+                    <span className="text-terminal-text font-bold tabular-nums">
+                      ₹{sanitized.spotPrice > 0 ? sanitized.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    </span>
+                    {pct !== null ? (
+                      <span className={`text-[9px] sm:text-[10px] font-semibold tabular-nums ${isPos ? 'text-bull' : 'text-bear'}`}>
+                        {isPos ? '+' : ''}{pct.toFixed(2)}%
+                      </span>
+                    ) : (
+                      <span className="text-[9px] sm:text-[10px] text-terminal-muted tabular-nums animate-pulse">…</span>
+                    )}
+                  </div>
+
+                  {/* Close / Unpin Asset Button */}
+                  {visibleIndices.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleIndexVisibility(sym as any);
+                      }}
+                      className="p-0.5 -mr-0.5 rounded-full text-terminal-muted hover:text-rose-400 hover:bg-rose-500/15 transition-all opacity-70 hover:opacity-100 cursor-pointer"
+                      title={`Close ${sym} from bar`}
+                      aria-label={`Close ${sym}`}
+                    >
+                      <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Container: Live IST Clock */}
+        <div className="flex items-center space-x-1.5 font-sans ml-auto shrink-0">
           <button
             type="button"
             onClick={toggleClockFormat}
-            className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-transparent border-0 p-0"
+            className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-terminal-panel/80 hover:bg-terminal-panel border border-terminal-border px-2 py-0.5 sm:py-1 rounded-lg shrink-0 shadow-xs"
             title="Indian Standard Time (IST - Asia/Kolkata). Click to toggle 12h (AM/PM) / 24h format."
           >
-            <Clock className="w-3 h-3 text-accent-sky" />
+            <Clock className="w-3 h-3 text-accent-sky shrink-0" />
             <span className="font-semibold">{currentTime}</span>
           </button>
         </div>
@@ -586,6 +735,36 @@ export const HeaderBar: React.FC = () => {
       {isJournalModalOpen && (
         <PostMarketTradeJournal isModal={true} onClose={() => setIsJournalModalOpen(false)} />
       )}
+
+      {/* Standalone Trade Payoff Simulator Modal */}
+      <TradePayoffSimulatorModal
+        isOpen={isPayoffModalOpen}
+        onClose={() => setIsPayoffModalOpen(false)}
+      />
+
+      {/* Audio & Sound Alerts Settings Modal */}
+      <SoundSettingsModal
+        isOpen={isSoundModalOpen}
+        onClose={() => setIsSoundModalOpen(false)}
+      />
+
+      {/* MCX Commodities Modal */}
+      {isMcxModalOpen && (
+        <McxOfflineModal
+          symbol={mcxModalSymbol}
+          onClose={() => setIsMcxModalOpen(false)}
+          onProceedAnyway={() => {
+            setSelectedIndex(mcxModalSymbol as any);
+            setIsMcxModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Official F&O Expiry & Market Holidays Calendar Modal */}
+      <MarketHolidaysModal
+        isOpen={isHolidaysModalOpen}
+        onClose={() => setIsHolidaysModalOpen(false)}
+      />
     </header>
   );
 };

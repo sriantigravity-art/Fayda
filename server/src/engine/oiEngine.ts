@@ -158,7 +158,7 @@ export class OIEngine {
       if (isCommodity) {
         return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
       }
-      return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+      return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
     })();
 
     let totalCallVolume = 0;
@@ -939,7 +939,8 @@ export class OIEngine {
           maxPain,
           daysToExpiry,
           activeExpiry,
-          expiries
+          expiries,
+          this.recentSurges.filter(s => s.indexSymbol === symbol)
         );
 
         // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
@@ -1030,7 +1031,7 @@ export class OIEngine {
     const day = ist.getDay();
     const isWeekend = day === 0 || day === 6;
     const currentMin = ist.getHours() * 60 + ist.getMinutes();
-    const isNseOpen = !isWeekend && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    const isNseOpen = !isWeekend && currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
     const isMcxOpen = !isWeekend && currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
 
     return this.recentSurges.filter(s => {

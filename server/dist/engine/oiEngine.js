@@ -102,7 +102,7 @@ export class OIEngine {
             if (isCommodity) {
                 return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
             }
-            return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+            return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
         })();
         let totalCallVolume = 0;
         let totalPutVolume = 0;
@@ -758,7 +758,7 @@ export class OIEngine {
             unifiedTipsPackage: (() => {
                 const mc = ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternBreakout);
                 const prevTrades = this.sessionTradesHistory.get(symbol) || [];
-                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain, daysToExpiry, activeExpiry, expiries);
+                const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain, daysToExpiry, activeExpiry, expiries, this.recentSurges.filter(s => s.indexSymbol === symbol));
                 // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
                 const activeToKeep = [];
                 const seenContractSymbols = new Set();
@@ -836,7 +836,7 @@ export class OIEngine {
         const day = ist.getDay();
         const isWeekend = day === 0 || day === 6;
         const currentMin = ist.getHours() * 60 + ist.getMinutes();
-        const isNseOpen = !isWeekend && currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+        const isNseOpen = !isWeekend && currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
         const isMcxOpen = !isWeekend && currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
         return this.recentSurges.filter(s => {
             const isComm = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(s.indexSymbol);

@@ -24,22 +24,26 @@ export interface BrokerBasketItem {
   entryPrice: number;
   stoplossPrice: number;
   target1Price: number;
-  executionType: 'NET_DEBIT' | 'NET_CREDIT';
+  executionType?: 'NET_DEBIT' | 'NET_CREDIT';
 }
 
 export interface BrokerBasketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  basketItem: BrokerBasketItem;
+  basketItem?: BrokerBasketItem;
+  items?: BrokerBasketItem[];
 }
 
 export const BrokerBasketModal: React.FC<BrokerBasketModalProps> = ({
   isOpen,
   onClose,
-  basketItem
+  basketItem: propItem,
+  items
 }) => {
   const [copiedFormat, setCopiedFormat] = useState<'JSON' | 'CSV' | null>(null);
   const [isSimulated, setIsSimulated] = useState<boolean>(false);
+
+  const basketItem = propItem || (items && items[0]);
 
   if (!isOpen || !basketItem) return null;
 

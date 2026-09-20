@@ -126,35 +126,37 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
     }
   };
 
+  const initialLetter = (displayName || 'U').trim().charAt(0).toUpperCase();
+
   const badge = getPlanBadge();
   const BadgeIcon = badge.icon;
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      {/* Trigger Button: User Account Pill */}
+      {/* Trigger Button: User Account Circular Avatar / First-Letter Circle (No text/pill clutter) */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-2.5 py-1 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer shrink-0 shadow-sm ${
-          isDark
-            ? 'bg-[#0e1626] border-slate-700/80 hover:border-slate-600 text-white hover:bg-slate-800/80'
-            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-900 hover:bg-slate-50'
+        className={`w-8 h-8 rounded-full flex items-center justify-center p-0.5 border transition-all duration-200 cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+          isOpen
+            ? 'ring-2 ring-accent-sky border-accent-sky shadow-[0_0_10px_rgba(0,229,255,0.4)]'
+            : isDark
+            ? 'bg-[#0e1626] border-slate-700/80 hover:border-accent-sky text-white'
+            : 'bg-white border-slate-300 hover:border-blue-500 text-slate-900'
         }`}
-        title={`My Profile & Account (${user.fullName} • ${subscriberId})`}
+        title={`My Profile & Account (${displayName} • ${subscriberId})`}
+        aria-label="User Profile Menu"
       >
-        {/* Avatar circle / image */}
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold overflow-hidden shrink-0 shadow-sm ${
+        <div className={`w-full h-full rounded-full flex items-center justify-center text-xs font-black overflow-hidden shadow-inner ${
           avatarUrl
-            ? 'border border-accent-sky/60 ring-1 ring-accent-sky/30'
+            ? 'bg-slate-800'
             : isSuperAdmin
             ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white'
             : currentPlan === 'GOLD' || currentPlan === 'PRO'
-            ? 'bg-gradient-to-tr from-amber-500 to-yellow-500 text-black'
+            ? 'bg-gradient-to-tr from-amber-500 to-yellow-500 text-slate-950 font-black'
             : currentPlan === 'DIAMOND' || currentPlan === 'PREMIUM'
             ? 'bg-gradient-to-tr from-purple-600 to-pink-600 text-white'
-            : isDark
-            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-            : 'bg-blue-100 text-blue-700 border border-blue-300'
+            : 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white'
         }`}>
           {avatarUrl ? (
             <img
@@ -163,35 +165,22 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               className="w-full h-full object-cover rounded-full"
               onError={() => setImageError(true)}
             />
-          ) : isSuperAdmin ? (
-            <Crown className="w-3.5 h-3.5" />
           ) : (
-            (firstName || 'T').charAt(0).toUpperCase()
+            <span>{initialLetter}</span>
           )}
         </div>
-
-        <span className="hidden sm:inline-block max-w-[120px] truncate font-bold text-xs text-terminal-text">
-          {firstName}
-        </span>
-
-        {/* Plan Pill */}
-        <span className={`hidden md:inline-block text-[9px] font-mono px-1.5 py-0.2 rounded border font-bold ${badge.bg}`}>
-          {badge.label}
-        </span>
-
-        <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Flyout Profile & Logout Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm rounded-2xl shadow-2xl p-3.5 sm:p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
+        <div className={`fixed lg:absolute right-2 lg:right-0 top-12 lg:top-auto lg:mt-2.5 w-[330px] sm:w-[350px] max-w-[calc(100vw-16px)] rounded-2xl shadow-2xl p-3.5 sm:p-4 z-[9999] animate-in fade-in slide-in-from-top-2 duration-150 border ${
           isDark
             ? 'bg-[#0c1220] border-slate-800 text-slate-100 shadow-black/80'
             : 'bg-white border-slate-200 text-slate-800 shadow-slate-400/40'
         }`}>
           {/* Section 1: User Identity Header */}
-          <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3">
+          <div className="flex items-start justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-md shrink-0 overflow-hidden ${
                 avatarUrl
                   ? 'border-2 border-accent-sky/60 ring-2 ring-accent-sky/30'
@@ -212,18 +201,16 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                     className="w-full h-full object-cover rounded-2xl"
                     onError={() => setImageError(true)}
                   />
-                ) : isSuperAdmin ? (
-                  <Crown className="w-5 h-5 text-yellow-300" />
                 ) : (
-                  (firstName || 'T').charAt(0).toUpperCase()
+                  <span className="font-extrabold text-base">{initialLetter}</span>
                 )}
               </div>
 
-              <div className="min-w-0">
-                <div className="font-bold text-sm truncate flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-xs sm:text-sm truncate flex items-center gap-1.5" title={displayName}>
                   <span className={isDark ? 'text-white' : 'text-slate-900'}>{displayName}</span>
                 </div>
-                <div className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <div className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={user.email}>
                   {user.email}
                 </div>
                 {user.mobile && (
@@ -353,13 +340,13 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
-            {/* 3. Action CTA depending on role */}
-            {isSuperAdmin ? (
+            {/* 3. Super Admin Control Centre */}
+            {onOpenAdminDrawer && (
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
-                  if (onOpenAdminDrawer) onOpenAdminDrawer();
+                  onOpenAdminDrawer();
                 }}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all shadow-md ${
                   isDark
@@ -369,11 +356,14 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               >
                 <span className="flex items-center gap-2">
                   <Crown className="w-3.5 h-3.5 text-yellow-300" />
-                  <span>Open SuperAdmin Matrix</span>
+                  <span>Super Admin Control Centre</span>
                 </span>
                 <ChevronRight className="w-3.5 h-3.5 text-white/70" />
               </button>
-            ) : (
+            )}
+
+            {/* 4. Action CTA depending on role */}
+            {!isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => {

@@ -195,7 +195,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
 
   if (isExpired && !isSeller) {
     dynamicDecisionTag = 'EXPIRED';
-    dynamicDecisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:30 PM IST. Cannot be held or entered.`;
+    dynamicDecisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:40 PM IST. Cannot be held or entered.`;
   } else if (isTarget2Reached) {
     dynamicDecisionTag = 'BOOK_HALF';
     dynamicDecisionText = `🏆 Target 2 Achieved (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Maximum strategy alpha reached: Liquidate full position and lock peak gains.`;
@@ -230,7 +230,7 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     BEGINNER: {
       tag: '🔰 Safe Beginner View (Zero Jargon)',
       roleTag: isExpired
-        ? '🛑 Expired Contract (0DTE Settled at 03:30 PM)'
+        ? '🛑 Expired Contract (0DTE Settled at 03:40 PM)'
         : isBull 
         ? '🔰 Safe Green Setup (Buy Call - Expecting Market Upward Move)' 
         : '🔰 Safe Red Setup (Buy Put - Expecting Market Downward Move)',
@@ -238,14 +238,14 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       t1Label: '🎯 1ST PROFIT GOAL',
       t2Label: '🚀 2ND BONUS GOAL',
       slLabel: '🛡️ CAPITAL SHIELD (STOP LOSS)',
-      ongoingLabel: '💵 YOUR LIVE PROFIT / LOT',
+      ongoingLabel: isMarketOpen ? '💵 YOUR LIVE PROFIT / LOT' : '💵 YOUR CLOSING P&L / LOT',
       riskRewardLabel: 'REWARD vs RISK',
       decisionTagLabels: {
         BOOK_HALF: '🎯 SECURE 50% PROFIT NOW',
         TRAIL_SL: '🚀 MOVE SHIELD TO BUY PRICE',
         EXIT_SL: '🛑 SHIELD HIT - EXIT SAFELY',
         ENTER: '🟢 PERFECT ENTRY ACTIVE',
-        HOLD: '⏸️ PATIENTLY HOLD FOR GOAL',
+        HOLD: isMarketOpen ? '⏸️ PATIENTLY HOLD FOR GOAL' : '🌙 CARRY FORWARD (BTST / STBT)',
         EXPIRED: '🛑 CONTRACT EXPIRED (₹0.00)'
       },
       decisionAdvice: isExpired && !isSeller
@@ -256,6 +256,10 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Action: Liquidate full position; lock ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits.`
         : isTarget1Reached
         ? `🎯 SYSTEM DIRECTIVE: Target 1 Hit (+${rawPnlPct}%) | Action: Book 50% profit; shift Capital Shield to buy price.`
+        : !isMarketOpen
+        ? (isBull
+            ? `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (BTST) | Market closed at 03:40 PM IST | Action: Carry forward position overnight for tomorrow's 09:15 AM opening gap-up. Maintain trailing stoploss at cost ₹${entryNum.toFixed(1)}.`
+            : `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (STBT) | Market closed at 03:40 PM IST | Action: Carry forward position overnight for tomorrow's 09:15 AM opening gap-down. Maintain trailing stoploss at cost ₹${entryNum.toFixed(1)}.`)
         : rawPnlPct >= 15
         ? `🚀 SYSTEM DIRECTIVE: Strong Profit (+${rawPnlPct}%) | Action: Trail Capital Shield to entry price (₹${entryNum.toFixed(1)}) for risk-free ride.`
         : `⏸️ SYSTEM ADVISORY: Moving towards Target 1 (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}) | Action: Maintain position above shield.`,
@@ -269,14 +273,14 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       t1Label: 'TARGET 1 (+25%)',
       t2Label: 'TARGET 2 (+48%)',
       slLabel: 'STOP LOSS (-12%)',
-      ongoingLabel: 'ONGOING LIVE P&L',
+      ongoingLabel: isMarketOpen ? 'ONGOING LIVE P&L' : 'CLOSING SESSION P&L',
       riskRewardLabel: 'RISK : REWARD',
       decisionTagLabels: {
         BOOK_HALF: '🎯 BOOK 50% PROFIT',
         TRAIL_SL: '🚀 TRAIL SL TO COST',
         EXIT_SL: '🛑 STOPLOSS TRIGGERED',
         ENTER: '🟢 PERFECT ENTRY ACTIVE',
-        HOLD: '⏸️ MAINTAIN HOLD',
+        HOLD: isMarketOpen ? '⏸️ MAINTAIN HOLD' : '🌙 CARRY FORWARD (BTST / STBT)',
         EXPIRED: '🛑 EXPIRED WORTHLESS (₹0.00)'
       },
       decisionAdvice: isExpired && !isSeller
@@ -287,6 +291,10 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Peak alpha reached | Action: Lock all profits and exit position.`
         : isTarget1Reached
         ? `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${rawPnlPct}%) | Action: Lock 50% profit, trail SL to entry cost, let runners aim for Target 2.`
+        : !isMarketOpen
+        ? (isBull
+            ? `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (BTST) | Multi-timeframe trend & OI confirmed | Action: Hold overnight into next session 09:15 AM open | Target morning gap-up / continuation; trailing SL at cost ₹${entryNum.toFixed(1)}.`
+            : `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (STBT) | Multi-timeframe trend & OI confirmed | Action: Hold overnight into next session 09:15 AM open | Target morning gap-down / continuation; trailing SL at cost ₹${entryNum.toFixed(1)}.`)
         : rawPnlPct >= 15
         ? `🚀 SYSTEM DIRECTIVE: Momentum Expansion (+${rawPnlPct}%) | CPR confirmed | Action: Trail SL to breakeven cost.`
         : `⏸️ SYSTEM ADVISORY: Holding Above Stoploss (LTP ₹${ltpNum.toFixed(1)}) | Action: Maintain position towards Target 1.`,
@@ -300,14 +308,14 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       t1Label: '1.2σ EXPANSION TARGET',
       t2Label: '1.8σ GAMMA RUNNER',
       slLabel: 'INVALIDATION THRESHOLD',
-      ongoingLabel: 'LIVE ALPHA P&L',
+      ongoingLabel: isMarketOpen ? 'LIVE ALPHA P&L' : 'CLOSING ALPHA P&L',
       riskRewardLabel: 'ASYMMETRIC R:R',
       decisionTagLabels: {
         BOOK_HALF: '🎯 1.2σ MEAN EXPANSION HIT',
         TRAIL_SL: '🚀 POSITIVE GAMMA ACCELERATION',
         EXIT_SL: '🛑 DELTA BOUNDARY VIOLATION',
         ENTER: '🟢 PERFECT ENTRY POINT',
-        HOLD: '⏸️ DELTA DRIFT STABLE',
+        HOLD: isMarketOpen ? '⏸️ DELTA DRIFT STABLE' : '🌙 CARRY FORWARD (OVERNIGHT DELTA)',
         EXPIRED: '🛑 0DTE CASH SETTLED (0.00)'
       },
       decisionAdvice: isExpired && !isSeller
@@ -318,6 +326,8 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
         ? `🏆 SYSTEM DIRECTIVE: 1.8σ Gamma Runner Hit (+${rawPnlPct}%) | Mean reversion risk | Action: Liquidate full delta exposure.`
         : isTarget1Reached
         ? `🎯 SYSTEM DIRECTIVE: 1.2σ Mean Expansion Hit (+${rawPnlPct}%) | Action: De-risk 50% delta, trail stop to breakeven POC.`
+        : !isMarketOpen
+        ? `🌙 SYSTEM DIRECTIVE: OVERNIGHT CARRY FORWARD (BTST/STBT) | Gamma & delta structure held into market close | Action: Maintain overnight positioning targeting opening volatility expansion at 09:15 AM IST.`
         : rawPnlPct >= 15
         ? `🚀 SYSTEM DIRECTIVE: Positive Gamma Flow (+${rawPnlPct}%) | Impulse active | Action: Trail stop to entry cluster.`
         : `⏸️ SYSTEM ADVISORY: Delta Drift Stable (IV: ${tip.iv || 13.2}%) | Action: Positive order flow above VWAP; maintain position.`,
@@ -1228,7 +1238,7 @@ Generated via Fayda Trading Terminal`;
                     </div>
                     <p className="text-slate-200 text-xs leading-relaxed break-words">
                       {tip.carryForwardAdvice || (tip.isExpiryDay && !isCommodity
-                        ? '⚠️ 0DTE EXPIRY CONTRACT (SEBI Rules) — Options CANNOT be carried forward automatically. Any unclosed OTM position will expire WORTHLESS (₹0.00) at 03:30 PM. You MUST: (1) Square off this contract before 03:25 PM IST, and (2) If you wish to continue the trade, MANUALLY open a fresh contract in the NEXT EXPIRY separately.'
+                        ? '⚠️ 0DTE EXPIRY CONTRACT (SEBI Rules) — Options CANNOT be carried forward automatically. Any unclosed OTM position will expire WORTHLESS (₹0.00) at 03:40 PM. You MUST: (1) Square off this contract before 03:25 PM IST, and (2) If you wish to continue the trade, MANUALLY open a fresh contract in the NEXT EXPIRY separately.'
                         : isCommodity
                         ? '⚡ MCX FUTURES — Overnight Hold & Monthly Rollover Eligible: Active until 11:30 PM IST. Unlike NSE options, MCX futures CAN be rolled over to the next month. Rollover = (1) Close this month\'s contract, (2) Open same direction in next month\'s contract via spread order. Note: Brokerage + charges apply TWICE on rollover. Hold overnight with trailing stoploss.'
                         : (rawPnlPct >= 15 || tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT')
@@ -1244,7 +1254,7 @@ Generated via Fayda Trading Terminal`;
                           <span>HOW TO CONTINUE OVERNIGHT (BTST) — SEBI COMPLIANT</span>
                         </span>
                         <p className="text-[11px] text-slate-300 leading-relaxed break-words">
-                          <strong>Step 1:</strong> Square off this expiring contract before <strong>03:25 PM IST</strong> today (all 0DTE contracts expire at 03:30 PM).<br />
+                          <strong>Step 1:</strong> Square off this expiring contract before <strong>03:25 PM IST</strong> today (all 0DTE contracts expire at 03:40 PM).<br />
                           <strong>Step 2:</strong> Separately open a fresh option contract in the <strong>Next Expiry ({tip.nextExpiryDate})</strong> — symbol: <strong>{tip.nextExpiryContractSymbol || `${tip.symbol} ${tip.strikePrice || ''} ${tip.optionType || ''}`}</strong>.<br />
                           ⚠️ <em>There is no automatic rollover for options. You must manually close the old trade and open a new one (SEBI regulation).</em>
                         </p>

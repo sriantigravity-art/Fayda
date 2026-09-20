@@ -9,8 +9,8 @@ export function parseExpiryDateToIST(dateStr) {
     // Format: "YYYY-MM-DD"
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
         const [y, m, d] = s.split('-').map(Number);
-        // 15:30 IST is 10:00 UTC
-        return new Date(Date.UTC(y, m - 1, d, 10, 0, 0));
+        // 15:40 IST is 10:10 UTC
+        return new Date(Date.UTC(y, m - 1, d, 10, 10, 0));
     }
     // Format: "DD-Mon-YYYY" (e.g. "02-Sep-2026" or "28-AUG-2026")
     const match = s.match(/^(\d{1,2})[-/ ]([A-Za-z]{3})[-/ ](\d{4})$/);
@@ -24,8 +24,8 @@ export function parseExpiryDateToIST(dateStr) {
         };
         const m = months[monthStr];
         if (m !== undefined) {
-            // 15:30 IST is 10:00 UTC
-            return new Date(Date.UTC(y, m, d, 10, 0, 0));
+            // 15:40 IST is 10:10 UTC
+            return new Date(Date.UTC(y, m, d, 10, 10, 0));
         }
     }
     // Format: "DDMMYYYY" (e.g. "02092026")
@@ -33,7 +33,7 @@ export function parseExpiryDateToIST(dateStr) {
         const d = parseInt(s.substring(0, 2), 10);
         const m = parseInt(s.substring(2, 4), 10) - 1;
         const y = parseInt(s.substring(4, 8), 10);
-        return new Date(Date.UTC(y, m, d, 10, 0, 0));
+        return new Date(Date.UTC(y, m, d, 10, 10, 0));
     }
     const parsed = Date.parse(s);
     if (!isNaN(parsed)) {
@@ -53,7 +53,7 @@ export function isContractOrSignalExpired(expiryDateStr, timestampStr, validUnti
             }
         }
     }
-    // 2. Check contract calendar expiry (e.g. contract expired on past date or past 15:30 IST today)
+    // 2. Check contract calendar expiry (e.g. contract expired on past date or past 15:40 IST today)
     if (expiryDateStr) {
         const expDate = parseExpiryDateToIST(expiryDateStr);
         if (expDate) {

@@ -38,13 +38,13 @@ export const RadarFeed: React.FC<RadarFeedProps> = ({ onSelectStrike }) => {
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
   const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
 
-  // Official NSE Equity Derivatives Market Hours: 09:15 to 15:40 IST (Mon-Fri)
+  // Official NSE Equity Derivatives Market Hours: 09:00 to 15:40 IST (Mon-Fri)
   const isMarketHours = () => {
     const { hours, minutes, dayOfWeek } = getISTComponents();
     if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
     const currentMin = hours * 60 + minutes;
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   };
 
   // Check if specific symbol market is currently open
@@ -57,8 +57,8 @@ export const RadarFeed: React.FC<RadarFeedProps> = ({ onSelectStrike }) => {
       // MCX Commodities: 09:00 to 23:30 IST
       return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
     }
-    // NSE / BSE Equity & Index Derivatives: 09:15 to 15:40 IST
-    return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+    // NSE / BSE Equity & Index Derivatives: 09:00 to 15:40 IST
+    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
   };
 
   const isLiveMarketOpen = isMarketHours();

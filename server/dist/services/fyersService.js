@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { ALL_SYMBOLS_CONFIG } from '../types.js';
-import { NseExpiryService } from './nseExpiryService.js';
+import { NseExpiryService, NSE_BSE_HOLIDAYS_SET } from './nseExpiryService.js';
 const findConfigPath = () => {
     const p1 = path.resolve(process.cwd(), 'fyersConfig.json');
     if (fs.existsSync(p1))
@@ -14,24 +14,7 @@ const findConfigPath = () => {
 };
 const CONFIG_PATH = findConfigPath();
 // Major Indian Market Holidays (NSE / BSE / MCX) for 2026/2027 (YYYY-MM-DD)
-const MARKET_HOLIDAYS_SET = new Set([
-    '2026-01-26', // Republic Day
-    '2026-02-17', // Mahashivratri
-    '2026-03-03', // Holi
-    '2026-03-20', // Id-Ul-Fitr
-    '2026-04-03', // Good Friday
-    '2026-04-14', // Dr. Ambedkar Jayanti
-    '2026-05-01', // Maharashtra Day
-    '2026-05-27', // Bakri Id
-    '2026-08-15', // Independence Day
-    '2026-09-04', // Milad-un-Nabi
-    '2026-10-02', // Mahatma Gandhi Jayanti
-    '2026-10-20', // Dussehra
-    '2026-11-08', // Diwali (Laxmi Pujan)
-    '2026-11-10', // Diwali Balipratipada
-    '2026-11-24', // Gurunanak Jayanti
-    '2026-12-25', // Christmas
-]);
+const MARKET_HOLIDAYS_SET = NSE_BSE_HOLIDAYS_SET;
 /** Returns true if the given date is an active Indian trading day (Monday to Friday, excluding holidays). */
 export const isIndianTradingDay = (date) => {
     const formatter = new Intl.DateTimeFormat('en-CA', {

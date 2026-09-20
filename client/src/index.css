@@ -497,4 +497,26 @@ body.terminal-fullscreen-active {
   font-size: 0.75rem !important;
 }
 
+/* ── Facility Navigation Target Highlight Animation ───────────────────────── */
+@keyframes facilityHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.75), 0 0 25px rgba(0, 229, 255, 0.4);
+    outline: 2px solid #00e5ff;
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 229, 255, 0.25), 0 0 35px rgba(0, 229, 255, 0.5);
+    outline: 2px solid #00e5ff;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 229, 255, 0), 0 0 0 rgba(0, 229, 255, 0);
+    outline: 2px solid transparent;
+  }
+}
+
+.facility-target-highlight {
+  animation: facilityHighlightPulse 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  scroll-margin-top: 110px;
+}
+
+
 

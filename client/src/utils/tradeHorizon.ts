@@ -220,24 +220,24 @@ export function calculateTargetHorizon(
   const isOpen = isMarketOpenForSymbol(symbol);
   if (!isOpen) {
     return {
-      tradeCategory: 'INTRADAY',
-      categoryBadge: '📁 SESSION CLOSED',
-      categoryTagColor: 'bg-slate-800 text-slate-300 border-slate-700',
-      categoryIcon: '📁',
-      timeHorizonLabel: 'SESSION CLOSED AT 03:40 PM IST',
-      recommendedHolding: 'Market Closed (Trades Completed / Carried Forward)',
-      suitability: 'All Market Participants',
-      marketSituation: `Market closed for ${symbol}. Intraday square-offs concluded at 03:40 PM IST. Displaying session ledger and overnight carry suggestions.`,
+      tradeCategory: 'SWING',
+      categoryBadge: '🌙 CARRY FORWARD (BTST / STBT)',
+      categoryTagColor: 'bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-[0_0_12px_rgba(168,85,247,0.3)]',
+      categoryIcon: '🌙',
+      timeHorizonLabel: 'OVERNIGHT CARRY (NEXT SESSION 09:15 AM)',
+      recommendedHolding: 'Overnight Carry Forward (Target 09:15 AM next session opening payoff)',
+      suitability: 'BTST / STBT & Positional Overnight Traders',
+      marketSituation: `Broader market closed for ${symbol} (03:40 PM IST). Setup is suggested as a Carry Forward (BTST / STBT) position targeting next-session opening momentum with defined risk.`,
       minMinutes: 0,
       maxMinutes: 0,
       requiredSpotMove: 0,
       estimatedDelta: 0.5,
-      desc: `Market closed at 03:40 PM IST`,
-      color: 'text-slate-400',
-      badge: 'bg-slate-800 text-slate-300 border-slate-700',
-      label: 'SESSION CLOSED',
-      velocityName: 'Off-Market Settlement',
-      velocityBadge: '📁 CLOSED'
+      desc: `Broader market closed. Suggested as Carry Forward (BTST / STBT) for next session open.`,
+      color: 'text-purple-300',
+      badge: 'bg-purple-500/20 text-purple-300 border-purple-500/50',
+      label: 'CARRY FORWARD (BTST / STBT)',
+      velocityName: 'Overnight Carry Forward & Pre-Open Settlement',
+      velocityBadge: '🌙 OVERNIGHT CARRY'
     };
   }
 

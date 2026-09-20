@@ -73,21 +73,18 @@ export const TopSubscribeDropdown: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`group flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-300 shadow-md transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer ${
+          className={`group flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 shadow-md transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer ${
             isDark
               ? 'bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 hover:from-purple-600 hover:to-indigo-500 text-white shadow-purple-900/40 border border-purple-400/50'
               : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-900/30 border border-purple-300/60'
           }`}
-          title="Become a Member! (Fayda Beta Special — 2 Months All Facilities Free)"
+          title="Become a Member! (Fayda Beta Special — All Facilities Unlocked)"
         >
-          <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse shrink-0" />
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-300 animate-pulse shrink-0" />
           <span className="tracking-tight font-extrabold text-white whitespace-nowrap">
             Become a Member!
           </span>
-          <span className="hidden sm:inline-block bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-            2M FREE
-          </span>
-          <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/80 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3 h-3 text-white/80 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Interactive Dropdown Panel (Opens on Mouse Over or Click) */}

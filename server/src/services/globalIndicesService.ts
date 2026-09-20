@@ -601,7 +601,7 @@ export class GlobalIndicesService {
                   pctChange = livePctChange;
                   sourceUsed = 'FYERS';
                   const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
-                  isMarketOpen = istMin >= 555 && istMin <= 930;
+                  isMarketOpen = istMin >= 555 && istMin <= 940;
                 }
               }
             }
@@ -620,7 +620,7 @@ export class GlobalIndicesService {
               }
               sourceUsed = 'NSE';
               const istMin = (new Date().getUTCHours() * 60 + new Date().getUTCMinutes() + 330) % 1440;
-              isMarketOpen = istMin >= 555 && istMin <= 930;
+              isMarketOpen = istMin >= 555 && istMin <= 940;
             }
           }
 

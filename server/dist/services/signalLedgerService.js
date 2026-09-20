@@ -357,7 +357,22 @@ class SignalLedgerService {
                     call.pnlRupees = rupees;
                     call.nearTargetPct = 0;
                     call.pnlCalculationFormula = `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
-                    call.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                }
+                else if (data.status === 'INTRADAY_CLOSED' || data.status === 'SQUARE_OFF') {
+                    const exitPrice = data.currentLtp;
+                    const points = +(exitPrice - call.entryPrice).toFixed(2);
+                    const pnlPct = call.entryPrice > 0 ? +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+                    const rupees = Math.round(points * lotSize);
+                    call.exitLtp = +exitPrice.toFixed(2);
+                    call.pointsPnl = points;
+                    call.pnlPct = pnlPct;
+                    call.pnlRupees = rupees;
+                    call.nearTargetPct = 0;
+                    call.pnlCalculationFormula = `Squared off at CMP ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                    call.nearTargetDescription = `⚠️ Squared Off (Session Close): Exit ₹${exitPrice.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
+                    if (data.notes) {
+                        call.notes = data.notes;
+                    }
                 }
                 else {
                     const points = +(data.currentLtp - call.entryPrice).toFixed(2);
@@ -366,6 +381,9 @@ class SignalLedgerService {
                     call.pnlPct = pnlPct;
                     call.pnlRupees = Math.round(points * lotSize);
                     call.pnlCalculationFormula = `LTP ₹${data.currentLtp.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                    if (data.notes) {
+                        call.notes = data.notes;
+                    }
                 }
             }
             this.saveToFile();

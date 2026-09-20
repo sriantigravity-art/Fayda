@@ -992,7 +992,15 @@ export class ConfluenceEngine {
             }
         }
         // NSE / BSE Equity & Derivatives
-        if (currentMin >= (9 * 60 + 15) && currentMin < (10 * 60)) {
+        if (currentMin >= (9 * 60) && currentMin < (9 * 60 + 15)) {
+            return {
+                session: 'PRE_MARKET_DISCOVERY',
+                sessionName: 'Pre-Market Discovery & Opening Setup',
+                windowTime: '09:00 - 09:15 IST',
+                quotaDescription: 'Pre-Market Order Discovery & Gap Analysis'
+            };
+        }
+        else if (currentMin >= (9 * 60 + 15) && currentMin < (10 * 60)) {
             return {
                 session: 'MORNING_POWER_OPEN',
                 sessionName: 'Morning Power Open',
@@ -1028,7 +1036,7 @@ export class ConfluenceEngine {
             return {
                 session: 'OFF_MARKET',
                 sessionName: 'Post-Market EOD Review',
-                windowTime: '15:40 - 09:15 IST',
+                windowTime: '15:40 - 09:00 IST',
                 quotaDescription: 'EOD Analysis & Next Day Setup'
             };
         }
@@ -1128,6 +1136,10 @@ export class ConfluenceEngine {
                 decisionText = `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${pnlPct}%) — Momentum decelerating near resistance. Close position now and lock full gains (+${pnlPct}%).`;
             }
         }
+        else if (status === 'INTRADAY_CLOSED' || status === 'SQUARE_OFF') {
+            decisionTag = 'EXIT_SL';
+            decisionText = `⚠️ SYSTEM DIRECTIVE: Square Off Position (Session End) — Target/SL not reached. Position squared off at CMP ₹${currentLtp.toFixed(1)} & archived to Trade Journal.`;
+        }
         else if (status === 'SL_HIT') {
             decisionTag = 'EXIT_SL';
             decisionText = `🛑 SYSTEM DIRECTIVE: Stoploss Hit (${pnlPct}%) — Capital Protection Mandate: Position liquidated & archived to Trade Journal.`;
@@ -1151,13 +1163,17 @@ export class ConfluenceEngine {
             carryForwardAdvice = '⚡ SYSTEM DIRECTIVE: MCX Commodity | Active until 11:30 PM IST | Action: Overnight hold permitted with strict trailing SL.';
             carryForwardSuggestion = '⚡ SYSTEM DIRECTIVE: MCX Futures | Action: Hold with trailing SL until 11:30 PM session close.';
         }
-        else if (pnlPct >= 15 && (confluenceScore || 85) >= 80) {
-            carryForwardAdvice = `🌙 SYSTEM DIRECTIVE: BTST Permitted | Multi-timeframe trend & OI confirmed | Action: Hold 1 runner overnight with strict SL at cost ₹${baseEntry.toFixed(1)}.`;
-            carryForwardSuggestion = `🌙 SYSTEM DIRECTIVE: Carry Forward Permitted | Action: Hold 1 runner with locked profit & trailing SL at cost ₹${baseEntry.toFixed(1)}.`;
+        else if (status === 'CARRIED_FORWARD') {
+            carryForwardAdvice = `🌙 SYSTEM DIRECTIVE: RESEARCHED CARRY FORWARD (BTST / STBT) | Verified positive/negative tomorrow trend & 82%+ confluence | Action: Hold position overnight into 09:15 AM opening gap | Trailing SL at ₹${baseEntry.toFixed(1)}.`;
+            carryForwardSuggestion = `🌙 SYSTEM DIRECTIVE: RESEARCHED CARRY FORWARD (BTST / STBT) | Action: Carry overnight into next session open (09:15 AM) | Target opening momentum.`;
+        }
+        else if (status === 'INTRADAY_CLOSED' || status === 'SQUARE_OFF') {
+            carryForwardAdvice = '⚠️ SYSTEM MANDATE: Square Off Position | Session concluded without Target or SL. Overnight risk prohibited without verified positive/negative trend. Position archived to Journal.';
+            carryForwardSuggestion = '⚠️ SYSTEM DIRECTIVE: Square Off Position | Reason: Target/SL unreached at market close. Position archived to Trade Journal.';
         }
         else {
-            carryForwardAdvice = '🛑 SYSTEM DIRECTIVE: Intraday Close Required | Action: Exit before 03:25 PM | Rule: High overnight gap and theta decay risk.';
-            carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Close Intraday by 03:25 PM | Action: Exit position | Rule: High overnight theta decay risk; do not hold overnight.';
+            carryForwardAdvice = '🛑 SYSTEM DIRECTIVE: Intraday Close Required | Action: Exit position | Rule: Strict overnight risk discipline.';
+            carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Square Off Position | Rule: Avoid unhedged overnight holding.';
         }
         return {
             ongoingProfitBox: {
@@ -1235,6 +1251,120 @@ export class ConfluenceEngine {
         }
     }
     /**
+     * Strict BTST / STBT Research Qualification Engine
+     * User Directive:
+     * 1. DO NOT give any new tip as carry forward until tomorrow's market trend has clear positive/negative sentiment.
+     * 2. Study hard and give only perfect tips for carry forward, not all.
+     * 3. If earlier given call did not hit target or stoploss, give suggestion to square off position and move it to journal.
+     * 4. Only studied and researched BTST calls should be carry forwarded.
+     */
+    static evaluateBtstResearchQualification(params) {
+        const { tip, directionalBias, masterConfluence, patternBreakout, technicalIndicators, pcr, spotPrice, isCommodity } = params;
+        const vwapVal = technicalIndicators?.vwap?.value ?? spotPrice;
+        const emaTrend = technicalIndicators?.ema?.trend;
+        const pcrVal = pcr?.overallPcr ?? 1.0;
+        const isPatternBull = patternBreakout?.predictedBreakout?.direction === 'UPWARD_BREAKOUT' ||
+            patternBreakout?.activePattern?.reversalOrContinuity === 'BULLISH_REVERSAL' ||
+            patternBreakout?.activePattern?.reversalOrContinuity === 'BULLISH_CONTINUATION';
+        const isPatternBear = patternBreakout?.predictedBreakout?.direction === 'DOWNWARD_BREAKDOWN' ||
+            patternBreakout?.activePattern?.reversalOrContinuity === 'BEARISH_REVERSAL' ||
+            patternBreakout?.activePattern?.reversalOrContinuity === 'BEARISH_CONTINUATION';
+        // 1. Determine Tomorrow's Market Trend Sentiment
+        let marketTrendSentiment = 'NEUTRAL_CHOPPY';
+        const isRegimeChoppy = masterConfluence?.marketRegime === 'RANGE_BOUND_CHOP' ||
+            masterConfluence?.marketRegime === 'IV_CRUSH_ZONE' ||
+            directionalBias === 'NEUTRAL';
+        if (!isRegimeChoppy) {
+            if (directionalBias === 'BULLISH' && (spotPrice >= vwapVal || isPatternBull) && (pcrVal >= 1.02 || emaTrend === 'BULLISH')) {
+                marketTrendSentiment = 'POSITIVE';
+            }
+            else if (directionalBias === 'BEARISH' && (spotPrice <= vwapVal || isPatternBear) && (pcrVal <= 0.96 || emaTrend === 'BEARISH')) {
+                marketTrendSentiment = 'NEGATIVE';
+            }
+        }
+        // 2. Gate 1: If sentiment is Neutral / Choppy -> Strict Prohibit
+        if (marketTrendSentiment === 'NEUTRAL_CHOPPY') {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: 'No Carry Forward Permitted (Neutral/Sideways Regime)',
+                squareOffReason: 'Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.'
+            };
+        }
+        // 3. Gate 2: Directional Alignment
+        const isCall = tip.optionType === 'CE' || tip.action.includes('CALL');
+        const isPut = tip.optionType === 'PE' || tip.action.includes('PUT');
+        if (isCall && marketTrendSentiment !== 'POSITIVE') {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: 'Trend Conflict: Calls require Positive Market Sentiment',
+                squareOffReason: 'Cannot carry CALL overnight because tomorrow trend sentiment is not decisively Positive.'
+            };
+        }
+        if (isPut && marketTrendSentiment !== 'NEGATIVE') {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: 'Trend Conflict: Puts require Negative Market Sentiment',
+                squareOffReason: 'Cannot carry PUT overnight because tomorrow trend sentiment is not decisively Negative.'
+            };
+        }
+        // 4. Gate 3: Expiry Day & DTE Rule
+        if (tip.isExpiryDay && !isCommodity) {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: '0DTE Expiry Contract Settles Today',
+                squareOffReason: '0DTE contract expires today at 03:40 PM. Options settle at zero if OTM; auto carry-forward prohibited.'
+            };
+        }
+        if (tip.daysToExpiry !== undefined && tip.daysToExpiry <= 0 && !isCommodity) {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: 'Zero Days To Expiry',
+                squareOffReason: 'Contract has 0 days to expiry. Severe overnight theta decay risk.'
+            };
+        }
+        // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 82%)
+        const score = tip.quantumScore || tip.confluenceScore || 0;
+        if (score < 82) {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: `Confluence (${score}%) Below 82% BTST Threshold`,
+                squareOffReason: `Mathematical confluence score (${score}%) is below the strict 82% threshold required for researched BTST setups.`
+            };
+        }
+        // 6. Gate 5: Drawdown & Stoploss Check
+        if (tip.currentLtp <= tip.stoplossPrice) {
+            return {
+                qualifiesForBtst: false,
+                marketTrendSentiment,
+                btstRationale: 'Stoploss Breached',
+                squareOffReason: 'Stoploss price was reached or breached. Never carry a stopped-out position.'
+            };
+        }
+        if (tip.entryPrice > 0) {
+            const pnlPct = ((tip.currentLtp - tip.entryPrice) / tip.entryPrice) * 100;
+            if (pnlPct < -10) {
+                return {
+                    qualifiesForBtst: false,
+                    marketTrendSentiment,
+                    btstRationale: `Position in Drawdown (${pnlPct.toFixed(1)}%)`,
+                    squareOffReason: `Position is in significant drawdown (${pnlPct.toFixed(1)}%). Risk discipline mandates squaring off rather than hoping for overnight recovery.`
+                };
+            }
+        }
+        // All strict research gates passed!
+        return {
+            qualifiesForBtst: true,
+            marketTrendSentiment,
+            btstRationale: `Verified Researched BTST Setup: Tomorrow Trend is ${marketTrendSentiment} • Confluence ${score}% • Non-Expiry Contract • Spot/VWAP/PCR Confluent.`
+        };
+    }
+    /**
      * Evaluates and permanently locks timestamps for the trade lifecycle:
      * 1. Call Given Time (locked when formulated)
      * 2. Entry Triggered Time & Price (locked when price enters entry range or touches entry)
@@ -1245,6 +1375,7 @@ export class ConfluenceEngine {
     static evaluateLifecycleMilestones(params) {
         const existing = params.existingTrade;
         const isSeller = params.isSeller || false;
+        const milestoneTimeFormatted = params.effectiveEntryTimeFormatted || params.timeFormatted;
         // 1. Call Given Time: Permanent creation time
         const callGivenTime = existing?.callGivenTime || new Date().toISOString();
         const callGivenTimeFormatted = existing?.callGivenTimeFormatted || existing?.entryTimeFormatted || params.effectiveEntryTimeFormatted;
@@ -1265,7 +1396,7 @@ export class ConfluenceEngine {
             if (isPriceAtEntry || isCrossed) {
                 isEntryTriggered = true;
                 entryPriceTime = new Date().toISOString();
-                entryPriceTimeFormatted = params.timeFormatted;
+                entryPriceTimeFormatted = milestoneTimeFormatted;
                 actualEntryPrice = params.entryPrice;
             }
         }
@@ -1288,42 +1419,42 @@ export class ConfluenceEngine {
                 if (params.target2Price && params.currentLtp <= params.target2Price) {
                     if (!target2HitTimeFormatted) {
                         target2HitTime = new Date().toISOString();
-                        target2HitTimeFormatted = params.timeFormatted;
+                        target2HitTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'TARGET_HIT';
                     }
                     if (!target1HitTimeFormatted) {
                         target1HitTime = target2HitTime;
-                        target1HitTimeFormatted = params.timeFormatted;
+                        target1HitTimeFormatted = milestoneTimeFormatted;
                         halfProfitBookTime = target1HitTime;
-                        halfProfitBookTimeFormatted = params.timeFormatted;
+                        halfProfitBookTimeFormatted = milestoneTimeFormatted;
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
                 else if (params.currentLtp <= params.target1Price) {
                     if (!target1HitTimeFormatted) {
                         target1HitTime = new Date().toISOString();
-                        target1HitTimeFormatted = params.timeFormatted;
+                        target1HitTimeFormatted = milestoneTimeFormatted;
                         halfProfitBookTime = target1HitTime;
-                        halfProfitBookTimeFormatted = params.timeFormatted;
+                        halfProfitBookTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'TARGET_HIT';
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
                 else if (params.currentLtp >= params.stoplossPrice) {
                     if (!stoplossTimeFormatted) {
                         stoplossTime = new Date().toISOString();
-                        stoplossTimeFormatted = params.timeFormatted;
+                        stoplossTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'STOPLOSS_HIT';
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
             }
@@ -1332,70 +1463,70 @@ export class ConfluenceEngine {
                 if (params.target2Price && params.currentLtp >= params.target2Price) {
                     if (!target2HitTimeFormatted) {
                         target2HitTime = new Date().toISOString();
-                        target2HitTimeFormatted = params.timeFormatted;
+                        target2HitTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'TARGET_HIT';
                     }
                     if (!target1HitTimeFormatted) {
                         target1HitTime = target2HitTime;
-                        target1HitTimeFormatted = params.timeFormatted;
+                        target1HitTimeFormatted = milestoneTimeFormatted;
                         halfProfitBookTime = target1HitTime;
-                        halfProfitBookTimeFormatted = params.timeFormatted;
+                        halfProfitBookTimeFormatted = milestoneTimeFormatted;
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
                 else if (params.currentLtp >= params.target1Price) {
                     if (!target1HitTimeFormatted) {
                         target1HitTime = new Date().toISOString();
-                        target1HitTimeFormatted = params.timeFormatted;
+                        target1HitTimeFormatted = milestoneTimeFormatted;
                         halfProfitBookTime = target1HitTime;
-                        halfProfitBookTimeFormatted = params.timeFormatted;
+                        halfProfitBookTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'TARGET_HIT';
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
                 else if (params.currentLtp <= params.stoplossPrice) {
                     if (!stoplossTimeFormatted) {
                         stoplossTime = new Date().toISOString();
-                        stoplossTimeFormatted = params.timeFormatted;
+                        stoplossTimeFormatted = milestoneTimeFormatted;
                         milestoneRecordedStatus = 'STOPLOSS_HIT';
                     }
                     if (!bookedTimeFormatted) {
                         bookedTime = new Date().toISOString();
-                        bookedTimeFormatted = params.timeFormatted;
+                        bookedTimeFormatted = milestoneTimeFormatted;
                     }
                 }
             }
-            // Automatically move completed or hit trade into Trade Journal!
-            if (milestoneRecordedStatus && params.symbol && params.strikePrice && params.optionType) {
-                const exitLtpForJournal = milestoneRecordedStatus === 'STOPLOSS_HIT'
-                    ? params.stoplossPrice
-                    : (milestoneRecordedStatus === 'TARGET_HIT' ? params.target1Price : params.currentLtp);
-                signalLedgerService.recordOrUpdateMilestone({
-                    symbol: params.symbol,
-                    strikePrice: params.strikePrice,
-                    optionType: params.optionType,
-                    action: (params.action || (isSeller ? 'SELL' : 'BUY_CALL')),
-                    signalSource: 'CONFLUENCE',
-                    entryPrice: actualEntryPrice,
-                    target1Price: params.target1Price,
-                    target2Price: params.target2Price,
-                    stoplossPrice: params.stoplossPrice,
-                    currentLtp: exitLtpForJournal,
-                    callGivenTimeFormatted,
-                    entryPriceTimeFormatted,
-                    target1HitTimeFormatted,
-                    target2HitTimeFormatted,
-                    stoplossTimeFormatted,
-                    status: milestoneRecordedStatus,
-                    notes: params.strategyTag
-                });
-            }
+        }
+        // Automatically move completed or hit trade into Trade Journal!
+        if (milestoneRecordedStatus && params.symbol && params.strikePrice && params.optionType) {
+            const exitLtpForJournal = milestoneRecordedStatus === 'STOPLOSS_HIT'
+                ? params.stoplossPrice
+                : (milestoneRecordedStatus === 'TARGET_HIT' ? params.target1Price : params.currentLtp);
+            signalLedgerService.recordOrUpdateMilestone({
+                symbol: params.symbol,
+                strikePrice: params.strikePrice,
+                optionType: params.optionType,
+                action: (params.action || (isSeller ? 'SELL' : 'BUY_CALL')),
+                signalSource: 'CONFLUENCE',
+                entryPrice: actualEntryPrice,
+                target1Price: params.target1Price,
+                target2Price: params.target2Price,
+                stoplossPrice: params.stoplossPrice,
+                currentLtp: exitLtpForJournal,
+                callGivenTimeFormatted,
+                entryPriceTimeFormatted,
+                target1HitTimeFormatted,
+                target2HitTimeFormatted,
+                stoplossTimeFormatted,
+                status: milestoneRecordedStatus,
+                notes: params.strategyTag
+            });
         }
         return {
             callGivenTime,
@@ -1417,9 +1548,70 @@ export class ConfluenceEngine {
         };
     }
     /**
+     * Unified Quantum Signal Synthesis Engine:
+     * Fuses real-time Surge Logic (35%), 10-Indicator Mathematical Confluence (45%),
+     * and Market Structure / Breakout Pivots (20%) into a single authoritative signal score & thesis.
+     */
+    static computeQuantumMetrics(params) {
+        const { symbol, strikePrice, optionType, confluenceScore, isBreakout = false, hasVirginCpr = false, recentSurges = [], technicalIndicators, momentumRegime = 'BALANCED' } = params;
+        // Step 1: Find the most relevant matching surge event
+        const strikeTolerance = symbol === 'NIFTY' ? 100 : (symbol === 'BANKNIFTY' || symbol === 'SENSEX' ? 250 : 150);
+        const relevantSurge = recentSurges.find(s => s.indexSymbol === symbol &&
+            Math.abs(s.strikePrice - strikePrice) <= strikeTolerance &&
+            (optionType === 'SPREAD' || s.optionType === optionType)) || recentSurges.find(s => s.indexSymbol === symbol && (optionType === 'SPREAD' || s.optionType === optionType));
+        let surgeVelocityScore = 65;
+        let surgeConfirmationLevel = 'NORMAL';
+        let oiChangePct = 0;
+        let volumeSpikeRatio = 1.0;
+        let flowDirection = optionType === 'CE' ? 'CALL_SURGE' : (optionType === 'PE' ? 'PUT_SURGE' : 'NEUTRAL');
+        if (relevantSurge) {
+            surgeVelocityScore = Math.min(99, Math.max(40, relevantSurge.surgeScore));
+            surgeConfirmationLevel = relevantSurge.surgeLevel;
+            oiChangePct = relevantSurge.oiChangePct || 0;
+            volumeSpikeRatio = relevantSurge.volume > 0 ? 1.5 : 1.0;
+            flowDirection = relevantSurge.optionType === 'CE' ? 'CALL_SURGE' : 'PUT_SURGE';
+        }
+        else if (technicalIndicators?.oiSummary) {
+            const netFlow = technicalIndicators.oiSummary.netOIFlow || 0;
+            if (optionType === 'CE' && netFlow > 0) {
+                surgeVelocityScore = 72;
+                surgeConfirmationLevel = 'MODERATE';
+            }
+            else if (optionType === 'PE' && netFlow < 0) {
+                surgeVelocityScore = 72;
+                surgeConfirmationLevel = 'MODERATE';
+            }
+        }
+        // Step 2: Compute Structure Score (Breakouts, CPR, S/R pivots)
+        const structureScore = isBreakout ? 95 : (hasVirginCpr ? 88 : 72);
+        // Step 3: Weighted Quantum Score (Surge 35% + Confluence 45% + Structure 20%)
+        const rawQuantum = (surgeVelocityScore * 0.35) + (confluenceScore * 0.45) + (structureScore * 0.20);
+        const quantumScore = Math.min(99, Math.max(50, Math.round(rawQuantum)));
+        // Step 4: Construct Unified Plain-English Thesis
+        const surgeTag = relevantSurge
+            ? `${surgeConfirmationLevel} ${flowDirection === 'CALL_SURGE' ? 'Call' : 'Put'} OI Surge (${oiChangePct > 0 ? '+' : ''}${Math.round(oiChangePct)}%)`
+            : `${flowDirection === 'CALL_SURGE' ? 'Call' : 'Put'} Institutional Order Flow`;
+        const confTag = `${confluenceScore}% 10-Factor Confluence`;
+        const structTag = isBreakout ? 'Pattern Breakout' : (hasVirginCpr ? 'Virgin CPR Defense' : 'VWAP / Pivot Alignment');
+        const unifiedSignalThesis = `${surgeTag} aligned with ${confTag} & ${structTag} (${momentumRegime.replace(/_/g, ' ')}).`;
+        return {
+            quantumScore,
+            surgeVelocityScore,
+            surgeConfirmationLevel,
+            surgeDetails: {
+                surgeScore: surgeVelocityScore,
+                surgeLevel: surgeConfirmationLevel,
+                oiChangePct,
+                volumeSpikeRatio,
+                flowDirection
+            },
+            unifiedSignalThesis
+        };
+    }
+    /**
      * Synthesizes all 6 Platform Engines into a Curated 3-Tier Call Tips Cockpit with Carry-Forward
      */
-    static generateUnifiedTipsPackage(symbol, spotPrice, strikes, masterConfluence, faydaStrategy, allFaydaStrategies, multiLegStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, previousSessionTrades = [], technicalIndicators, maxPain, daysToExpiry = 2, activeExpiryDate, upcomingExpiries = []) {
+    static generateUnifiedTipsPackage(symbol, spotPrice, strikes, masterConfluence, faydaStrategy, allFaydaStrategies, multiLegStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, previousSessionTrades = [], technicalIndicators, maxPain, daysToExpiry = 2, activeExpiryDate, upcomingExpiries = [], recentSurges = []) {
         const sessionInfo = this.getMarketSession(symbol);
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -1464,155 +1656,6 @@ export class ConfluenceEngine {
                 sessionInfo.quotaDescription = 'Equity intraday signals closed at 03:40 PM IST. Displaying day outcomes, P&L audit & carry-forward suggestions. Live signals continue for MCX Commodities.';
             }
         }
-        // ── 1. Carry-Forward Processing for Active Trades with Deduplication ────
-        const carriedForwardTrades = [];
-        const seenContracts = new Set();
-        const minViableBuyerLtp = ConfluenceEngine.getMinViableBuyerLtp(symbol, momentumInfo.isExpiryDay);
-        for (const prev of previousSessionTrades) {
-            if (seenContracts.has(prev.contractSymbol))
-                continue;
-            const strikeObj = strikes.find(s => s.strikePrice === prev.strikePrice);
-            if (!strikeObj)
-                continue;
-            const liveLtp = prev.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp;
-            const currentLtp = liveLtp > 0 ? liveLtp : prev.currentLtp;
-            // Purge distorted/unrealistic tips where premium was never that low
-            if (ConfluenceEngine.isTradePriceDistorted(prev, currentLtp, minViableBuyerLtp)) {
-                continue;
-            }
-            seenContracts.add(prev.contractSymbol);
-            const pnlPoints = +(currentLtp - prev.entryPrice).toFixed(2);
-            const pnlPct = prev.entryPrice > 0 ? +((pnlPoints / prev.entryPrice) * 100).toFixed(2) : 0;
-            const isSeller = prev.tradingRole === 'SELLER' || prev.executionType === 'NET_CREDIT';
-            let actionabilityStatus = 'IN_ENTRY_ZONE';
-            if (currentLtp >= prev.target2Price)
-                actionabilityStatus = 'TARGET_HIT';
-            else if (currentLtp >= prev.target1Price)
-                actionabilityStatus = 'TRAIL_SL';
-            else if (currentLtp <= prev.stoplossPrice)
-                actionabilityStatus = 'SL_HIT';
-            else if (pnlPct >= 1.5)
-                actionabilityStatus = 'RUNNING_PROFIT';
-            else if (pnlPct <= -1.5)
-                actionabilityStatus = 'DIP_OPPORTUNITY';
-            else
-                actionabilityStatus = 'AT_TRIGGER';
-            let status = prev.status;
-            let bookedTime = prev.bookedTime;
-            let bookedTimeFormatted = prev.bookedTimeFormatted;
-            let carryForwardTime = prev.carryForwardTime;
-            let carryForwardTimeFormatted = prev.carryForwardTimeFormatted;
-            // Check Target / SL triggers
-            if (currentLtp >= prev.target2Price) {
-                status = 'TARGET2_HIT';
-                if (!bookedTimeFormatted) {
-                    bookedTime = new Date().toISOString();
-                    bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else if (currentLtp >= prev.target1Price && (status === 'ACTIVE' || status === 'CARRIED_FORWARD')) {
-                status = 'TARGET1_HIT';
-                if (!bookedTimeFormatted) {
-                    bookedTime = new Date().toISOString();
-                    bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else if (currentLtp <= prev.stoplossPrice) {
-                status = 'SL_HIT';
-                if (!bookedTimeFormatted) {
-                    bookedTime = new Date().toISOString();
-                    bookedTimeFormatted = timeFormatted;
-                }
-            }
-            else {
-                const isEligibleToCarry = !momentumInfo.isExpiryDay && (isSeller || pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT');
-                if (isEligibleToCarry) {
-                    status = 'CARRIED_FORWARD';
-                    if (!carryForwardTimeFormatted) {
-                        carryForwardTime = new Date().toISOString();
-                        carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
-                    }
-                }
-                else {
-                    status = 'INTRADAY_CLOSED';
-                }
-            }
-            // Calculate Rupee P&L based on status
-            let pnlRupees = 0;
-            if (isSeller) {
-                if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
-                    pnlRupees = Math.round(prev.sellerMetrics?.maxProfitRupees || (pnlPoints * instrumentLot));
-                }
-                else if (status === 'SL_HIT') {
-                    pnlRupees = -Math.round(prev.sellerMetrics?.maxLossRupees || (Math.abs(pnlPoints) * instrumentLot));
-                }
-                else {
-                    pnlRupees = Math.round((prev.entryPrice - currentLtp) * instrumentLot);
-                }
-            }
-            else {
-                if (status === 'TARGET1_HIT') {
-                    pnlRupees = Math.round((prev.target1Price - prev.entryPrice) * instrumentLot);
-                }
-                else if (status === 'TARGET2_HIT') {
-                    pnlRupees = Math.round(((prev.target2Price || prev.target1Price) - prev.entryPrice) * instrumentLot);
-                }
-                else if (status === 'SL_HIT') {
-                    pnlRupees = Math.round((prev.stoplossPrice - prev.entryPrice) * instrumentLot);
-                }
-                else {
-                    pnlRupees = Math.round(pnlPoints * instrumentLot);
-                }
-            }
-            // Carry forward suggestion
-            let carryForwardSuggestion = prev.carryForwardSuggestion;
-            if (!carryForwardSuggestion) {
-                if (momentumInfo.isExpiryDay && !isCommodity) {
-                    carryForwardSuggestion = `🛑 SYSTEM DIRECTIVE: 0DTE Expiry at 03:30 PM | Action: Square off by 03:25 PM | Rule: Open fresh Next Expiry (${nextExpiryDate}) contract manually if continuing. Zero auto-rollover.`;
-                }
-                else if (isSeller) {
-                    carryForwardSuggestion = '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour | Rule: Maintain defined risk hedge (>75% POP); close before 03:25 PM if spot approaches strike.';
-                }
-                else if (pnlPct >= 15 || status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
-                    carryForwardSuggestion = '🌙 SYSTEM DIRECTIVE: BTST Manual Roll | Action: Lock 50% profit; square off by 03:25 PM | Rule: Re-enter fresh next-expiry lot with trailing SL at entry cost.';
-                }
-                else if (pnlPct < 15 && pnlPct >= -5) {
-                    carryForwardSuggestion = '⏱️ SYSTEM DIRECTIVE: Intraday Exit at 03:25 PM | Action: Close position fully | Rule: High overnight theta decay risk; do not average or carry long options overnight.';
-                }
-                else {
-                    carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Capital Protection Exit | Action: Exit position now | Rule: SL breached; do not average or carry overnight.';
-                }
-            }
-            const updated = {
-                ...prev,
-                expiryDate: prev.expiryDate || activeExpiryDate,
-                daysToExpiry: prev.daysToExpiry !== undefined ? prev.daysToExpiry : daysToExpiry,
-                isExpiryDay: momentumInfo.isExpiryDay,
-                nextExpiryDate,
-                nextExpiryContractSymbol: prev.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${prev.strikePrice} ${prev.optionType}`,
-                currentLtp,
-                pnlPoints,
-                pnlPct,
-                pnlRupees,
-                actionabilityStatus,
-                status,
-                bookedTime,
-                bookedTimeFormatted,
-                carryForwardTime,
-                carryForwardTimeFormatted: carryForwardTimeFormatted || effectiveCarryForwardTimeFormatted,
-                carryForwardSuggestion,
-                carryForwardAdvice: prev.carryForwardAdvice || (momentumInfo.isExpiryDay && !isCommodity
-                    ? `⚠️ 0DTE — NO OVERNIGHT HOLD (SEBI Rules): Options cannot be auto-rolled. (1) Square off by 03:25 PM IST. (2) Open fresh NEXT EXPIRY (${nextExpiryDate}) contract manually if continuing overnight.`
-                    : undefined),
-                isCarriedForward: status === 'CARRIED_FORWARD',
-                carriedFromSession: prev.sessionName
-            };
-            if (updated.status === 'CARRIED_FORWARD' || updated.status === 'INTRADAY_CLOSED' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
-                carriedForwardTrades.push(updated);
-            }
-        }
-        // ── 2. Tier 1: Primary Directional Momentum Trade ───────────────────────
-        let primaryTrade = null;
         // Rigorous Directional Alignment:
         // 1. Follow masterConfluence if decisive
         // 2. Check multi-timeframe pattern breakout direction (e.g. Double Top = Bearish, Double Bottom = Bullish)
@@ -1651,6 +1694,208 @@ export class ConfluenceEngine {
             : directionalBias === 'BEARISH'
                 ? `🔴 Predominant Institutional Bias: BEARISH. Option Buyers should focus on PUT (PE) trades. Call buying is counter-trend.`
                 : `⚪ Market is RANGEBOUND / CHOPPY. Option Buyers should stand aside (Theta burn risk). Defined risk option spreads recommended.`;
+        // ── 1. Carry-Forward Processing for Active Trades with Deduplication ────
+        const carriedForwardTrades = [];
+        const seenContracts = new Set();
+        const minViableBuyerLtp = ConfluenceEngine.getMinViableBuyerLtp(symbol, momentumInfo.isExpiryDay);
+        let hasAssignedBtstCarry = false;
+        for (const prev of previousSessionTrades) {
+            if (seenContracts.has(prev.contractSymbol))
+                continue;
+            const strikeObj = strikes.find(s => s.strikePrice === prev.strikePrice);
+            if (!strikeObj)
+                continue;
+            const liveLtp = prev.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp;
+            const currentLtp = liveLtp > 0 ? liveLtp : prev.currentLtp;
+            // Purge distorted/unrealistic tips where premium was never that low
+            if (ConfluenceEngine.isTradePriceDistorted(prev, currentLtp, minViableBuyerLtp)) {
+                continue;
+            }
+            seenContracts.add(prev.contractSymbol);
+            const pnlPoints = +(currentLtp - prev.entryPrice).toFixed(2);
+            const pnlPct = prev.entryPrice > 0 ? +((pnlPoints / prev.entryPrice) * 100).toFixed(2) : 0;
+            const isSeller = prev.tradingRole === 'SELLER' || prev.executionType === 'NET_CREDIT';
+            let actionabilityStatus = 'IN_ENTRY_ZONE';
+            if (currentLtp >= prev.target2Price)
+                actionabilityStatus = 'TARGET_HIT';
+            else if (currentLtp >= prev.target1Price)
+                actionabilityStatus = 'TRAIL_SL';
+            else if (currentLtp <= prev.stoplossPrice)
+                actionabilityStatus = 'SL_HIT';
+            else if (pnlPct >= 1.5)
+                actionabilityStatus = 'RUNNING_PROFIT';
+            else if (pnlPct <= -1.5)
+                actionabilityStatus = 'DIP_OPPORTUNITY';
+            else
+                actionabilityStatus = 'AT_TRIGGER';
+            let status = prev.status;
+            let bookedTime = prev.bookedTime;
+            let bookedTimeFormatted = prev.bookedTimeFormatted;
+            let carryForwardTime = prev.carryForwardTime;
+            let carryForwardTimeFormatted = prev.carryForwardTimeFormatted;
+            let carryForwardSuggestion = prev.carryForwardSuggestion;
+            // Check Target / SL triggers
+            if (currentLtp >= prev.target2Price) {
+                status = 'TARGET2_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else if (currentLtp >= prev.target1Price && (status === 'ACTIVE' || status === 'CARRIED_FORWARD')) {
+                status = 'TARGET1_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else if (currentLtp <= prev.stoplossPrice) {
+                status = 'SL_HIT';
+                if (!bookedTimeFormatted) {
+                    bookedTime = new Date().toISOString();
+                    bookedTimeFormatted = timeFormatted;
+                }
+            }
+            else {
+                const isMarketClosedOrEod = isPast340Pm || sessionInfo.session === 'OFF_MARKET';
+                if (isMarketClosedOrEod) {
+                    const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                        tip: {
+                            action: prev.action,
+                            optionType: prev.optionType,
+                            confluenceScore: prev.confluenceScore,
+                            quantumScore: prev.quantumScore,
+                            entryPrice: prev.entryPrice,
+                            currentLtp,
+                            stoplossPrice: prev.stoplossPrice,
+                            daysToExpiry: prev.daysToExpiry !== undefined ? prev.daysToExpiry : daysToExpiry,
+                            isExpiryDay: momentumInfo.isExpiryDay
+                        },
+                        directionalBias,
+                        masterConfluence,
+                        patternBreakout,
+                        technicalIndicators,
+                        pcr,
+                        spotPrice,
+                        indiaVix,
+                        isCommodity
+                    });
+                    if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+                        status = 'CARRIED_FORWARD';
+                        hasAssignedBtstCarry = true;
+                        if (!carryForwardTimeFormatted) {
+                            carryForwardTime = new Date().toISOString();
+                            carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                        }
+                        carryForwardSuggestion = `🌙 SYSTEM DIRECTIVE: RESEARCHED CARRY FORWARD (${prev.optionType === 'CE' ? 'BTST' : 'STBT'}) | Tomorrow Trend: ${btstEval.marketTrendSentiment} | Action: Hold overnight into 09:15 AM open | Rule: ${btstEval.btstRationale}. Maintain SL at cost ₹${prev.entryPrice.toFixed(1)}.`;
+                    }
+                    else {
+                        // Unresolved earlier call -> SQUARE OFF & AUTO-ARCHIVE TO JOURNAL!
+                        status = 'INTRADAY_CLOSED';
+                        actionabilityStatus = 'SQUARE_OFF';
+                        const squareReason = btstEval.squareOffReason || 'Target/SL not reached during market hours; overnight trend lacks verified high-conviction sentiment.';
+                        carryForwardSuggestion = `⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION & ARCHIVED TO JOURNAL | Reason: Target/SL unreached at market close. Tomorrow trend lacks verified high-conviction BTST edge (${squareReason}). Advised Action: Square off position at CMP ₹${currentLtp.toFixed(2)} to eliminate overnight decay & gap risk.`;
+                        // Auto-move to Trade Journal
+                        signalLedgerService.recordOrUpdateMilestone({
+                            symbol: prev.symbol || symbol,
+                            strikePrice: prev.strikePrice,
+                            optionType: prev.optionType,
+                            action: prev.action,
+                            signalSource: (prev.tier === 'PRIMARY_MOMENTUM' ? 'UNIFIED_QUANTUM' : 'CONFLUENCE'),
+                            entryPrice: prev.entryPrice,
+                            target1Price: prev.target1Price,
+                            target2Price: prev.target2Price,
+                            stoplossPrice: prev.stoplossPrice,
+                            currentLtp,
+                            callGivenTimeFormatted: prev.callGivenTimeFormatted || prev.entryTimeFormatted,
+                            entryPriceTimeFormatted: prev.entryPriceTimeFormatted || prev.entryTimeFormatted,
+                            stoplossTimeFormatted: undefined,
+                            target1HitTimeFormatted: undefined,
+                            target2HitTimeFormatted: undefined,
+                            status: 'INTRADAY_CLOSED',
+                            notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)} (${pnlPoints >= 0 ? '+' : ''}${pnlPoints.toFixed(2)} pts). ${squareReason}`
+                        });
+                    }
+                }
+                else {
+                    status = 'ACTIVE';
+                }
+            }
+            // Calculate Rupee P&L based on status
+            let pnlRupees = 0;
+            if (isSeller) {
+                if (status === 'TARGET1_HIT' || status === 'TARGET2_HIT') {
+                    pnlRupees = Math.round(prev.sellerMetrics?.maxProfitRupees || (pnlPoints * instrumentLot));
+                }
+                else if (status === 'SL_HIT') {
+                    pnlRupees = -Math.round(prev.sellerMetrics?.maxLossRupees || (Math.abs(pnlPoints) * instrumentLot));
+                }
+                else {
+                    pnlRupees = Math.round((prev.entryPrice - currentLtp) * instrumentLot);
+                }
+            }
+            else {
+                if (status === 'TARGET1_HIT') {
+                    pnlRupees = Math.round((prev.target1Price - prev.entryPrice) * instrumentLot);
+                }
+                else if (status === 'TARGET2_HIT') {
+                    pnlRupees = Math.round(((prev.target2Price || prev.target1Price) - prev.entryPrice) * instrumentLot);
+                }
+                else if (status === 'SL_HIT') {
+                    pnlRupees = Math.round((prev.stoplossPrice - prev.entryPrice) * instrumentLot);
+                }
+                else {
+                    pnlRupees = Math.round(pnlPoints * instrumentLot);
+                }
+            }
+            // Carry forward suggestion
+            if (!carryForwardSuggestion || carryForwardSuggestion.includes('03:25 PM')) {
+                if (momentumInfo.isExpiryDay && !isCommodity) {
+                    carryForwardSuggestion = `🛑 SYSTEM DIRECTIVE: 0DTE Expiry at 03:40 PM | Action: Settled. Open fresh Next Expiry (${nextExpiryDate}) contract manually if continuing. Zero auto-rollover.`;
+                }
+                else if (isSeller) {
+                    carryForwardSuggestion = '🛡️ SYSTEM SELLER DIRECTIVE: CARRY FORWARD (OVERNIGHT THETA) | Action: Overnight defined risk hold | Rule: Theta decay accrues overnight in your favour (>75% POP); review pre-market gap at 09:00 AM.';
+                }
+                else if (status === 'SL_HIT') {
+                    carryForwardSuggestion = '🛑 SYSTEM DIRECTIVE: Capital Protection Exit | Action: Trade closed at SL | Rule: SL breached; do not average or carry overnight.';
+                }
+                else if (status === 'INTRADAY_CLOSED' || status === 'SQUARE_OFF') {
+                    carryForwardSuggestion = `⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION & ARCHIVED TO JOURNAL | Reason: Target/SL not reached during market hours; overnight trend lacks verified high-conviction sentiment. Advised: Square off at CMP ₹${currentLtp.toFixed(2)}.`;
+                }
+                else if (status === 'CARRIED_FORWARD') {
+                    carryForwardSuggestion = `🌙 SYSTEM DIRECTIVE: RESEARCHED CARRY FORWARD (${prev.optionType === 'CE' ? 'BTST' : 'STBT'}) | Action: Hold overnight into next session open (09:15 AM) | Maintain trailing SL at cost ₹${(prev.entryPrice || 0).toFixed(1)}.`;
+                }
+            }
+            const updated = {
+                ...prev,
+                expiryDate: prev.expiryDate || activeExpiryDate,
+                daysToExpiry: prev.daysToExpiry !== undefined ? prev.daysToExpiry : daysToExpiry,
+                isExpiryDay: momentumInfo.isExpiryDay,
+                nextExpiryDate,
+                nextExpiryContractSymbol: prev.nextExpiryContractSymbol || `${symbol} ${nextExpiryDate} ${prev.strikePrice} ${prev.optionType}`,
+                currentLtp,
+                pnlPoints,
+                pnlPct,
+                pnlRupees,
+                actionabilityStatus,
+                status,
+                bookedTime,
+                bookedTimeFormatted,
+                carryForwardTime,
+                carryForwardTimeFormatted: carryForwardTimeFormatted || effectiveCarryForwardTimeFormatted,
+                carryForwardSuggestion,
+                carryForwardAdvice: prev.carryForwardAdvice || (momentumInfo.isExpiryDay && !isCommodity
+                    ? `⚠️ 0DTE — NO OVERNIGHT HOLD (SEBI Rules): Options cannot be auto-rolled. (1) Square off by 03:25 PM IST. (2) Open fresh NEXT EXPIRY (${nextExpiryDate}) contract manually if continuing overnight.`
+                    : undefined),
+                isCarriedForward: status === 'CARRIED_FORWARD',
+                carriedFromSession: prev.sessionName
+            };
+            if (updated.status === 'CARRIED_FORWARD' || updated.status === 'INTRADAY_CLOSED' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
+                carriedForwardTrades.push(updated);
+            }
+        }
+        // ── 2. Tier 1: Primary Directional Momentum Trade ───────────────────────
+        let primaryTrade = null;
         const primAction = preferBull ? 'BUY_CALL' : 'BUY_PUT';
         const optType = preferBull ? 'CE' : 'PE';
         const targetStrike = atmStrike;
@@ -1724,9 +1969,30 @@ export class ConfluenceEngine {
             primStatus = 'SL_HIT';
         }
         else if (isPast340Pm || existingTrade?.isCarriedForward) {
-            const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
-            if (isEligibleToCarry) {
+            const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                tip: {
+                    action: primAction,
+                    optionType: optType,
+                    confluenceScore: 90,
+                    quantumScore: 90,
+                    entryPrice,
+                    currentLtp,
+                    stoplossPrice: slPrice,
+                    daysToExpiry,
+                    isExpiryDay: momentumInfo.isExpiryDay
+                },
+                directionalBias,
+                masterConfluence,
+                patternBreakout,
+                technicalIndicators,
+                pcr,
+                spotPrice,
+                indiaVix,
+                isCommodity
+            });
+            if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
                 primStatus = 'CARRIED_FORWARD';
+                hasAssignedBtstCarry = true;
                 if (!carryForwardTimeFormatted) {
                     carryForwardTime = new Date().toISOString();
                     carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
@@ -1734,6 +2000,24 @@ export class ConfluenceEngine {
             }
             else {
                 primStatus = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
+                actionabilityStatus = 'SQUARE_OFF';
+                // Unreached Target/SL -> Auto-move to Trade Journal
+                signalLedgerService.recordOrUpdateMilestone({
+                    symbol,
+                    strikePrice: targetStrike,
+                    optionType: optType,
+                    action: primAction,
+                    signalSource: 'UNIFIED_QUANTUM',
+                    entryPrice,
+                    target1Price: t1Price,
+                    target2Price: t2Price,
+                    stoplossPrice: slPrice,
+                    currentLtp,
+                    callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
+                    entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
+                    status: 'INTRADAY_CLOSED',
+                    notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)}. ${btstEval.squareOffReason || ''}`
+                });
             }
         }
         else if (pnlPct >= 1.5) {
@@ -1802,6 +2086,17 @@ export class ConfluenceEngine {
         if (isDirectional) {
             primScore = Math.min(98, primScore + 4);
         }
+        const primQuantum = ConfluenceEngine.computeQuantumMetrics({
+            symbol,
+            strikePrice: targetStrike,
+            optionType: optType,
+            confluenceScore: primScore,
+            isBreakout: patternBreakout?.activePattern?.status === 'CONFIRMED_BREAKOUT' || patternBreakout?.predictedBreakout?.direction !== 'RANGEBOUND',
+            hasVirginCpr: cprData?.expectedDayType === 'TRENDING_DAY' || cprData?.cprWidthCategory === 'NARROW_CPR',
+            recentSurges,
+            technicalIndicators,
+            momentumRegime: momentumInfo.regime
+        });
         // User directive: If stop loss is triggered, move to journal, do not show in active tips
         if (primStatus === 'SL_HIT') {
             primaryTrade = null;
@@ -1851,6 +2146,9 @@ export class ConfluenceEngine {
                 nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${targetStrike} ${optType}`,
                 ongoingProfitBox: primOngoingProfitBox,
                 isCarriedForward: primStatus === 'CARRIED_FORWARD',
+                isBtstResearched: primStatus === 'CARRIED_FORWARD',
+                btstRationale: primStatus === 'CARRIED_FORWARD' ? primCarrySuggestion : undefined,
+                squareOffReason: primStatus === 'INTRADAY_CLOSED' ? (primCarrySuggestion || 'Target/SL unreached at market close. Square off at CMP.') : undefined,
                 entryPrice,
                 entryRange,
                 triggerPrice,
@@ -1871,6 +2169,11 @@ export class ConfluenceEngine {
                 riskReward: '1:2.8',
                 confluenceScore: primScore,
                 confluenceBreakdown: primConfluence,
+                quantumScore: primQuantum.quantumScore,
+                surgeVelocityScore: primQuantum.surgeVelocityScore,
+                surgeConfirmationLevel: primQuantum.surgeConfirmationLevel,
+                surgeDetails: primQuantum.surgeDetails,
+                unifiedSignalThesis: primQuantum.unifiedSignalThesis,
                 status: primStatus,
                 strategyMatches: {
                     faydaRadarConfluence: true,
@@ -1961,9 +2264,30 @@ export class ConfluenceEngine {
                     actionabilityStatus = 'SL_HIT';
                 }
                 else if (isPast340Pm || activeCall.isCarriedForward) {
-                    const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
-                    if (isEligibleToCarry) {
+                    const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                        tip: {
+                            action: activeCall.action,
+                            optionType: 'CE',
+                            confluenceScore: activeCall.confluenceScore,
+                            quantumScore: activeCall.quantumScore,
+                            entryPrice: activeCall.entryPrice,
+                            currentLtp,
+                            stoplossPrice: activeCall.stoplossPrice,
+                            daysToExpiry,
+                            isExpiryDay: momentumInfo.isExpiryDay
+                        },
+                        directionalBias,
+                        masterConfluence,
+                        patternBreakout,
+                        technicalIndicators,
+                        pcr,
+                        spotPrice,
+                        indiaVix,
+                        isCommodity
+                    });
+                    if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
                         status = 'CARRIED_FORWARD';
+                        hasAssignedBtstCarry = true;
                         if (!carryForwardTimeFormatted) {
                             carryForwardTime = new Date().toISOString();
                             carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
@@ -1971,6 +2295,23 @@ export class ConfluenceEngine {
                     }
                     else {
                         status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
+                        actionabilityStatus = 'SQUARE_OFF';
+                        signalLedgerService.recordOrUpdateMilestone({
+                            symbol,
+                            strikePrice: activeCall.strikePrice,
+                            optionType: 'CE',
+                            action: activeCall.action,
+                            signalSource: 'CONFLUENCE',
+                            entryPrice: activeCall.entryPrice,
+                            target1Price: activeCall.target1Price,
+                            target2Price: activeCall.target2Price,
+                            stoplossPrice: activeCall.stoplossPrice,
+                            currentLtp,
+                            callGivenTimeFormatted: callMilestones.callGivenTimeFormatted,
+                            entryPriceTimeFormatted: callMilestones.entryPriceTimeFormatted,
+                            status: 'INTRADAY_CLOSED',
+                            notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)}. ${btstEval.squareOffReason || ''}`
+                        });
                     }
                 }
                 else if (pnlPct >= 1.5) {
@@ -2062,6 +2403,9 @@ export class ConfluenceEngine {
                         carryForwardTime,
                         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
                         isCarriedForward: status === 'CARRIED_FORWARD',
+                        isBtstResearched: status === 'CARRIED_FORWARD',
+                        btstRationale: status === 'CARRIED_FORWARD' ? activeCall.carryForwardSuggestion : undefined,
+                        squareOffReason: status === 'INTRADAY_CLOSED' ? 'Target/SL unreached at market close. Squared off at CMP.' : undefined,
                         marketRegime: activeCall.marketRegime || momentumInfo.regime,
                         momentumDescription: activeCall.momentumDescription || momentumInfo.description,
                         expiryDate: activeCall.expiryDate || activeExpiryDate,
@@ -2120,7 +2464,7 @@ export class ConfluenceEngine {
                     entryPriceTimeFormatted: effectiveEntryTimeFormatted,
                     carryForwardTimeFormatted: '03:20 PM IST',
                     carryForwardSuggestion: `🛑 SYSTEM DIRECTIVE: 0DTE Expired | Settled at ₹0.00 | Action: Trade Next Expiry (${nextExpiryDate}).`,
-                    carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active calls, select the Next Expiry (${nextExpiryDate}).`,
+                    carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:40 PM IST today. To trade active calls, select the Next Expiry (${nextExpiryDate}).`,
                     marketRegime: momentumInfo.regime,
                     momentumDescription: momentumInfo.description,
                     expiryDate: activeExpiryDate,
@@ -2133,12 +2477,12 @@ export class ConfluenceEngine {
                         pnlPct: -100,
                         pnlRupees: -Math.round(indicativeEntry * instrumentLot),
                         decisionTag: 'EXPIRED',
-                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:30 PM IST. Cannot be held or entered.',
+                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:40 PM IST. Cannot be held or entered.',
                         isProfit: false
                     },
                     isCarriedForward: false,
                     entryPrice: indicativeEntry,
-                    entryRange: 'Expired at 03:30 PM',
+                    entryRange: 'Expired at 03:40 PM',
                     triggerPrice: indicativeEntry,
                     dipEntryMin: indicativeEntry,
                     dipEntryMax: indicativeEntry,
@@ -2252,7 +2596,37 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * (1 + momentumInfo.t2Pct / 100)).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
-                const callStatus = (isPast340Pm && !momentumInfo.isExpiryDay) ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
+                let callStatus = 'ACTIVE';
+                let callBtstEval = { qualifiesForBtst: false, marketTrendSentiment: 'NEUTRAL_CHOPPY', btstRationale: '', squareOffReason: '' };
+                if (isPast340Pm) {
+                    callBtstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                        tip: {
+                            action: 'BUY_CALL',
+                            optionType: 'CE',
+                            confluenceScore: callProb,
+                            entryPrice,
+                            currentLtp: entryPrice,
+                            stoplossPrice: slPrice,
+                            daysToExpiry,
+                            isExpiryDay: momentumInfo.isExpiryDay
+                        },
+                        directionalBias,
+                        masterConfluence,
+                        patternBreakout,
+                        technicalIndicators,
+                        pcr,
+                        spotPrice,
+                        indiaVix,
+                        isCommodity
+                    });
+                    if (callBtstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+                        callStatus = 'CARRIED_FORWARD';
+                        hasAssignedBtstCarry = true;
+                    }
+                    else {
+                        callStatus = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
+                    }
+                }
                 const newCallAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status: callStatus,
                     pnlPoints: 0,
@@ -2335,6 +2709,9 @@ export class ConfluenceEngine {
                     nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${bestCeStrike.strikePrice} CE`,
                     ongoingProfitBox: newCallAdvice.ongoingProfitBox,
                     isCarriedForward: callStatus === 'CARRIED_FORWARD',
+                    isBtstResearched: callStatus === 'CARRIED_FORWARD',
+                    btstRationale: callStatus === 'CARRIED_FORWARD' ? callBtstEval.btstRationale : undefined,
+                    squareOffReason: callStatus === 'INTRADAY_CLOSED' ? (callBtstEval.squareOffReason || 'Off-market intraday trade closed.') : undefined,
                     entryPrice,
                     entryRange: `₹${dipMin.toFixed(1)} - ₹${entryPrice.toFixed(1)}`,
                     triggerPrice: entryPrice,
@@ -2433,9 +2810,30 @@ export class ConfluenceEngine {
                     actionabilityStatus = 'SL_HIT';
                 }
                 else if (isPast340Pm || activePut.isCarriedForward) {
-                    const isEligibleToCarry = !momentumInfo.isExpiryDay && pnlPct >= 15;
-                    if (isEligibleToCarry) {
+                    const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                        tip: {
+                            action: activePut.action,
+                            optionType: 'PE',
+                            confluenceScore: activePut.confluenceScore,
+                            quantumScore: activePut.quantumScore,
+                            entryPrice: activePut.entryPrice,
+                            currentLtp,
+                            stoplossPrice: activePut.stoplossPrice,
+                            daysToExpiry,
+                            isExpiryDay: momentumInfo.isExpiryDay
+                        },
+                        directionalBias,
+                        masterConfluence,
+                        patternBreakout,
+                        technicalIndicators,
+                        pcr,
+                        spotPrice,
+                        indiaVix,
+                        isCommodity
+                    });
+                    if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
                         status = 'CARRIED_FORWARD';
+                        hasAssignedBtstCarry = true;
                         if (!carryForwardTimeFormatted) {
                             carryForwardTime = new Date().toISOString();
                             carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
@@ -2443,6 +2841,23 @@ export class ConfluenceEngine {
                     }
                     else {
                         status = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
+                        actionabilityStatus = 'SQUARE_OFF';
+                        signalLedgerService.recordOrUpdateMilestone({
+                            symbol,
+                            strikePrice: activePut.strikePrice,
+                            optionType: 'PE',
+                            action: activePut.action,
+                            signalSource: 'CONFLUENCE',
+                            entryPrice: activePut.entryPrice,
+                            target1Price: activePut.target1Price,
+                            target2Price: activePut.target2Price,
+                            stoplossPrice: activePut.stoplossPrice,
+                            currentLtp,
+                            callGivenTimeFormatted: putMilestones.callGivenTimeFormatted,
+                            entryPriceTimeFormatted: putMilestones.entryPriceTimeFormatted,
+                            status: 'INTRADAY_CLOSED',
+                            notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)}. ${btstEval.squareOffReason || ''}`
+                        });
                     }
                 }
                 else if (pnlPct >= 1.5) {
@@ -2534,6 +2949,9 @@ export class ConfluenceEngine {
                         carryForwardTime,
                         carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
                         isCarriedForward: status === 'CARRIED_FORWARD',
+                        isBtstResearched: status === 'CARRIED_FORWARD',
+                        btstRationale: status === 'CARRIED_FORWARD' ? activePut.carryForwardSuggestion : undefined,
+                        squareOffReason: status === 'INTRADAY_CLOSED' ? 'Target/SL unreached at market close. Squared off at CMP.' : undefined,
                         marketRegime: activePut.marketRegime || momentumInfo.regime,
                         momentumDescription: activePut.momentumDescription || momentumInfo.description,
                         expiryDate: activePut.expiryDate || activeExpiryDate,
@@ -2592,7 +3010,7 @@ export class ConfluenceEngine {
                     entryPriceTimeFormatted: effectiveEntryTimeFormatted,
                     carryForwardTimeFormatted: '03:20 PM IST',
                     carryForwardSuggestion: `🛑 SYSTEM DIRECTIVE: 0DTE Expired | Settled at ₹0.00 | Action: Trade Next Expiry (${nextExpiryDate}).`,
-                    carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:30 PM IST today. To trade active puts, select the Next Expiry (${nextExpiryDate}).`,
+                    carryForwardAdvice: `🛑 SYSTEM DIRECTIVE: 0DTE Expired — This contract expired at 03:40 PM IST today. To trade active puts, select the Next Expiry (${nextExpiryDate}).`,
                     marketRegime: momentumInfo.regime,
                     momentumDescription: momentumInfo.description,
                     expiryDate: activeExpiryDate,
@@ -2605,12 +3023,12 @@ export class ConfluenceEngine {
                         pnlPct: -100,
                         pnlRupees: -Math.round(indicativeEntry * instrumentLot),
                         decisionTag: 'EXPIRED',
-                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:30 PM IST. Cannot be held or entered.',
+                        decisionText: '🛑 Contract Expired (₹0.00) — 0DTE contract expired at 03:40 PM IST. Cannot be held or entered.',
                         isProfit: false
                     },
                     isCarriedForward: false,
                     entryPrice: indicativeEntry,
-                    entryRange: 'Expired at 03:30 PM',
+                    entryRange: 'Expired at 03:40 PM',
                     triggerPrice: indicativeEntry,
                     dipEntryMin: indicativeEntry,
                     dipEntryMax: indicativeEntry,
@@ -2724,7 +3142,37 @@ export class ConfluenceEngine {
                 const t2Price = +(entryPrice * (1 + momentumInfo.t2Pct / 100)).toFixed(2);
                 const dipMin = +(entryPrice * 0.975).toFixed(2);
                 const dipMax = +(entryPrice * 0.99).toFixed(2);
-                const putStatus = (isPast340Pm && !momentumInfo.isExpiryDay) ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
+                let putStatus = 'ACTIVE';
+                let putBtstEval = { qualifiesForBtst: false, marketTrendSentiment: 'NEUTRAL_CHOPPY', btstRationale: '', squareOffReason: '' };
+                if (isPast340Pm) {
+                    putBtstEval = ConfluenceEngine.evaluateBtstResearchQualification({
+                        tip: {
+                            action: 'BUY_PUT',
+                            optionType: 'PE',
+                            confluenceScore: putProb,
+                            entryPrice,
+                            currentLtp: entryPrice,
+                            stoplossPrice: slPrice,
+                            daysToExpiry,
+                            isExpiryDay: momentumInfo.isExpiryDay
+                        },
+                        directionalBias,
+                        masterConfluence,
+                        patternBreakout,
+                        technicalIndicators,
+                        pcr,
+                        spotPrice,
+                        indiaVix,
+                        isCommodity
+                    });
+                    if (putBtstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+                        putStatus = 'CARRIED_FORWARD';
+                        hasAssignedBtstCarry = true;
+                    }
+                    else {
+                        putStatus = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
+                    }
+                }
                 const newPutAdvice = ConfluenceEngine.calculateProfitBoxAndAdvice({
                     status: putStatus,
                     pnlPoints: 0,
@@ -2807,6 +3255,9 @@ export class ConfluenceEngine {
                     nextExpiryContractSymbol: `${symbol} ${nextExpiryDate} ${bestPeStrike.strikePrice} PE`,
                     ongoingProfitBox: newPutAdvice.ongoingProfitBox,
                     isCarriedForward: putStatus === 'CARRIED_FORWARD',
+                    isBtstResearched: putStatus === 'CARRIED_FORWARD',
+                    btstRationale: putStatus === 'CARRIED_FORWARD' ? putBtstEval.btstRationale : undefined,
+                    squareOffReason: putStatus === 'INTRADAY_CLOSED' ? (putBtstEval.squareOffReason || 'Off-market intraday trade closed.') : undefined,
                     entryPrice,
                     entryRange: `₹${dipMin.toFixed(1)} - ₹${entryPrice.toFixed(1)}`,
                     triggerPrice: entryPrice,
@@ -2890,10 +3341,33 @@ export class ConfluenceEngine {
                 actionabilityStatus = 'SL_HIT';
             }
             else if (isPast340Pm || activeSellerPut.isCarriedForward) {
-                status = 'CARRIED_FORWARD';
-                if (!carryForwardTimeFormatted) {
-                    carryForwardTime = new Date().toISOString();
-                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                const canCarrySellerPut = !momentumInfo.isExpiryDay && directionalBias === 'BULLISH';
+                if (canCarrySellerPut) {
+                    status = 'CARRIED_FORWARD';
+                    if (!carryForwardTimeFormatted) {
+                        carryForwardTime = new Date().toISOString();
+                        carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                    }
+                }
+                else {
+                    status = 'INTRADAY_CLOSED';
+                    actionabilityStatus = 'SQUARE_OFF';
+                    signalLedgerService.recordOrUpdateMilestone({
+                        symbol,
+                        strikePrice: activeSellerPut.strikePrice,
+                        optionType: 'PE',
+                        action: 'SELL',
+                        signalSource: 'CONFLUENCE',
+                        entryPrice: activeSellerPut.entryPrice,
+                        target1Price: activeSellerPut.target1Price,
+                        target2Price: activeSellerPut.target2Price,
+                        stoplossPrice: activeSellerPut.stoplossPrice,
+                        currentLtp,
+                        callGivenTimeFormatted: sellerPutMilestones.callGivenTimeFormatted,
+                        entryPriceTimeFormatted: sellerPutMilestones.entryPriceTimeFormatted,
+                        status: 'INTRADAY_CLOSED',
+                        notes: `Intraday session ended without Target/SL. Seller position squared off at CMP ₹${currentLtp.toFixed(2)}.`
+                    });
                 }
             }
             else if (pnlPct >= 5) {
@@ -2973,7 +3447,7 @@ export class ConfluenceEngine {
                 hedgeLegSymbol: `${symbol} ${hedgePutStrike} PE (Buy Hedge)`,
                 lowerBreakeven
             };
-            const sellerPutStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
+            const sellerPutStatus = (isPast340Pm && !momentumInfo.isExpiryDay && directionalBias === 'BULLISH') ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
             const initialSellerPutMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
                 existingTrade: null,
                 currentLtp: netCreditPts,
@@ -3103,10 +3577,33 @@ export class ConfluenceEngine {
                 actionabilityStatus = 'SL_HIT';
             }
             else if (isPast340Pm || activeSellerCall.isCarriedForward) {
-                status = 'CARRIED_FORWARD';
-                if (!carryForwardTimeFormatted) {
-                    carryForwardTime = new Date().toISOString();
-                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                const canCarrySellerCall = !momentumInfo.isExpiryDay && directionalBias === 'BEARISH';
+                if (canCarrySellerCall) {
+                    status = 'CARRIED_FORWARD';
+                    if (!carryForwardTimeFormatted) {
+                        carryForwardTime = new Date().toISOString();
+                        carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                    }
+                }
+                else {
+                    status = 'INTRADAY_CLOSED';
+                    actionabilityStatus = 'SQUARE_OFF';
+                    signalLedgerService.recordOrUpdateMilestone({
+                        symbol,
+                        strikePrice: activeSellerCall.strikePrice,
+                        optionType: 'CE',
+                        action: 'SELL',
+                        signalSource: 'CONFLUENCE',
+                        entryPrice: activeSellerCall.entryPrice,
+                        target1Price: activeSellerCall.target1Price,
+                        target2Price: activeSellerCall.target2Price,
+                        stoplossPrice: activeSellerCall.stoplossPrice,
+                        currentLtp,
+                        callGivenTimeFormatted: sellerCallMilestones.callGivenTimeFormatted,
+                        entryPriceTimeFormatted: sellerCallMilestones.entryPriceTimeFormatted,
+                        status: 'INTRADAY_CLOSED',
+                        notes: `Intraday session ended without Target/SL. Seller position squared off at CMP ₹${currentLtp.toFixed(2)}.`
+                    });
                 }
             }
             else if (pnlPct >= 5) {
@@ -3186,7 +3683,7 @@ export class ConfluenceEngine {
                 hedgeLegSymbol: `${symbol} ${hedgeCallStrike} CE (Buy Hedge)`,
                 upperBreakeven
             };
-            const sellerCallStatus = isPast340Pm ? 'CARRIED_FORWARD' : 'ACTIVE';
+            const sellerCallStatus = (isPast340Pm && !momentumInfo.isExpiryDay && directionalBias === 'BEARISH') ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
             const initialSellerCallMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
                 existingTrade: null,
                 currentLtp: netCreditPts,
@@ -3436,10 +3933,15 @@ export class ConfluenceEngine {
                 spreadStatus = 'SL_HIT';
             }
             else if (isPast340Pm || existingSpread?.isCarriedForward) {
-                spreadStatus = 'CARRIED_FORWARD';
-                if (!carryForwardTimeFormatted) {
-                    carryForwardTime = new Date().toISOString();
-                    carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                if (!momentumInfo.isExpiryDay && directionalBias !== 'NEUTRAL') {
+                    spreadStatus = 'CARRIED_FORWARD';
+                    if (!carryForwardTimeFormatted) {
+                        carryForwardTime = new Date().toISOString();
+                        carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
+                    }
+                }
+                else {
+                    spreadStatus = 'INTRADAY_CLOSED';
                 }
             }
             const spreadConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, stratAction, spotPrice, buyStrike, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
@@ -3699,6 +4201,42 @@ export class ConfluenceEngine {
         // Deduplicate carriedForwardTrades so they never replicate any currently active setup
         const activeContractSymbols = new Set();
         const normalizeSym = (sym) => (sym || '').replace(/\s+/g, '').toUpperCase();
+        // Unified Quantum Enrichment & Divergence Resolution for all active tips
+        const enrichTrade = (t) => {
+            if (!t)
+                return null;
+            if (t.quantumScore && t.unifiedSignalThesis)
+                return t;
+            const q = ConfluenceEngine.computeQuantumMetrics({
+                symbol,
+                strikePrice: t.strikePrice,
+                optionType: t.optionType,
+                confluenceScore: t.confluenceScore,
+                isBreakout: patternBreakout?.activePattern?.status === 'CONFIRMED_BREAKOUT' || patternBreakout?.predictedBreakout?.direction !== 'RANGEBOUND',
+                hasVirginCpr: cprData?.expectedDayType === 'TRENDING_DAY' || cprData?.cprWidthCategory === 'NARROW_CPR',
+                recentSurges,
+                technicalIndicators,
+                momentumRegime: momentumInfo.regime
+            });
+            return {
+                ...t,
+                quantumScore: q.quantumScore,
+                surgeVelocityScore: q.surgeVelocityScore,
+                surgeConfirmationLevel: q.surgeConfirmationLevel,
+                surgeDetails: q.surgeDetails,
+                unifiedSignalThesis: t.unifiedSignalThesis || q.unifiedSignalThesis
+            };
+        };
+        primaryTrade = enrichTrade(primaryTrade);
+        topCallTrade = enrichTrade(topCallTrade);
+        topPutTrade = enrichTrade(topPutTrade);
+        topSellerPutTrade = enrichTrade(topSellerPutTrade);
+        topSellerCallTrade = enrichTrade(topSellerCallTrade);
+        topSellerNeutralTrade = enrichTrade(topSellerNeutralTrade);
+        hedgedSpreadTrade = enrichTrade(hedgedSpreadTrade);
+        if (gammaTrade && gammaTrade.action !== 'STANDBY') {
+            gammaTrade = enrichTrade(gammaTrade);
+        }
         if (primaryTrade)
             activeContractSymbols.add(normalizeSym(primaryTrade.contractSymbol));
         if (topCallTrade)
@@ -3715,7 +4253,9 @@ export class ConfluenceEngine {
             activeContractSymbols.add(normalizeSym(hedgedSpreadTrade.contractSymbol));
         if (gammaTrade && gammaTrade.action !== 'STANDBY')
             activeContractSymbols.add(normalizeSym(gammaTrade.contractSymbol));
-        const deduplicatedCarriedForward = carriedForwardTrades.filter(t => !activeContractSymbols.has(normalizeSym(t.contractSymbol)));
+        const deduplicatedCarriedForward = carriedForwardTrades
+            .map(t => enrichTrade(t))
+            .filter(t => !activeContractSymbols.has(normalizeSym(t.contractSymbol)));
         return {
             currentSession: sessionInfo.session,
             currentSessionName: sessionInfo.sessionName,

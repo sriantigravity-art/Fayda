@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import type { OptionStrikeData, TechnicalIndicatorsData } from '../types';
+import { StrikePriceLiveChart, type StrikeTimeframe } from './StrikePriceLiveChart';
+import { StrikeAnalyticsRightPanel } from './StrikeAnalyticsRightPanel';
 import {
   Sliders,
   TrendingUp,
@@ -29,11 +31,13 @@ import {
 } from 'lucide-react';
 
 export const TacticalStrikeSliderRadar: React.FC = () => {
-  const { currentIndexState, selectedIndex, selectIndex, allSymbols } = useMarket();
+  const { currentIndexState, selectedIndex, selectIndex, allSymbols, openStrikeChartModal } = useMarket();
   const { mode, isBeginner, isIntermediate, isExpert } = useTerminalMode();
 
-  // Active view tab: 'STRIKE_SLIDER' or 'INDICATORS_MATRIX'
-  const [activeTab, setActiveTab] = useState<'STRIKE_SLIDER' | 'INDICATORS_MATRIX'>('STRIKE_SLIDER');
+  // Active view tab: 'STRIKE_SLIDER' | 'INDICATORS_MATRIX' | 'LIVE_STRIKE_CHART'
+  const [activeTab, setActiveTab] = useState<'STRIKE_SLIDER' | 'INDICATORS_MATRIX' | 'LIVE_STRIKE_CHART'>('STRIKE_SLIDER');
+  const [chartOptionType, setChartOptionType] = useState<'CE' | 'PE'>('CE');
+  const [chartTimeframe, setChartTimeframe] = useState<StrikeTimeframe>('3m');
 
   // Slider selected strike index offset from ATM: -3 to +3 (7 steps)
   const [strikeOffset, setStrikeOffset] = useState<number>(0);
@@ -399,6 +403,20 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
             <Activity className="w-3.5 h-3.5" />
             <span>10 Indicators Matrix</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('LIVE_STRIKE_CHART')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer relative ${
+              activeTab === 'LIVE_STRIKE_CHART'
+                ? 'bg-linear-to-r from-emerald-600/40 via-teal-600/30 to-accent-cyan/40 border border-accent-cyan text-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.3)]'
+                : 'text-terminal-muted hover:text-terminal-text'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-accent-cyan" />
+            <span>📈 Strike Live Chart & Alpha Flow</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-bull animate-ping" />
+          </button>
         </div>
       </div>
 
@@ -659,6 +677,24 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                       {formatOIChange(strikeData.callOIChange5m)}
                     </span>
                   </div>
+
+                  {/* High-Impact Action: View CE Live Strike Chart */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChartOptionType('CE');
+                      setActiveTab('LIVE_STRIKE_CHART');
+                    }}
+                    className="w-full mt-2 py-1.5 px-2.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-mono font-black text-[11px] flex items-center justify-between transition-all shadow-xs cursor-pointer group"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <span>📈 View CE Live Chart & Order Flow</span>
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">
+                      1m/3m/5m/15m
+                    </span>
+                  </button>
                 </div>
 
                 {/* PUT OPTION (PE) DYNAMIC METRICS */}
@@ -703,6 +739,24 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
                       {formatOIChange(strikeData.putOIChange5m)}
                     </span>
                   </div>
+
+                  {/* High-Impact Action: View PE Live Strike Chart */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChartOptionType('PE');
+                      setActiveTab('LIVE_STRIKE_CHART');
+                    }}
+                    className="w-full mt-2 py-1.5 px-2.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-400 font-mono font-black text-[11px] flex items-center justify-between transition-all shadow-xs cursor-pointer group"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
+                      <span>📈 View PE Live Chart & Order Flow</span>
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300">
+                      1m/3m/5m/15m
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -1046,6 +1100,82 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: STRIKE PRICE LIVE CANDLESTICK CHART & INSTITUTIONAL ALPHA PANEL */}
+      {/* ========================================================================= */}
+      {activeTab === 'LIVE_STRIKE_CHART' && (
+        <div className="pt-3 space-y-3 relative z-10 animate-in fade-in duration-200">
+          {/* Quick Strike & Moneyness Strip for Fast Switching */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-mono font-bold text-accent-cyan flex items-center gap-1.5 uppercase">
+                <Compass className="w-3.5 h-3.5 text-accent-cyan" />
+                Selected Strike:
+              </span>
+              <div className="flex items-center space-x-1">
+                {strikeWindow.map(item => {
+                  const isSelected = item.offset === strikeOffset;
+                  return (
+                    <button
+                      key={item.offset}
+                      type="button"
+                      onClick={() => setStrikeOffset(item.offset)}
+                      className={`px-2 py-1 rounded-md text-xs font-mono font-bold transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-accent-cyan text-slate-950 shadow-sm'
+                          : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700'
+                      }`}
+                    >
+                      {item.strikePrice}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Expand Fullscreen Button */}
+            <button
+              type="button"
+              onClick={() => openStrikeChartModal(selectedIndex, currentStrikeItem.strikePrice, chartOptionType, currentStrikeItem.data)}
+              className="px-3 py-1 rounded-lg bg-accent-cyan/15 hover:bg-accent-cyan/25 border border-accent-cyan/40 text-accent-cyan text-xs font-mono font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Expand Fullscreen Terminal ⛶</span>
+            </button>
+          </div>
+
+          {/* Dual Panel Grid: Live Candlestick Chart (Left) + Alpha Intelligence Panel (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+            {/* Left 8 Cols: Real-Time Candlestick Chart */}
+            <div className="lg:col-span-8 flex flex-col min-h-[500px]">
+              <StrikePriceLiveChart
+                symbol={selectedIndex}
+                strikePrice={currentStrikeItem.strikePrice}
+                optionType={chartOptionType}
+                strikeData={currentStrikeItem.data}
+                timeframe={chartTimeframe}
+                onTimeframeChange={setChartTimeframe}
+                onOptionTypeChange={setChartOptionType}
+                onExpandFullscreen={() => openStrikeChartModal(selectedIndex, currentStrikeItem.strikePrice, chartOptionType, currentStrikeItem.data)}
+                height={460}
+              />
+            </div>
+
+            {/* Right 4 Cols: Live Intelligence & Confluence Matrix */}
+            <div className="lg:col-span-4 flex flex-col min-h-[500px]">
+              <StrikeAnalyticsRightPanel
+                symbol={selectedIndex}
+                strikePrice={currentStrikeItem.strikePrice}
+                optionType={chartOptionType}
+                strikeData={currentStrikeItem.data}
+                currentIndexState={currentIndexState}
+                selectedTimeframe={chartTimeframe}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

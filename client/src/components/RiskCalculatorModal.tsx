@@ -13,9 +13,13 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
+import type { UnifiedSmartTip } from '../types';
+
 interface RiskCalculatorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tip?: UnifiedSmartTip | null;
+  lotSize?: number;
   defaultLtp?: number;
   defaultSl?: number;
   defaultTarget?: number;
@@ -24,13 +28,19 @@ interface RiskCalculatorModalProps {
 export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
   isOpen,
   onClose,
+  tip,
+  lotSize: propLotSize,
   defaultLtp = 100,
   defaultSl = 80,
   defaultTarget = 140
 }) => {
   const { selectedIndex, currentIndexState } = useMarket();
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex);
-  const lotSize = cfg ? cfg.lot : (currentIndexState?.lotSize || 65);
+  const lotSize = propLotSize || (cfg ? cfg.lot : (currentIndexState?.lotSize || 65));
+
+  const initialEntry = tip?.currentLtp || tip?.entryPrice || defaultLtp;
+  const initialSl = tip?.stoplossPrice || defaultSl;
+  const initialTarget = tip?.target1Price || defaultTarget;
 
   const [capital, setCapital] = useState<number>(() => {
     const saved = localStorage.getItem('fayda_user_capital');
@@ -38,15 +48,21 @@ export const RiskCalculatorModal: React.FC<RiskCalculatorModalProps> = ({
   });
 
   const [riskPct, setRiskPct] = useState<number>(1.0); // 1% risk per trade default
-  const [entryPrice, setEntryPrice] = useState<number>(defaultLtp);
-  const [slPrice, setSlPrice] = useState<number>(defaultSl);
-  const [targetPrice, setTargetPrice] = useState<number>(defaultTarget);
+  const [entryPrice, setEntryPrice] = useState<number>(initialEntry);
+  const [slPrice, setSlPrice] = useState<number>(initialSl);
+  const [targetPrice, setTargetPrice] = useState<number>(initialTarget);
 
   useEffect(() => {
-    if (defaultLtp > 0) setEntryPrice(defaultLtp);
-    if (defaultSl > 0) setSlPrice(defaultSl);
-    if (defaultTarget > 0) setTargetPrice(defaultTarget);
-  }, [defaultLtp, defaultSl, defaultTarget, isOpen]);
+    if (tip) {
+      if (tip.currentLtp || tip.entryPrice) setEntryPrice(tip.currentLtp || tip.entryPrice);
+      if (tip.stoplossPrice) setSlPrice(tip.stoplossPrice);
+      if (tip.target1Price) setTargetPrice(tip.target1Price);
+    } else {
+      if (defaultLtp > 0) setEntryPrice(defaultLtp);
+      if (defaultSl > 0) setSlPrice(defaultSl);
+      if (defaultTarget > 0) setTargetPrice(defaultTarget);
+    }
+  }, [tip, defaultLtp, defaultSl, defaultTarget, isOpen]);
 
   useEffect(() => {
     localStorage.setItem('fayda_user_capital', capital.toString());

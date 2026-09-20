@@ -27,6 +27,7 @@ import {
   Unlink
 } from 'lucide-react';
 import type { ActiveBroker } from '../types';
+import { getApiBase, setCustomBackendUrl } from '../utils/apiBase';
 
 // ── Token expiry helpers ──────────────────────────────────────────────────────
 
@@ -103,6 +104,8 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   const [fyersStatusMsg, setFyersStatusMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [countdown, setCountdown] = useState<number>(0);
   const [isListeningClipboard, setIsListeningClipboard] = useState<boolean>(false);
+  const [customServerUrl, setCustomServerUrl] = useState<string>(() => getApiBase());
+  const [showServerConfig, setShowServerConfig] = useState<boolean>(false);
 
   // SEC-06 Remediation: Purge any legacy secrets accidentally stored in localStorage
   useEffect(() => {
@@ -248,7 +251,10 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
       setCountdown(0);
     } else {
       let cleanText = res.message || 'Authentication failed.';
-      if (cleanText.includes('Unexpected token') || cleanText.includes('is not valid JSON')) {
+      if (cleanText.includes('Application not found') || cleanText.includes('offline on Railway')) {
+        cleanText = `Railway backend server is offline or not found (404: Application not found). Your Vercel frontend cannot reach ${getApiBase()}. Verify your Railway deployment or configure your active Backend URL below.`;
+        setShowServerConfig(true);
+      } else if (cleanText.includes('Unexpected token') || cleanText.includes('is not valid JSON')) {
         cleanText = 'Fyers authentication returned an unexpected response. Auth codes expire in 2 minutes and can only be used once.';
       }
       setFyersStatusMsg({ success: false, text: `❌ ${cleanText}` });
@@ -698,6 +704,44 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                     }`}
                   >
                     {fyersStatusMsg.text}
+                  </div>
+                )}
+
+                {/* Server URL Config Drawer (if backend is offline or user toggles) */}
+                {showServerConfig && (
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 text-xs animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-500 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Backend Server Endpoint</span>
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono">
+                        Active: {getApiBase()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-terminal-muted leading-relaxed">
+                      If your Railway backend was redeployed with a new domain, or if you are running your server on another host, enter your live backend URL below:
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={customServerUrl}
+                        onChange={(e) => setCustomServerUrl(e.target.value)}
+                        placeholder="https://your-service.up.railway.app"
+                        className="flex-1 px-3 py-1.5 bg-terminal-bg border border-terminal-border rounded-lg text-xs font-mono text-terminal-text focus:border-sky-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomBackendUrl(customServerUrl);
+                          setFyersStatusMsg({ success: true, text: `✅ Backend endpoint set to ${customServerUrl.trim()}. Reloading interface...` });
+                          setTimeout(() => window.location.reload(), 1200);
+                        }}
+                        className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      >
+                        Save &amp; Connect
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

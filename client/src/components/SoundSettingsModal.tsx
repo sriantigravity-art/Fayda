@@ -354,7 +354,7 @@ export const SoundSettingsModal: React.FC<SoundSettingsModalProps> = ({ isOpen, 
                 },
                 { 
                   key: 'marketBell' as const, 
-                  label: 'Market Open & Session Close (09:15 AM / 03:30 PM)', 
+                  label: 'Market Open & Session Close (09:15 AM / 03:40 PM)', 
                   desc: 'Audible session bell at NSE/BSE and MCX market boundaries' 
                 }
               ].map(item => (

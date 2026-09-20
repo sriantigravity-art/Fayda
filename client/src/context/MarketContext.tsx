@@ -84,6 +84,10 @@ interface MarketContextType {
   activeOptionsDataModal: { symbol: string; tipContext?: ActiveTradeTipData } | null;
   openOptionsDataModal: (symbol: string, tipContext?: ActiveTradeTipData) => void;
   closeOptionsDataModal: () => void;
+  // Live Strike Price Chart & Alpha Flow Modal Engine
+  activeStrikeChartModal: { symbol: string; strikePrice: number; optionType: 'CE' | 'PE'; strikeData?: OptionStrikeData | null } | null;
+  openStrikeChartModal: (symbol: string, strikePrice: number, optionType: 'CE' | 'PE', strikeData?: OptionStrikeData | null) => void;
+  closeStrikeChartModal: () => void;
 }
 
 import { getApiBase, getWsUrl, PROD_API_BASE, PROD_WS_URL } from '../utils/apiBase';
@@ -371,6 +375,15 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
   const closeOptionsDataModal = useCallback(() => {
     setActiveOptionsDataModal(null);
+  }, []);
+
+  // Live Strike Price Chart & Alpha Flow Modal Engine State
+  const [activeStrikeChartModal, setActiveStrikeChartModal] = useState<{ symbol: string; strikePrice: number; optionType: 'CE' | 'PE'; strikeData?: OptionStrikeData | null } | null>(null);
+  const openStrikeChartModal = useCallback((symbol: string, strikePrice: number, optionType: 'CE' | 'PE', strikeData?: OptionStrikeData | null) => {
+    setActiveStrikeChartModal({ symbol, strikePrice, optionType, strikeData });
+  }, []);
+  const closeStrikeChartModal = useCallback(() => {
+    setActiveStrikeChartModal(null);
   }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -1329,6 +1342,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (rawText && (rawText.trim().startsWith('{') || rawText.trim().startsWith('['))) {
           try {
             const json = JSON.parse(rawText);
+            if (json?.message === 'Application not found' || (res.status === 404 && json?.status === 'error')) {
+              lastError = 'Backend service offline on Railway (404: Application not found). Please check your Railway deployment status.';
+              continue;
+            }
             return json;
           } catch {}
         }
@@ -1629,7 +1646,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         closeChartModal,
         activeOptionsDataModal,
         openOptionsDataModal,
-        closeOptionsDataModal
+        closeOptionsDataModal,
+        activeStrikeChartModal,
+        openStrikeChartModal,
+        closeStrikeChartModal
       }}
     >
       {children}
