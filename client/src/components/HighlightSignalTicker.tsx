@@ -579,11 +579,12 @@ export const HighlightSignalTicker: React.FC = () => {
                 ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40'
                 : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
             }`}>
-              {isLiveNseMarket 
-                ? 'LIVE NSE' 
-                : isCommodity(currentSetup?.symbol || '') 
-                ? 'MCX LIVE' 
-                : 'BROADER MARKET CLOSED'}
+              <span className="sm:hidden">
+                {isLiveNseMarket ? 'LIVE' : isCommodity(currentSetup?.symbol || '') ? 'MCX' : 'CLOSED'}
+              </span>
+              <span className="hidden sm:inline">
+                {isLiveNseMarket ? 'LIVE NSE' : isCommodity(currentSetup?.symbol || '') ? 'MCX LIVE' : 'BROADER MARKET CLOSED'}
+              </span>
             </span>
           </div>
 

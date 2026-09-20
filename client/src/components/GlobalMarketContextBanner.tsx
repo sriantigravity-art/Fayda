@@ -42,19 +42,22 @@ export const GlobalMarketContextBanner: React.FC = () => {
   const mixedLabel = isBeginner ? '🟡 WORLD MARKETS: BALANCED' : isIntermediate ? '🟡 GLOBAL SETUP: MIXED' : '🟡 MACRO RISK: CONVERGING';
 
   const setupBadge = isSupportive ? (
-    <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bull/20 text-bull border border-bull/50 shadow-[0_0_12px_rgba(0,245,155,0.25)] flex items-center gap-1 shrink-0">
-      <CheckCircle2 className="w-3 h-3" />
-      <span>{supportiveLabel}</span>
+    <span className="px-2 sm:px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bull/20 text-bull border border-bull/50 shadow-[0_0_12px_rgba(0,245,155,0.25)] flex items-center gap-1 shrink-0">
+      <CheckCircle2 className="w-3 h-3 shrink-0" />
+      <span className="sm:hidden">🟢 RISK-ON</span>
+      <span className="hidden sm:inline">{supportiveLabel}</span>
     </span>
   ) : isRiskOff ? (
-    <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bear/20 text-bear border border-bear/50 shadow-[0_0_12px_rgba(255,59,105,0.25)] flex items-center gap-1 animate-pulse shrink-0">
-      <AlertTriangle className="w-3 h-3" />
-      <span>{riskOffLabel}</span>
+    <span className="px-2 sm:px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-bear/20 text-bear border border-bear/50 shadow-[0_0_12px_rgba(255,59,105,0.25)] flex items-center gap-1 animate-pulse shrink-0">
+      <AlertTriangle className="w-3 h-3 shrink-0" />
+      <span className="sm:hidden">🔴 RISK-OFF</span>
+      <span className="hidden sm:inline">{riskOffLabel}</span>
     </span>
   ) : (
-    <span className="px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-amber/20 text-amber border border-amber/50 flex items-center gap-1 shrink-0">
-      <Activity className="w-3 h-3 text-amber" />
-      <span>{mixedLabel}</span>
+    <span className="px-2 sm:px-2.5 py-0.5 rounded-full font-black text-[10px] tracking-wider uppercase bg-amber/20 text-amber border border-amber/50 flex items-center gap-1 shrink-0">
+      <Activity className="w-3 h-3 text-amber shrink-0" />
+      <span className="sm:hidden">🟡 MIXED</span>
+      <span className="hidden sm:inline">{mixedLabel}</span>
     </span>
   );
 
