@@ -21,6 +21,12 @@ export class GammaEngine {
     // Is it 0DTE / Expiry Day?
     const isExpiryDay = daysToExpiry <= 1;
 
+    // Time-of-day check for derivative viability (Strict rule: < 2.0 rs never allowed; 5.0 rs ok before 3:00 PM on perfect entry; after 3:00 PM low premium derivatives disallowed)
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const isPast3Pm = ist.getHours() >= 15;
+
     // Filter strikes within ±4 steps from ATM
     const candidateStrikes = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= (step * 5));
 
@@ -32,7 +38,10 @@ export class GammaEngine {
       const callLtp = strikeData.callLtp;
       const callMaxLtp = (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
 
-      if (callLtp >= 3 && callLtp <= callMaxLtp) {
+      // Derivative floor: Absolute floor >= 2.0; after 3:00 PM no cheap options (>= 15.0 required); before 3:00 PM >= 5.0 allowed on perfect entry
+      const minViableCeLtp = isPast3Pm ? 15.0 : 5.0;
+
+      if (callLtp >= minViableCeLtp && callLtp <= callMaxLtp) {
         const isShortCovering = strikeData.callBuildup === 'SHORT_COVERING' || (strikeData.callOIChange1m < 0 && strikeData.callLtpChange > 0);
         const isLongAccum = strikeData.callBuildup === 'LONG_BUILDUP';
         
@@ -51,12 +60,17 @@ export class GammaEngine {
 
         const totalScore = Math.min(100, Math.max(20, gammaFactor + volScore + squeezeScore + proximityScore));
 
+        // For lower premiums (5.0 - 10.0), require high score ("perfect entry")
+        if (callLtp < 10.0 && totalScore < 80) {
+          continue;
+        }
+
         // Required index spot move to reach 3.5x target
         const estDelta = Math.max(0.15, Math.min(0.65, 0.50 - (stepDist * 0.10)));
         const target3x = +(callLtp * 3.5).toFixed(1);
         const requiredSpotMovePts = Math.round((target3x - callLtp) / estDelta);
 
-        const stoploss = +(callLtp * 0.50).toFixed(1);
+        const stoploss = Math.max(2.0, +(callLtp * 0.50).toFixed(1));
         const target1x = +(callLtp * 2.0).toFixed(1);
         const target5x = +(callLtp * 5.0).toFixed(1);
 
@@ -72,7 +86,7 @@ export class GammaEngine {
           ? `⚡ SYSTEM DIRECTIVE: Short-Covering Squeeze | Unwinding at ${strike} CE (${oiChgFmt} OI) | Action: High multiplier runner.`
           : `⚡ SYSTEM DIRECTIVE: 0DTE Gamma Acceleration | Need +${requiredSpotMovePts} pts spot move | Payoff Target: 3.5x.`;
 
-        const entryLow = Math.max(1, +(callLtp * 0.90).toFixed(1));
+        const entryLow = Math.max(2.0, +(callLtp * 0.90).toFixed(1));
         const entryHigh = +(callLtp * 1.04).toFixed(1);
 
         signals.push({
@@ -109,7 +123,9 @@ export class GammaEngine {
       const putLtp = strikeData.putLtp;
       const putMaxLtp = (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
 
-      if (putLtp >= 3 && putLtp <= putMaxLtp) {
+      const minViablePeLtp = isPast3Pm ? 15.0 : 5.0;
+
+      if (putLtp >= minViablePeLtp && putLtp <= putMaxLtp) {
         const isShortCovering = strikeData.putBuildup === 'SHORT_COVERING' || (strikeData.putOIChange1m < 0 && strikeData.putLtpChange > 0);
         const isLongAccum = strikeData.putBuildup === 'LONG_BUILDUP';
         
@@ -126,11 +142,16 @@ export class GammaEngine {
 
         const totalScore = Math.min(100, Math.max(20, gammaFactor + volScore + squeezeScore + proximityScore));
 
+        // For lower premiums (5.0 - 10.0), require high score ("perfect entry")
+        if (putLtp < 10.0 && totalScore < 80) {
+          continue;
+        }
+
         const estDelta = Math.max(0.15, Math.min(0.65, 0.50 - (stepDist * 0.10)));
         const target3x = +(putLtp * 3.5).toFixed(1);
         const requiredSpotMovePts = Math.round((target3x - putLtp) / estDelta);
 
-        const stoploss = +(putLtp * 0.50).toFixed(1);
+        const stoploss = Math.max(2.0, +(putLtp * 0.50).toFixed(1));
         const target1x = +(putLtp * 2.0).toFixed(1);
         const target5x = +(putLtp * 5.0).toFixed(1);
 
@@ -146,7 +167,7 @@ export class GammaEngine {
           ? `⚡ SYSTEM DIRECTIVE: Long Liquidation Breakdown | Capitulation at ${strike} PE (${oiChgFmt} OI) | Action: High multiplier runner.`
           : `⚡ SYSTEM DIRECTIVE: 0DTE Gamma Acceleration | Need -${requiredSpotMovePts} pts spot drop | Payoff Target: 3.5x.`;
 
-        const putEntryLow = Math.max(1, +(putLtp * 0.90).toFixed(1));
+        const putEntryLow = Math.max(2.0, +(putLtp * 0.90).toFixed(1));
         const putEntryHigh = +(putLtp * 1.04).toFixed(1);
 
         signals.push({

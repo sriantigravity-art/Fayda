@@ -1221,6 +1221,16 @@ export class ConfluenceEngine {
         if (!trade || !trade.entryPrice || trade.entryPrice <= 0)
             return true;
         const isBuyer = trade.tradingRole !== 'SELLER';
+        // STRICT DERIVATIVE FLOOR: Under 2.0 Rs is NEVER allowed for any buyer recommendation
+        if (isBuyer && (trade.entryPrice < 2.0 || (liveLtp > 0 && liveLtp < 2.0)))
+            return true;
+        // Time-based check: After 3:00 PM IST, low premium derivatives (<= 5.0 Rs) are strictly prohibited
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const ist = new Date(utc + (3600000 * 5.5));
+        const isPast3Pm = ist.getHours() >= 15;
+        if (isBuyer && isPast3Pm && (trade.entryPrice <= 5.0 || (liveLtp > 0 && liveLtp <= 5.0)))
+            return true;
         if (isBuyer && trade.entryPrice < minViableLtp)
             return true;
         if (liveLtp <= 0)
@@ -4025,7 +4035,9 @@ export class ConfluenceEngine {
         // ── 4. Tier 3: 0DTE Gamma Sniper / Hero-or-Zero ─────────────────────────
         let gammaTrade = null;
         const topHz = heroZeroSignals && heroZeroSignals.length > 0 ? heroZeroSignals[0] : null;
-        if (topHz && (sessionInfo.session === 'AFTERNOON_GAMMA_POWER_HOUR' || topHz.gammaScore >= 80)) {
+        const isPast3PmForGamma = ist.getHours() >= 15;
+        const minViableGammaLtp = isPast3PmForGamma ? 15.0 : 5.0;
+        if (topHz && topHz.ltp >= minViableGammaLtp && (sessionInfo.session === 'AFTERNOON_GAMMA_POWER_HOUR' || topHz.gammaScore >= 80)) {
             const contractSymbol = `${topHz.contractSymbol} (0DTE Gamma Burst)`;
             const existingGamma = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
             const entryPrice = existingGamma ? existingGamma.entryPrice : topHz.ltp;
@@ -4041,11 +4053,11 @@ export class ConfluenceEngine {
                 existingTrade: existingGamma,
                 currentLtp: topHz.ltp,
                 entryPrice,
-                entryRangeMin: +(entryPrice * 0.90).toFixed(2),
+                entryRangeMin: Math.max(2.0, +(entryPrice * 0.90).toFixed(2)),
                 entryRangeMax: entryPrice,
                 target1Price: topHz.target3x,
                 target2Price: topHz.target5x,
-                stoplossPrice: topHz.stoploss,
+                stoplossPrice: Math.max(2.0, topHz.stoploss),
                 isSeller: false,
                 timeFormatted,
                 effectiveEntryTimeFormatted,
@@ -4079,7 +4091,7 @@ export class ConfluenceEngine {
                     carryForwardTimeFormatted = timeFormatted;
                 }
             }
-            if (gammaStatus === 'SL_HIT') {
+            if (gammaStatus === 'SL_HIT' || entryPrice < 2.0 || topHz.ltp < 2.0 || (isPast3PmForGamma && (entryPrice <= 5.0 || topHz.ltp <= 5.0))) {
                 gammaTrade = null;
             }
             else {

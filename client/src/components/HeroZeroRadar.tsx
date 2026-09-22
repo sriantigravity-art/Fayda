@@ -43,12 +43,22 @@ export const HeroZeroRadar: React.FC = () => {
     }
 
     const now = Date.now();
+    const utcTime = now + (new Date().getTimezoneOffset() * 60000);
+    const istTime = new Date(utcTime + (3600000 * 5.5));
+    const isPast3Pm = istTime.getHours() >= 15;
+
     const activeLiveSignals = heroZeroSignals.filter(s => {
+      // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
+      if (s.ltp < 2.0) return false;
+      if (isPast3Pm && s.ltp <= 5.0) return false;
       if (!s.expiresAt) return !isContractOrSignalExpired(selectedExpiry);
       return new Date(s.expiresAt).getTime() > now && !isContractOrSignalExpired(selectedExpiry);
     });
 
     if (activeLiveSignals.length > 0) return activeLiveSignals;
+
+    // After 3:00 PM, do not show low-premium derivative fallbacks
+    if (isPast3Pm) return [];
 
     const step = strikeStep;
     const fallbackList: HeroZeroSignal[] = [];
@@ -61,9 +71,9 @@ export const HeroZeroRadar: React.FC = () => {
     const cLtp = Math.max(8, cObj?.callLtp || 18.5);
     const pLtp = Math.max(8, pObj?.putLtp || 16.0);
 
-    const cEntryLow = Math.max(1, +(cLtp * 0.88).toFixed(2));
+    const cEntryLow = Math.max(2.0, +(cLtp * 0.88).toFixed(2));
     const cEntryHigh = +(cLtp * 1.03).toFixed(2);
-    const pEntryLow = Math.max(1, +(pLtp * 0.88).toFixed(2));
+    const pEntryLow = Math.max(2.0, +(pLtp * 0.88).toFixed(2));
     const pEntryHigh = +(pLtp * 1.03).toFixed(2);
 
     fallbackList.push({
@@ -74,7 +84,7 @@ export const HeroZeroRadar: React.FC = () => {
       optionType: 'CE',
       ltp: cLtp,
       entryZone: `₹${cEntryLow.toFixed(2)} - ₹${cEntryHigh.toFixed(2)}`,
-      stoploss: +(cLtp * 0.5).toFixed(2),
+      stoploss: Math.max(2.0, +(cLtp * 0.5).toFixed(2)),
       stoplossPct: 50,
       target1x: +(cLtp * 2.0).toFixed(2),
       target3x: +(cLtp * 3.5).toFixed(2),
@@ -96,7 +106,7 @@ export const HeroZeroRadar: React.FC = () => {
       optionType: 'PE',
       ltp: pLtp,
       entryZone: `₹${pEntryLow.toFixed(2)} - ₹${pEntryHigh.toFixed(2)}`,
-      stoploss: +(pLtp * 0.5).toFixed(2),
+      stoploss: Math.max(2.0, +(pLtp * 0.5).toFixed(2)),
       stoplossPct: 50,
       target1x: +(pLtp * 2.0).toFixed(2),
       target3x: +(pLtp * 3.5).toFixed(2),

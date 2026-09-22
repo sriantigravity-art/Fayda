@@ -25,6 +25,31 @@ export function determineTradeAction(
     symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER' ? 400 : 100
   );
 
+  // Time-of-day check for derivative viability
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + (3600000 * 5.5));
+  const isPast3Pm = ist.getHours() >= 15;
+
+  // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
+  if (ltp < 2.0) {
+    return {
+      tradeAction: 'NEUTRAL_WATCH',
+      actionTitle: '⚠️ SUB-PENNY DECAY (< ₹2.00)',
+      actionDescription: `Option premium at ₹${ltp.toFixed(2)} is below viable derivative threshold (₹2.00). High theta burn & expiry to ₹0 risk. No buy signal permitted.`,
+      confidence: 'HIGH'
+    };
+  }
+
+  if (isPast3Pm && ltp <= 5.0) {
+    return {
+      tradeAction: 'NEUTRAL_WATCH',
+      actionTitle: '⚠️ POST-3:00 PM LOW PREMIUM PROHIBITED',
+      actionDescription: `After 03:00 PM IST, low premium derivative contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay.`,
+      confidence: 'HIGH'
+    };
+  }
+
   if (optionType === 'CE') {
     switch (buildup) {
       case 'LONG_BUILDUP':
@@ -101,7 +126,7 @@ export function calculateDynamicTarget(
   targetPct: number;
   riskReward: string;
 } {
-  const cleanLtp = Math.max(0.5, ltp);
+  const cleanLtp = Math.max(2.0, ltp);
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const ist = new Date(utc + (3600000 * 5.5));
@@ -169,10 +194,10 @@ export function generateOptionSuggestion(
   expiryDate: string = 'CURRENT_WEEKLY',
   atmStrike?: number
 ) {
-  const cleanLtp = Math.max(0.5, ltp);
+  const cleanLtp = Math.max(2.0, ltp);
   const dyn = calculateDynamicTarget(cleanLtp, strike, atmStrike);
 
-  const sl = Math.max(0.1, +(cleanLtp - dyn.slPoints).toFixed(2));
+  const sl = Math.max(2.0, +(cleanLtp - dyn.slPoints).toFixed(2));
   const tgt = +(cleanLtp + dyn.targetPoints).toFixed(2);
 
   return {

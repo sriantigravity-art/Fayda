@@ -48,8 +48,10 @@ class SignalLedgerService {
         try {
             if (fs.existsSync(this.dataFilePath)) {
                 const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
-                const list = JSON.parse(raw);
+                let list = JSON.parse(raw);
                 if (Array.isArray(list)) {
+                    // Strictly purge corrupted/distorted derivative calls (< 2.0 Rs)
+                    list = list.filter(c => !((c.optionType === 'CE' || c.optionType === 'PE') && c.entryPrice < 2.0));
                     // Group by date
                     const dateGroups = new Map();
                     list.forEach(c => {
@@ -204,6 +206,20 @@ class SignalLedgerService {
         return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
     recordSignal(signal) {
+        // ── STRICT DERIVATIVE VIABILITY GUARD ─────────────────────────
+        const isDerivativeOption = signal.optionType === 'CE' || signal.optionType === 'PE';
+        if (isDerivativeOption && signal.action.includes('BUY')) {
+            if (signal.entryPrice < 2.0) {
+                console.warn(`[SignalLedgerService] Discarded signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Entry price ₹${signal.entryPrice} is below derivative minimum floor of ₹2.00.`);
+                return null;
+            }
+            const utc = Date.now() + (new Date().getTimezoneOffset() * 60000);
+            const ist = new Date(utc + (3600000 * 5.5));
+            if (ist.getHours() >= 15 && signal.entryPrice <= 5.0) {
+                console.warn(`[SignalLedgerService] Discarded signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Low premium derivative (₹${signal.entryPrice} <= ₹5.00) prohibited after 03:00 PM IST.`);
+                return null;
+            }
+        }
         const today = this.getTodayDateStr();
         const timeFormatted = signal.callGivenTimeFormatted || this.getIstTimeFormatted();
         // Deduplicate strictly by (today, symbol, strikePrice, optionType, action)
@@ -290,11 +306,21 @@ class SignalLedgerService {
         return newCall;
     }
     recordOrUpdateMilestone(data) {
+        // ── STRICT DERIVATIVE VIABILITY GUARD ─────────────────────────
+        const isDerivativeOption = data.optionType === 'CE' || data.optionType === 'PE';
+        if (isDerivativeOption && data.action.includes('BUY')) {
+            if (data.entryPrice < 2.0)
+                return null;
+            const utc = Date.now() + (new Date().getTimezoneOffset() * 60000);
+            const ist = new Date(utc + (3600000 * 5.5));
+            if (ist.getHours() >= 15 && data.entryPrice <= 5.0)
+                return null;
+        }
         const today = this.getTodayDateStr();
         const id = `call_${today}_${data.symbol}_${data.strikePrice}_${data.optionType}_${data.action}`;
         let call = this.calls.get(id);
         if (!call) {
-            call = this.recordSignal({
+            const created = this.recordSignal({
                 symbol: data.symbol,
                 strikePrice: data.strikePrice,
                 optionType: data.optionType,
@@ -308,6 +334,9 @@ class SignalLedgerService {
                 callGivenTimeFormatted: data.callGivenTimeFormatted,
                 entryPriceTimeFormatted: data.entryPriceTimeFormatted
             });
+            if (!created)
+                return null;
+            call = created;
         }
         if (call) {
             call.currentLtp = +data.currentLtp.toFixed(2);

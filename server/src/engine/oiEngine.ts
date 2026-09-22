@@ -149,12 +149,13 @@ export class OIEngine {
     let totalPutOIChange5m = 0;
 
     const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+    const utcTime = now + (new Date().getTimezoneOffset() * 60000);
+    const istTime = new Date(utcTime + (3600000 * 5.5));
+    const isPast3Pm = istTime.getHours() >= 15;
     const isMarketOpenForSymbol = (() => {
-      const utc = now + (new Date().getTimezoneOffset() * 60000);
-      const ist = new Date(utc + (3600000 * 5.5));
-      const day = ist.getDay();
+      const day = istTime.getDay();
       if (day === 0 || day === 6) return false;
-      const currentMin = ist.getHours() * 60 + ist.getMinutes();
+      const currentMin = istTime.getHours() * 60 + istTime.getMinutes();
       if (isCommodity) {
         return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
       }
@@ -398,12 +399,11 @@ export class OIEngine {
         pcrStrike,
         isAtm,
         distanceFromAtm: strike - atmStrike
-      });
-
-      // ─────────────────────────────────────────────────────────────
+      });      // ─────────────────────────────────────────────────────────────
       // Call Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
       // ─────────────────────────────────────────────────────────────
-      if (isMarketOpenForSymbol && callSurge.level !== 'NORMAL' && raw.callVolume >= 10000 && Math.abs(strike - atmStrike) <= 350) {
+      const minViableSurgeCeLtp = isPast3Pm ? 15.0 : 5.0;
+      if (isMarketOpenForSymbol && callSurge.level !== 'NORMAL' && raw.callVolume >= 10000 && Math.abs(strike - atmStrike) <= 350 && raw.callLtp >= minViableSurgeCeLtp) {
         // Multi-Factor Confluence Adjustment
         let calibratedCallScore = callSurge.score;
         if (spotPctChange > 0.05) calibratedCallScore += 6; // Spot trend alignment
@@ -415,82 +415,86 @@ export class OIEngine {
         calibratedCallScore = Math.min(100, Math.max(0, calibratedCallScore));
 
         const actionInfo = determineTradeAction(symbol, 'CE', callBuildup, strike, atmStrike, raw.callLtp);
-        const suggestion = generateOptionSuggestion(symbol, strike, 'CE', raw.callLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
+        
+        if (actionInfo.tradeAction !== 'NEUTRAL_WATCH') {
+          const suggestion = generateOptionSuggestion(symbol, strike, 'CE', raw.callLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
 
-        const ivNote = greeks.callIvStatus === 'CHEAP'
-          ? `IV ${greeks.callIv}% (Cheap • Low Crush Risk)`
-          : greeks.callIvStatus === 'EXPENSIVE_CRUSH_RISK'
-          ? `IV ${greeks.callIv}% (Expensive • Volatility Crush Risk)`
-          : `IV ${greeks.callIv}% (Fair Value)`;
+          const ivNote = greeks.callIvStatus === 'CHEAP'
+            ? `IV ${greeks.callIv}% (Cheap • Low Crush Risk)`
+            : greeks.callIvStatus === 'EXPENSIVE_CRUSH_RISK'
+            ? `IV ${greeks.callIv}% (Expensive • Volatility Crush Risk)`
+            : `IV ${greeks.callIv}% (Fair Value)`;
 
-        const liqNote = callLiq.rating === 'HIGH_LIQUIDITY'
-          ? `High Liquidity (${(raw.callVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
-          : `Moderate Liquidity (${(raw.callVolume / 1000).toFixed(0)}k Vol)`;
+          const liqNote = callLiq.rating === 'HIGH_LIQUIDITY'
+            ? `High Liquidity (${(raw.callVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
+            : `Moderate Liquidity (${(raw.callVolume / 1000).toFixed(0)}k Vol)`;
 
-        // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
-        let callHorizonMins = calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 18 : 28;
-        let callHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
-        if (calibratedCallScore >= 80) {
-          callHorizonDesc = '⚡ High Velocity Institutional Burst (8-12m)';
-        } else if (calibratedCallScore >= 60) {
-          callHorizonDesc = '🚀 Active Momentum Wave (15-20m)';
-        } else {
-          callHorizonDesc = '📊 Steady Trend Accumulation (25-35m)';
+          // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
+          let callHorizonMins = calibratedCallScore >= 80 ? 10 : calibratedCallScore >= 60 ? 18 : 28;
+          let callHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
+          if (calibratedCallScore >= 80) {
+            callHorizonDesc = '⚡ High Velocity Institutional Burst (8-12m)';
+          } else if (calibratedCallScore >= 60) {
+            callHorizonDesc = '🚀 Active Momentum Wave (15-20m)';
+          } else {
+            callHorizonDesc = '📊 Steady Trend Accumulation (25-35m)';
+          }
+          if (greeks.callIv >= 18) {
+            callHorizonMins = Math.max(8, callHorizonMins - 4);
+            callHorizonDesc += ' • High IV Scalp';
+          } else if (greeks.callIv < 11) {
+            callHorizonMins = Math.min(35, callHorizonMins + 5);
+            callHorizonDesc += ' • Low IV Cushion';
+          }
+
+          detectedSurgesThisTick.push({
+            id: `${symbol}-CE-${strike}-${now}`,
+            timestamp: new Date(now).toISOString(),
+            givenTimestamp: new Date(now).toISOString(),
+            timeFormatted: timeStr,
+            indexSymbol: symbol,
+            strikePrice: strike,
+            optionType: 'CE',
+            expiryDate: activeExpiry,
+            surgeLevel: calibratedCallScore >= 80 ? 'EXTREME' : calibratedCallScore >= 60 ? 'STRONG' : 'MODERATE',
+            surgeScore: calibratedCallScore,
+            oiChange1m: callOIChange1m,
+            oiChange1mFormatted: formatIndianNumber(callOIChange1m),
+            oiChangePct: prevCallOI > 0 ? +((callOIChange1m / prevCallOI) * 100).toFixed(1) : 0,
+            currentOI: raw.callOI,
+            currentOIFormatted: formatIndianNumber(raw.callOI).replace('+', ''),
+            ltp: raw.callLtp,
+            ltpChange: callLtpChange,
+            ltpPctChange: callLtpPctChange,
+            volume: raw.callVolume,
+            buildup: callBuildup,
+            tradeAction: actionInfo.tradeAction,
+            actionTitle: actionInfo.actionTitle,
+            actionDescription: actionInfo.actionDescription,
+            iv: greeks.callIv,
+            ivStatus: greeks.callIvStatus,
+            ivDescription: ivNote,
+            liquidityRating: callLiq.rating,
+            spreadFormatted: `±${callLiq.spreadPct}%`,
+            volumeFormatted: `${(raw.callVolume / 100000).toFixed(2)}L`,
+            suggestedContract: {
+              ...suggestion,
+              ivNote,
+              liquidityNote: liqNote
+            },
+            confidence: actionInfo.confidence,
+            validUntilMinutes: callHorizonMins,
+            horizonDescription: callHorizonDesc,
+            expiresAt: new Date(now + callHorizonMins * 60000).toISOString()
+          });
         }
-        if (greeks.callIv >= 18) {
-          callHorizonMins = Math.max(8, callHorizonMins - 4);
-          callHorizonDesc += ' • High IV Scalp';
-        } else if (greeks.callIv < 11) {
-          callHorizonMins = Math.min(35, callHorizonMins + 5);
-          callHorizonDesc += ' • Low IV Cushion';
-        }
-
-        detectedSurgesThisTick.push({
-          id: `${symbol}-CE-${strike}-${now}`,
-          timestamp: new Date(now).toISOString(),
-          givenTimestamp: new Date(now).toISOString(),
-          timeFormatted: timeStr,
-          indexSymbol: symbol,
-          strikePrice: strike,
-          optionType: 'CE',
-          expiryDate: activeExpiry,
-          surgeLevel: calibratedCallScore >= 80 ? 'EXTREME' : calibratedCallScore >= 60 ? 'STRONG' : 'MODERATE',
-          surgeScore: calibratedCallScore,
-          oiChange1m: callOIChange1m,
-          oiChange1mFormatted: formatIndianNumber(callOIChange1m),
-          oiChangePct: prevCallOI > 0 ? +((callOIChange1m / prevCallOI) * 100).toFixed(1) : 0,
-          currentOI: raw.callOI,
-          currentOIFormatted: formatIndianNumber(raw.callOI).replace('+', ''),
-          ltp: raw.callLtp,
-          ltpChange: callLtpChange,
-          ltpPctChange: callLtpPctChange,
-          volume: raw.callVolume,
-          buildup: callBuildup,
-          tradeAction: actionInfo.tradeAction,
-          actionTitle: actionInfo.actionTitle,
-          actionDescription: actionInfo.actionDescription,
-          iv: greeks.callIv,
-          ivStatus: greeks.callIvStatus,
-          ivDescription: ivNote,
-          liquidityRating: callLiq.rating,
-          spreadFormatted: `±${callLiq.spreadPct}%`,
-          volumeFormatted: `${(raw.callVolume / 100000).toFixed(2)}L`,
-          suggestedContract: {
-            ...suggestion,
-            ivNote,
-            liquidityNote: liqNote
-          },
-          confidence: actionInfo.confidence,
-          validUntilMinutes: callHorizonMins,
-          horizonDescription: callHorizonDesc,
-          expiresAt: new Date(now + callHorizonMins * 60000).toISOString()
-        });
       }
 
       // ─────────────────────────────────────────────────────────────
       // Put Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
       // ─────────────────────────────────────────────────────────────
-      if (isMarketOpenForSymbol && putSurge.level !== 'NORMAL' && raw.putVolume >= 10000 && Math.abs(strike - atmStrike) <= 350) {
+      const minViableSurgePeLtp = isPast3Pm ? 15.0 : 5.0;
+      if (isMarketOpenForSymbol && putSurge.level !== 'NORMAL' && raw.putVolume >= 10000 && Math.abs(strike - atmStrike) <= 350 && raw.putLtp >= minViableSurgePeLtp) {
         // Multi-Factor Confluence Adjustment
         let calibratedPutScore = putSurge.score;
         if (spotPctChange < -0.05) calibratedPutScore += 6; // Spot trend alignment (falling index)
@@ -502,76 +506,79 @@ export class OIEngine {
         calibratedPutScore = Math.min(100, Math.max(0, calibratedPutScore));
 
         const actionInfo = determineTradeAction(symbol, 'PE', putBuildup, strike, atmStrike, raw.putLtp);
-        const suggestion = generateOptionSuggestion(symbol, strike, 'PE', raw.putLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
+        
+        if (actionInfo.tradeAction !== 'NEUTRAL_WATCH') {
+          const suggestion = generateOptionSuggestion(symbol, strike, 'PE', raw.putLtp, actionInfo.tradeAction, activeExpiry, atmStrike);
 
-        const ivNote = greeks.putIvStatus === 'CHEAP'
-          ? `IV ${greeks.putIv}% (Cheap • Low Crush Risk)`
-          : greeks.putIvStatus === 'EXPENSIVE_CRUSH_RISK'
-          ? `IV ${greeks.putIv}% (Expensive • Volatility Crush Risk)`
-          : `IV ${greeks.putIv}% (Fair Value)`;
+          const ivNote = greeks.putIvStatus === 'CHEAP'
+            ? `IV ${greeks.putIv}% (Cheap • Low Crush Risk)`
+            : greeks.putIvStatus === 'EXPENSIVE_CRUSH_RISK'
+            ? `IV ${greeks.putIv}% (Expensive • Volatility Crush Risk)`
+            : `IV ${greeks.putIv}% (Fair Value)`;
 
-        const liqNote = putLiq.rating === 'HIGH_LIQUIDITY'
-          ? `High Liquidity (${(raw.putVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
-          : `Moderate Liquidity (${(raw.putVolume / 1000).toFixed(0)}k Vol)`;
+          const liqNote = putLiq.rating === 'HIGH_LIQUIDITY'
+            ? `High Liquidity (${(raw.putVolume / 100000).toFixed(1)}L Vol • Tight Spread)`
+            : `Moderate Liquidity (${(raw.putVolume / 1000).toFixed(0)}k Vol)`;
 
-        // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
-        let putHorizonMins = calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 18 : 28;
-        let putHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
-        if (calibratedPutScore >= 80) {
-          putHorizonDesc = '⚡ High Velocity Breakdown Wave (8-12m)';
-        } else if (calibratedPutScore >= 60) {
-          putHorizonDesc = '🚀 Active Downside Momentum (15-20m)';
-        } else {
-          putHorizonDesc = '📊 Steady Resistance Accumulation (25-35m)';
+          // Dynamic Analytical Momentum Horizon based on Speed, OI Flow, IV, and Greeks
+          let putHorizonMins = calibratedPutScore >= 80 ? 10 : calibratedPutScore >= 60 ? 18 : 28;
+          let putHorizonDesc = '⚡ Fast Momentum Scalp (8-12m)';
+          if (calibratedPutScore >= 80) {
+            putHorizonDesc = '⚡ High Velocity Breakdown Wave (8-12m)';
+          } else if (calibratedPutScore >= 60) {
+            putHorizonDesc = '🚀 Active Downside Momentum (15-20m)';
+          } else {
+            putHorizonDesc = '📊 Steady Trend Accumulation (25-35m)';
+          }
+          if (greeks.putIv >= 18) {
+            putHorizonMins = Math.max(8, putHorizonMins - 4);
+            putHorizonDesc += ' • High IV Scalp';
+          } else if (greeks.putIv < 11) {
+            putHorizonMins = Math.min(35, putHorizonMins + 5);
+            putHorizonDesc += ' • Low IV Cushion';
+          }
+
+          detectedSurgesThisTick.push({
+            id: `${symbol}-PE-${strike}-${now}`,
+            timestamp: new Date(now).toISOString(),
+            givenTimestamp: new Date(now).toISOString(),
+            timeFormatted: timeStr,
+            indexSymbol: symbol,
+            strikePrice: strike,
+            optionType: 'PE',
+            expiryDate: activeExpiry,
+            surgeLevel: calibratedPutScore >= 80 ? 'EXTREME' : calibratedPutScore >= 60 ? 'STRONG' : 'MODERATE',
+            surgeScore: calibratedPutScore,
+            oiChange1m: putOIChange1m,
+            oiChange1mFormatted: formatIndianNumber(putOIChange1m),
+            oiChangePct: prevPutOI > 0 ? +((putOIChange1m / prevPutOI) * 100).toFixed(1) : 0,
+            currentOI: raw.putOI,
+            currentOIFormatted: formatIndianNumber(raw.putOI).replace('+', ''),
+            ltp: raw.putLtp,
+            ltpChange: putLtpChange,
+            ltpPctChange: putLtpPctChange,
+            volume: raw.putVolume,
+            buildup: putBuildup,
+            tradeAction: actionInfo.tradeAction,
+            actionTitle: actionInfo.actionTitle,
+            actionDescription: actionInfo.actionDescription,
+            iv: greeks.putIv,
+            ivStatus: greeks.putIvStatus,
+            ivDescription: ivNote,
+            liquidityRating: putLiq.rating,
+            spreadFormatted: `±${putLiq.spreadPct}%`,
+            volumeFormatted: `${(raw.putVolume / 100000).toFixed(2)}L`,
+            suggestedContract: {
+              ...suggestion,
+              ivNote,
+              liquidityNote: liqNote
+            },
+            confidence: actionInfo.confidence,
+            validUntilMinutes: putHorizonMins,
+            horizonDescription: putHorizonDesc,
+            expiresAt: new Date(now + putHorizonMins * 60000).toISOString()
+          });
         }
-        if (greeks.putIv >= 18) {
-          putHorizonMins = Math.max(8, putHorizonMins - 4);
-          putHorizonDesc += ' • High IV Scalp';
-        } else if (greeks.putIv < 11) {
-          putHorizonMins = Math.min(35, putHorizonMins + 5);
-          putHorizonDesc += ' • Low IV Cushion';
-        }
-
-        detectedSurgesThisTick.push({
-          id: `${symbol}-PE-${strike}-${now}`,
-          timestamp: new Date(now).toISOString(),
-          givenTimestamp: new Date(now).toISOString(),
-          timeFormatted: timeStr,
-          indexSymbol: symbol,
-          strikePrice: strike,
-          optionType: 'PE',
-          expiryDate: activeExpiry,
-          surgeLevel: calibratedPutScore >= 80 ? 'EXTREME' : calibratedPutScore >= 60 ? 'STRONG' : 'MODERATE',
-          surgeScore: calibratedPutScore,
-          oiChange1m: putOIChange1m,
-          oiChange1mFormatted: formatIndianNumber(putOIChange1m),
-          oiChangePct: prevPutOI > 0 ? +((putOIChange1m / prevPutOI) * 100).toFixed(1) : 0,
-          currentOI: raw.putOI,
-          currentOIFormatted: formatIndianNumber(raw.putOI).replace('+', ''),
-          ltp: raw.putLtp,
-          ltpChange: putLtpChange,
-          ltpPctChange: putLtpPctChange,
-          volume: raw.putVolume,
-          buildup: putBuildup,
-          tradeAction: actionInfo.tradeAction,
-          actionTitle: actionInfo.actionTitle,
-          actionDescription: actionInfo.actionDescription,
-          iv: greeks.putIv,
-          ivStatus: greeks.putIvStatus,
-          ivDescription: ivNote,
-          liquidityRating: putLiq.rating,
-          spreadFormatted: `±${putLiq.spreadPct}%`,
-          volumeFormatted: `${(raw.putVolume / 100000).toFixed(2)}L`,
-          suggestedContract: {
-            ...suggestion,
-            ivNote,
-            liquidityNote: liqNote
-          },
-          confidence: actionInfo.confidence,
-          validUntilMinutes: putHorizonMins,
-          horizonDescription: putHorizonDesc,
-          expiresAt: new Date(now + putHorizonMins * 60000).toISOString()
-        });
       }
     }
 

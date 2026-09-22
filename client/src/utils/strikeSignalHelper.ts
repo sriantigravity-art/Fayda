@@ -45,6 +45,77 @@ export function getStrikeSignalLevels(
     ? (optionType === 'CE' ? (strikeData.callLtp || 100) : (strikeData.putLtp || 100))
     : 100;
 
+  // ── STRICT DERIVATIVE VIABILITY GUARD ─────────────────────────
+  const utcTime = Date.now() + (new Date().getTimezoneOffset() * 60000);
+  const istTime = new Date(utcTime + (3600000 * 5.5));
+  const isPast3Pm = istTime.getHours() >= 15;
+
+  // 1. Absolute floor: Under ₹2.00 is strictly prohibited for any derivative call/put
+  if (currentLtp < 2.0) {
+    return {
+      hasActiveSignal: false,
+      isExactStrikeMatch: false,
+      signalSource: 'DERIVATIVE CAPITAL SHIELD',
+      action: optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
+      actionLabel: optionType === 'CE' ? 'BUY CALL' : 'BUY PUT',
+      optionType,
+      strikePrice,
+      entryPrice: currentLtp,
+      entryRange: `₹${currentLtp.toFixed(2)}`,
+      target1Price: 0,
+      target1Pct: 0,
+      target2Price: 0,
+      target2Pct: 0,
+      stoplossPrice: 0,
+      stoplossPct: 0,
+      riskReward: 'N/A',
+      currentLtp,
+      pnlPoints: 0,
+      pnlPct: 0,
+      isTarget1Hit: false,
+      isTarget2Hit: false,
+      isStoplossHit: false,
+      statusText: 'PREMIUM < ₹2.00 (SUB-PENNY EXPIRED)',
+      statusColor: 'text-rose-400',
+      directiveAdvice: 'Option premium is below viable derivative limit (₹2.00). Extreme theta decay & expiry to ₹0 risk. No buy signal allowed.',
+      confluenceScore: 0,
+      strategyTag: 'Sub-Penny Expired Option'
+    };
+  }
+
+  // 2. Post-3:00 PM restriction: Under or equal to ₹5.00 is strictly prohibited after 3:00 PM in derivatives
+  if (isPast3Pm && currentLtp <= 5.0) {
+    return {
+      hasActiveSignal: false,
+      isExactStrikeMatch: false,
+      signalSource: 'POST-3:00 PM THETA SHIELD',
+      action: optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
+      actionLabel: optionType === 'CE' ? 'BUY CALL' : 'BUY PUT',
+      optionType,
+      strikePrice,
+      entryPrice: currentLtp,
+      entryRange: `₹${currentLtp.toFixed(2)}`,
+      target1Price: 0,
+      target1Pct: 0,
+      target2Price: 0,
+      target2Pct: 0,
+      stoplossPrice: 0,
+      stoplossPct: 0,
+      riskReward: 'N/A',
+      currentLtp,
+      pnlPoints: 0,
+      pnlPct: 0,
+      isTarget1Hit: false,
+      isTarget2Hit: false,
+      isStoplossHit: false,
+      statusText: 'POST-3:00 PM LOW PREMIUM PROHIBITED (≤ ₹5.00)',
+      statusColor: 'text-amber-400',
+      directiveAdvice: 'After 03:00 PM IST, low-premium option contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay to ₹0.',
+      confluenceScore: 0,
+      strategyTag: 'Late-Session Terminal Theta Guard'
+    };
+  }
+
   const pkg = currentIndexState?.unifiedTipsPackage;
   const allTips: UnifiedSmartTip[] = [];
 

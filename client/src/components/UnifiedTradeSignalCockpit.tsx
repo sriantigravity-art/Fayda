@@ -192,8 +192,19 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       isSquareOff: boolean;
     }> = [];
 
+    const utcTime = Date.now() + (new Date().getTimezoneOffset() * 60000);
+    const istTime = new Date(utcTime + (3600000 * 5.5));
+    const isPast3Pm = istTime.getHours() >= 15;
+
     candidates.forEach(c => {
       if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED') return;
+
+      // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
+      const isBuyer = c.tip.tradingRole !== 'SELLER';
+      if (isBuyer) {
+        if ((c.tip.currentLtp > 0 && c.tip.currentLtp < 2.0) || (c.tip.entryPrice > 0 && c.tip.entryPrice < 2.0)) return;
+        if (isPast3Pm && ((c.tip.currentLtp > 0 && c.tip.currentLtp <= 5.0) || (c.tip.entryPrice > 0 && c.tip.entryPrice <= 5.0))) return;
+      }
       const key = `${c.tip.contractSymbol || ''}_${c.tip.action}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -315,7 +326,17 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       tipsPackage.topSellerNeutralTrade,
       tipsPackage.hedgedSpreadTrade,
       tipsPackage.gammaTrade
-    ].filter((t): t is UnifiedSmartTip => Boolean(t && t.id !== heroId && t.action !== 'STANDBY' && t.status !== 'EXPIRED'));
+    ].filter((t): t is UnifiedSmartTip => {
+      if (!t || t.id === heroId || t.action === 'STANDBY' || t.status === 'EXPIRED') return false;
+      const isBuyer = t.tradingRole !== 'SELLER';
+      if (isBuyer) {
+        if ((t.currentLtp > 0 && t.currentLtp < 2.0) || (t.entryPrice > 0 && t.entryPrice < 2.0)) return false;
+        const utcNow = Date.now() + (new Date().getTimezoneOffset() * 60000);
+        const istNow = new Date(utcNow + (3600000 * 5.5));
+        if (istNow.getHours() >= 15 && ((t.currentLtp > 0 && t.currentLtp <= 5.0) || (t.entryPrice > 0 && t.entryPrice <= 5.0))) return false;
+      }
+      return true;
+    });
 
     // Deduplicate by contract symbol
     const seen = new Set<string>();
