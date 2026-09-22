@@ -181,6 +181,11 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
     setSelectedTf(timeframe);
   }, [timeframe]);
 
+  // When strike contract or symbol changes, automatically reset viewEngine to STRIKE_OPTION_PRO
+  useEffect(() => {
+    setViewEngine('STRIKE_OPTION_PRO');
+  }, [symbol, strikePrice, optionType]);
+
   const handleTfClick = (tf: StrikeTimeframe) => {
     setSelectedTf(tf);
     setPanOffset(0);
@@ -642,12 +647,14 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
   };
 
   // Open Direct Fyers / Dhan charts
-  const handleOpenDhanWeb = () => {
-    window.open(`https://tv.dhan.co/?symbol=${encodeURIComponent(tvUnderlyingSymbol)}`, '_blank', 'noopener,noreferrer');
+  const handleOpenDhanWeb = (preferStrikeContract = false) => {
+    const sym = preferStrikeContract ? dhanSymbolStr : tvUnderlyingSymbol;
+    window.open(`https://tv.dhan.co/?symbol=${encodeURIComponent(sym)}`, '_blank', 'noopener,noreferrer');
   };
 
-  const handleOpenFyersWeb = () => {
-    window.open(`https://trade.fyers.in/?symbol=${encodeURIComponent(tvUnderlyingSymbol)}`, '_blank', 'noopener,noreferrer');
+  const handleOpenFyersWeb = (preferStrikeContract = false) => {
+    const sym = preferStrikeContract ? fyersSymbolStr : tvUnderlyingSymbol;
+    window.open(`https://trade.fyers.in/?symbol=${encodeURIComponent(sym)}`, '_blank', 'noopener,noreferrer');
   };
 
   const currentTrend = currentLiveBar?.trend || (ltpChange >= 0 ? 'UP' : 'DOWN');
@@ -672,26 +679,29 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
             <button
               type="button"
               onClick={() => setViewEngine('STRIKE_OPTION_PRO')}
-              className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
                 viewEngine === 'STRIKE_OPTION_PRO'
-                  ? 'bg-accent-cyan text-slate-950 font-black shadow-xs'
+                  ? 'bg-accent-cyan text-slate-950 font-black shadow-xs ring-1 ring-accent-cyan/60'
                   : 'text-terminal-muted hover:text-terminal-text'
               }`}
+              title="Real-time Fyers/Dhan live candlestick chart for this strike option contract"
             >
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Strike Option Pro Chart</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-900/30 text-slate-950 font-extrabold uppercase">Live</span>
             </button>
             <button
               type="button"
               onClick={() => setViewEngine('TRADINGVIEW_UNDERLYING')}
               className={`px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1.5 ${
                 viewEngine === 'TRADINGVIEW_UNDERLYING'
-                  ? 'bg-purple-500 text-white font-black shadow-xs'
+                  ? 'bg-purple-600 text-white font-black shadow-xs'
                   : 'text-terminal-muted hover:text-terminal-text'
               }`}
+              title="TradingView Underlying Index embed (Free TV widget restricts NSE spot indices)"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>Underlying Index TV Live</span>
+              <span>Underlying Index TV</span>
             </button>
           </div>
 
@@ -1718,40 +1728,43 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
           {viewEngine === 'TRADINGVIEW_UNDERLYING' && (
             <div className="w-full h-full min-h-[460px] bg-terminal-card relative z-10 flex-1 flex flex-col">
               {/* Underlying Info & Broker Direct Launch Strip */}
-              <div className="px-3 py-1.5 bg-terminal-panel border-b border-terminal-border flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-amber-500">ℹ️</span>
+              <div className="px-3 py-2 bg-gradient-to-r from-amber-500/10 via-terminal-panel to-terminal-panel border-b border-terminal-border flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold border border-amber-500/30 text-[10px]">
+                    ⚠️ TV FREE EMBED NOTICE
+                  </span>
                   <span className="text-terminal-muted">
                     TradingView Symbol: <strong className="text-terminal-text">{tvUnderlyingSymbol}</strong>
                   </span>
-                  <span className="hidden lg:inline text-[10px] text-terminal-muted">
-                    • NSE/MCX spot data restrictions apply on public embed widgets
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                    • Free TradingView public widget restricts NSE spot indices (displays AAPL fallback). Use Strike Option Pro Chart or your connected Fyers account for live data.
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleOpenFyersWeb}
-                    className="px-2 py-0.5 rounded bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1"
-                    title="Open live institutional chart on Fyers Web (trade.fyers.in)"
-                  >
-                    <span>Fyers TV (Live) ↗</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenDhanWeb}
-                    className="px-2 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1"
-                    title="Open live institutional chart on Dhan TV (tv.dhan.co)"
-                  >
-                    <span>Dhan TV (Live) ↗</span>
-                  </button>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setViewEngine('STRIKE_OPTION_PRO')}
-                    className="px-2 py-0.5 rounded bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/30 text-[10.5px] font-bold transition cursor-pointer"
+                    className="px-2.5 py-1 rounded bg-accent-cyan text-slate-950 font-black text-xs hover:bg-cyan-300 transition cursor-pointer shadow-xs flex items-center gap-1.5"
                     title="Switch to Fayda Strike Option Candlestick Chart"
                   >
-                    ← Back to Option Pro Chart
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span>Open Strike Option Pro Chart ({symbol} {strikePrice} {optionType})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenFyersWeb(false)}
+                    className="px-2 py-1 rounded bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1"
+                    title="Open live institutional chart on Fyers Web (trade.fyers.in)"
+                  >
+                    <span>Fyers Web TV ↗</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDhanWeb(false)}
+                    className="px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1"
+                    title="Open live institutional chart on Dhan TV (tv.dhan.co)"
+                  >
+                    <span>Dhan TV ↗</span>
                   </button>
                 </div>
               </div>
