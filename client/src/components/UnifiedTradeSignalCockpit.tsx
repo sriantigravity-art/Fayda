@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { useTradingPersona } from '../context/TradingPersonaContext';
@@ -29,13 +29,18 @@ import {
   Info,
   ExternalLink,
   BookOpen,
-  XCircle
+  XCircle,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const UnifiedTradeSignalCockpit: React.FC = () => {
   const { 
     selectedIndex, 
+    setSelectedIndex,
     currentIndexState, 
+    indices,
     selectedSurges,
     openStrikeChartModal
   } = useMarket();
@@ -60,6 +65,68 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const [showRiskModal, setShowRiskModal] = useState<boolean>(false);
   const [showBasketModal, setShowBasketModal] = useState<boolean>(false);
   const [activeTipForModal, setActiveTipForModal] = useState<UnifiedSmartTip | null>(null);
+
+  // Asset category filter, search & tabs ref
+  const [assetCategory, setAssetCategory] = useState<'ALL' | 'INDICES' | 'COMMODITIES' | 'NIFTY50_STOCKS'>('ALL');
+  const [assetSearchQuery, setAssetSearchQuery] = useState<string>('');
+  const assetTabsRef = useRef<HTMLDivElement>(null);
+
+  // Scroll asset tabs left/right
+  const scrollAssetTabs = (direction: 'left' | 'right') => {
+    if (assetTabsRef.current) {
+      const amount = direction === 'left' ? -260 : 260;
+      assetTabsRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  // Filter assets based on category and search
+  const filteredAssets = useMemo(() => {
+    return ALL_SYMBOLS_CONFIG.filter(item => {
+      if (assetCategory !== 'ALL' && item.category !== assetCategory) return false;
+      if (assetSearchQuery.trim()) {
+        const q = assetSearchQuery.toLowerCase().trim();
+        return item.symbol.toLowerCase().includes(q) || item.name.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [assetCategory, assetSearchQuery]);
+
+  // Keep selected tab centered in view
+  useEffect(() => {
+    const activeEl = document.getElementById(`asset-tab-${selectedIndex}`);
+    if (activeEl && assetTabsRef.current) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [selectedIndex]);
+
+  // Asset signal summary helper to show live badge on tabs
+  const getAssetSignalSummary = (sym: string) => {
+    const state = indices ? indices[sym] : null;
+    const pkg = state?.unifiedTipsPackage;
+    const hero = pkg?.primaryTrade || pkg?.topCallTrade || pkg?.topPutTrade || pkg?.gammaTrade;
+    const spot = state?.spotPrice;
+    if (!hero || hero.action === 'STANDBY') {
+      return { hasSignal: false, spot };
+    }
+    const isTargetHit = hero.status === 'TARGET1_HIT' || hero.status === 'TARGET2_HIT' || hero.status === 'TARGET_HIT';
+    const isSlHit = hero.status === 'SL_HIT' || hero.status === 'STOPLOSS_HIT';
+    const isSquareOff = hero.status === 'INTRADAY_CLOSED' || hero.status === 'SQUARE_OFF';
+    const isCall = hero.action.includes('CALL');
+    const isPut = hero.action.includes('PUT');
+
+    return {
+      hasSignal: true,
+      spot,
+      action: hero.action,
+      contractSymbol: hero.contractSymbol,
+      isCall,
+      isPut,
+      isTargetHit,
+      isSlHit,
+      isSquareOff,
+      quantumScore: hero.quantumScore || hero.confluenceScore
+    };
+  };
 
   const tipsPackage = currentIndexState?.unifiedTipsPackage;
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex) || ALL_SYMBOLS_CONFIG[0] || { lot: 65, step: 50 };
@@ -431,6 +498,157 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
             <Zap className="w-3.5 h-3.5" />
             <span>0DTE Gamma Sniper</span>
           </button>
+        </div>
+      </div>
+
+      {/* ── 1.1 ASSET TABS BAR: SELECT ASSET FOR LIVE QUANTUM SIGNALS ── */}
+      <div className="px-4 sm:px-6 py-2.5 bg-terminal-panel/40 border-b border-terminal-border/70 space-y-2">
+        {/* Top filter row: Category pills + Search */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center space-x-1 p-1 bg-terminal-bg/80 border border-terminal-border rounded-xl overflow-x-auto no-scrollbar">
+            <span className="px-2 text-[10px] text-terminal-muted uppercase font-bold flex items-center gap-1">
+              <span>Assets:</span>
+            </span>
+            {(['ALL', 'INDICES', 'COMMODITIES', 'NIFTY50_STOCKS'] as const).map(cat => {
+              const label = cat === 'ALL' ? 'All Assets' : cat === 'INDICES' ? 'Indices' : cat === 'COMMODITIES' ? 'Commodities' : 'F&O Stocks';
+              const count = cat === 'ALL' ? ALL_SYMBOLS_CONFIG.length : ALL_SYMBOLS_CONFIG.filter(c => c.category === cat).length;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setAssetCategory(cat)}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer text-[11px] whitespace-nowrap ${
+                    assetCategory === cat
+                      ? 'bg-accent-cyan text-slate-950 shadow-sm font-black'
+                      : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className={`text-[9px] px-1 py-0.2 rounded-full ${
+                    assetCategory === cat ? 'bg-slate-950/20 text-slate-900' : 'bg-terminal-panel text-terminal-muted'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick search input & Left/Right Scroll Arrows */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-44 sm:w-56">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-terminal-muted pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search asset / stock..."
+                value={assetSearchQuery}
+                onChange={e => setAssetSearchQuery(e.target.value)}
+                className="w-full bg-terminal-bg/80 border border-terminal-border rounded-lg pl-8 pr-6 py-1 text-xs font-mono text-terminal-text placeholder-terminal-muted focus:outline-none focus:border-accent-cyan transition"
+              />
+              {assetSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setAssetSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-terminal-muted hover:text-terminal-text text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="hidden sm:flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => scrollAssetTabs('left')}
+                className="p-1.5 rounded-lg bg-terminal-bg/80 border border-terminal-border hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text cursor-pointer transition"
+                title="Scroll assets left"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollAssetTabs('right')}
+                className="p-1.5 rounded-lg bg-terminal-bg/80 border border-terminal-border hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text cursor-pointer transition"
+                title="Scroll assets right"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Asset Tabs Strip */}
+        <div
+          ref={assetTabsRef}
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth"
+        >
+          {filteredAssets.map(item => {
+            const isSelected = selectedIndex === item.symbol;
+            const sig = getAssetSignalSummary(item.symbol);
+            const spot = sig.spot || (isSelected ? currentIndexState?.spotPrice : undefined);
+
+            return (
+              <button
+                key={item.symbol}
+                id={`asset-tab-${item.symbol}`}
+                type="button"
+                onClick={() => setSelectedIndex(item.symbol)}
+                className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 border select-none ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-sky-500/20 via-cyan-500/15 to-emerald-500/20 text-accent-cyan border-accent-cyan shadow-[0_0_12px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan'
+                    : 'bg-terminal-bg/70 hover:bg-terminal-panel/90 text-terminal-muted hover:text-terminal-text border-terminal-border/80 hover:border-terminal-border'
+                }`}
+                title={`Switch to ${item.name} (${item.symbol}) Quantum Signals`}
+              >
+                {/* Active pulsating dot */}
+                {isSelected ? (
+                  <span className="w-2 h-2 rounded-full bg-accent-cyan animate-ping shrink-0" />
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-terminal-border shrink-0" />
+                )}
+
+                <div className="flex flex-col items-start leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className={isSelected ? 'text-white font-extrabold' : 'text-terminal-text font-bold'}>
+                      {item.symbol}
+                    </span>
+                    {item.isIndex && (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/15 text-sky-400 font-semibold">
+                        IDX
+                      </span>
+                    )}
+                    {item.segment === 'COMMODITY' && (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/15 text-amber-400 font-semibold">
+                        MCX
+                      </span>
+                    )}
+                  </div>
+                  {spot && (
+                    <span className="text-[10px] text-terminal-muted font-normal mt-0.5">
+                      ₹{spot.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Signal Badge on the Asset Tab */}
+                {sig.hasSignal && (
+                  <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                    sig.isTargetHit
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : sig.isSlHit
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                      : sig.isSquareOff
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                      : sig.isCall
+                      ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
+                      : 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
+                  }`}>
+                    {sig.isTargetHit ? '🎯 TGT' : sig.isSlHit ? '🛑 SL' : sig.isSquareOff ? '⚠️ SQ' : sig.isCall ? '🟢 CALL' : '🔴 PUT'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
