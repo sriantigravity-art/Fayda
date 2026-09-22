@@ -225,6 +225,47 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     return res;
   }, [tipsPackage]);
 
+  // Strike tips slider ref and slider status
+  const strikeSliderRef = useRef<HTMLDivElement>(null);
+  const [canSlideLeft, setCanSlideLeft] = useState<boolean>(false);
+  const [canSlideRight, setCanSlideRight] = useState<boolean>(false);
+  const [sliderProgress, setSliderProgress] = useState<number>(0);
+
+  const updateStrikeSliderState = () => {
+    if (strikeSliderRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = strikeSliderRef.current;
+      setCanSlideLeft(scrollLeft > 5);
+      setCanSlideRight(scrollLeft + clientWidth < scrollWidth - 5);
+      const maxScroll = scrollWidth - clientWidth;
+      setSliderProgress(maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0);
+    }
+  };
+
+  useEffect(() => {
+    updateStrikeSliderState();
+    const el = strikeSliderRef.current;
+    if (el) {
+      el.addEventListener('scroll', updateStrikeSliderState);
+      window.addEventListener('resize', updateStrikeSliderState);
+      const timer = setTimeout(updateStrikeSliderState, 150);
+      return () => {
+        el.removeEventListener('scroll', updateStrikeSliderState);
+        window.removeEventListener('resize', updateStrikeSliderState);
+        clearTimeout(timer);
+      };
+    }
+  }, [assetSignalStrikes]);
+
+  const slideStrikes = (dir: 'left' | 'right') => {
+    if (strikeSliderRef.current) {
+      const slideAmount = Math.max(220, strikeSliderRef.current.clientWidth * 0.65);
+      strikeSliderRef.current.scrollBy({
+        left: dir === 'left' ? -slideAmount : slideAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   // Current primary trade candidate (Active preferred, or docked setup if no new signal yet)
   const currentHeroTip: UnifiedSmartTip | null = useMemo(() => {
     if (!tipsPackage) return null;
@@ -250,6 +291,16 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     }
     return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
   }, [tipsPackage, activeTab, selectedStrikeTipId, assetSignalStrikes]);
+
+  // Center active strike pill in view
+  useEffect(() => {
+    if (currentHeroTip?.id) {
+      const strikeBtn = document.getElementById(`strike-tip-pill-${currentHeroTip.id}`);
+      if (strikeBtn && strikeSliderRef.current) {
+        strikeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [currentHeroTip?.id]);
 
   // Secondary active signals queue
   const secondaryTips: UnifiedSmartTip[] = useMemo(() => {
@@ -736,8 +787,8 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 1.2 STRIKE PRICES FOR WHICH SIGNALS GIVEN (CLICK TO VIEW STRIKE SETUP) ── */}
-      <div className="px-4 sm:px-6 py-2.5 bg-terminal-panel/60 border-b border-terminal-border/70 space-y-1.5">
+      {/* ── 1.2 STRIKE PRICES FOR WHICH SIGNALS GIVEN (CLICK TO VIEW STRIKE SETUP / SLIDER NAVIGATION) ── */}
+      <div className="px-4 sm:px-6 py-2.5 bg-terminal-panel/60 border-b border-terminal-border/70 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
           <div className="flex items-center gap-2">
             <Target className="w-3.5 h-3.5 text-accent-cyan" />
@@ -748,68 +799,178 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               {assetSignalStrikes.length} {assetSignalStrikes.length === 1 ? 'Strike Signal' : 'Strike Signals'}
             </span>
           </div>
-          <span className="text-[10px] text-terminal-muted hidden sm:inline-block">
-            ⚡ Click any strike price below to view its full trade execution levels & live chart
-          </span>
+
+          {/* Slider controls & helper text */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-terminal-muted hidden md:inline-block">
+              ⚡ Click strike to view setup • Use slider arrows to browse all strikes
+            </span>
+            {assetSignalStrikes.length > 0 && (
+              <div className="flex items-center gap-1 bg-terminal-bg/90 border border-terminal-border/90 rounded-lg p-0.5 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => slideStrikes('left')}
+                  disabled={!canSlideLeft}
+                  className={`p-1 rounded-md transition-all ${
+                    canSlideLeft
+                      ? 'text-terminal-text hover:text-accent-cyan hover:bg-terminal-panel cursor-pointer active:scale-95'
+                      : 'text-terminal-muted/40 cursor-not-allowed'
+                  }`}
+                  title="Slide left to view previous strike signals"
+                  aria-label="Slide strikes left"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] font-mono px-1 text-terminal-muted select-none">
+                  SLIDER
+                </span>
+                <button
+                  type="button"
+                  onClick={() => slideStrikes('right')}
+                  disabled={!canSlideRight}
+                  className={`p-1 rounded-md transition-all ${
+                    canSlideRight
+                      ? 'text-terminal-text hover:text-accent-cyan hover:bg-terminal-panel cursor-pointer active:scale-95'
+                      : 'text-terminal-muted/40 cursor-not-allowed'
+                  }`}
+                  title="Slide right to view more strike signals"
+                  aria-label="Slide strikes right"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {assetSignalStrikes.length > 0 ? (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
-            {assetSignalStrikes.map(item => {
-              const isHeroActive = currentHeroTip?.id === item.tip.id;
-              return (
-                <button
-                  key={item.tip.id}
-                  type="button"
-                  onClick={() => setSelectedStrikeTipId(item.tip.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs transition-all duration-200 cursor-pointer flex items-center gap-2.5 border select-none ${
-                    isHeroActive
-                      ? 'bg-gradient-to-r from-sky-500/25 via-cyan-500/20 to-emerald-500/25 text-white border-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)] ring-2 ring-accent-cyan'
-                      : 'bg-terminal-bg/80 hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-terminal-border/80 hover:border-terminal-border'
-                  }`}
-                  title={`View ${item.contractSymbol} (${item.label})`}
-                >
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${
-                    item.isCall ? 'bg-bull' : item.isPut ? 'bg-bear' : 'bg-accent-gold'
-                  }`} />
+          <div className="space-y-1.5">
+            {/* Slider wrapper with optional left/right gradient navigation overlays */}
+            <div className="relative group">
+              {/* Left slider button overlay */}
+              {canSlideLeft && (
+                <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pr-4 pl-1 bg-gradient-to-r from-terminal-bg via-terminal-bg/90 to-transparent pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => slideStrikes('left')}
+                    className="pointer-events-auto p-1.5 rounded-full bg-terminal-panel/95 hover:bg-terminal-panel text-accent-cyan border border-accent-cyan/40 shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                    title="Slide strikes left"
+                    aria-label="Slide left"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-                  <div className="flex flex-col items-start leading-tight">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <span className={isHeroActive ? 'text-accent-cyan font-black' : 'text-terminal-text'}>
-                        {item.contractSymbol}
-                      </span>
-                      <span className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
-                        item.isCall 
-                          ? 'bg-emerald-500/20 text-emerald-400' 
-                          : item.isPut 
-                          ? 'bg-rose-500/20 text-rose-400' 
-                          : 'bg-purple-500/20 text-purple-400'
+              {/* Scrollable Strike Row */}
+              <div 
+                ref={strikeSliderRef}
+                className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth"
+                tabIndex={0}
+                role="region"
+                aria-label="Strike price signals slider"
+              >
+                {assetSignalStrikes.map(item => {
+                  const isHeroActive = currentHeroTip?.id === item.tip.id;
+                  return (
+                    <button
+                      key={item.tip.id}
+                      id={`strike-tip-pill-${item.tip.id}`}
+                      type="button"
+                      onClick={() => setSelectedStrikeTipId(item.tip.id)}
+                      className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs transition-all duration-200 cursor-pointer flex items-center gap-2.5 border select-none ${
+                        isHeroActive
+                          ? 'bg-gradient-to-r from-sky-500/25 via-cyan-500/20 to-emerald-500/25 text-white border-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)] ring-2 ring-accent-cyan'
+                          : 'bg-terminal-bg/80 hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-terminal-border/80 hover:border-terminal-border'
+                      }`}
+                      title={`View ${item.contractSymbol} (${item.label})`}
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${
+                        item.isCall ? 'bg-bull' : item.isPut ? 'bg-bear' : 'bg-accent-gold'
+                      }`} />
+
+                      <div className="flex flex-col items-start leading-tight">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span className={isHeroActive ? 'text-accent-cyan font-black' : 'text-terminal-text'}>
+                            {item.contractSymbol}
+                          </span>
+                          <span className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
+                            item.isCall 
+                              ? 'bg-emerald-500/20 text-emerald-400' 
+                              : item.isPut 
+                              ? 'bg-rose-500/20 text-rose-400' 
+                              : 'bg-purple-500/20 text-purple-400'
+                          }`}>
+                            {item.action.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-terminal-muted flex items-center gap-1.5 mt-0.5">
+                          <span>LTP: <strong className="text-terminal-text">₹{item.ltp.toFixed(2)}</strong></span>
+                          <span>•</span>
+                          <span>{item.score}% Quantum</span>
+                        </div>
+                      </div>
+
+                      {/* Status chip */}
+                      <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                        item.isTargetHit
+                          ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
+                          : item.isSlHit
+                          ? 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
+                          : item.isSquareOff
+                          ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
+                          : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
                       }`}>
-                        {item.action.replace(/_/g, ' ')}
+                        {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
                       </span>
-                    </div>
-                    <div className="text-[10px] text-terminal-muted flex items-center gap-1.5 mt-0.5">
-                      <span>LTP: <strong className="text-terminal-text">₹{item.ltp.toFixed(2)}</strong></span>
-                      <span>•</span>
-                      <span>{item.score}% Quantum</span>
-                    </div>
-                  </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-                  {/* Status chip */}
-                  <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-black shrink-0 ${
-                    item.isTargetHit
-                      ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
-                      : item.isSlHit
-                      ? 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
-                      : item.isSquareOff
-                      ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
-                      : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                  }`}>
-                    {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
-                  </span>
-                </button>
-              );
-            })}
+              {/* Right slider button overlay */}
+              {canSlideRight && (
+                <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pl-4 pr-1 bg-gradient-to-l from-terminal-bg via-terminal-bg/90 to-transparent pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => slideStrikes('right')}
+                    className="pointer-events-auto p-1.5 rounded-full bg-terminal-panel/95 hover:bg-terminal-panel text-accent-cyan border border-accent-cyan/40 shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                    title="Slide strikes right"
+                    aria-label="Slide right"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Slider track indicator & quick jump */}
+            <div className="flex items-center gap-2 pt-0.5 px-0.5 select-none">
+              <span className="text-[9px] text-terminal-muted font-mono tracking-wider">SLIDER</span>
+              <div 
+                className="flex-1 h-1.5 bg-terminal-bg border border-terminal-border/60 rounded-full overflow-hidden relative cursor-pointer group/track"
+                title="Click anywhere along slider to slide across strike signals"
+                onClick={(e) => {
+                  if (strikeSliderRef.current) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    strikeSliderRef.current.scrollTo({
+                      left: pct * (strikeSliderRef.current.scrollWidth - strikeSliderRef.current.clientWidth),
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+              >
+                <div 
+                  className="h-full bg-gradient-to-r from-accent-cyan via-sky-400 to-emerald-400 rounded-full transition-all duration-150 shadow-[0_0_8px_rgba(0,229,255,0.6)]"
+                  style={{ width: `${Math.max(12, Math.min(100, sliderProgress || 0))}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-1 font-mono text-[9px] text-terminal-muted">
+                <span className="text-terminal-text font-bold">{assetSignalStrikes.length}</span>
+                <span>STRIKES</span>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="p-2.5 rounded-lg border border-dashed border-terminal-border/80 bg-terminal-bg/40 flex items-center justify-between text-xs text-terminal-muted font-mono">
