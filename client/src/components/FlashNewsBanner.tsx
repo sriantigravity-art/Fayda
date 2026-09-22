@@ -97,7 +97,7 @@ export const FlashNewsBanner: React.FC = () => {
   const cleanImpact = sanitizeContent(latestFlashNews.indianMarketImpact);
 
   return (
-    <div className="fixed top-14 right-4 z-50 max-w-md w-full animate-in fade-in slide-in-from-top-4 duration-300 select-none">
+    <div className="fixed top-24 sm:top-28 right-3 sm:right-6 z-[9999] max-w-md w-[calc(100vw-1.5rem)] sm:w-full animate-in fade-in slide-in-from-top-4 duration-300 select-none shadow-2xl">
       <div className="bg-terminal-card/95 backdrop-blur-xl border-2 border-accent-cyan/60 rounded-2xl p-4 shadow-[0_0_35px_rgba(0,229,255,0.3)] relative overflow-hidden font-mono text-terminal-text">
         {/* 10-Second Linear Countdown Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-terminal-bg">

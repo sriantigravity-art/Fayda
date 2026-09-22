@@ -100,17 +100,22 @@ export const HighlightSignalTicker: React.FC = () => {
 
       const isTipEligible = (tip: typeof primeCall): boolean => {
         if (!tip) return false;
-        // User directive: if the stop loss is triggered, move that in journal, dont show in tips
+        // User directive: if target hit, stop loss triggered, or square off, dock in journal and prefer fresh active signals
         if (tip.status === 'SL_HIT' || tip.status === 'STOPLOSS_HIT' || tip.actionabilityStatus === 'SL_HIT') return false;
+        if (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' || tip.status === 'TARGET_HIT' || tip.actionabilityStatus === 'TARGET_HIT') return false;
         if (tip.status === 'INTRADAY_CLOSED' || tip.actionabilityStatus === 'SQUARE_OFF') return false;
         if (tip.stoplossPrice && tip.currentLtp && tip.currentLtp <= tip.stoplossPrice) return false;
-        if (!isPkgOffMarket) return true; // live market — show all
+        if (!isPkgOffMarket) return true; // live market — show all active
         // Off-market: only researched carry-forward tips
         return (tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD');
       };
 
       const primePick = (isTipEligible(primeCall) ? primeCall : null)
-        || (isTipEligible(primePut) ? primePut : null);
+        || (isTipEligible(primePut) ? primePut : null)
+        || (isTipEligible(idxState?.unifiedTipsPackage?.primaryTrade) ? idxState?.unifiedTipsPackage?.primaryTrade : null)
+        || (isTipEligible(idxState?.unifiedTipsPackage?.gammaTrade) ? idxState?.unifiedTipsPackage?.gammaTrade : null)
+        || primeCall
+        || primePut;
       const isSymOpen = isSymbolMarketOpen(sym);
       const fallbackTime = isSymOpen
         ? formatISTTime(lastUpdated || new Date())

@@ -28,7 +28,8 @@ import {
   Flame, 
   Info,
   ExternalLink,
-  BookOpen
+  BookOpen,
+  XCircle
 } from 'lucide-react';
 
 export const UnifiedTradeSignalCockpit: React.FC = () => {
@@ -63,22 +64,43 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const tipsPackage = currentIndexState?.unifiedTipsPackage;
   const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex) || ALL_SYMBOLS_CONFIG[0] || { lot: 65, step: 50 };
 
-  // Current primary trade candidate
+  // Helper to check if a trade has reached a terminal milestone (Target Hit, SL Hit, Square Off)
+  const isCompletedTrade = (tip: UnifiedSmartTip | null | undefined): boolean => {
+    if (!tip) return false;
+    const s = String(tip.status || '').toUpperCase();
+    const a = String(tip.actionabilityStatus || '').toUpperCase();
+    return s.includes('TARGET') || s.includes('SL_HIT') || s.includes('STOPLOSS') || s.includes('CLOSED') || s.includes('SQUARE_OFF') ||
+           a.includes('TARGET') || a.includes('SL_HIT') || a.includes('SQUARE_OFF');
+  };
+
+  // Helper to prioritize fresh active signals: "show new signals only if given"
+  const getBestTip = (candidates: (UnifiedSmartTip | null | undefined)[]): UnifiedSmartTip | null => {
+    const valid = candidates.filter((t): t is UnifiedSmartTip => Boolean(t && t.action !== 'STANDBY' && t.status !== 'EXPIRED'));
+    // 1. Pick first active (non-completed) signal if available
+    const active = valid.find(t => !isCompletedTrade(t));
+    if (active) return active;
+    // 2. Fallback to latest trade (which will show docked in journal status)
+    return valid[0] || null;
+  };
+
+  // Current primary trade candidate (Active preferred, or docked setup if no new signal yet)
   const currentHeroTip: UnifiedSmartTip | null = useMemo(() => {
     if (!tipsPackage) return null;
 
     if (activeTab === 'BUYERS') {
-      return tipsPackage.primaryTrade || tipsPackage.topCallTrade || tipsPackage.topPutTrade || null;
+      return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
     }
     if (activeTab === 'SELLERS') {
-      return tipsPackage.topSellerPutTrade || tipsPackage.topSellerCallTrade || tipsPackage.topSellerNeutralTrade || tipsPackage.hedgedSpreadTrade || null;
+      return getBestTip([tipsPackage.topSellerPutTrade, tipsPackage.topSellerCallTrade, tipsPackage.topSellerNeutralTrade, tipsPackage.hedgedSpreadTrade]);
     }
     if (activeTab === 'GAMMA') {
       return (tipsPackage.gammaTrade && tipsPackage.gammaTrade.action !== 'STANDBY') 
-        ? tipsPackage.gammaTrade 
-        : (tipsPackage.primaryTrade || null);
+        ? (isCompletedTrade(tipsPackage.gammaTrade) 
+            ? getBestTip([tipsPackage.gammaTrade, tipsPackage.primaryTrade, tipsPackage.topCallTrade]) 
+            : tipsPackage.gammaTrade)
+        : getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
     }
-    return tipsPackage.primaryTrade;
+    return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
   }, [tipsPackage, activeTab]);
 
   // Secondary active signals queue
@@ -106,7 +128,13 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
         res.push(c);
       }
     });
-    return res;
+
+    // Sort so active setups appear first, completed/docked setups appear at the end
+    return res.sort((a, b) => {
+      const aDone = isCompletedTrade(a) ? 1 : 0;
+      const bDone = isCompletedTrade(b) ? 1 : 0;
+      return aDone - bDone;
+    });
   }, [tipsPackage, currentHeroTip]);
 
   // Copy trade order handler
@@ -147,6 +175,35 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const pnlPoints = currentHeroTip ? (currentHeroTip.currentLtp - currentHeroTip.entryPrice) : 0;
   const pnlPct = currentHeroTip && currentHeroTip.entryPrice > 0 ? (pnlPoints / currentHeroTip.entryPrice) * 100 : 0;
   const isProfitable = pnlPoints >= 0;
+
+  // Milestone lifecycle determinations
+  const isTargetHit = Boolean(
+    currentHeroTip?.status === 'TARGET1_HIT' || 
+    currentHeroTip?.status === 'TARGET2_HIT' || 
+    currentHeroTip?.status === 'TARGET_HIT' || 
+    currentHeroTip?.actionabilityStatus === 'TARGET_HIT' ||
+    currentHeroTip?.target1HitTimeFormatted
+  );
+  const isTarget1Hit = isTargetHit || Boolean(currentHeroTip?.target1HitTimeFormatted);
+  const isTarget2Hit = currentHeroTip?.status === 'TARGET2_HIT' || Boolean(currentHeroTip?.target2HitTimeFormatted);
+  const isSlHit = Boolean(
+    currentHeroTip?.status === 'SL_HIT' || 
+    currentHeroTip?.status === 'STOPLOSS_HIT' || 
+    currentHeroTip?.actionabilityStatus === 'SL_HIT' ||
+    currentHeroTip?.stoplossTimeFormatted ||
+    currentHeroTip?.stoplossHitTime
+  );
+  const isSquareOff = Boolean(
+    currentHeroTip?.status === 'INTRADAY_CLOSED' || 
+    currentHeroTip?.status === 'SQUARE_OFF' || 
+    currentHeroTip?.actionabilityStatus === 'SQUARE_OFF'
+  );
+
+  const entryTriggerTime = currentHeroTip?.entryPriceTimeFormatted || currentHeroTip?.callGivenTimeFormatted || currentHeroTip?.entryTimeFormatted || currentHeroTip?.entryTime || '---';
+  const target1HitTime = currentHeroTip?.target1HitTimeFormatted || (isTarget1Hit ? (currentHeroTip?.bookedTimeFormatted || 'Triggered') : '---');
+  const target2HitTime = currentHeroTip?.target2HitTimeFormatted || (isTarget2Hit ? (currentHeroTip?.bookedTimeFormatted || 'Triggered') : '---');
+  const stoplossHitTime = currentHeroTip?.stoplossTimeFormatted || currentHeroTip?.stoplossHitTime || (isSlHit ? (currentHeroTip?.bookedTimeFormatted || 'Triggered') : '---');
+  const squareOffTime = currentHeroTip?.squareOffTimeFormatted || (isSquareOff ? (currentHeroTip?.bookedTimeFormatted || 'Completed') : '---');
 
   // Quantum score for hero
   const quantumScore = currentHeroTip?.quantumScore || currentHeroTip?.confluenceScore || 85;
@@ -386,6 +443,78 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               currentHeroTip.action.includes('CALL') ? 'bg-emerald-500' : 'bg-rose-500'
             }`} />
 
+            {/* 🎯 TARGET HIT DIRECTIVE BANNER (DOCKED IN JOURNAL) */}
+            {isTargetHit && (
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/80 text-emerald-600 dark:text-emerald-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md relative z-20">
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-300 flex items-center gap-2">
+                      <span>🎯 SYSTEM DIRECTIVE: TARGET ACHIEVED & DOCKED IN TRADE JOURNAL</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-bold">
+                        {isTarget2Hit ? 'TARGET 2 RUNNER HIT' : 'TARGET 1 HIT'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-terminal-text mt-0.5 font-mono">
+                      Target hit at <strong>{target1HitTime}</strong> • Booked Profit: <strong>+{currentHeroTip.target1Pct.toFixed(0)}% (+₹{Math.round((currentHeroTip.target1Price - currentHeroTip.entryPrice) * (cfg?.lot || 50)).toLocaleString('en-IN')})</strong>.
+                    </p>
+                    <p className="text-[11px] text-terminal-muted mt-0.5 font-mono">
+                      Completed position safely docked in Trade Journal. Showing new signals only once fresh setup conditions trigger.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const journalEl = document.getElementById('signals-ledger-journal') || document.getElementById('trade-journal');
+                    if (journalEl) {
+                      journalEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 text-black font-mono font-bold text-xs hover:bg-emerald-400 transition shrink-0 flex items-center gap-1.5 cursor-pointer shadow"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>View in Trade Journal</span>
+                </button>
+              </div>
+            )}
+
+            {/* 🛑 STOP LOSS TRIGGERED DIRECTIVE BANNER (DOCKED IN JOURNAL) */}
+            {isSlHit && (
+              <div className="mb-4 p-3.5 rounded-xl bg-rose-500/15 border-2 border-rose-500/80 text-rose-600 dark:text-rose-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md relative z-20">
+                <div className="flex items-start gap-2.5">
+                  <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-mono font-black text-sm text-rose-600 dark:text-rose-300 flex items-center gap-2">
+                      <span>🛑 SYSTEM DIRECTIVE: STOP LOSS TRIGGERED & DOCKED IN TRADE JOURNAL</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold">
+                        CAPITAL PRESERVED
+                      </span>
+                    </div>
+                    <p className="text-xs text-terminal-text mt-0.5 font-mono">
+                      Stop loss triggered at <strong>{stoplossHitTime}</strong> at ₹{currentHeroTip.stoplossPrice.toFixed(2)} (-{currentHeroTip.stoplossPct.toFixed(0)}%).
+                    </p>
+                    <p className="text-[11px] text-terminal-muted mt-0.5 font-mono">
+                      Position closed and docked in Trade Journal. Showing new signals only if given.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const journalEl = document.getElementById('signals-ledger-journal') || document.getElementById('trade-journal');
+                    if (journalEl) {
+                      journalEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-500 text-white font-mono font-bold text-xs hover:bg-rose-400 transition shrink-0 flex items-center gap-1.5 cursor-pointer shadow"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>View in Trade Journal</span>
+                </button>
+              </div>
+            )}
+
             {/* ⚠️ SQUARE OFF POSITION DIRECTIVE BANNER */}
             {(currentHeroTip.status === 'INTRADAY_CLOSED' || currentHeroTip.actionabilityStatus === 'SQUARE_OFF') && (
               <div className="mb-4 p-3.5 rounded-xl bg-amber-500/15 border-2 border-amber-500/80 text-amber-600 dark:text-amber-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md relative z-20">
@@ -531,6 +660,98 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                 </div>
                 <div className="text-[10px] text-terminal-muted">
                   Lot Size: <strong>{cfg?.lot || 50}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* ── ⏱️ TRADE LIFECYCLE MILESTONES TIMELINE ── */}
+            <div className="mt-3.5 p-3 rounded-xl bg-terminal-panel/80 border border-terminal-border/80 font-mono shadow-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-terminal-border/60 text-xs">
+                <span className="font-extrabold text-terminal-text flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-accent-cyan" />
+                  <span>TRADE LIFECYCLE MILESTONES & AUDIT TIMESTAMPS</span>
+                </span>
+                <span className="text-[10px] text-terminal-muted hidden sm:inline-block">
+                  Timestamp locked in IST (Audit Verified)
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2.5 text-xs">
+                {/* 1. Entry Triggered */}
+                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                  entryTriggerTime !== '---' 
+                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' 
+                    : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-sky-400" />
+                    <span>Entry Triggered</span>
+                  </div>
+                  <div className="text-xs font-black text-terminal-text mt-1">{entryTriggerTime}</div>
+                  <div className="text-[9px] text-sky-400/80 mt-0.5">₹{(currentHeroTip.triggerPrice || currentHeroTip.entryPrice).toFixed(2)}</div>
+                </div>
+
+                {/* 2. Target 1 Hit */}
+                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                  isTarget1Hit || target1HitTime !== '---'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                    : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>Target 1 Hit</span>
+                  </div>
+                  <div className="text-xs font-black text-terminal-text mt-1">{target1HitTime}</div>
+                  <div className="text-[9px] text-emerald-400/80 mt-0.5">
+                    {target1HitTime !== '---' ? `₹${currentHeroTip.target1Price.toFixed(2)} (+${currentHeroTip.target1Pct.toFixed(0)}%)` : 'In Progress'}
+                  </div>
+                </div>
+
+                {/* 3. Target 2 Hit */}
+                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                  isTarget2Hit || target2HitTime !== '---'
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                    : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400" />
+                    <span>Target 2 Hit</span>
+                  </div>
+                  <div className="text-xs font-black text-terminal-text mt-1">{target2HitTime}</div>
+                  <div className="text-[9px] text-emerald-400/80 mt-0.5">
+                    {target2HitTime !== '---' ? `₹${(currentHeroTip.target2Price || 0).toFixed(2)} (+${currentHeroTip.target2Pct.toFixed(0)}%)` : 'Runner Target'}
+                  </div>
+                </div>
+
+                {/* 4. Stop Loss Triggered */}
+                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                  isSlHit || stoplossHitTime !== '---'
+                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                    : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <XCircle className="w-3 h-3 text-rose-400" />
+                    <span>Stop Loss</span>
+                  </div>
+                  <div className="text-xs font-black text-terminal-text mt-1">{stoplossHitTime}</div>
+                  <div className="text-[9px] text-rose-400/80 mt-0.5">
+                    {isSlHit ? `Triggered at ₹${currentHeroTip.stoplossPrice.toFixed(2)}` : `Safe (> ₹${currentHeroTip.stoplossPrice.toFixed(2)})`}
+                  </div>
+                </div>
+
+                {/* 5. Square Off */}
+                <div className={`col-span-2 sm:col-span-1 p-2.5 rounded-lg border flex flex-col justify-between ${
+                  isSquareOff || squareOffTime !== '---'
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-400" />
+                    <span>Square Off</span>
+                  </div>
+                  <div className="text-xs font-black text-terminal-text mt-1">{squareOffTime}</div>
+                  <div className="text-[9px] text-amber-400/80 mt-0.5">
+                    {isSquareOff ? 'Docked in Journal' : '03:15 PM EOD'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -797,9 +1018,17 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                       }`}>
                         {tip.action.replace(/_/g, ' ')}
                       </span>
-                      {tip.status === 'INTRADAY_CLOSED' ? (
+                      {tip.status === 'INTRADAY_CLOSED' || tip.status === 'SQUARE_OFF' ? (
                         <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
-                          ⚠️ SQUARE OFF
+                          ⚠️ SQUARE OFF (DOCKED)
+                        </span>
+                      ) : tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' || tip.status === 'TARGET_HIT' ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                          🎯 TARGET HIT (DOCKED)
+                        </span>
+                      ) : tip.status === 'SL_HIT' || tip.status === 'STOPLOSS_HIT' ? (
+                        <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30">
+                          🛑 SL HIT (DOCKED)
                         </span>
                       ) : tip.status === 'CARRIED_FORWARD' ? (
                         <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/30">

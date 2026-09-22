@@ -33,7 +33,8 @@ import {
   HelpCircle,
   Copy,
   Check,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Props {
@@ -663,16 +664,15 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       target1Price: `₹${call.target1Price.toFixed(2)}`,
       target1Pct: call.entryPrice > 0 ? parseFloat((((call.target1Price - call.entryPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
       target2Price: call.target2Price ? `₹${call.target2Price.toFixed(2)}` : undefined,
-      riskReward: call.riskReward || '1:2.5',
-      givenTimeFormatted: call.timeFormatted,
-      callGivenTimeFormatted: call.timeFormatted,
+      givenTimeFormatted: call.callGivenTime || call.timeFormatted,
+      callGivenTimeFormatted: call.callGivenTime || call.timeFormatted,
       isEntryTriggered: true,
       actualEntryPrice: call.entryPrice,
-      entryPriceTimeFormatted: call.timeFormatted,
-      target1HitTimeFormatted: isTargetHit ? call.timeFormatted : undefined,
-      target2HitTimeFormatted: isTargetHit && call.target2Price && (call.peakLtp >= call.target2Price) ? call.timeFormatted : undefined,
-      stoplossTimeFormatted: isSl ? call.timeFormatted : undefined,
-      bookedTimeFormatted: call.timeFormatted,
+      entryPriceTimeFormatted: call.entryPriceTimeFormatted || call.timeFormatted,
+      target1HitTimeFormatted: call.target1HitTimeFormatted || (isTargetHit ? (call.targetHitTime || call.timeFormatted) : undefined),
+      target2HitTimeFormatted: call.target2HitTimeFormatted || (isTargetHit && call.target2Price && (call.peakLtp >= call.target2Price) ? (call.targetHitTime || call.timeFormatted) : undefined),
+      stoplossTimeFormatted: call.stoplossTime || call.stoplossHitTime || (isSl ? call.timeFormatted : undefined),
+      bookedTimeFormatted: call.targetHitTime || call.stoplossHitTime || call.timeFormatted,
       elapsedTimeFormatted: `${call.pointsPnl >= 0 ? '+' : ''}${call.pointsPnl.toFixed(2)} pts (${call.pnlPct.toFixed(2)}%)`,
       actionGuidance: call.nearTargetDescription || (isTargetHit ? 'Target 1 hit successfully with solid profit booking.' : isSl ? 'Strict Stop Loss respected to protect capital.' : 'Trade achieved near-target price extension.'),
       actionBadge: isTargetHit ? '🎯 TARGET HIT' : isSl ? '🛑 STOPLOSS HIT' : '⚡ NEAR TARGET',
@@ -1209,11 +1209,37 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                     className="hover:bg-accent-sky/5 dark:hover:bg-terminal-panel/90 transition duration-150 cursor-pointer group select-none"
                     title={`Click to open full trade setup modal for ${call.contractName}`}
                   >
-                    {/* Time */}
-                    <td className="py-3 px-3 whitespace-nowrap text-terminal-muted text-[11px]">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
-                        <span>{call.timeFormatted}</span>
+                    {/* Time & Milestones */}
+                    <td className="py-3 px-3 whitespace-nowrap text-[11px]">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center space-x-1 font-bold text-terminal-text">
+                          <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
+                          <span>{call.entryPriceTimeFormatted || call.timeFormatted}</span>
+                        </div>
+                        {call.target1HitTimeFormatted && (
+                          <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
+                            <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
+                            <span>T1: {call.target1HitTimeFormatted}</span>
+                          </div>
+                        )}
+                        {call.target2HitTimeFormatted && (
+                          <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
+                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                            <span>T2: {call.target2HitTimeFormatted}</span>
+                          </div>
+                        )}
+                        {(call.stoplossTime || call.stoplossHitTime) && (
+                          <div className="flex items-center space-x-1 text-[9.5px] text-bear font-bold">
+                            <XCircle className="w-2.5 h-2.5 shrink-0" />
+                            <span>SL: {call.stoplossTime || call.stoplossHitTime}</span>
+                          </div>
+                        )}
+                        {(call.status === 'INTRADAY_CLOSED' || call.status === 'SQUARE_OFF') && (
+                          <div className="flex items-center space-x-1 text-[9.5px] text-amber font-bold">
+                            <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                            <span>Exit: {call.timeFormatted}</span>
+                          </div>
+                        )}
                       </div>
                     </td>
 
