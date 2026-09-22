@@ -95,9 +95,19 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
 
   // Fyers Form States (Simple: App ID, Secret Key, Auth Code)
   const [fyersAppId, setFyersAppId] = useState<string>(() => {
-    return fyersConfig.appId || localStorage.getItem('fyers_app_id') || 'KMSSMU5OGR-100';
+    const saved = localStorage.getItem('fyers_app_id');
+    if (saved && !saved.includes('*')) return saved;
+    if (fyersConfig.appId && !fyersConfig.appId.includes('*')) return fyersConfig.appId;
+    return 'KMSSMU5OGR-100';
   });
-  const [fyersSecretKey, setFyersSecretKey] = useState<string>('MVADUMZWBM');
+  const [fyersSecretKey, setFyersSecretKey] = useState<string>(() => {
+    return localStorage.getItem('fyers_secret_key') || 'MVADUMZWBM';
+  });
+  const [fyersRedirectUri, setFyersRedirectUri] = useState<string>(() => {
+    return localStorage.getItem('fyers_redirect_uri') || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
+  });
+  const [showRedirectConfig, setShowRedirectConfig] = useState(false);
+  const [copiedLoginUrl, setCopiedLoginUrl] = useState(false);
   const [fyersAuthCode, setFyersAuthCode] = useState<string>('');
   const [showFyersSecret, setShowFyersSecret] = useState(false);
   const [fyersLoading, setFyersLoading] = useState(false);
@@ -127,8 +137,10 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
   }, [dhanConfig]);
 
   useEffect(() => {
-    if (fyersConfig.appId) setFyersAppId(fyersConfig.appId);
-  }, [fyersConfig]);
+    if (fyersConfig.appId && !fyersConfig.appId.includes('*')) {
+      setFyersAppId(fyersConfig.appId);
+    }
+  }, [fyersConfig.appId]);
 
   // ── Live countdown ticker (updates every minute) ──
   const [, setTick] = useState(0);
@@ -290,10 +302,45 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     }
   };
 
+  const normalizedFyersAppId = (() => {
+    let id = fyersAppId.trim();
+    if (!id || id.includes('*')) id = 'KMSSMU5OGR-100';
+    return id.includes('-') ? id : `${id}-100`;
+  })();
+
+  const cleanRedirectUri = fyersRedirectUri.trim() || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
+  const fyersLoginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${encodeURIComponent(normalizedFyersAppId)}&redirect_uri=${encodeURIComponent(cleanRedirectUri)}&response_type=code&state=sample_state`;
+
   const handleLaunchFyersLogin = () => {
     setIsListeningClipboard(true);
     setCountdown(120);
-    window.open(fyersLoginUrl, '_blank', 'width=650,height=800');
+    try {
+      localStorage.setItem('fyers_app_id', normalizedFyersAppId);
+      localStorage.setItem('fyers_redirect_uri', cleanRedirectUri);
+    } catch {}
+    const win = window.open(fyersLoginUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      setFyersStatusMsg({
+        success: false,
+        text: 'Popup was blocked by your browser. Please click the direct login link or use "Copy Link" below.'
+      });
+    }
+  };
+
+  const handleCopyFyersLoginUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(fyersLoginUrl);
+      setCopiedLoginUrl(true);
+      setTimeout(() => setCopiedLoginUrl(false), 3000);
+      setIsListeningClipboard(true);
+      setCountdown(120);
+      setFyersStatusMsg({
+        success: true,
+        text: '✅ Fyers login link copied to clipboard! Paste it into a new browser tab to sign in.'
+      });
+    } catch {
+      setFyersStatusMsg({ success: false, text: 'Unable to copy URL automatically. Please copy the link manually.' });
+    }
   };
 
   const handlePasteFromClipboardAndConnect = async () => {
@@ -338,9 +385,6 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
     const timer = setInterval(() => setCountdown(c => c - 1), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
-
-  const normalizedFyersAppId = fyersAppId.trim().includes('-') ? fyersAppId.trim() : (fyersAppId.trim() ? `${fyersAppId.trim()}-100` : 'KMSSMU5OGR-100');
-  const fyersLoginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${normalizedFyersAppId}&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state`;
 
   if (!isOpen) return null;
 
@@ -586,15 +630,86 @@ export const UnifiedBrokerModal: React.FC<UnifiedBrokerModalProps> = ({
                       Provide your App ID, Secret Key, and Auth Code to connect.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleLaunchFyersLogin}
-                    className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>🚀 Launch Fyers Login</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleLaunchFyersLogin}
+                      className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer"
+                      title="Open Fyers Login Window"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>🚀 Launch Fyers Login</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyFyersLoginUrl}
+                      className="px-2.5 py-1.5 rounded-lg bg-terminal-panel hover:bg-terminal-border text-terminal-text border border-terminal-border text-xs font-mono font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      title="Copy complete login URL to clipboard"
+                    >
+                      {copiedLoginUrl ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
+                      <span>{copiedLoginUrl ? 'Copied!' : 'Copy Link'}</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Direct Link Banner & Redirect URI Config */}
+                <div className="p-2.5 rounded-lg bg-sky-500/5 border border-sky-500/20 text-xs text-terminal-muted flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>OAuth Client: <strong className="text-terminal-text font-bold">{normalizedFyersAppId}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={fyersLoginUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                      title="Click directly to open Fyers login in a new tab if popups are blocked"
+                    >
+                      <span>Direct Tab Link ↗</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setShowRedirectConfig(!showRedirectConfig)}
+                      className="text-[11px] font-mono text-terminal-muted hover:text-terminal-text underline cursor-pointer"
+                    >
+                      {showRedirectConfig ? 'Hide Redirect URI' : '⚙️ Redirect URI'}
+                    </button>
+                  </div>
+                </div>
+
+                {showRedirectConfig && (
+                  <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-terminal-text text-[11px] font-mono">
+                        Configured Redirect URI in Fyers API Dashboard
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFyersRedirectUri('https://trade.fyers.in/api-login/redirect-uri/index.html');
+                          localStorage.setItem('fyers_redirect_uri', 'https://trade.fyers.in/api-login/redirect-uri/index.html');
+                        }}
+                        className="text-[10px] text-sky-500 hover:underline font-mono cursor-pointer"
+                      >
+                        Reset Default
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={fyersRedirectUri}
+                      onChange={(e) => {
+                        setFyersRedirectUri(e.target.value);
+                        localStorage.setItem('fyers_redirect_uri', e.target.value.trim());
+                      }}
+                      placeholder="https://trade.fyers.in/api-login/redirect-uri/index.html"
+                      className="w-full px-2.5 py-1.5 bg-terminal-panel border border-terminal-border rounded text-xs font-mono text-terminal-text focus:outline-none focus:border-sky-500"
+                    />
+                    <p className="text-[10.5px] text-terminal-muted">
+                      Must match the <b>Redirect URL</b> in your <a href="https://myapi.fyers.in" target="_blank" rel="noreferrer" className="text-sky-500 underline font-bold">Fyers API Dashboard</a>.
+                    </p>
+                  </div>
+                )}
 
                 {/* Form asking for App ID, Secret Key, and Auth Code */}
                 <form onSubmit={handleFyersConnectSubmit} className="space-y-3.5">

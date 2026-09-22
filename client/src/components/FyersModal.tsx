@@ -58,13 +58,17 @@ export const FyersModal: React.FC<FyersModalProps> = ({ isOpen, onClose }) => {
 
   // Sync state when config changes
   useEffect(() => {
-    if (fyersConfig.appId) setAppId(fyersConfig.appId);
-  }, [fyersConfig]);
+    if (fyersConfig.appId && !fyersConfig.appId.includes('*')) setAppId(fyersConfig.appId);
+  }, [fyersConfig.appId]);
 
   if (!isOpen) return null;
 
-  const normalizedAppId = appId.trim().includes('-') ? appId.trim() : (appId.trim() ? `${appId.trim()}-100` : 'KMSSMU5OGR-100');
-  const loginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${normalizedAppId}&redirect_uri=https://trade.fyers.in/api-login/redirect-uri/index.html&response_type=code&state=sample_state`;
+  const normalizedAppId = (() => {
+    let id = appId.trim();
+    if (!id || id.includes('*')) id = 'KMSSMU5OGR-100';
+    return id.includes('-') ? id : `${id}-100`;
+  })();
+  const loginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${encodeURIComponent(normalizedAppId)}&redirect_uri=${encodeURIComponent('https://trade.fyers.in/api-login/redirect-uri/index.html')}&response_type=code&state=sample_state`;
 
   // Helper function to extract clean auth code
   const extractAuthCode = (val: string): string => {

@@ -525,7 +525,7 @@ export class FyersService {
     }
 
     return {
-      appId: this.config.appId ? `${this.config.appId.slice(0, 4)}***` : '',
+      appId: this.config.appId || 'KMSSMU5OGR-100',
       isConnected: this.config.isConnected,
       userName: this.config.userName,
       lastConnected: this.config.lastConnected,
@@ -547,10 +547,13 @@ export class FyersService {
     pin?: string
   ): Promise<{ success: boolean; message: string; userName?: string; accessToken?: string; refreshToken?: string }> {
     let cleanAppId = appId.trim();
-    if (cleanAppId && !cleanAppId.includes('-')) {
+    if (!cleanAppId || cleanAppId.includes('*')) {
+      cleanAppId = this.config.appId || 'KMSSMU5OGR-100';
+    }
+    if (!cleanAppId.includes('-')) {
       cleanAppId = `${cleanAppId}-100`;
     }
-    const cleanSecret = secretKey.trim();
+    const cleanSecret = (secretKey.trim() || this.config.secretKey || 'MVADUMZWBM').trim();
     let cleanAuthCode = authCode.trim();
     if (cleanAuthCode.includes('auth_code=')) {
       try {
