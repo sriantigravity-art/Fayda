@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth, CURRENT_LEGAL_VERSION } from '../../context/AuthContext';
+import { useTradingPersona } from '../../context/TradingPersonaContext';
 import { LegalDocumentModal, type LegalDocType } from './LegalDocumentModal';
 import { 
   ShieldAlert, 
@@ -50,6 +51,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     hasCompletedFirstLoginConsent,
     setHasCompletedFirstLoginConsent 
   } = useAuth();
+  const { setIsPersonaModalOpen } = useTradingPersona();
 
   // Smart initial screen: if user already consented on first login, directly show SIGN_IN
   const determineInitialScreen = (): AuthScreenMode => {
@@ -233,8 +235,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await login(signInIdentifier.trim(), signInPassword);
       if (res.success) {
         setSuccessMsg('Signed in successfully! Loading terminal workspace...');
+        try {
+          sessionStorage.setItem('fayda_show_persona_on_login', 'true');
+        } catch {}
         setTimeout(() => {
           onClose();
+          setIsPersonaModalOpen(true);
         }, 600);
       } else {
         setErrorMsg(res.error || 'Invalid credentials or OTP. Please check and try again.');

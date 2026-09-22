@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Save,
@@ -9,12 +9,22 @@ import {
   Phone,
   BarChart2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  Video,
+  Play,
+  Film
 } from 'lucide-react';
 import {
   getLandingCmsData,
   saveLandingCmsData,
   resetLandingCmsData,
+  compressImageFile,
+  storeVideoInIndexedDB,
+  getVideoFromIndexedDB,
+  removeVideoFromIndexedDB,
   type LandingCmsData,
   type HeroSlide
 } from '../../services/landingCmsService';
@@ -34,16 +44,65 @@ export const LandingCmsEditorModal: React.FC<LandingCmsEditorModalProps> = ({
   const [activeTab, setActiveTab] = useState<'HERO' | 'STATS' | 'CONTACT' | 'ANNOUNCEMENT'>('HERO');
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [slideVideoPreview, setSlideVideoPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setData(getLandingCmsData());
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    let active = true;
+    const loadVideo = async () => {
+      const slide = data.heroSlides[activeSlideIndex];
+      if (slide && (slide.mediaType === 'video' || slide.customVideoUrl)) {
+        const url = slide.customVideoUrl || slide.customImageUrl || '';
+        if (url.startsWith('indexeddb://')) {
+          const key = url.replace('indexeddb://', '');
+          const blobUrl = await getVideoFromIndexedDB(key);
+          if (active) setSlideVideoPreview(blobUrl);
+          return;
+        }
+        if (active) setSlideVideoPreview(url);
+        return;
+      }
+      if (active) setSlideVideoPreview(null);
+    };
+    loadVideo();
+    return () => {
+      active = false;
+    };
+  }, [activeSlideIndex, data.heroSlides]);
 
   if (!isOpen) return null;
 
-  const handleSlideChange = (field: keyof HeroSlide, value: string) => {
+  const handleSlideChange = (field: keyof HeroSlide, value: any) => {
     const updatedSlides = [...data.heroSlides];
     updatedSlides[activeSlideIndex] = {
       ...updatedSlides[activeSlideIndex],
       [field]: value
     };
     setData(prev => ({ ...prev, heroSlides: updatedSlides }));
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    try {
+      const slide = data.heroSlides[activeSlideIndex] || data.heroSlides[0];
+      const key = `hero_video_${slide.id}`;
+      const objectUrl = await storeVideoInIndexedDB(key, file);
+      const updatedSlides = [...data.heroSlides];
+      updatedSlides[activeSlideIndex] = {
+        ...updatedSlides[activeSlideIndex],
+        mediaType: 'video',
+        customVideoUrl: `indexeddb://${key}`,
+        useCustomImage: true
+      };
+      setData(prev => ({ ...prev, heroSlides: updatedSlides }));
+      setSlideVideoPreview(objectUrl);
+    } catch (err) {
+      console.error('Video upload failed:', err);
+    }
   };
 
   const handleStatChange = (field: keyof typeof data.performanceStats, value: any) => {
@@ -303,6 +362,282 @@ export const LandingCmsEditorModal: React.FC<LandingCmsEditorModalProps> = ({
                     onChange={(e) => handleSlideChange('secondaryCtaText', e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:border-accent-sky font-bold"
                   />
+                </div>
+
+                {/* Right Side Graphic / Picture / Video Upload Section */}
+                <div className="sm:col-span-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold font-mono text-xs text-slate-900 dark:text-white">
+                        <ImageIcon className="w-4 h-4 text-accent-sky" />
+                        <span>Right-Side Hero Graphic (Picture / Video MP4)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        Choose between live interactive mockup, uploaded picture, or auto-playing 4K MP4 video
+                      </p>
+                    </div>
+
+                    {/* 3-Way Mode Toggle */}
+                    <div className="flex items-center space-x-1 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl text-[10.5px] font-mono font-bold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSlideChange('useCustomImage', false);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                          !currentSlide.useCustomImage
+                            ? 'bg-white dark:bg-slate-900 text-accent-sky shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Interactive Mockup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSlideChange('useCustomImage', true);
+                          handleSlideChange('mediaType', 'image');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                          currentSlide.useCustomImage && currentSlide.mediaType !== 'video'
+                            ? 'bg-accent-sky text-slate-950 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                        <span>Picture</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSlideChange('useCustomImage', true);
+                          handleSlideChange('mediaType', 'video');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                          currentSlide.useCustomImage && currentSlide.mediaType === 'video'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Video className="w-3 h-3" />
+                        <span>Video (MP4)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Upload Controls & Preview */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    
+                    {/* Left: Media Thumbnail/Video Preview */}
+                    <div className="sm:col-span-5 h-40 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden relative group">
+                      {currentSlide.mediaType === 'video' || (currentSlide.customVideoUrl && currentSlide.useCustomImage) ? (
+                        slideVideoPreview || currentSlide.customVideoUrl ? (
+                          <>
+                            <video
+                              key={slideVideoPreview || currentSlide.customVideoUrl}
+                              src={slideVideoPreview || currentSlide.customVideoUrl}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              controls
+                              className="w-full h-full object-cover object-center"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const key = `hero_video_${currentSlide.id}`;
+                                await removeVideoFromIndexedDB(key);
+                                handleSlideChange('customVideoUrl', '');
+                                handleSlideChange('mediaType', 'image');
+                                handleSlideChange('useCustomImage', false);
+                                setSlideVideoPreview(null);
+                              }}
+                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition shadow cursor-pointer z-20"
+                              title="Remove Video"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="text-center p-2 text-slate-400 text-[11px] font-mono flex flex-col items-center gap-1">
+                            <Film className="w-7 h-7 stroke-[1.5] text-purple-400" />
+                            <span>No MP4 video uploaded</span>
+                            <span className="text-[9.5px] text-slate-500">Upload a local .mp4 or enter a video URL</span>
+                          </div>
+                        )
+                      ) : currentSlide.customImageUrl ? (
+                        <>
+                          <img
+                            src={currentSlide.customImageUrl}
+                            alt="Slide Preview"
+                            className="w-full h-full object-cover object-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSlideChange('customImageUrl', '');
+                              handleSlideChange('useCustomImage', false);
+                            }}
+                            className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                            title="Remove Picture"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-center p-2 text-slate-400 text-[11px] font-mono flex flex-col items-center gap-1">
+                          <ImageIcon className="w-6 h-6 stroke-[1.5]" />
+                          <span>No custom media uploaded</span>
+                          <span className="text-[10px] text-slate-500">Currently showing live mockup card</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: File Selector & URL Inputs */}
+                    <div className="sm:col-span-7 space-y-2.5">
+                      {currentSlide.mediaType === 'video' ? (
+                        <>
+                          {/* Video Upload Controls */}
+                          <div>
+                            <label className="block text-slate-500 font-mono text-[10px] font-bold uppercase mb-1">
+                              Upload Local MP4 Video File
+                            </label>
+                            <label className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-purple-400/40 dark:border-purple-600/40 bg-purple-50 dark:bg-purple-950/30 hover:border-purple-500 hover:text-purple-400 text-purple-700 dark:text-purple-300 font-mono text-xs font-bold transition cursor-pointer shadow-xs">
+                              <Film className="w-3.5 h-3.5" />
+                              <span>Browse & Upload MP4 Video</span>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm,video/ogg"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleVideoUpload(file);
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            <p className="text-[9.5px] text-slate-500 font-mono mt-1">
+                              * Stored in browser IndexedDB without localStorage size limitations.
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-500 font-mono text-[10px] font-bold uppercase mb-1">
+                              Or Direct MP4 Video URL
+                            </label>
+                            <input
+                              type="url"
+                              placeholder="https://.../trading_overview.mp4"
+                              value={currentSlide.customVideoUrl || ''}
+                              onChange={(e) => {
+                                handleSlideChange('customVideoUrl', e.target.value);
+                                handleSlideChange('mediaType', 'video');
+                                if (e.target.value) {
+                                  handleSlideChange('useCustomImage', true);
+                                  setSlideVideoPreview(e.target.value);
+                                }
+                              }}
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono focus:outline-none focus:border-purple-500"
+                            />
+                            
+                            {/* Preset Sample Videos */}
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <span className="text-[9.5px] text-slate-500 font-mono">Sample:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const sampleUrl = 'https://assets.mixkit.co/videos/preview/mixkit-stock-market-candlestick-chart-40538-large.mp4';
+                                  handleSlideChange('customVideoUrl', sampleUrl);
+                                  handleSlideChange('mediaType', 'video');
+                                  handleSlideChange('useCustomImage', true);
+                                  setSlideVideoPreview(sampleUrl);
+                                }}
+                                className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white transition cursor-pointer text-[9.5px] font-mono"
+                              >
+                                Candlestick Flow MP4
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const sampleUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+                                  handleSlideChange('customVideoUrl', sampleUrl);
+                                  handleSlideChange('mediaType', 'video');
+                                  handleSlideChange('useCustomImage', true);
+                                  setSlideVideoPreview(sampleUrl);
+                                }}
+                                className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-purple-600 hover:text-white transition cursor-pointer text-[9.5px] font-mono"
+                              >
+                                Blaze Stream MP4
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Picture Upload Controls */}
+                          <div>
+                            <label className="block text-slate-500 font-mono text-[10px] font-bold uppercase mb-1">
+                              Upload Local Image (PNG, JPG, WebP)
+                            </label>
+                            <label className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-accent-sky hover:text-accent-sky text-slate-700 dark:text-slate-300 font-mono text-xs font-bold transition cursor-pointer shadow-xs">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Browse & Upload Picture</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const base64 = await compressImageFile(file);
+                                      handleSlideChange('customImageUrl', base64);
+                                      handleSlideChange('mediaType', 'image');
+                                      handleSlideChange('useCustomImage', true);
+                                    } catch (err) {
+                                      console.error('Image upload failed:', err);
+                                    }
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-500 font-mono text-[10px] font-bold uppercase mb-1">
+                              Or Direct Picture URL
+                            </label>
+                            <input
+                              type="url"
+                              placeholder="https://images.unsplash.com/... or hosted picture link"
+                              value={currentSlide.customImageUrl || ''}
+                              onChange={(e) => {
+                                handleSlideChange('customImageUrl', e.target.value);
+                                handleSlideChange('mediaType', 'image');
+                                if (e.target.value) {
+                                  handleSlideChange('useCustomImage', true);
+                                }
+                              }}
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono focus:outline-none focus:border-accent-sky"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div>
+                        <label className="block text-slate-500 font-mono text-[10px] font-bold uppercase mb-1">
+                          Media Caption / Subtitle (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={currentSlide.mediaType === 'video' ? 'e.g. Real-Time Order Flow & Delta Stream' : 'e.g. Strike Candlestick & Order Book Flow Snapshot'}
+                          value={currentSlide.customImageCaption || ''}
+                          onChange={(e) => handleSlideChange('customImageCaption', e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:border-accent-sky"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

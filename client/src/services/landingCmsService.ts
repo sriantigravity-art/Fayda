@@ -15,6 +15,11 @@ export interface HeroSlide {
   secondaryCtaText: string;
   previewType: 'CONFLUENCE_CARD' | 'STRIKE_CHART' | 'OPTION_CHAIN' | 'MACRO_RADAR';
   tag: string;
+  customImageUrl?: string; // base64 data URL or external picture URL
+  customImageCaption?: string;
+  useCustomImage?: boolean; // when true, display uploaded picture/video instead of interactive mockup
+  mediaType?: 'image' | 'video'; // media type: image or mp4 video
+  customVideoUrl?: string; // direct MP4 video URL or indexeddb reference
 }
 
 export interface FeatureItem {
@@ -68,7 +73,7 @@ export const DEFAULT_LANDING_CMS_DATA: LandingCmsData = {
       titlePrefix: 'Trade Options with',
       titleHighlight: 'Institutional Precision',
       titleSuffix: '& Mathematical Edge',
-      fontStyle: 'tracking-tight font-extrabold',
+      fontStyle: 'tracking-tight font-bold',
       description: 'Stop relying on delayed retail indicators and guesswork. Fayda PRO fuses real-time OI build-up, Greeks gamma, VWAP divergence, and price-action momentum into actionable intraday & swing trading setups with exact entry, stop-loss, and multi-tier targets.',
       primaryCtaText: 'Start 7-Day Free Trial',
       secondaryCtaText: 'Explore Live Terminal Demo',
@@ -81,7 +86,7 @@ export const DEFAULT_LANDING_CMS_DATA: LandingCmsData = {
       titlePrefix: 'Institutional Candlestick &',
       titleHighlight: 'Strike Price Depth',
       titleSuffix: 'In Real-Time',
-      fontStyle: 'tracking-tight font-black',
+      fontStyle: 'tracking-tight font-bold',
       description: 'Analyze pure option strike price charts with dedicated 1m, 3m, 5m, and 15m candlesticks, overlaid with Implied Volatility (IV), real-time Delta, Theta decay velocity, and institutional bid/ask order book volume clusters.',
       primaryCtaText: 'Inspect Live Strike Charts',
       secondaryCtaText: 'View Options Setup',
@@ -94,7 +99,7 @@ export const DEFAULT_LANDING_CMS_DATA: LandingCmsData = {
       titlePrefix: 'High-Density',
       titleHighlight: 'Option Chain Heatmap',
       titleSuffix: '& Greeks Radar',
-      fontStyle: 'font-sans font-extrabold',
+      fontStyle: 'tracking-tight font-bold',
       description: 'Monitor ATM ± 10 strikes simultaneously with visual OI heatmap indicators for Long Build-up, Short Covering, and Unwinding. Real-time PCR tracking across near and far weekly expiry cycles.',
       primaryCtaText: 'View Live Options Chain',
       secondaryCtaText: 'Learn Greeks Modeling',
@@ -107,7 +112,7 @@ export const DEFAULT_LANDING_CMS_DATA: LandingCmsData = {
       titlePrefix: 'Synchronize Intraday F&O with',
       titleHighlight: 'GIFT Nifty & FII Liquidity',
       titleSuffix: 'Real-Time',
-      fontStyle: 'tracking-tight font-black',
+      fontStyle: 'tracking-tight font-bold',
       description: 'Track Brent Crude, USD/INR, US 10Y Yields, Dollar Index (DXY), and institutional cash flow (FII/DII net purchases) to accurately forecast trend continuation and avoid retail false breakouts.',
       primaryCtaText: 'Explore Global Macro Radar',
       secondaryCtaText: 'View Pre-Market CPR',
@@ -220,7 +225,7 @@ export const DEFAULT_LANDING_CMS_DATA: LandingCmsData = {
   ]
 };
 
-const STORAGE_KEY = 'fayda_landing_cms_v1';
+const STORAGE_KEY = 'fayda_landing_cms_v2';
 
 export function getLandingCmsData(): LandingCmsData {
   try {
@@ -254,3 +259,123 @@ export function resetLandingCmsData(): LandingCmsData {
   } catch {}
   return DEFAULT_LANDING_CMS_DATA;
 }
+
+/**
+ * Compresses an uploaded image file into a base64 JPEG data URL
+ * to avoid exceeding browser localStorage limits.
+ */
+export function compressImageFile(file: File, maxWidth = 1200, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(e.target?.result as string);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================================
+// IndexedDB Media Storage for MP4 Video Blobs
+// ============================================================================
+const IDB_NAME = 'fayda_landing_media_db_v1';
+const IDB_STORE = 'videos';
+
+function openMediaDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      return reject(new Error('IndexedDB not supported'));
+    }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Stores a local video File/Blob in IndexedDB to avoid localStorage size limits.
+ */
+export async function storeVideoInIndexedDB(key: string, file: Blob): Promise<string> {
+  try {
+    const db = await openMediaDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.put(file, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+    return URL.createObjectURL(file);
+  } catch (err) {
+    console.error('Failed to store video in IndexedDB:', err);
+    // Fallback to in-memory object URL
+    return URL.createObjectURL(file);
+  }
+}
+
+/**
+ * Retrieves a stored video Blob from IndexedDB and returns a revocable Object URL.
+ */
+export async function getVideoFromIndexedDB(key: string): Promise<string | null> {
+  try {
+    const db = await openMediaDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.get(key);
+      req.onsuccess = () => {
+        if (req.result instanceof Blob) {
+          resolve(URL.createObjectURL(req.result));
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deletes a stored video from IndexedDB.
+ */
+export async function removeVideoFromIndexedDB(key: string): Promise<void> {
+  try {
+    const db = await openMediaDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    });
+  } catch {}
+}
+

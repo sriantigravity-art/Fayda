@@ -69,9 +69,22 @@ const MainDashboard: React.FC = () => {
     isSectionAllowed 
   } = useTradingPersona();
 
-  // If user is authenticated but has not yet chosen their persona, prompt the Persona Selection Modal
+  const prevAuthRef = React.useRef(isAuthenticated);
+
+  // Automatically prompt the Buyer, Seller, Commodities Persona Selection Modal after login or upon entering workspace
   useEffect(() => {
-    if (isAuthenticated && !hasSelectedPersona) {
+    let shouldShow = false;
+    try {
+      shouldShow = sessionStorage.getItem('fayda_show_persona_on_login') === 'true';
+      if (shouldShow) {
+        sessionStorage.removeItem('fayda_show_persona_on_login');
+      }
+    } catch {}
+
+    const justLoggedIn = !prevAuthRef.current && isAuthenticated;
+    prevAuthRef.current = isAuthenticated;
+
+    if (shouldShow || justLoggedIn || (isAuthenticated && !hasSelectedPersona)) {
       setIsPersonaModalOpen(true);
     }
   }, [isAuthenticated, hasSelectedPersona, setIsPersonaModalOpen]);
@@ -396,10 +409,19 @@ const MainDashboard: React.FC = () => {
 
 const DashboardGate: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { setIsPersonaModalOpen } = useTradingPersona();
   const [isDemoMode, setIsDemoMode] = useState(false);
 
+  const handleLaunchDemo = () => {
+    try {
+      sessionStorage.setItem('fayda_show_persona_on_login', 'true');
+    } catch {}
+    setIsPersonaModalOpen(true);
+    setIsDemoMode(true);
+  };
+
   if (!isAuthenticated && !isDemoMode) {
-    return <TerminalLoginGate onLaunchDemo={() => setIsDemoMode(true)} />;
+    return <TerminalLoginGate onLaunchDemo={handleLaunchDemo} />;
   }
   return <MainDashboard />;
 };
