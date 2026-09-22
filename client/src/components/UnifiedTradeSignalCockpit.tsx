@@ -150,9 +150,90 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     return valid[0] || null;
   };
 
+  // User explicitly selected strike tip
+  const [selectedStrikeTipId, setSelectedStrikeTipId] = useState<string | null>(null);
+
+  // When asset changes, reset custom selected strike tip
+  useEffect(() => {
+    setSelectedStrikeTipId(null);
+  }, [selectedIndex]);
+
+  // All strike prices for which signals are given for the currently selected asset
+  const assetSignalStrikes = useMemo(() => {
+    if (!tipsPackage) return [];
+
+    const candidates = [
+      { tip: tipsPackage.primaryTrade, label: 'Primary Signal' },
+      { tip: tipsPackage.topCallTrade, label: 'Buyer Call' },
+      { tip: tipsPackage.topPutTrade, label: 'Buyer Put' },
+      { tip: tipsPackage.gammaTrade, label: '0DTE Gamma' },
+      { tip: tipsPackage.hedgedSpreadTrade, label: 'Hedged Spread' },
+      { tip: tipsPackage.topSellerPutTrade, label: 'Seller Put Credit' },
+      { tip: tipsPackage.topSellerCallTrade, label: 'Seller Call Credit' },
+      { tip: tipsPackage.topSellerNeutralTrade, label: 'Iron Condor / Neutral' },
+      ...(tipsPackage.carriedForwardTrades || []).map(t => ({ tip: t, label: 'BTST / Carry' }))
+    ];
+
+    const seen = new Set<string>();
+    const res: Array<{
+      tip: UnifiedSmartTip;
+      label: string;
+      strike: number;
+      optionType: string;
+      action: string;
+      contractSymbol: string;
+      ltp: number;
+      score: number;
+      status: string;
+      isCall: boolean;
+      isPut: boolean;
+      isTargetHit: boolean;
+      isSlHit: boolean;
+      isSquareOff: boolean;
+    }> = [];
+
+    candidates.forEach(c => {
+      if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED') return;
+      const key = `${c.tip.contractSymbol || ''}_${c.tip.action}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const isTargetHit = c.tip.status === 'TARGET1_HIT' || c.tip.status === 'TARGET2_HIT' || c.tip.status === 'TARGET_HIT';
+        const isSlHit = c.tip.status === 'SL_HIT' || c.tip.status === 'STOPLOSS_HIT';
+        const isSquareOff = c.tip.status === 'INTRADAY_CLOSED' || c.tip.status === 'SQUARE_OFF';
+        const isCall = c.tip.action.includes('CALL') || c.tip.optionType === 'CE';
+        const isPut = c.tip.action.includes('PUT') || c.tip.optionType === 'PE';
+
+        res.push({
+          tip: c.tip,
+          label: c.label,
+          strike: c.tip.strikePrice || (c.tip as any).strike || 0,
+          optionType: c.tip.optionType,
+          action: c.tip.action,
+          contractSymbol: c.tip.contractSymbol,
+          ltp: c.tip.currentLtp,
+          score: c.tip.quantumScore || c.tip.confluenceScore || 85,
+          status: c.tip.status,
+          isCall,
+          isPut,
+          isTargetHit,
+          isSlHit,
+          isSquareOff
+        });
+      }
+    });
+
+    return res;
+  }, [tipsPackage]);
+
   // Current primary trade candidate (Active preferred, or docked setup if no new signal yet)
   const currentHeroTip: UnifiedSmartTip | null = useMemo(() => {
     if (!tipsPackage) return null;
+
+    // If user clicked a specific strike price from the active strikes bar, prioritize it!
+    if (selectedStrikeTipId) {
+      const custom = assetSignalStrikes.find(s => s.tip.id === selectedStrikeTipId)?.tip;
+      if (custom) return custom;
+    }
 
     if (activeTab === 'BUYERS') {
       return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
@@ -168,7 +249,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
         : getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
     }
     return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
-  }, [tipsPackage, activeTab]);
+  }, [tipsPackage, activeTab, selectedStrikeTipId, assetSignalStrikes]);
 
   // Secondary active signals queue
   const secondaryTips: UnifiedSmartTip[] = useMemo(() => {
@@ -592,7 +673,10 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                 key={item.symbol}
                 id={`asset-tab-${item.symbol}`}
                 type="button"
-                onClick={() => setSelectedIndex(item.symbol)}
+                onClick={() => {
+                  setSelectedIndex(item.symbol);
+                  setSelectedStrikeTipId(null);
+                }}
                 className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 border select-none ${
                   isSelected
                     ? 'bg-gradient-to-r from-sky-500/20 via-cyan-500/15 to-emerald-500/20 text-accent-cyan border-accent-cyan shadow-[0_0_12px_rgba(0,229,255,0.35)] ring-1 ring-accent-cyan'
@@ -650,6 +734,92 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* ── 1.2 STRIKE PRICES FOR WHICH SIGNALS GIVEN (CLICK TO VIEW STRIKE SETUP) ── */}
+      <div className="px-4 sm:px-6 py-2.5 bg-terminal-panel/60 border-b border-terminal-border/70 space-y-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <Target className="w-3.5 h-3.5 text-accent-cyan" />
+            <span className="font-extrabold text-terminal-text tracking-wide uppercase text-[11px]">
+              Strike Signals Given for <span className="text-accent-cyan">{selectedIndex}</span>
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 font-bold">
+              {assetSignalStrikes.length} {assetSignalStrikes.length === 1 ? 'Strike Signal' : 'Strike Signals'}
+            </span>
+          </div>
+          <span className="text-[10px] text-terminal-muted hidden sm:inline-block">
+            ⚡ Click any strike price below to view its full trade execution levels & live chart
+          </span>
+        </div>
+
+        {assetSignalStrikes.length > 0 ? (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
+            {assetSignalStrikes.map(item => {
+              const isHeroActive = currentHeroTip?.id === item.tip.id;
+              return (
+                <button
+                  key={item.tip.id}
+                  type="button"
+                  onClick={() => setSelectedStrikeTipId(item.tip.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs transition-all duration-200 cursor-pointer flex items-center gap-2.5 border select-none ${
+                    isHeroActive
+                      ? 'bg-gradient-to-r from-sky-500/25 via-cyan-500/20 to-emerald-500/25 text-white border-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)] ring-2 ring-accent-cyan'
+                      : 'bg-terminal-bg/80 hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-terminal-border/80 hover:border-terminal-border'
+                  }`}
+                  title={`View ${item.contractSymbol} (${item.label})`}
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${
+                    item.isCall ? 'bg-bull' : item.isPut ? 'bg-bear' : 'bg-accent-gold'
+                  }`} />
+
+                  <div className="flex flex-col items-start leading-tight">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className={isHeroActive ? 'text-accent-cyan font-black' : 'text-terminal-text'}>
+                        {item.contractSymbol}
+                      </span>
+                      <span className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
+                        item.isCall 
+                          ? 'bg-emerald-500/20 text-emerald-400' 
+                          : item.isPut 
+                          ? 'bg-rose-500/20 text-rose-400' 
+                          : 'bg-purple-500/20 text-purple-400'
+                      }`}>
+                        {item.action.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-terminal-muted flex items-center gap-1.5 mt-0.5">
+                      <span>LTP: <strong className="text-terminal-text">₹{item.ltp.toFixed(2)}</strong></span>
+                      <span>•</span>
+                      <span>{item.score}% Quantum</span>
+                    </div>
+                  </div>
+
+                  {/* Status chip */}
+                  <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                    item.isTargetHit
+                      ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
+                      : item.isSlHit
+                      ? 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
+                      : item.isSquareOff
+                      ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
+                      : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                  }`}>
+                    {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-2.5 rounded-lg border border-dashed border-terminal-border/80 bg-terminal-bg/40 flex items-center justify-between text-xs text-terminal-muted font-mono">
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>No direct strike signals active for {selectedIndex} in current session. Engine in capital preservation mode.</span>
+            </span>
+            <span className="text-[10px] text-sky-400">Monitoring 10 Confluence Factors</span>
+          </div>
+        )}
       </div>
 
       {/* ── 2. HERO TRADE SIGNAL CARD (PRIMARY AUTHORITATIVE RECOMMENDATION) ── */}
