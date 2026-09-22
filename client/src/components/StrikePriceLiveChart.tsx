@@ -417,13 +417,34 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
     };
   }, [ltpChange, ltpPctChange, oiChange1m, oiChange5m, optionType, currentLiveBar]);
 
-  // Compute SVG dimensions and scale coordinates
-  const svgWidth = 860;
-  const svgHeight = 440;
-  const padding = { top: 28, right: 72, bottom: 40, left: 28 };
-  const chartWidth = svgWidth - padding.left - padding.right;
-  const priceAreaHeight = svgHeight - padding.top - padding.bottom - 45;
-  const volumeAreaHeight = 40;
+  // Dynamically observe container dimensions to eliminate SVG distortion and stretching
+  const chartCanvasContainerRef = useRef<HTMLDivElement>(null);
+  const [chartContainerSize, setChartContainerSize] = useState<{ width: number; height: number }>({ width: 860, height: 360 });
+
+  useEffect(() => {
+    if (!chartCanvasContainerRef.current) return;
+    const updateSize = () => {
+      if (chartCanvasContainerRef.current) {
+        const { clientWidth, clientHeight } = chartCanvasContainerRef.current;
+        if (clientWidth > 100 && clientHeight > 100) {
+          setChartContainerSize({ width: Math.round(clientWidth), height: Math.round(clientHeight) });
+        }
+      }
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(chartCanvasContainerRef.current);
+    return () => ro.disconnect();
+  }, [viewEngine]);
+
+  // Compute SVG dimensions and coordinates matching exact container pixels (1:1 aspect ratio)
+  const svgWidth = Math.max(320, chartContainerSize.width);
+  const svgHeight = Math.max(220, chartContainerSize.height);
+  const padding = { top: 20, right: 64, bottom: 26, left: 16 };
+  const chartWidth = Math.max(100, svgWidth - padding.left - padding.right);
+  const hasVol = indicators.volumeDelta;
+  const volumeAreaHeight = hasVol ? Math.min(36, Math.max(20, Math.round(svgHeight * 0.12))) : 0;
+  const priceAreaHeight = Math.max(80, svgHeight - padding.top - padding.bottom - volumeAreaHeight - (hasVol ? 8 : 0));
   const volumeAreaTop = svgHeight - padding.bottom - volumeAreaHeight;
 
   const { minPrice, maxPrice, maxVol } = useMemo(() => {
@@ -489,7 +510,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
   };
 
   const candleSlotWidth = chartWidth / (candles.length || 1);
-  const candleBodyWidth = Math.max(2.5, Math.min(13, candleSlotWidth * 0.68));
+  const candleBodyWidth = Math.max(3, Math.min(10.5, candleSlotWidth * 0.65));
 
   // Strike VWAP line calculation
   const vwapLineData = useMemo(() => {
@@ -1002,10 +1023,10 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
       )}
 
       {/* ── 4. MAIN WORKBENCH: LEFT DRAWING TOOLBAR + CHART CANVAS ── */}
-      <div className={`flex flex-row relative w-full flex-1 min-h-[440px] ${isDark ? 'bg-[#131722]' : 'bg-white'}`}>
+      <div className={`flex flex-row relative w-full flex-1 min-h-0 overflow-hidden ${isDark ? 'bg-[#131722]' : 'bg-white'}`}>
         {/* Left TradingView / Fyers Drawing Toolbar */}
         {viewEngine === 'STRIKE_OPTION_PRO' && (
-          <div className="w-10 bg-terminal-panel border-r border-terminal-border flex flex-col items-center py-2 space-y-2 select-none shrink-0 z-20">
+          <div className="w-9 bg-terminal-panel border-r border-terminal-border flex flex-col items-center py-1.5 space-y-1 select-none shrink-0 z-20">
             {[
               { id: 'CURSOR', icon: Crosshair, title: 'Crosshair / Pointer' },
               { id: 'TRENDLINE', icon: MoveUpRight, title: 'Trendline Tool (Click & Drag)' },
@@ -1020,14 +1041,14 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
                   key={tool.id}
                   type="button"
                   onClick={() => setActiveTool(tool.id as DrawingToolType)}
-                  className={`p-2 rounded-lg transition cursor-pointer ${
+                  className={`p-1.5 rounded-lg transition cursor-pointer ${
                     isActive
                       ? 'bg-accent-cyan text-slate-950 shadow-sm'
                       : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-hover'
                   }`}
                   title={tool.title}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                 </button>
               );
             })}
@@ -1036,25 +1057,25 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
               <button
                 type="button"
                 onClick={() => setDrawings([])}
-                className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/15 transition cursor-pointer mt-auto"
+                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/15 transition cursor-pointer mt-auto"
                 title="Clear all drawings"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         )}
 
         {/* Central Chart View Area */}
-        <div className="flex-1 flex flex-col relative w-full min-h-[440px] overflow-hidden">
+        <div className="flex-1 flex flex-col relative w-full h-full min-h-0 overflow-hidden">
           {/* Engine A: Specialized Strike Option Candlestick Canvas */}
           {viewEngine === 'STRIKE_OPTION_PRO' && (
-            <div className="relative w-full flex-1 min-h-[440px] select-none">
+            <div ref={chartCanvasContainerRef} className="relative w-full flex-1 h-full min-h-0 select-none overflow-hidden">
               {/* Interactive Institutional Top-Left HUD (TradingView / Bloomberg Style) */}
               {activeCandleForHud && (
-                <div className="absolute top-2.5 left-3 z-30 pointer-events-none flex flex-col gap-1 select-none max-w-[90%]">
+                <div className="absolute top-2 left-2.5 z-30 pointer-events-none flex flex-col gap-1 select-none max-w-[90%]">
                   {/* Line 1: Strike Contract & Engine Badge */}
-                  <div className="flex items-center flex-wrap gap-2 text-xs">
+                  <div className="flex items-center flex-wrap gap-1.5 text-xs">
                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/95 dark:bg-[#0c1017]/90 border border-slate-300 dark:border-slate-700/80 shadow-xs backdrop-blur-md">
                       <span className="font-extrabold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
                         {symbol} {strikePrice} {optionType}
@@ -1068,38 +1089,38 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
                     </div>
 
                     {/* Date & Time of active bar */}
-                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 hidden md:inline">
+                    <span className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 hidden md:inline">
                       {activeCandleForHud.dateStr} {activeCandleForHud.timeStr}
                     </span>
                   </div>
 
                   {/* Line 2: Precision OHLCV + Price Delta Bar */}
-                  <div className="flex items-center flex-wrap gap-2 px-2.5 py-1 rounded-md bg-white/90 dark:bg-[#0c1017]/90 border border-slate-200 dark:border-white/10 shadow-md backdrop-blur-md text-[11px] font-mono">
+                  <div className="flex items-center flex-wrap gap-2 px-2 py-0.5 rounded-md bg-white/90 dark:bg-[#0c1017]/90 border border-slate-200 dark:border-white/10 shadow-md backdrop-blur-md text-[10.5px] font-mono">
                     <div className="flex items-center space-x-1">
-                      <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">O</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-[9.5px] font-bold">O</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">₹{activeCandleForHud.open.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">H</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-[9.5px] font-bold">H</span>
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">₹{activeCandleForHud.high.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">L</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-[9.5px] font-bold">L</span>
                       <span className="font-semibold text-rose-600 dark:text-rose-400">₹{activeCandleForHud.low.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">C</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-[9.5px] font-bold">C</span>
                       <span className={`font-bold ${hudCandleIsUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         ₹{activeCandleForHud.close.toFixed(2)}
                       </span>
                     </div>
-                    <div className={`flex items-center font-bold text-[10.5px] ${hudCandleIsUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <div className={`flex items-center font-bold text-[10px] ${hudCandleIsUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       <span>{hudCandleIsUp ? '+' : ''}{hudCandleChange.toFixed(2)}</span>
-                      <span className="text-[9.5px] ml-0.5">({hudCandleIsUp ? '+' : ''}{hudCandlePct.toFixed(2)}%)</span>
+                      <span className="text-[9px] ml-0.5">({hudCandleIsUp ? '+' : ''}{hudCandlePct.toFixed(2)}%)</span>
                     </div>
                     {indicators.volumeDelta && (
                       <div className="flex items-center space-x-1 pl-1.5 border-l border-slate-300 dark:border-slate-700">
-                        <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">Vol</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-[9.5px] font-bold">Vol</span>
                         <span className="font-semibold text-teal-600 dark:text-teal-400">{(activeCandleForHud.volume / 1000).toFixed(1)}k</span>
                       </div>
                     )}
@@ -1107,7 +1128,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
 
                   {/* Line 3: Active Technical Indicators legend pills */}
                   {(indicators.vwap || indicators.ema9 || indicators.ema20 || indicators.ema50) && (
-                    <div className="flex items-center flex-wrap gap-1.5 text-[10px] font-mono">
+                    <div className="flex items-center flex-wrap gap-1 text-[9.5px] font-mono">
                       {indicators.vwap && (
                         <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
@@ -1140,12 +1161,11 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
               <svg
                 ref={svgRef}
                 viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                className="w-full h-full block cursor-crosshair min-h-[420px]"
+                className="w-full h-full block cursor-crosshair"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
-                preserveAspectRatio="none"
               >
                 <defs>
                   <linearGradient id="bullVolGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1726,7 +1746,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
 
           {/* Engine B: Underlying Index TradingView Live Embed Container */}
           {viewEngine === 'TRADINGVIEW_UNDERLYING' && (
-            <div className="w-full h-full min-h-[460px] bg-terminal-card relative z-10 flex-1 flex flex-col">
+            <div className="w-full h-full min-h-0 bg-terminal-card relative z-10 flex-1 flex flex-col overflow-hidden">
               {/* Underlying Info & Broker Direct Launch Strip */}
               <div className="px-3 py-2 bg-gradient-to-r from-amber-500/10 via-terminal-panel to-terminal-panel border-b border-terminal-border flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1769,7 +1789,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
                 </div>
               </div>
 
-              <div ref={tvContainerRef} className="w-full h-full min-h-[460px] flex-1" />
+              <div ref={tvContainerRef} className="w-full h-full min-h-0 flex-1" />
             </div>
           )}
         </div>

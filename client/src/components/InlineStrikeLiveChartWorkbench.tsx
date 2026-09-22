@@ -40,6 +40,7 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
   const [activeStrike, setActiveStrike] = useState<number>(24500);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isHighlighted, setIsHighlighted] = useState<boolean>(false);
+  const [viewSize, setViewSize] = useState<'fit' | 'standard' | 'expanded'>('fit');
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Symbol config for strike step
@@ -272,6 +273,46 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
             ))}
           </div>
 
+          {/* Screen Fit Height Selector */}
+          <div className="hidden sm:flex items-center rounded-lg bg-terminal-panel p-0.5 border border-terminal-border font-mono text-xs">
+            <button
+              type="button"
+              onClick={() => setViewSize('fit')}
+              className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer text-[11px] ${
+                viewSize === 'fit'
+                  ? 'bg-accent-cyan text-slate-950 font-black shadow-xs'
+                  : 'text-terminal-muted hover:text-terminal-text'
+              }`}
+              title="Compact Screen Fit (460px) - clean viewing without vertical scrolling"
+            >
+              Fit Screen (460px)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewSize('standard')}
+              className={`px-2.5 py-1 rounded-md font-bold transition cursor-pointer text-[11px] ${
+                viewSize === 'standard'
+                  ? 'bg-accent-cyan text-slate-950 font-black shadow-xs'
+                  : 'text-terminal-muted hover:text-terminal-text'
+              }`}
+              title="Standard view height (520px)"
+            >
+              Standard (520px)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewSize('expanded')}
+              className={`px-2 py-1 rounded-md font-bold transition cursor-pointer text-[11px] ${
+                viewSize === 'expanded'
+                  ? 'bg-accent-cyan text-slate-950 font-black shadow-xs'
+                  : 'text-terminal-muted hover:text-terminal-text'
+              }`}
+              title="Expanded large view (640px)"
+            >
+              Large
+            </button>
+          </div>
+
           {/* Sync Hero Button */}
           {heroTip && (
             <button
@@ -309,9 +350,15 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
 
       {/* ── Main Collapsible Body ── */}
       {!isCollapsed && (
-        <div className="p-2.5 sm:p-3.5 bg-terminal-bg grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        <div className="p-2.5 sm:p-3 bg-terminal-bg grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
           {/* Left Column (8 of 12 cols): Interactive Candlestick Chart */}
-          <div className="lg:col-span-8 flex flex-col min-h-[680px] xl:min-h-[720px] rounded-xl border border-terminal-border bg-terminal-card shadow-inner overflow-hidden">
+          <div className={`lg:col-span-8 flex flex-col ${
+            viewSize === 'fit' 
+              ? 'h-[460px] xl:h-[480px]' 
+              : viewSize === 'standard' 
+              ? 'h-[520px] xl:h-[550px]' 
+              : 'h-[640px] xl:h-[680px]'
+          } rounded-xl border border-terminal-border bg-terminal-card shadow-inner overflow-hidden`}>
             <StrikePriceLiveChart
               symbol={selectedIndex}
               strikePrice={activeStrike}
@@ -327,7 +374,13 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
           </div>
 
           {/* Right Column (4 of 12 cols): Institutional Alpha Order Flow Intelligence Panel */}
-          <div className="lg:col-span-4 flex flex-col min-h-[680px] xl:min-h-[720px] rounded-xl border border-terminal-border bg-terminal-card shadow-inner overflow-hidden">
+          <div className={`lg:col-span-4 flex flex-col ${
+            viewSize === 'fit' 
+              ? 'h-[460px] xl:h-[480px]' 
+              : viewSize === 'standard' 
+              ? 'h-[520px] xl:h-[550px]' 
+              : 'h-[640px] xl:h-[680px]'
+          } rounded-xl border border-terminal-border bg-terminal-card shadow-inner overflow-hidden`}>
             <StrikeAnalyticsRightPanel
               symbol={selectedIndex}
               strikePrice={activeStrike}
