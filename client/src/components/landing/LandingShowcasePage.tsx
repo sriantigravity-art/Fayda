@@ -912,7 +912,7 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
                       NIFTY 23350 CE
                     </div>
                     <div className="text-[11px] text-slate-500 font-mono">
-                      22-Sep-2026 Near Expiry • Spot ₹23,346.40 (+0.36%)
+                      29-Sep-2026 Near Expiry • Spot ₹23,346.40 (+0.36%)
                     </div>
                   </div>
                   <div className="text-right">

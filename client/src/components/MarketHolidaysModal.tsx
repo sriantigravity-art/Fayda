@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Calendar, 
@@ -15,11 +15,13 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useMarket } from '../context/MarketContext';
 import { 
   OFFICIAL_MARKET_HOLIDAYS, 
   WEEKEND_HOLIDAYS_2026, 
   EXCHANGE_EXPIRY_RULES 
 } from '../utils/marketHolidays';
+import { DynamicExpiryService } from '../utils/dynamicExpiryService';
 
 interface MarketHolidaysModalProps {
   isOpen: boolean;
@@ -32,101 +34,18 @@ export const MarketHolidaysModal: React.FC<MarketHolidaysModalProps> = ({ isOpen
   const [activeTab, setActiveTab] = useState<'EXPIRIES' | 'HOLIDAYS' | 'RULES'>('EXPIRIES');
   const [exchangeFilter, setExchangeFilter] = useState<'ALL' | 'NSE' | 'BSE' | 'MCX'>('ALL');
 
-  if (!isOpen) return null;
+  const { indices } = useMarket();
 
-  // Key asset expiry reference matrix (computed based on official exchange rules from Sep 20, 2026)
-  const ASSET_EXPIRY_MATRIX = [
-    {
-      symbol: 'NIFTY 50',
-      exchange: 'NSE',
-      segment: 'Index Derivatives',
-      nextExpiry: '22-Sep-2026',
-      subsequent: ['29-Sep-2026', '06-Oct-2026', '13-Oct-2026', '19-Oct-2026 (Shifted)*'],
-      frequency: 'Weekly (Tuesday)',
-      dte: 2,
-      note: 'Official SEBI benchmark for NSE. Expiry every Tuesday.'
-    },
-    {
-      symbol: 'SENSEX',
-      exchange: 'BSE',
-      segment: 'Index Derivatives',
-      nextExpiry: '24-Sep-2026',
-      subsequent: ['01-Oct-2026', '08-Oct-2026', '15-Oct-2026', '22-Oct-2026'],
-      frequency: 'Weekly (Thursday)',
-      dte: 4,
-      note: 'Official SEBI benchmark for BSE. Expiry every Thursday.'
-    },
-    {
-      symbol: 'FINNIFTY',
-      exchange: 'NSE',
-      segment: 'Financial Services',
-      nextExpiry: '22-Sep-2026',
-      subsequent: ['29-Sep-2026', '06-Oct-2026', '13-Oct-2026'],
-      frequency: 'Weekly / Monthly (Tuesday)',
-      dte: 2,
-      note: 'Aligned to Tuesday expiry cycle.'
-    },
-    {
-      symbol: 'BANKNIFTY',
-      exchange: 'NSE',
-      segment: 'Banking Index',
-      nextExpiry: '23-Sep-2026',
-      subsequent: ['29-Sep-2026 (Monthly)', '30-Sep-2026', '07-Oct-2026'],
-      frequency: 'Wednesdays / Monthly Last Tuesday',
-      dte: 3,
-      note: 'Monthly contract expires last Tuesday of the month (29-Sep-2026).'
-    },
-    {
-      symbol: 'NIFTY 50 STOCKS (RELIANCE, TCS, etc.)',
-      exchange: 'NSE',
-      segment: 'Stock Options & Futures',
-      nextExpiry: '29-Sep-2026',
-      subsequent: ['27-Oct-2026', '23-Nov-2026 (Shifted)*', '29-Dec-2026'],
-      frequency: 'Monthly (Last Tuesday)',
-      dte: 9,
-      note: 'Under revised NSE standard, all equity stocks expire on the last Tuesday of the month.'
-    },
-    {
-      symbol: 'CRUDE OIL',
-      exchange: 'MCX',
-      segment: 'Commodity Derivatives',
-      nextExpiry: '19-Oct-2026',
-      subsequent: ['19-Nov-2026', '18-Dec-2026 (Shifted)*', '19-Jan-2027'],
-      frequency: 'Monthly (19th)',
-      dte: 29,
-      note: 'Expires on 19th of each calendar month (or preceding business day).'
-    },
-    {
-      symbol: 'NATURAL GAS',
-      exchange: 'MCX',
-      segment: 'Commodity Derivatives',
-      nextExpiry: '25-Sep-2026',
-      subsequent: ['23-Oct-2026', '25-Nov-2026', '24-Dec-2026'],
-      frequency: 'Monthly (25th)',
-      dte: 5,
-      note: 'Expires on 25th of each calendar month (or preceding business day).'
-    },
-    {
-      symbol: 'GOLD (1kg / Mini)',
-      exchange: 'MCX',
-      segment: 'Precious Metals',
-      nextExpiry: '05-Oct-2026',
-      subsequent: ['04-Dec-2026', '05-Feb-2027', '05-Apr-2027'],
-      frequency: 'Bi-Monthly (5th of Even Months)',
-      dte: 15,
-      note: 'Expires on 5th of Feb, Apr, Jun, Aug, Oct, Dec (or preceding business day).'
-    },
-    {
-      symbol: 'SILVER (30kg / Mini)',
-      exchange: 'MCX',
-      segment: 'Precious Metals',
-      nextExpiry: '05-Nov-2026',
-      subsequent: ['04-Dec-2026', '05-Mar-2027'],
-      frequency: 'Bi-Monthly (Delivery Months)',
-      dte: 46,
-      note: 'Expires on 5th of scheduled contract months (or preceding business day).'
-    }
-  ];
+  // Dynamically computed asset expiry matrix based on real-time IST clock & exchange holiday calendar
+  const assetExpiryMatrix = useMemo(() => {
+    return DynamicExpiryService.getDynamicAssetExpiryMatrix(indices);
+  }, [indices]);
+
+  const niftyBenchmark = useMemo(() => assetExpiryMatrix.find(a => a.symbol === 'NIFTY 50'), [assetExpiryMatrix]);
+  const sensexBenchmark = useMemo(() => assetExpiryMatrix.find(a => a.symbol === 'SENSEX'), [assetExpiryMatrix]);
+  const stockBenchmark = useMemo(() => assetExpiryMatrix.find(a => a.symbol.includes('STOCKS')), [assetExpiryMatrix]);
+
+  if (!isOpen) return null;
 
   const filteredHolidays = OFFICIAL_MARKET_HOLIDAYS.filter(h => {
     if (exchangeFilter === 'ALL') return true;
@@ -258,16 +177,16 @@ export const MarketHolidaysModal: React.FC<MarketHolidaysModalProps> = ({ isOpen
                 <div className="space-y-1">
                   <div className="font-bold">SEBI Single-Benchmark Expiry Schedule Active</div>
                   <p className={`text-[11px] leading-relaxed ${isDark ? 'text-sky-300/80' : 'text-sky-800'}`}>
-                    • <strong>NIFTY 50</strong> expires every <strong>Tuesday</strong>. Next upcoming expiry: <strong className="underline font-mono">22-Sep-2026 (2 days left)</strong>.<br />
-                    • <strong>SENSEX</strong> expires every <strong>Thursday</strong>. Next upcoming expiry: <strong className="underline font-mono">24-Sep-2026 (4 days left)</strong>.<br />
-                    • <strong>All NSE Stocks</strong> expire on the <strong>Last Tuesday</strong> of the month: <strong className="underline font-mono">29-Sep-2026 (9 days left)</strong>.
+                    • <strong>NIFTY 50</strong> expires every <strong>Tuesday</strong>. Next upcoming expiry: <strong className="underline font-mono">{niftyBenchmark?.nextExpiry || '29-Sep-2026'} ({niftyBenchmark?.dte === 0 ? 'Expires Today' : `${niftyBenchmark?.dte} days left`})</strong>.<br />
+                    • <strong>SENSEX</strong> expires every <strong>Thursday</strong>. Next upcoming expiry: <strong className="underline font-mono">{sensexBenchmark?.nextExpiry || '24-Sep-2026'} ({sensexBenchmark?.dte === 0 ? 'Expires Today' : `${sensexBenchmark?.dte} days left`})</strong>.<br />
+                    • <strong>All NSE Stocks</strong> expire on the <strong>Last Tuesday</strong> of the month: <strong className="underline font-mono">{stockBenchmark?.nextExpiry || '29-Sep-2026'} ({stockBenchmark?.dte === 0 ? 'Expires Today' : `${stockBenchmark?.dte} days left`})</strong>.
                   </p>
                 </div>
               </div>
 
               {/* Grid of All Assets */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {ASSET_EXPIRY_MATRIX.map((item, idx) => (
+                {assetExpiryMatrix.map((item, idx) => (
                   <div 
                     key={idx}
                     className={`p-3.5 rounded-xl border transition flex flex-col justify-between ${
@@ -285,13 +204,15 @@ export const MarketHolidaysModal: React.FC<MarketHolidaysModalProps> = ({ isOpen
                         <div className="flex items-center gap-1.5 font-mono">
                           <span className="text-[10px] text-terminal-muted">DTE:</span>
                           <span className={`text-xs font-bold px-1.5 py-0.2 rounded border ${
-                            item.dte <= 2 
+                            item.dte === 0
+                              ? 'bg-rose-600 text-white border-rose-500 animate-pulse font-black'
+                              : item.dte <= 2 
                               ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse'
                               : item.dte <= 5
                               ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
                               : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
                           }`}>
-                            {item.dte}d
+                            {item.dte === 0 ? '0DTE (Today)' : `${item.dte}d`}
                           </span>
                         </div>
                       </div>
