@@ -30,6 +30,10 @@ export interface TradeLifecycleAdvisorProps {
   matchingSurge?: SurgeEvent;
   isExpiryDay?: boolean;
   status?: string;
+  isCarriedForward?: boolean;
+  lifecycleDirective?: 'BOOK_PROFIT' | 'CARRY_FORWARD_CONTINUE' | 'STOPLOSS_HIT' | 'SQUARE_OFF' | 'HOLD_OR_ACCUMULATE';
+  lifecycleDirectiveText?: string;
+  carryForwardSuggestion?: string;
 }
 
 export type LifecycleStage = 
@@ -54,7 +58,11 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
   role,
   matchingSurge,
   isExpiryDay,
-  status
+  status,
+  isCarriedForward,
+  lifecycleDirective,
+  lifecycleDirectiveText,
+  carryForwardSuggestion
 }) => {
   const { isBeginner, isIntermediate, isExpert } = useTerminalMode();
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -68,6 +76,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
 
   // Analysis of current price vs targets
   const analysis = useMemo(() => {
+    const isSquareOff = status === 'INTRADAY_CLOSED' || status === 'SQUARE_OFF' || lifecycleDirective === 'SQUARE_OFF';
     const isExpired = status === 'EXPIRED' || (isExpiryDay && currentLtp <= 0.05);
     const pnlPoints = isExpired ? -entryPrice : +(currentLtp - entryPrice).toFixed(1);
     const pnlPct = isExpired ? -100 : +(((currentLtp - entryPrice) / entryPrice) * 100).toFixed(1);
@@ -78,8 +87,8 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
     let badgeText = 'ENTRY ACCUMULATION ZONE';
     let badgeColor = 'bg-cyan-500/20 text-cyan-700 dark:text-accent-cyan border-cyan-500/40';
     let actionDirective = 'HOLD / ENTER DIP';
-    let actionClass = 'bg-cyan-500 text-slate-950';
-    let primaryInstruction = `🎯 SYSTEM ADVISORY: In Entry Zone (LTP ₹${currentLtp.toFixed(1)}) | Action: Enter on dip | Stoploss: ₹${stoplossPrice.toFixed(1)}.`;
+    let actionClass = 'bg-cyan-500 text-slate-950 font-bold';
+    let primaryInstruction = lifecycleDirectiveText || `🎯 SYSTEM ADVISORY: In Entry Zone (LTP ₹${currentLtp.toFixed(1)}) | Action: Enter on dip | Stoploss: ₹${stoplossPrice.toFixed(1)}.`;
     let recommendedSl = stoplossPrice;
 
     if (isExpired) {
@@ -90,30 +99,46 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       actionClass = 'bg-rose-700 text-white font-black';
       primaryInstruction = '🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Settled at ₹0.00 | Action: Liquidate/archive record. Do NOT hold expired contracts.';
       recommendedSl = 0;
-    } else if (currentLtp <= stoplossPrice) {
+    } else if (isSquareOff) {
+      stage = 'EXPIRED';
+      badgeText = `⚠️ SQUARE OFF POSITION (${pnlPct >= 0 ? '+' : ''}${pnlPct}%)`;
+      badgeColor = 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40';
+      actionDirective = 'SQUARE OFF POSITION';
+      actionClass = 'bg-amber-500 text-slate-950 font-black animate-pulse';
+      primaryInstruction = lifecycleDirectiveText || '⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION | Action: Close position at CMP to avoid overnight decay.';
+      recommendedSl = stoplossPrice;
+    } else if (currentLtp <= stoplossPrice || status === 'SL_HIT' || lifecycleDirective === 'STOPLOSS_HIT') {
       stage = 'STOPLOSS_HIT';
       badgeText = `🛑 STOP LOSS HIT (${pnlPct}%)`;
       badgeColor = 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/40';
-      actionDirective = 'CUT POSITION NOW';
-      actionClass = 'bg-rose-600 text-white animate-pulse';
-      primaryInstruction = `🛑 SYSTEM DIRECTIVE: Stoploss Breached (₹${stoplossPrice.toFixed(1)}) | Action: Exit position now to preserve capital.`;
+      actionDirective = 'STOPLOSS — CUT POSITION';
+      actionClass = 'bg-rose-600 text-white animate-pulse font-black';
+      primaryInstruction = lifecycleDirectiveText || `🛑 SYSTEM DIRECTIVE: Stoploss Breached (₹${stoplossPrice.toFixed(1)}) | Action: Exit position now to preserve capital.`;
       recommendedSl = stoplossPrice;
     } else if (target2Price && currentLtp >= target2Price) {
       stage = 'TARGET_2_HIT';
       badgeText = `🚀 RUNNER TARGET 2 HIT (+${pnlPct}%)`;
       badgeColor = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40';
-      actionDirective = 'LOCK COMPLETE PROFIT';
-      actionClass = 'bg-emerald-600 text-white';
-      primaryInstruction = `🚀 SYSTEM DIRECTIVE: Target 2 Achieved (₹${target2Price.toFixed(1)}) | Action: Book remaining profits or trail SL to ₹${target1Price.toFixed(1)}.`;
+      actionDirective = 'BOOK PROFIT (RUNNER)';
+      actionClass = 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-500/30';
+      primaryInstruction = lifecycleDirectiveText || `🚀 SYSTEM DIRECTIVE: Target 2 Achieved (₹${target2Price.toFixed(1)}) | Action: Book complete profits now or trail SL to ₹${target1Price.toFixed(1)}.`;
       recommendedSl = target1Price;
-    } else if (currentLtp >= target1Price) {
+    } else if (currentLtp >= target1Price || status === 'TARGET1_HIT' || lifecycleDirective === 'BOOK_PROFIT') {
       stage = 'TARGET_1_HIT';
       badgeText = `🏆 TARGET 1 HIT (+${pnlPct}%)`;
       badgeColor = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40';
-      actionDirective = 'BOOK 50% & TRAIL SL TO COST';
+      actionDirective = 'BOOK PROFIT (50%-70%)';
       actionClass = 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/30';
-      primaryInstruction = `🏆 SYSTEM DIRECTIVE: Target 1 Achieved (₹${target1Price.toFixed(1)}) | Action: Book 50%–70% profit now | Rule: Trail SL to cost (₹${entryPrice.toFixed(1)}) for risk-free runner.`;
+      primaryInstruction = lifecycleDirectiveText || `🏆 SYSTEM DIRECTIVE: Target 1 Achieved (₹${target1Price.toFixed(1)}) | Action: Book 50%–70% profit now | Rule: Trail SL to cost (₹${entryPrice.toFixed(1)}) for risk-free runner.`;
       recommendedSl = entryPrice;
+    } else if (isCarriedForward || status === 'CARRIED_FORWARD' || lifecycleDirective === 'CARRY_FORWARD_CONTINUE') {
+      stage = 'IN_PROFIT';
+      badgeText = `🌙 BTST ACTIVE (${pnlPct >= 0 ? '+' : ''}${pnlPct}%)`;
+      badgeColor = 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/40';
+      actionDirective = 'CARRY FORWARD CONTINUE';
+      actionClass = 'bg-purple-600 text-white font-black shadow-md shadow-purple-500/30';
+      primaryInstruction = lifecycleDirectiveText || carryForwardSuggestion || `🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE | CMP ₹${currentLtp.toFixed(1)} (${pnlPoints >= 0 ? '+' : ''}${pnlPoints.toFixed(1)} pts) | Action: Maintain overnight position with trailing SL at cost ₹${entryPrice.toFixed(1)}.`;
+      recommendedSl = Math.max(stoplossPrice, entryPrice);
     } else if (targetDistanceCovered >= 0.5) {
       stage = 'HALF_TARGET_TRAIL';
       badgeText = `⚡ 50% TARGET ADVANCE (+${pnlPct}%)`;
@@ -127,7 +152,7 @@ export const TradeLifecycleAdvisor: React.FC<TradeLifecycleAdvisorProps> = ({
       badgeText = `🟢 RUNNING IN GAIN (+${pnlPct}%)`;
       badgeColor = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
       actionDirective = 'RIDE MOMENTUM';
-      actionClass = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40';
+      actionClass = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-bold';
       primaryInstruction = `🟢 SYSTEM ADVISORY: Trade In Profit (+${pnlPct}%) | Action: Maintain trailing SL at ₹${stoplossPrice.toFixed(1)} | Rule: Do not add size at high price.`;
       recommendedSl = stoplossPrice;
     }

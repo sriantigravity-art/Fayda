@@ -7,6 +7,8 @@ import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { TradePayoffSimulatorModal } from './TradePayoffSimulatorModal';
 import { BrokerBasketModal, type BrokerBasketItem } from './BrokerBasketModal';
+import { TradeLifecycleAdvisor } from './TradeLifecycleAdvisor';
+import { CasProbableCloseModal } from './CasProbableCloseModal';
 import { 
   Zap, 
   Target, 
@@ -64,6 +66,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const [showPayoffModal, setShowPayoffModal] = useState<boolean>(false);
   const [showRiskModal, setShowRiskModal] = useState<boolean>(false);
   const [showBasketModal, setShowBasketModal] = useState<boolean>(false);
+  const [showCasModal, setShowCasModal] = useState<boolean>(false);
   const [activeTipForModal, setActiveTipForModal] = useState<UnifiedSmartTip | null>(null);
 
   // Asset category filter, search & tabs ref
@@ -103,19 +106,25 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const getAssetSignalSummary = (sym: string) => {
     const state = indices ? indices[sym] : null;
     const pkg = state?.unifiedTipsPackage;
-    const hero = pkg?.primaryTrade || pkg?.topCallTrade || pkg?.topPutTrade || pkg?.gammaTrade;
+    const hero = pkg?.primaryTrade || pkg?.topCallTrade || pkg?.topPutTrade || pkg?.gammaTrade || (pkg?.carriedForwardTrades && pkg.carriedForwardTrades[0]);
     const spot = state?.spotPrice;
-    if (!hero || hero.action === 'STANDBY' || hero.status === 'INTRADAY_CLOSED' || hero.status === 'SQUARE_OFF' || hero.status === 'EXPIRED') {
+    if (!hero || hero.action === 'STANDBY' || hero.status === 'EXPIRED') {
       return { hasSignal: false, spot };
     }
     const isTargetHit = hero.status === 'TARGET1_HIT' || hero.status === 'TARGET2_HIT' || hero.status === 'TARGET_HIT';
     const isSlHit = hero.status === 'SL_HIT' || hero.status === 'STOPLOSS_HIT';
     const isSquareOff = hero.status === 'INTRADAY_CLOSED' || hero.status === 'SQUARE_OFF';
-    const isCall = hero.action.includes('CALL');
-    const isPut = hero.action.includes('PUT');
+    const isCarriedForward = Boolean(hero.isCarriedForward || hero.status === 'CARRIED_FORWARD' || hero.lifecycleDirective === 'CARRY_FORWARD_CONTINUE');
+    const isCall = hero.action.includes('CALL') || hero.optionType === 'CE';
+    const isPut = hero.action.includes('PUT') || hero.optionType === 'PE';
+
+    // If squared off without carry forward, don't show active signal indicator
+    if (isSquareOff && !isCarriedForward) {
+      return { hasSignal: false, spot };
+    }
 
     return {
-      hasSignal: !isSquareOff && !isTargetHit && !isSlHit,
+      hasSignal: true,
       spot,
       action: hero.action,
       contractSymbol: hero.contractSymbol,
@@ -124,6 +133,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       isTargetHit,
       isSlHit,
       isSquareOff,
+      isCarriedForward,
       quantumScore: hero.quantumScore || hero.confluenceScore
     };
   };
@@ -190,6 +200,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       isTargetHit: boolean;
       isSlHit: boolean;
       isSquareOff: boolean;
+      isCarriedForward: boolean;
     }> = [];
 
     const utcTime = Date.now() + (new Date().getTimezoneOffset() * 60000);
@@ -197,7 +208,9 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     const isPast3Pm = istTime.getHours() >= 15;
 
     candidates.forEach(c => {
-      if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED' || c.tip.status === 'INTRADAY_CLOSED' || c.tip.status === 'SQUARE_OFF') return;
+      if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED') return;
+      const isCarriedForward = Boolean(c.tip.isCarriedForward || c.tip.status === 'CARRIED_FORWARD' || c.tip.lifecycleDirective === 'CARRY_FORWARD_CONTINUE');
+      if (!isCarriedForward && (c.tip.status === 'INTRADAY_CLOSED' || c.tip.status === 'SQUARE_OFF')) return;
 
       // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
       const isBuyer = c.tip.tradingRole !== 'SELLER';
@@ -216,7 +229,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
 
         res.push({
           tip: c.tip,
-          label: c.label,
+          label: isCarriedForward ? '🌙 BTST / Carry' : c.label,
           strike: c.tip.strikePrice || (c.tip as any).strike || 0,
           optionType: c.tip.optionType,
           action: c.tip.action,
@@ -228,7 +241,8 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           isPut,
           isTargetHit,
           isSlHit,
-          isSquareOff
+          isSquareOff,
+          isCarriedForward
         });
       }
     });
@@ -288,19 +302,19 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     }
 
     if (activeTab === 'BUYERS') {
-      return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
+      return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade, ...(tipsPackage.carriedForwardTrades || [])]);
     }
     if (activeTab === 'SELLERS') {
-      return getBestTip([tipsPackage.topSellerPutTrade, tipsPackage.topSellerCallTrade, tipsPackage.topSellerNeutralTrade, tipsPackage.hedgedSpreadTrade]);
+      return getBestTip([tipsPackage.topSellerPutTrade, tipsPackage.topSellerCallTrade, tipsPackage.topSellerNeutralTrade, tipsPackage.hedgedSpreadTrade, ...(tipsPackage.carriedForwardTrades || [])]);
     }
     if (activeTab === 'GAMMA') {
       return (tipsPackage.gammaTrade && tipsPackage.gammaTrade.action !== 'STANDBY') 
         ? (isCompletedTrade(tipsPackage.gammaTrade) 
-            ? getBestTip([tipsPackage.gammaTrade, tipsPackage.primaryTrade, tipsPackage.topCallTrade]) 
+            ? getBestTip([tipsPackage.gammaTrade, tipsPackage.primaryTrade, tipsPackage.topCallTrade, ...(tipsPackage.carriedForwardTrades || [])]) 
             : tipsPackage.gammaTrade)
-        : getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
+        : getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade, ...(tipsPackage.carriedForwardTrades || [])]);
     }
-    return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade]);
+    return getBestTip([tipsPackage.primaryTrade, tipsPackage.topCallTrade, tipsPackage.topPutTrade, ...(tipsPackage.carriedForwardTrades || [])]);
   }, [tipsPackage, activeTab, selectedStrikeTipId, assetSignalStrikes]);
 
   // Center active strike pill in view
@@ -609,6 +623,21 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               <span>LTP: <strong className="text-terminal-text">₹{currentIndexState?.spotPrice?.toFixed(2) || '---'}</strong></span>
               <span>•</span>
               <span>Session: <strong className="text-terminal-text">{tipsPackage?.currentSessionName || 'Regular Trading'}</strong></span>
+              {currentIndexState?.probableClosingPrice && (
+                <>
+                  <span>•</span>
+                  <button
+                    id="cas-est-close-btn-cockpit"
+                    type="button"
+                    onClick={() => setShowCasModal(true)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-400 font-extrabold hover:text-amber-300 transition cursor-pointer text-[10px]"
+                    title="Click to view 3:10 PM+ Probable Official Close & CAS Analysis"
+                  >
+                    <Target className="w-3 h-3 text-amber-400 animate-pulse" />
+                    <span>Est Close: ₹{currentIndexState.probableClosingPrice.probableClose.toFixed(1)} ({currentIndexState.probableClosingPrice.driftPoints >= 0 ? '+' : ''}{currentIndexState.probableClosingPrice.driftPoints.toFixed(1)})</span>
+                  </button>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -793,13 +822,15 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                       : sig.isSlHit
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                      : sig.isCarriedForward
+                      ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
                       : sig.isSquareOff
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                       : sig.isCall
                       ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
                       : 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
                   }`}>
-                    {sig.isTargetHit ? '🎯 TGT' : sig.isSlHit ? '🛑 SL' : sig.isSquareOff ? '⚠️ SQ' : sig.isCall ? '🟢 CALL' : '🔴 PUT'}
+                    {sig.isTargetHit ? '🎯 TGT' : sig.isSlHit ? '🛑 SL' : sig.isCarriedForward ? '🌙 BTST' : sig.isSquareOff ? '⚠️ SQ' : sig.isCall ? '🟢 CALL' : '🔴 PUT'}
                   </span>
                 )}
               </button>
@@ -938,11 +969,13 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                           ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
                           : item.isSlHit
                           ? 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
+                          : item.isCarriedForward
+                          ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
                           : item.isSquareOff
                           ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
                           : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
                       }`}>
-                        {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
+                        {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isCarriedForward ? '🌙 BTST' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
                       </span>
                     </button>
                   );
@@ -1122,22 +1155,22 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
             )}
 
             {/* 🌙 RESEARCHED BTST CARRY FORWARD BANNER */}
-            {currentHeroTip.status === 'CARRIED_FORWARD' && (
+            {(currentHeroTip.status === 'CARRIED_FORWARD' || currentHeroTip.isCarriedForward || currentHeroTip.lifecycleDirective === 'CARRY_FORWARD_CONTINUE') && !isTargetHit && !isSlHit && (
               <div className="mb-4 p-3.5 rounded-xl bg-purple-500/15 border-2 border-purple-500/80 text-purple-600 dark:text-purple-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md relative z-20">
                 <div className="flex items-start gap-2.5">
                   <Sparkles className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="font-mono font-black text-sm text-purple-400 flex items-center gap-2">
-                      <span>🌙 SYSTEM DIRECTIVE: RESEARCHED BTST / STBT CARRY FORWARD</span>
+                      <span>🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE (BTST / STBT)</span>
                       <span className="px-2 py-0.5 rounded text-[10px] bg-purple-500/25 border border-purple-500/40 text-purple-300 font-bold">
-                        VERIFIED HIGH-CONVICTION EDGE
+                        OVERNIGHT POSITION ACTIVE
                       </span>
                     </div>
                     <p className="text-xs text-terminal-text mt-0.5">
-                      {currentHeroTip.btstRationale || currentHeroTip.carryForwardSuggestion || 'Tomorrow market trend verified with clear sentiment. Strict research criteria passed (Score ≥ 82%, DTE ≥ 1).'}
+                      {currentHeroTip.lifecycleDirectiveText || currentHeroTip.btstRationale || currentHeroTip.carryForwardSuggestion || 'Researched carry-forward position active. Overnight momentum intact.'}
                     </p>
                     <p className="text-[11px] text-terminal-muted mt-0.5 font-mono">
-                      Overnight Plan: Hold into 09:15 AM open • Maintain trailing SL at entry ₹{(currentHeroTip.entryPrice || 0).toFixed(2)}.
+                      Plan: Hold into morning session • Maintain trailing SL at entry ₹{(currentHeroTip.entryPrice || 0).toFixed(2)} • Next Target: ₹{currentHeroTip.target1Price.toFixed(2)}.
                     </p>
                   </div>
                 </div>
@@ -1185,6 +1218,30 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                   <div className="text-[10px]">{isProfitable ? '+' : ''}{pnlPct.toFixed(1)}%</div>
                 </div>
               </div>
+            </div>
+
+            {/* ── Dynamic Trade Lifecycle Advisor (SEBI Discipline & Directives) ── */}
+            <div className="pt-3 relative z-10">
+              <TradeLifecycleAdvisor
+                contractSymbol={currentHeroTip.contractSymbol}
+                entryPrice={currentHeroTip.entryPrice}
+                currentLtp={currentHeroTip.currentLtp}
+                target1Price={currentHeroTip.target1Price}
+                target1Pct={currentHeroTip.target1Pct}
+                target2Price={currentHeroTip.target2Price}
+                target2Pct={currentHeroTip.target2Pct}
+                stoplossPrice={currentHeroTip.stoplossPrice}
+                stoplossPct={currentHeroTip.stoplossPct}
+                role={currentHeroTip.tradingRole || 'BUYER'}
+                executionType={currentHeroTip.executionType || 'NET_DEBIT'}
+                matchingSurge={selectedSurges.length > 0 ? selectedSurges[0] : undefined}
+                isExpiryDay={currentIndexState?.isExpiryDay}
+                status={currentHeroTip.status}
+                isCarriedForward={Boolean(currentHeroTip.isCarriedForward || currentHeroTip.status === 'CARRIED_FORWARD')}
+                lifecycleDirective={currentHeroTip.lifecycleDirective}
+                lifecycleDirectiveText={currentHeroTip.lifecycleDirectiveText}
+                carryForwardSuggestion={currentHeroTip.carryForwardSuggestion}
+              />
             </div>
 
             {/* Middle Grid: Actionable Trade Execution Levels */}
@@ -1803,6 +1860,13 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           onClose={() => setShowBasketModal(false)}
           basketItem={basketItemForModal}
           items={[basketItemForModal]}
+        />
+      )}
+
+      {showCasModal && (
+        <CasProbableCloseModal
+          isOpen={showCasModal}
+          onClose={() => setShowCasModal(false)}
         />
       )}
     </div>

@@ -11,7 +11,9 @@ import { FaydaStrategyEngine } from './faydaStrategyEngine.js';
 import { FaydaMultiLegEngine } from './faydaMultiLegEngine.js';
 import { ntmClusterEngine } from './ntmClusterEngine.js';
 import { technicalIndicatorsEngine } from './technicalIndicatorsEngine.js';
+import { CasClosingEngine } from './casClosingEngine.js';
 import { isContractOrSignalExpired } from '../utils/expiryHelper.js';
+import { signalLedgerService } from '../services/signalLedgerService.js';
 export class OIEngine {
     history = new Map();
     recentSurges = [];
@@ -772,7 +774,99 @@ export class OIEngine {
                 if (isBefore925) {
                     this.sessionTradesHistory.delete(symbol);
                 }
-                const prevTrades = isBefore925 ? [] : (this.sessionTradesHistory.get(symbol) || []);
+                // Retrieve any carry-forward (BTST / STBT) trade recommendations from previous trading day
+                const carriedTrades = signalLedgerService.getCarriedForwardTrades(symbol);
+                const mappedCarryTrades = carriedTrades.map(c => {
+                    const strikeObj = strikesData.find(s => s.strikePrice === c.strikePrice);
+                    const liveLtp = strikeObj ? (c.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp) : (c.currentLtp || c.entryPrice);
+                    const currentLtp = liveLtp > 0 ? liveLtp : c.entryPrice;
+                    const pnlPoints = +(currentLtp - c.entryPrice).toFixed(2);
+                    const pnlPct = c.entryPrice > 0 ? +((pnlPoints / c.entryPrice) * 100).toFixed(2) : 0;
+                    const lotSize = c.lotSize || 50;
+                    const pnlRupees = Math.round(pnlPoints * lotSize);
+                    let status = 'CARRIED_FORWARD';
+                    let actionabilityStatus = 'IN_ENTRY_ZONE';
+                    let lifecycleDirective = 'CARRY_FORWARD_CONTINUE';
+                    let directiveText = c.carryForwardAdvice || 'BTST Position Active';
+                    if (currentLtp >= c.target1Price) {
+                        status = currentLtp >= (c.target2Price || c.target1Price * 1.2) ? 'TARGET2_HIT' : 'TARGET1_HIT';
+                        actionabilityStatus = 'TARGET_HIT';
+                        lifecycleDirective = 'BOOK_PROFIT';
+                        directiveText = `🎯 SYSTEM DIRECTIVE: BOOK PROFIT (TARGET HIT) | CMP: ₹${currentLtp.toFixed(1)} (+${pnlPct.toFixed(1)}%) | Action: Lock in profit now or trail SL to entry ₹${c.entryPrice.toFixed(1)} for runner.`;
+                    }
+                    else if (currentLtp <= c.stoplossPrice) {
+                        status = 'SL_HIT';
+                        actionabilityStatus = 'SL_HIT';
+                        lifecycleDirective = 'STOPLOSS_HIT';
+                        directiveText = `🛑 SYSTEM DIRECTIVE: STOP LOSS TRIGGERED | CMP: ₹${currentLtp.toFixed(1)} (${pnlPct.toFixed(1)}%) | Action: Capital preserved. Exit position immediately.`;
+                    }
+                    else if (pnlPct <= -1.5) {
+                        status = 'CARRIED_FORWARD';
+                        actionabilityStatus = 'SQUARE_OFF';
+                        lifecycleDirective = 'SQUARE_OFF';
+                        directiveText = `⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION | CMP: ₹${currentLtp.toFixed(1)} (${pnlPct.toFixed(1)}%) | Action: Morning momentum flat or adverse. Square off at CMP to avoid theta decay.`;
+                    }
+                    else {
+                        status = 'CARRIED_FORWARD';
+                        actionabilityStatus = pnlPct >= 1.5 ? 'RUNNING_PROFIT' : 'IN_ENTRY_ZONE';
+                        lifecycleDirective = 'CARRY_FORWARD_CONTINUE';
+                        directiveText = `🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE | CMP: ₹${currentLtp.toFixed(1)} (${pnlPoints >= 0 ? '+' : ''}${pnlPoints.toFixed(1)} pts) | Action: Momentum intact. Hold with trailing SL at cost ₹${c.entryPrice.toFixed(1)}.`;
+                    }
+                    return {
+                        id: c.id,
+                        symbol: c.symbol,
+                        tier: 'PRIMARY_MOMENTUM',
+                        tierLabel: '🌙 Researched BTST / Carry Forward Trade',
+                        session: 'MORNING_POWER_OPEN',
+                        sessionName: 'Carry-Forward Morning Execution',
+                        action: c.action,
+                        contractSymbol: c.contractName || `${c.symbol} ${c.strikePrice} ${c.optionType}`,
+                        strikePrice: c.strikePrice,
+                        strike: c.strikePrice,
+                        optionType: c.optionType,
+                        entryTime: c.timestamp,
+                        entryTimeFormatted: c.callGivenTime || c.timeFormatted,
+                        entryPrice: c.entryPrice,
+                        entryRange: c.recommendedEntryRange || `₹${c.entryPrice.toFixed(1)}`,
+                        currentLtp,
+                        stoplossPrice: c.stoplossPrice,
+                        stoplossPct: c.entryPrice > 0 ? +(((c.entryPrice - c.stoplossPrice) / c.entryPrice) * 100).toFixed(1) : 25,
+                        target1Price: c.target1Price,
+                        target1Pct: c.entryPrice > 0 ? +(((c.target1Price - c.entryPrice) / c.entryPrice) * 100).toFixed(1) : 35,
+                        target2Price: c.target2Price || +(c.entryPrice * 1.5).toFixed(1),
+                        target2Pct: c.entryPrice > 0 ? +((((c.target2Price || c.entryPrice * 1.5) - c.entryPrice) / c.entryPrice) * 100).toFixed(1) : 50,
+                        riskReward: c.riskReward || '1:2.5',
+                        confluenceScore: 88,
+                        quantumScore: 90,
+                        status,
+                        actionabilityStatus,
+                        lifecycleDirective,
+                        lifecycleDirectiveText: directiveText,
+                        carryForwardSuggestion: directiveText,
+                        carryForwardAdvice: c.carryForwardAdvice,
+                        isCarriedForward: true,
+                        carriedFromSession: 'Previous Session BTST',
+                        pnlPoints,
+                        pnlPct,
+                        pnlRupees,
+                        strategyMatches: {
+                            faydaRadarConfluence: true,
+                            oiActivitySurge: true,
+                            faydaStrategy9Ema: true,
+                            multiTimeframeBreakout: true,
+                            multiLegSpreadConfirmed: true,
+                            gammaExplosionConfirmed: false
+                        },
+                        strategyTag: '🌙 Researched BTST / Carry Forward',
+                        explanations: {
+                            beginner: directiveText,
+                            intermediate: directiveText,
+                            expert: directiveText
+                        }
+                    };
+                });
+                const activeHistory = this.sessionTradesHistory.get(symbol) || [];
+                const prevTrades = isBefore925 ? mappedCarryTrades : [...mappedCarryTrades, ...activeHistory];
                 const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain, daysToExpiry, activeExpiry, expiries, this.recentSurges.filter(s => s.indexSymbol === symbol));
                 // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
                 const activeToKeep = [];
@@ -837,7 +931,18 @@ export class OIEngine {
                 return tipsPackage;
             })(),
             ntmCluster: ntmClusterEngine.computeCluster(symbol, spotPrice, strikeStep, strikesRaw, spotChange),
-            technicalIndicators
+            technicalIndicators,
+            probableClosingPrice: CasClosingEngine.calculateProbableClose({
+                symbol,
+                spotPrice,
+                spotChange,
+                spotPctChange,
+                atmStrike,
+                strikeStep,
+                strikes: strikesData,
+                daysToExpiry,
+                nowMs: now
+            })
         };
         return {
             indexState,

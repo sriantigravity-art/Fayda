@@ -15,6 +15,7 @@ import {
   Clock,
   Radio,
   CheckCircle2,
+  Target,
   TrendingUp,
   TrendingDown,
   Activity,
@@ -61,6 +62,7 @@ import { TradePayoffSimulatorModal } from './TradePayoffSimulatorModal';
 import { SoundSettingsModal } from './SoundSettingsModal';
 import { McxOfflineModal } from './McxOfflineModal';
 import { MarketHolidaysModal } from './MarketHolidaysModal';
+import { CasProbableCloseModal } from './CasProbableCloseModal';
 import { useTradingPersona } from '../context/TradingPersonaContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { MobileNavMenu } from './header/MobileNavMenu';
@@ -120,6 +122,7 @@ export const HeaderBar: React.FC = () => {
   const [isMcxModalOpen, setIsMcxModalOpen] = useState(false);
   const [mcxModalSymbol, setMcxModalSymbol] = useState('CRUDEOIL');
   const [isHolidaysModalOpen, setIsHolidaysModalOpen] = useState(false);
+  const [isCasModalOpen, setIsCasModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(() => isBrowserFullscreen());
 
@@ -404,6 +407,32 @@ export const HeaderBar: React.FC = () => {
               {isFyersActive ? 'Fyers Live' : dhanConfig?.isConnected ? 'Dhan Live' : 'Connect Broker'}
             </span>
           </button>
+
+          {/* CAS Probable Closing Price Capsule Button (Desktop) */}
+          {currentIndexState?.probableClosingPrice && (
+            <button
+              id="cas-est-close-btn-desktop"
+              type="button"
+              onClick={() => setIsCasModalOpen(true)}
+              className={`hidden xl:flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full border text-[10px] sm:text-[11px] font-mono font-bold transition-all cursor-pointer shrink-0 shadow-xs ${
+                currentIndexState.probableClosingPrice.isActiveWindow
+                  ? 'bg-gradient-to-r from-amber-500/25 via-purple-500/20 to-sky-500/20 border-amber-500/60 text-amber-300 hover:border-amber-400 hover:shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+                  : 'bg-terminal-panel hover:bg-terminal-hover border-terminal-border hover:border-amber-500/40 text-terminal-text'
+              }`}
+              title="3:10 PM+ Probable Official Index Closing Price (30-min VWAP Engine). Click to open CAS Analysis & 0DTE Pin Risk Radar."
+            >
+              <Target className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+              <span className="text-[10px] text-terminal-muted uppercase">CAS Est:</span>
+              <span className="font-extrabold text-amber-400 tabular-nums">
+                ₹{currentIndexState.probableClosingPrice.probableClose.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              </span>
+              <span className={`text-[9px] px-1 py-0.1 rounded font-black tabular-nums ${
+                currentIndexState.probableClosingPrice.driftPoints >= 0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+              }`}>
+                {currentIndexState.probableClosingPrice.driftPoints >= 0 ? '+' : ''}{currentIndexState.probableClosingPrice.driftPoints.toFixed(1)}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* RIGHT SECTION: THEME, FULLSCREEN, MOBILE MENU & PROFILE */}
@@ -757,8 +786,34 @@ export const HeaderBar: React.FC = () => {
             })}
           </div>
 
-        {/* Right Container: Live IST Clock */}
+        {/* Right Container: CAS Est Close Capsule Button + Live IST Clock */}
         <div className="flex items-center space-x-1.5 font-sans ml-auto shrink-0">
+          {/* CAS Probable Closing Price Capsule Button (Always visible on Home) */}
+          {currentIndexState?.probableClosingPrice && (
+            <button
+              id="cas-est-close-btn-header"
+              type="button"
+              onClick={() => setIsCasModalOpen(true)}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border text-[10px] sm:text-[11px] font-mono font-bold transition-all cursor-pointer shrink-0 shadow-xs ${
+                currentIndexState.probableClosingPrice.isActiveWindow
+                  ? 'bg-gradient-to-r from-amber-500/25 via-purple-500/20 to-sky-500/20 border-amber-500/60 text-amber-300 hover:border-amber-400 hover:shadow-[0_0_12px_rgba(245,158,11,0.35)] animate-pulse'
+                  : 'bg-terminal-panel/90 hover:bg-terminal-hover border-terminal-border hover:border-amber-500/50 text-terminal-text'
+              }`}
+              title="3:10 PM+ Probable Official Index Closing Price (30-min VWAP Engine). Click to open CAS Analysis & 0DTE Pin Risk Radar."
+            >
+              <Target className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="hidden sm:inline text-terminal-muted text-[10px] uppercase font-semibold">Est Close:</span>
+              <span className="font-black text-amber-400 tabular-nums">
+                ₹{currentIndexState.probableClosingPrice.probableClose.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+              </span>
+              <span className={`text-[9px] px-1 py-0.1 rounded font-black tabular-nums ${
+                currentIndexState.probableClosingPrice.driftPoints >= 0 ? 'bg-bull/20 text-bull' : 'bg-bear/20 text-bear'
+              }`}>
+                {currentIndexState.probableClosingPrice.driftPoints >= 0 ? '+' : ''}{currentIndexState.probableClosingPrice.driftPoints.toFixed(1)}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={toggleClockFormat}
@@ -874,6 +929,12 @@ export const HeaderBar: React.FC = () => {
         isLiveMarketOpen={isLiveMarketOpen}
         userEmail={user?.email}
         userTier={user?.plan || 'PRO'}
+      />
+
+      {/* CAS Probable Closing Price & 3:10 PM Settlement Radar Modal */}
+      <CasProbableCloseModal
+        isOpen={isCasModalOpen}
+        onClose={() => setIsCasModalOpen(false)}
       />
     </header>
   );

@@ -81,15 +81,19 @@ class SignalLedgerService {
                                 }
                             }
                         });
-                        // Sort by profitability / significance and cap at top 15 trades per day
+                        // Sort by prioritizing carry-forward / target-hit trades and cap at top 16 trades per day
                         const sorted = Array.from(seenContract.values()).sort((a, b) => {
+                            const isACarry = a.status === 'CARRIED_FORWARD' || a.status === 'BTST' || a.status === 'CARRY_FORWARD' || a.adminAction === 'BTST' ? 1 : 0;
+                            const isBCarry = b.status === 'CARRIED_FORWARD' || b.status === 'BTST' || b.status === 'CARRY_FORWARD' || b.adminAction === 'BTST' ? 1 : 0;
+                            if (isACarry !== isBCarry)
+                                return isBCarry - isACarry;
                             if (a.status === 'TARGET_HIT' && b.status !== 'TARGET_HIT')
                                 return -1;
                             if (b.status === 'TARGET_HIT' && a.status !== 'TARGET_HIT')
                                 return 1;
                             return b.pointsPnl - a.pointsPnl;
                         });
-                        const capped = sorted.slice(0, 16);
+                        const capped = sorted.slice(0, 18);
                         capped.forEach(c => {
                             this.calls.set(c.id, c);
                         });
@@ -204,6 +208,26 @@ class SignalLedgerService {
         const all = Array.from(this.calls.values());
         const filtered = dateFilter ? all.filter(c => c.date === dateFilter) : all;
         return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    /**
+     * Retrieves any carry-forward (BTST / STBT) trade recommendations from the previous trading day.
+     */
+    getCarriedForwardTrades(symbol) {
+        const today = this.getTodayDateStr();
+        const dates = this.getAvailableDates().filter(d => d < today).sort().reverse();
+        if (dates.length === 0)
+            return [];
+        const lastTradingDate = dates[0];
+        const lastDayTrades = this.getAllSignals(lastTradingDate);
+        const carryTrades = lastDayTrades.filter(c => c.status === 'BTST' ||
+            c.status === 'CARRY_FORWARD' ||
+            c.status === 'CARRIED_FORWARD' ||
+            c.adminAction === 'BTST' ||
+            c.adminAction === 'CARRY_FORWARD');
+        if (symbol) {
+            return carryTrades.filter(c => c.symbol === symbol);
+        }
+        return carryTrades;
     }
     recordSignal(signal) {
         // ── STRICT DERIVATIVE VIABILITY GUARD ─────────────────────────

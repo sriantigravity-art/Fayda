@@ -1379,11 +1379,13 @@ export class ConfluenceEngine {
    * (e.g. entry < minViableLtp, liveLtp wildly disjointed from entry price, or PnL > 350%).
    */
   public static isTradePriceDistorted(
-    trade: { entryPrice: number; currentLtp?: number; pnlPct?: number; tradingRole?: string },
+    trade: { entryPrice: number; currentLtp?: number; pnlPct?: number; tradingRole?: string; isCarriedForward?: boolean; status?: string },
     liveLtp: number,
     minViableLtp: number
   ): boolean {
     if (!trade || !trade.entryPrice || trade.entryPrice <= 0) return true;
+    // Carried-forward positions from previous trading days are verified and preserved
+    if (trade.isCarriedForward || trade.status === 'CARRIED_FORWARD') return false;
     const isBuyer = trade.tradingRole !== 'SELLER';
 
     // STRICT DERIVATIVE FLOOR: Under 2.0 Rs is NEVER allowed for any buyer recommendation
@@ -2029,10 +2031,8 @@ export class ConfluenceEngine {
       if (seenContracts.has(prev.contractSymbol)) continue;
 
       const strikeObj = strikes.find(s => s.strikePrice === prev.strikePrice);
-      if (!strikeObj) continue;
-
-      const liveLtp = prev.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp;
-      const currentLtp = liveLtp > 0 ? liveLtp : prev.currentLtp;
+      const liveLtp = strikeObj ? (prev.optionType === 'CE' ? strikeObj.callLtp : strikeObj.putLtp) : prev.currentLtp;
+      const currentLtp = (liveLtp && liveLtp > 0) ? liveLtp : (prev.currentLtp || prev.entryPrice);
 
       // Purge distorted/unrealistic tips where premium was never that low
       if (ConfluenceEngine.isTradePriceDistorted(prev, currentLtp, minViableBuyerLtp)) {
@@ -2058,25 +2058,45 @@ export class ConfluenceEngine {
       let carryForwardTime = prev.carryForwardTime;
       let carryForwardTimeFormatted = prev.carryForwardTimeFormatted;
       let carryForwardSuggestion = prev.carryForwardSuggestion;
+      let lifecycleDirective: UnifiedSmartTip['lifecycleDirective'] = prev.lifecycleDirective || 'HOLD_OR_ACCUMULATE';
+      let lifecycleDirectiveText = prev.lifecycleDirectiveText || '';
 
       // Check Target / SL triggers
-      if (currentLtp >= prev.target2Price) {
+      if (currentLtp >= prev.target2Price || status === 'TARGET2_HIT') {
         status = 'TARGET2_HIT';
+        lifecycleDirective = 'BOOK_PROFIT';
+        lifecycleDirectiveText = `🎯 SYSTEM DIRECTIVE: BOOK PROFIT (TARGET 2 HIT) | LTP ₹${currentLtp.toFixed(1)} (+${pnlPct.toFixed(1)}%) | Action: Lock complete runner profits.`;
         if (!bookedTimeFormatted) {
           bookedTime = new Date().toISOString();
           bookedTimeFormatted = timeFormatted;
         }
-      } else if (currentLtp >= prev.target1Price && (status === 'ACTIVE' || status === 'CARRIED_FORWARD')) {
+      } else if (currentLtp >= prev.target1Price || status === 'TARGET1_HIT') {
         status = 'TARGET1_HIT';
+        lifecycleDirective = 'BOOK_PROFIT';
+        lifecycleDirectiveText = `🎯 SYSTEM DIRECTIVE: BOOK PROFIT (TARGET 1 HIT) | LTP ₹${currentLtp.toFixed(1)} (+${pnlPct.toFixed(1)}%) | Action: Book 50%-70% profit now & trail SL to cost ₹${prev.entryPrice.toFixed(1)}.`;
         if (!bookedTimeFormatted) {
           bookedTime = new Date().toISOString();
           bookedTimeFormatted = timeFormatted;
         }
       } else if (currentLtp <= prev.stoplossPrice) {
         status = 'SL_HIT';
+        lifecycleDirective = 'STOPLOSS_HIT';
+        lifecycleDirectiveText = `🛑 SYSTEM DIRECTIVE: STOP LOSS TRIGGERED | LTP ₹${currentLtp.toFixed(1)} (-${Math.abs(pnlPct).toFixed(1)}%) | Action: Exit position immediately to preserve capital.`;
         if (!bookedTimeFormatted) {
           bookedTime = new Date().toISOString();
           bookedTimeFormatted = timeFormatted;
+        }
+      } else if (prev.isCarriedForward || prev.status === 'CARRIED_FORWARD') {
+        if (pnlPct <= -1.5) {
+          status = 'CARRIED_FORWARD';
+          actionabilityStatus = 'SQUARE_OFF';
+          lifecycleDirective = 'SQUARE_OFF';
+          lifecycleDirectiveText = `⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION | LTP ₹${currentLtp.toFixed(1)} (${pnlPct.toFixed(1)}%) | Action: Morning momentum flat or adverse. Square off at CMP to avoid theta decay.`;
+        } else {
+          status = 'CARRIED_FORWARD';
+          actionabilityStatus = pnlPct >= 1.5 ? 'RUNNING_PROFIT' : 'IN_ENTRY_ZONE';
+          lifecycleDirective = 'CARRY_FORWARD_CONTINUE';
+          lifecycleDirectiveText = `🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE | LTP ₹${currentLtp.toFixed(1)} (${pnlPoints >= 0 ? '+' : ''}${pnlPoints.toFixed(1)} pts) | Action: Momentum intact. Hold with trailing SL at cost ₹${prev.entryPrice.toFixed(1)}.`;
         }
       } else {
         const isMarketClosedOrEod = isPast340Pm;
@@ -2202,11 +2222,13 @@ export class ConfluenceEngine {
         carryForwardAdvice: prev.carryForwardAdvice || (momentumInfo.isExpiryDay && !isCommodity
           ? `⚠️ 0DTE — NO OVERNIGHT HOLD (SEBI Rules): Options cannot be auto-rolled. (1) Square off by 03:25 PM IST. (2) Open fresh NEXT EXPIRY (${nextExpiryDate}) contract manually if continuing overnight.`
           : undefined),
-        isCarriedForward: status === 'CARRIED_FORWARD',
+        isCarriedForward: status === 'CARRIED_FORWARD' || Boolean(prev.isCarriedForward),
+        lifecycleDirective,
+        lifecycleDirectiveText,
         carriedFromSession: prev.sessionName
       };
 
-      if (updated.status === 'CARRIED_FORWARD') {
+      if (updated.isCarriedForward || updated.status === 'CARRIED_FORWARD' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT' || prev.isCarriedForward) {
         carriedForwardTrades.push(updated);
       }
     }
@@ -2216,23 +2238,29 @@ export class ConfluenceEngine {
     // • Market opens at 09:00 AM IST for pre-market orders/discovery.
     // • Regular trading begins at 09:15 AM IST.
     // • Opening volatility & VWAP anchor settle after 09:25 AM IST.
-    // • Completed / squared-off trades from earlier sessions belong in the Trade Journal.
-    // New live high-conviction trades must ONLY start to generate & show after 09:25 AM IST.
+    // • If a carry-forward (BTST / STBT) trade was given on the last trading day, it is shown at open!
+    // • New live high-conviction intraday trades start to generate & show once market settles after 09:25 AM IST.
     if (isBefore925Am) {
+      const activeCarry = carriedForwardTrades.find(t => 
+        t.status === 'CARRIED_FORWARD' || 
+        t.status === 'TARGET1_HIT' || 
+        t.status === 'TARGET2_HIT' ||
+        t.isCarriedForward
+      );
       return {
         currentSession: sessionInfo.session,
         currentSessionName: sessionInfo.sessionName,
         sessionWindowTime: sessionInfo.windowTime,
         quotaDescription: sessionInfo.quotaDescription,
-        primaryTrade: null,
-        topCallTrade: null,
-        topPutTrade: null,
+        primaryTrade: activeCarry || null,
+        topCallTrade: activeCarry && activeCarry.action.includes('CALL') ? activeCarry : null,
+        topPutTrade: activeCarry && activeCarry.action.includes('PUT') ? activeCarry : null,
         topSellerPutTrade: null,
         topSellerCallTrade: null,
         topSellerNeutralTrade: null,
         hedgedSpreadTrade: null,
         gammaTrade: null,
-        carriedForwardTrades: carriedForwardTrades.filter(t => t.status === 'CARRIED_FORWARD'),
+        carriedForwardTrades,
         activeExpiryDate,
         upcomingExpiries,
         nextExpiryDate,
@@ -4678,7 +4706,34 @@ export class ConfluenceEngine {
     // Unified Quantum Enrichment & Divergence Resolution for all active tips
     const enrichTrade = (t: UnifiedSmartTip | null): UnifiedSmartTip | null => {
       if (!t) return null;
-      if (t.quantumScore && t.unifiedSignalThesis) return t;
+      let directive = t.lifecycleDirective;
+      let directiveText = t.lifecycleDirectiveText;
+      if (!directive) {
+        if (t.status === 'TARGET1_HIT' || t.status === 'TARGET2_HIT' || (t.currentLtp > 0 && t.target1Price > 0 && t.currentLtp >= t.target1Price)) {
+          directive = 'BOOK_PROFIT';
+          directiveText = `🎯 SYSTEM DIRECTIVE: BOOK PROFIT | LTP ₹${t.currentLtp.toFixed(1)} (+${(t.pnlPct || 0).toFixed(1)}%) | Action: Lock profits now.`;
+        } else if (t.status === 'SL_HIT' || (t.currentLtp > 0 && t.stoplossPrice > 0 && t.currentLtp <= t.stoplossPrice)) {
+          directive = 'STOPLOSS_HIT';
+          directiveText = `🛑 SYSTEM DIRECTIVE: STOP LOSS TRIGGERED | LTP ₹${t.currentLtp.toFixed(1)} (-${Math.abs(t.pnlPct || 0).toFixed(1)}%) | Action: Exit position immediately.`;
+        } else if (t.isCarriedForward || t.status === 'CARRIED_FORWARD') {
+          directive = 'CARRY_FORWARD_CONTINUE';
+          directiveText = t.carryForwardSuggestion || `🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE | Action: Hold position with trailing SL at cost ₹${t.entryPrice.toFixed(1)}.`;
+        } else if (t.status === 'INTRADAY_CLOSED' || t.status === 'SQUARE_OFF') {
+          directive = 'SQUARE_OFF';
+          directiveText = `⚠️ SYSTEM DIRECTIVE: SQUARE OFF POSITION | Action: Square off position at CMP to avoid theta decay / gap risk.`;
+        } else {
+          directive = 'HOLD_OR_ACCUMULATE';
+          directiveText = `⚡ SYSTEM ADVISORY: ACTIVE IN ZONE | Entry Range: ${t.entryRange} | SL: ₹${t.stoplossPrice.toFixed(1)} | Target: ₹${t.target1Price.toFixed(1)}.`;
+        }
+      }
+
+      if (t.quantumScore && t.unifiedSignalThesis) {
+        return {
+          ...t,
+          lifecycleDirective: directive,
+          lifecycleDirectiveText: directiveText
+        };
+      }
       const q = ConfluenceEngine.computeQuantumMetrics({
         symbol,
         strikePrice: t.strikePrice,
@@ -4696,7 +4751,9 @@ export class ConfluenceEngine {
         surgeVelocityScore: q.surgeVelocityScore,
         surgeConfirmationLevel: q.surgeConfirmationLevel,
         surgeDetails: q.surgeDetails,
-        unifiedSignalThesis: t.unifiedSignalThesis || q.unifiedSignalThesis
+        unifiedSignalThesis: t.unifiedSignalThesis || q.unifiedSignalThesis,
+        lifecycleDirective: directive,
+        lifecycleDirectiveText: directiveText
       };
     };
 

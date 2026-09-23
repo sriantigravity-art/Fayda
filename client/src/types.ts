@@ -918,6 +918,59 @@ export interface TechnicalIndicatorsData {
   };
 }
 
+// ── Probable Closing Price & Closing Auction Session (CAS) System ────────────
+export type CasPhase = 
+  | 'PRE_CAS'             // 15:00 - 15:10 IST: Continuous trade, volume accumulation
+  | 'BROKER_SQUAREOFF'    // 15:10 - 15:20 IST: Zerodha, Lemonn, Groww MIS auto square-offs
+  | 'MOC_AUCTION'         // 15:20 - 15:30 IST: Institutional Market-On-Close (MOC) matching
+  | 'OFFICIAL_SETTLEMENT'   // 15:30 - 15:40 IST: Exchange calculates & publishes 30m VWAP
+  | 'OFF_HOURS';          // Before 15:00 or after 15:40 IST
+
+export interface ConstituentVwapContribution {
+  symbol: string;
+  name: string;
+  weight: number;                // weight % in index (e.g. 11.6 for HDFCBANK)
+  ltp: number;                   // Last Traded Continuous Price
+  vwap30m: number;               // 30-minute cash market VWAP (3:00 - 3:30 PM)
+  driftPts: number;              // vwap30m - ltp
+  driftPct: number;              // ((vwap30m - ltp) / ltp) * 100
+  indexContributionPts: number;   // Point impact on index: (driftPct / 100) * (weight / 100) * indexSpot
+  volumeSurgePct: number;        // % surge during broker square-off wave
+  sector?: string;
+}
+
+export interface ExpiryPinRiskStrike {
+  strike: number;
+  callLtpStatus: 'ITM' | 'OTM' | 'ATM';
+  callProjectedStatus: 'ITM' | 'OTM' | 'PIN_RISK';
+  putLtpStatus: 'ITM' | 'OTM' | 'ATM';
+  putProjectedStatus: 'ITM' | 'OTM' | 'PIN_RISK';
+  distanceToProbableClose: number;
+  riskSeverity: 'HIGH' | 'MEDIUM' | 'LOW';
+  warningMessage: string;
+}
+
+export interface ProbableClosingPriceData {
+  symbol: IndexSymbol;
+  spotPrice: number;                 // Continuous trade LTP at current moment
+  probableClose: number;             // Estimated official closing price based on 30m VWAP
+  driftPoints: number;               // probableClose - spotPrice
+  driftPercent: number;              // (driftPoints / spotPrice) * 100
+  phase: CasPhase;
+  phaseLabel: string;
+  phaseDescription: string;
+  phaseCountdownSeconds?: number;
+  isActiveWindow: boolean;           // True if time >= 15:10 IST or simulation active
+  calculationMethod: 'NSE_30M_VWAP' | 'BSE_CAS_AUCTION';
+  confidenceScore: number;           // 0 - 100% confidence based on elapsed time into CAS
+  volumeAccumulatedPct: number;      // % of 30-minute volume recorded so far
+  topConstituents: ConstituentVwapContribution[];
+  pinRiskStrikes: ExpiryPinRiskStrike[];
+  summaryNote: string;
+  calculatedAt: string;              // ISO timestamp
+  simulated?: boolean;               // True if previewed outside 15:10 - 15:40 IST
+}
+
 export interface MarketIndexState {
   symbol: IndexSymbol;
   spotPrice: number;
@@ -960,6 +1013,7 @@ export interface MarketIndexState {
   unifiedTipsPackage?: UnifiedSessionTipsPackage;
   ntmCluster?: NtmClusterState;
   technicalIndicators?: TechnicalIndicatorsData;
+  probableClosingPrice?: ProbableClosingPriceData;
 }
 
 export interface GlobalIndexItem {
@@ -987,7 +1041,8 @@ export type TradeCallStatus =
   | 'SQUARE_OFF'
   | 'INTRADAY_CLOSED'
   | 'BTST'
-  | 'CARRY_FORWARD';
+  | 'CARRY_FORWARD'
+  | 'CARRIED_FORWARD';
 
 export type MarketMomentumRegime = 
   | 'SIDEWAYS_CHOP'             // Low ATR, narrow range, balanced PCR -> Small Scalp Targets (10% - 15%)
@@ -1189,10 +1244,14 @@ export interface UnifiedSmartTip {
   };
   unifiedSignalThesis?: string; // Concise one-line plain English thesis fusing surge + confluence + levels
   status: 'ACTIVE' | 'TARGET1_HIT' | 'TARGET2_HIT' | 'SL_HIT' | 'CARRIED_FORWARD' | 'EXPIRED' | 'INTRADAY_CLOSED' | 'SQUARE_OFF';
+  isCarriedForward?: boolean;
+  lifecycleDirective?: 'BOOK_PROFIT' | 'CARRY_FORWARD_CONTINUE' | 'STOPLOSS_HIT' | 'SQUARE_OFF' | 'HOLD_OR_ACCUMULATE';
+  lifecycleDirectiveText?: string;
   isBtstResearched?: boolean;
   btstRationale?: string;
   squareOffReason?: string;
   squareOffTimeFormatted?: string;
+  carriedFromSession?: string;
   bookedTime?: string;
   bookedTimeFormatted?: string;
   carryForwardTime?: string;
