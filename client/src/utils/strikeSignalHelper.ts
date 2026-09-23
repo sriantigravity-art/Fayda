@@ -30,6 +30,8 @@ export interface StrikeSignalLevels {
   strategyTag: string;
 }
 
+import { isCommoditySymbol } from './marketHours';
+
 /**
  * Resolves or dynamically projects institutional signal entry, targets, and stoploss
  * for any given strike price, option type, and market index state.
@@ -45,19 +47,32 @@ export function getStrikeSignalLevels(
     ? (optionType === 'CE' ? (strikeData.callLtp || 100) : (strikeData.putLtp || 100))
     : 100;
 
+  const isCommodity = isCommoditySymbol(symbol);
+  const isNaturalGas = (symbol || '').toUpperCase().trim() === 'NATURALGAS';
+
   // ── STRICT DERIVATIVE VIABILITY GUARD ─────────────────────────
   const utcTime = Date.now() + (new Date().getTimezoneOffset() * 60000);
   const istTime = new Date(utcTime + (3600000 * 5.5));
-  const isPast3Pm = istTime.getHours() >= 15;
+  const currentMin = istTime.getHours() * 60 + istTime.getMinutes();
+  
+  // Equity markets close at 15:30/15:40; MCX Commodities trade until 23:00 IST (11:00 PM)
+  const isPast3Pm = !isCommodity && (currentMin >= (15 * 60));
+  const isCommodityFinalHour = isCommodity && (currentMin >= (22 * 60)); // 10:00 PM IST (1 hr before 11:00 PM close)
 
-  // 1. Absolute floor: Under ₹2.00 is strictly prohibited for any derivative call/put
-  if (currentLtp < 2.0) {
+  // Minimum viable LTP threshold:
+  // - NATURALGAS: Strike steps are 5 pts, lot size 1250, ATM options trade at ₹1.5 - ₹5.0. Floor = ₹0.50
+  // - Other commodities: Floor = ₹1.00
+  // - Equity indices (NIFTY/BANKNIFTY): Floor = ₹2.00
+  const minViableFloor = isNaturalGas ? 0.5 : (isCommodity ? 1.0 : 2.0);
+
+  // 1. Absolute sub-penny floor
+  if (currentLtp < minViableFloor) {
     return {
       hasActiveSignal: false,
       isExactStrikeMatch: false,
       signalSource: 'DERIVATIVE CAPITAL SHIELD',
       action: optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
-      actionLabel: optionType === 'CE' ? 'BUY CALL' : 'BUY PUT',
+      actionLabel: 'RESTRICTED / NO CALL',
       optionType,
       strikePrice,
       entryPrice: currentLtp,
@@ -75,22 +90,27 @@ export function getStrikeSignalLevels(
       isTarget1Hit: false,
       isTarget2Hit: false,
       isStoplossHit: false,
-      statusText: 'PREMIUM < ₹2.00 (SUB-PENNY EXPIRED)',
+      statusText: `PREMIUM < ₹${minViableFloor.toFixed(2)} (SUB-PENNY)`,
       statusColor: 'text-rose-400',
-      directiveAdvice: 'Option premium is below viable derivative limit (₹2.00). Extreme theta decay & expiry to ₹0 risk. No buy signal allowed.',
+      directiveAdvice: `Option premium is below viable derivative limit (₹${minViableFloor.toFixed(2)}). Extreme theta decay & expiry to ₹0 risk. No buy signal allowed.`,
       confluenceScore: 0,
       strategyTag: 'Sub-Penny Expired Option'
     };
   }
 
-  // 2. Post-3:00 PM restriction: Under or equal to ₹5.00 is strictly prohibited after 3:00 PM in derivatives
-  if (isPast3Pm && currentLtp <= 5.0) {
+  // 2. Final-hour low premium restriction:
+  // - Equity indices: After 3:00 PM (30m before close), contracts <= ₹5.00 are prohibited
+  // - Commodities: After 10:00 PM (60m before 11:00 PM close), contracts <= ₹0.80 (Natural Gas) or <= ₹3.00 are prohibited
+  const isLateSessionProhibited = (!isCommodity && isPast3Pm && currentLtp <= 5.0) ||
+    (isCommodity && isCommodityFinalHour && currentLtp <= (isNaturalGas ? 0.8 : 3.0));
+
+  if (isLateSessionProhibited) {
     return {
       hasActiveSignal: false,
       isExactStrikeMatch: false,
-      signalSource: 'POST-3:00 PM THETA SHIELD',
+      signalSource: isCommodity ? 'MCX FINAL-HOUR THETA SHIELD' : 'POST-3:00 PM THETA SHIELD',
       action: optionType === 'CE' ? 'BUY_CALL' : 'BUY_PUT',
-      actionLabel: optionType === 'CE' ? 'BUY CALL' : 'BUY PUT',
+      actionLabel: 'RESTRICTED / NO CALL',
       optionType,
       strikePrice,
       entryPrice: currentLtp,
@@ -108,9 +128,13 @@ export function getStrikeSignalLevels(
       isTarget1Hit: false,
       isTarget2Hit: false,
       isStoplossHit: false,
-      statusText: 'POST-3:00 PM LOW PREMIUM PROHIBITED (≤ ₹5.00)',
+      statusText: isCommodity 
+        ? `MCX FINAL-HOUR LOW PREMIUM (≤ ₹${(isNaturalGas ? 0.8 : 3.0).toFixed(1)})` 
+        : 'POST-3:00 PM LOW PREMIUM PROHIBITED (≤ ₹5.00)',
       statusColor: 'text-amber-400',
-      directiveAdvice: 'After 03:00 PM IST, low-premium option contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay to ₹0.',
+      directiveAdvice: isCommodity
+        ? 'Late-session commodity expiry guard active after 10:00 PM IST due to settlement margin square-offs.'
+        : 'After 03:00 PM IST, low-premium option contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay to ₹0.',
       confluenceScore: 0,
       strategyTag: 'Late-Session Terminal Theta Guard'
     };

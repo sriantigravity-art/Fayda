@@ -206,7 +206,7 @@ export const isMarketOpenForSymbol = (symbol: string): boolean => {
   const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
 
   if (isCommodity) {
-    return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+    return currentMin >= (9 * 60) && currentMin < (23 * 60);
   }
 
   // NSE and BSE reopen at 09:00 AM (pre-open/open) and close at 03:40 PM IST
@@ -465,7 +465,7 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       const istMinutes = Math.floor(((nowUtc + (5.5 * 3600 * 1000)) % 86400000) / 60000);
       const isCommodity = symConfig.category === 'COMMODITIES' || symConfig.segment === 'COMMODITY';
       const isPastOpeningNoise = istMinutes >= (isCommodity ? (9 * 60) : (9 * 60 + 25)); // After 09:25 AM IST (09:00 for MCX)
-      const cutoffMin = isCommodity ? (22 * 60 + 30) : (14 * 60 + 30); // Institutional 14:30 IST cutoff (1 hr before 15:30 close)
+      const cutoffMin = isCommodity ? (22 * 60) : (14 * 60 + 30); // Institutional cutoff: 22:00 IST for MCX (1 hr before 23:00 close), 14:30 IST for equities
       const isBeforeCutoff = istMinutes < cutoffMin;
 
       if (isOpen && isPastOpeningNoise && isBeforeCutoff && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET' && indexState.unifiedTipsPackage.currentSession !== 'FINAL_HOUR_MANAGEMENT' && indexState.unifiedTipsPackage.currentSession !== 'CAS_CLOSING_AUCTION') {

@@ -382,7 +382,9 @@ export const StrikeAnalyticsRightPanel: React.FC<StrikeAnalyticsRightPanelProps>
             </div>
             <div className="flex items-center gap-1.5">
               <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
-                signalLevels.optionType === 'CE' 
+                !signalLevels.hasActiveSignal
+                  ? 'bg-slate-800 text-slate-400 border-slate-700'
+                  : signalLevels.optionType === 'CE' 
                   ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/40' 
                   : 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border-rose-500/40'
               }`}>
@@ -400,13 +402,13 @@ export const StrikeAnalyticsRightPanel: React.FC<StrikeAnalyticsRightPanelProps>
             <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 space-y-0.5">
               <div className="flex items-center justify-between text-[10px] text-cyan-600 dark:text-cyan-400 font-bold uppercase">
                 <span>Signal Entry:</span>
-                <span className="text-[9px] text-terminal-muted">Trigger</span>
+                <span className="text-[9px] text-terminal-muted">{signalLevels.hasActiveSignal ? 'Trigger' : 'Reference'}</span>
               </div>
               <div className="text-sm font-black text-terminal-text">
-                ₹{signalLevels.entryPrice.toFixed(1)}
+                {signalLevels.entryPrice > 0 ? `₹${signalLevels.entryPrice.toFixed(1)}` : '—'}
               </div>
               <div className="text-[9px] text-terminal-muted truncate">
-                Range: {signalLevels.entryRange}
+                Range: {signalLevels.hasActiveSignal ? signalLevels.entryRange : 'N/A'}
               </div>
             </div>
 
@@ -414,13 +416,15 @@ export const StrikeAnalyticsRightPanel: React.FC<StrikeAnalyticsRightPanelProps>
             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-0.5">
               <div className="flex items-center justify-between text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">
                 <span>Target 1:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-black">+{signalLevels.target1Pct}%</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black">
+                  {signalLevels.target1Price > 0 ? `+${signalLevels.target1Pct}%` : 'N/A'}
+                </span>
               </div>
               <div className="text-sm font-black text-emerald-600 dark:text-emerald-300">
-                ₹{signalLevels.target1Price.toFixed(1)}
+                {signalLevels.target1Price > 0 ? `₹${signalLevels.target1Price.toFixed(1)}` : '—'}
               </div>
               <div className="text-[9px] text-terminal-muted">
-                Lock 50% & Trail SL
+                {signalLevels.target1Price > 0 ? 'Lock 50% & Trail SL' : 'No Active Target'}
               </div>
             </div>
 
@@ -428,13 +432,15 @@ export const StrikeAnalyticsRightPanel: React.FC<StrikeAnalyticsRightPanelProps>
             <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-0.5">
               <div className="flex items-center justify-between text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">
                 <span>Target 2:</span>
-                <span className="text-amber-600 dark:text-amber-400 font-black">+{signalLevels.target2Pct}%</span>
+                <span className="text-amber-600 dark:text-amber-400 font-black">
+                  {signalLevels.target2Price > 0 ? `+${signalLevels.target2Pct}%` : 'N/A'}
+                </span>
               </div>
               <div className="text-sm font-black text-amber-600 dark:text-amber-300">
-                ₹{signalLevels.target2Price.toFixed(1)}
+                {signalLevels.target2Price > 0 ? `₹${signalLevels.target2Price.toFixed(1)}` : '—'}
               </div>
               <div className="text-[9px] text-terminal-muted">
-                Max Alpha Runner
+                {signalLevels.target2Price > 0 ? 'Max Alpha Runner' : 'No Active Target'}
               </div>
             </div>
 
@@ -442,13 +448,15 @@ export const StrikeAnalyticsRightPanel: React.FC<StrikeAnalyticsRightPanelProps>
             <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 space-y-0.5">
               <div className="flex items-center justify-between text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase">
                 <span>Stop Loss:</span>
-                <span className="text-rose-600 dark:text-rose-400 font-black">-{signalLevels.stoplossPct}%</span>
+                <span className="text-rose-600 dark:text-rose-400 font-black">
+                  {signalLevels.stoplossPrice > 0 ? `-${signalLevels.stoplossPct}%` : 'N/A'}
+                </span>
               </div>
               <div className="text-sm font-black text-rose-600 dark:text-rose-300">
-                ₹{signalLevels.stoplossPrice.toFixed(1)}
+                {signalLevels.stoplossPrice > 0 ? `₹${signalLevels.stoplossPrice.toFixed(1)}` : '—'}
               </div>
               <div className="text-[9px] text-terminal-muted">
-                Capital Shield
+                {signalLevels.stoplossPrice > 0 ? 'Capital Shield' : 'No Active SL'}
               </div>
             </div>
           </div>

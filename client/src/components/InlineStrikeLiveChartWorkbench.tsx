@@ -179,16 +179,16 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
               {/* Signal Targets Pill */}
               <div className="px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-terminal-elevated/80 border border-cyan-500/30 text-terminal-text flex items-center gap-1.5 flex-wrap shadow-xs">
                 <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-extrabold uppercase">ENTRY:</span>
-                <span className="text-terminal-text font-black">₹{signalLevels.entryPrice.toFixed(1)}</span>
+                <span className="text-terminal-text font-black">{signalLevels.entryPrice > 0 ? `₹${signalLevels.entryPrice.toFixed(1)}` : '—'}</span>
                 <span className="text-terminal-border font-normal">|</span>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase">T1:</span>
-                <span className="text-emerald-600 dark:text-emerald-300 font-black">₹{signalLevels.target1Price.toFixed(1)}</span>
+                <span className="text-emerald-600 dark:text-emerald-300 font-black">{signalLevels.target1Price > 0 ? `₹${signalLevels.target1Price.toFixed(1)}` : '—'}</span>
                 <span className="text-terminal-border font-normal">|</span>
                 <span className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase">T2:</span>
-                <span className="text-amber-600 dark:text-amber-300 font-black">₹{signalLevels.target2Price.toFixed(1)}</span>
+                <span className="text-amber-600 dark:text-amber-300 font-black">{signalLevels.target2Price > 0 ? `₹${signalLevels.target2Price.toFixed(1)}` : '—'}</span>
                 <span className="text-terminal-border font-normal">|</span>
                 <span className="text-[10px] text-rose-600 dark:text-rose-400 font-extrabold uppercase">SL:</span>
-                <span className="text-rose-600 dark:text-rose-300 font-black">₹{signalLevels.stoplossPrice.toFixed(1)}</span>
+                <span className="text-rose-600 dark:text-rose-300 font-black">{signalLevels.stoplossPrice > 0 ? `₹${signalLevels.stoplossPrice.toFixed(1)}` : '—'}</span>
               </div>
 
               {/* Session Status Pill */}

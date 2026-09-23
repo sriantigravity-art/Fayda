@@ -152,7 +152,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(45);
   const [isFlowMatrixExpanded, setIsFlowMatrixExpanded] = useState<boolean>(false);
 
-  // Market Session State (09:00 - 15:40 IST for NSE/BSE, 09:00 - 23:30 IST for MCX Commodities)
+  // Market Session State (09:00 - 15:40 IST for NSE/BSE, 09:00 - 23:00 IST for MCX Commodities)
   const sessionAnchor = useMemo(() => {
     return getLastMarketSessionAnchor(symbol);
   }, [symbol]);
@@ -290,7 +290,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
   }, [viewEngine, symbol, tvUnderlyingSymbol, selectedTf, chartStyle, isDark]);
 
   // Generate comprehensive historical session sequence (up to 120 candles)
-  // Anchored to official closing session (15:40 IST for NSE/BSE, 23:30 IST for MCX) when market is closed
+  // Anchored to official closing session (15:40 IST for NSE/BSE, 23:00 IST for MCX) when market is closed
   const fullHistoricalCandles: StrikeCandle[] = useMemo(() => {
     const totalBars = 120;
     const intervalMinutes = selectedTf === '1m' ? 1 : selectedTf === '3m' ? 3 : selectedTf === '5m' ? 5 : 15;
@@ -856,11 +856,17 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
         {/* Signal Tag & Direction */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <div className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border shadow-xs ${
-            signalLevels.optionType === 'CE' 
+            !signalLevels.hasActiveSignal
+              ? 'bg-slate-800 text-slate-400 border-slate-700'
+              : signalLevels.optionType === 'CE' 
               ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50' 
               : 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50'
           }`}>
-            <span className={`w-2 h-2 rounded-full ${signalLevels.optionType === 'CE' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`} />
+            <span className={`w-2 h-2 rounded-full ${
+              !signalLevels.hasActiveSignal
+                ? 'bg-slate-500'
+                : signalLevels.optionType === 'CE' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-pulse'
+            }`} />
             <span>{signalLevels.actionLabel}</span>
           </div>
 
@@ -884,28 +890,42 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
           {/* Entry Level */}
           <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 shadow-xs">
             <span className="text-[9.5px] font-bold text-cyan-600 dark:text-cyan-400">ENTRY:</span>
-            <span className="font-mono font-black text-terminal-text">₹{signalLevels.entryPrice.toFixed(1)}</span>
+            <span className="font-mono font-black text-terminal-text">
+              {signalLevels.entryPrice > 0 ? `₹${signalLevels.entryPrice.toFixed(1)}` : '—'}
+            </span>
           </div>
 
           {/* Target 1 */}
           <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 shadow-xs">
             <span className="text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">T1:</span>
-            <span className="font-mono font-black text-emerald-600 dark:text-emerald-300">₹{signalLevels.target1Price.toFixed(1)}</span>
-            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">(+{signalLevels.target1Pct}%)</span>
+            <span className="font-mono font-black text-emerald-600 dark:text-emerald-300">
+              {signalLevels.target1Price > 0 ? `₹${signalLevels.target1Price.toFixed(1)}` : '—'}
+            </span>
+            {signalLevels.target1Price > 0 && (
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">(+{signalLevels.target1Pct}%)</span>
+            )}
           </div>
 
           {/* Target 2 */}
           <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 shadow-xs">
             <span className="text-[9.5px] font-bold text-amber-600 dark:text-amber-400">T2:</span>
-            <span className="font-mono font-black text-amber-600 dark:text-amber-300">₹{signalLevels.target2Price.toFixed(1)}</span>
-            <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(+{signalLevels.target2Pct}%)</span>
+            <span className="font-mono font-black text-amber-600 dark:text-amber-300">
+              {signalLevels.target2Price > 0 ? `₹${signalLevels.target2Price.toFixed(1)}` : '—'}
+            </span>
+            {signalLevels.target2Price > 0 && (
+              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">(+{signalLevels.target2Pct}%)</span>
+            )}
           </div>
 
           {/* Stop Loss */}
           <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 shadow-xs">
             <span className="text-[9.5px] font-bold text-rose-600 dark:text-rose-400">SL:</span>
-            <span className="font-mono font-black text-rose-600 dark:text-rose-300">₹{signalLevels.stoplossPrice.toFixed(1)}</span>
-            <span className="text-[9px] text-rose-600 dark:text-rose-400 font-semibold">(-{signalLevels.stoplossPct}%)</span>
+            <span className="font-mono font-black text-rose-600 dark:text-rose-300">
+              {signalLevels.stoplossPrice > 0 ? `₹${signalLevels.stoplossPrice.toFixed(1)}` : '—'}
+            </span>
+            {signalLevels.stoplossPrice > 0 && (
+              <span className="text-[9px] text-rose-600 dark:text-rose-400 font-semibold">(-{signalLevels.stoplossPct}%)</span>
+            )}
           </div>
 
           {/* Risk:Reward */}

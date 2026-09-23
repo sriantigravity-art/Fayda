@@ -51,8 +51,8 @@ export const HighlightSignalTicker: React.FC = () => {
 
     const currentMin = hours * 60 + minutes;
     if (isCommodity(sym)) {
-      // MCX Commodities: 09:00 to 23:30 IST
-      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+      // MCX Commodities: 09:00 to 23:00 IST (11:00 PM)
+      return currentMin >= (9 * 60) && currentMin < (23 * 60);
     }
     // NSE / BSE Equity & Index Derivatives: 09:00 to 15:40 IST
     return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);

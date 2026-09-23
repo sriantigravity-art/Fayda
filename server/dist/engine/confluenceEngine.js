@@ -954,7 +954,7 @@ export class ConfluenceEngine {
                 return {
                     session: 'OFF_MARKET',
                     sessionName: 'MCX Pre-Market Settlement',
-                    windowTime: '23:30 - 09:00 IST',
+                    windowTime: '23:00 - 09:00 IST',
                     quotaDescription: 'Commodity Market Closed • Opens at 09:00 AM IST'
                 };
             }
@@ -990,20 +990,28 @@ export class ConfluenceEngine {
                     quotaDescription: 'Top 2 High-Volatility US Session Trades'
                 };
             }
-            else if (currentMin >= (20 * 60) && currentMin < (23 * 60 + 30)) {
+            else if (currentMin >= (20 * 60) && currentMin < (22 * 60)) {
                 return {
                     session: 'COMMODITY_US_EOD',
-                    sessionName: 'US Session Wrap & Settlement',
-                    windowTime: '20:00 - 23:30 IST',
-                    quotaDescription: 'Top 1 Commodity Swing / Hedge Trade'
+                    sessionName: 'US Session Wrap & Momentum',
+                    windowTime: '20:00 - 22:00 IST',
+                    quotaDescription: 'Top 1 Commodity Swing / Momentum Trade'
+                };
+            }
+            else if (currentMin >= (22 * 60) && currentMin < (23 * 60)) {
+                return {
+                    session: 'FINAL_HOUR_MANAGEMENT',
+                    sessionName: 'MCX Final-Hour Management',
+                    windowTime: '22:00 - 23:00 IST',
+                    quotaDescription: 'MCX Final 1 Hour • Zero Fresh Signals • Position Management & Square-Off'
                 };
             }
             else {
                 return {
                     session: 'OFF_MARKET',
                     sessionName: 'MCX Post-Market Settlement',
-                    windowTime: '23:30 - 09:00 IST',
-                    quotaDescription: 'Market Closed'
+                    windowTime: '23:00 - 09:00 IST',
+                    quotaDescription: 'Market Closed • Reopens at 09:00 AM IST'
                 };
             }
         }
@@ -1251,6 +1259,9 @@ export class ConfluenceEngine {
      */
     static getMinViableBuyerLtp(symbol, isExpiryDay) {
         const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+        if (symbol === 'NATURALGAS') {
+            return 0.8; // Natural Gas ATM options are typically 1.5 - 5.0 Rs (lot size 1250)
+        }
         if (isCommodity)
             return 25.0;
         switch (symbol) {
@@ -1273,22 +1284,28 @@ export class ConfluenceEngine {
      * Checks whether a trade's entry price or PnL is distorted/corrupted
      * (e.g. entry < minViableLtp, liveLtp wildly disjointed from entry price, or PnL > 350%).
      */
-    static isTradePriceDistorted(trade, liveLtp, minViableLtp) {
+    static isTradePriceDistorted(trade, liveLtp, minViableLtp, symbol) {
         if (!trade || !trade.entryPrice || trade.entryPrice <= 0)
             return true;
         // Carried-forward positions from previous trading days are verified and preserved
         if (trade.isCarriedForward || trade.status === 'CARRIED_FORWARD')
             return false;
         const isBuyer = trade.tradingRole !== 'SELLER';
-        // STRICT DERIVATIVE FLOOR: Under 2.0 Rs is NEVER allowed for any buyer recommendation
-        if (isBuyer && (trade.entryPrice < 2.0 || (liveLtp > 0 && liveLtp < 2.0)))
+        const tradeSymbol = (symbol || trade.symbol || '').toUpperCase().trim();
+        const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(tradeSymbol);
+        const isNaturalGas = tradeSymbol === 'NATURALGAS';
+        // STRICT DERIVATIVE FLOOR:
+        const floor = isNaturalGas ? 0.5 : (isCommodity ? 1.0 : 2.0);
+        if (isBuyer && (trade.entryPrice < floor || (liveLtp > 0 && liveLtp < floor)))
             return true;
-        // Time-based check: After 3:00 PM IST, low premium derivatives (<= 5.0 Rs) are strictly prohibited
+        // Time-based check: After 3:00 PM IST for equities (or 10:30 PM for MCX), low premium derivatives are strictly prohibited
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const ist = new Date(utc + (3600000 * 5.5));
-        const isPast3Pm = ist.getHours() >= 15;
-        if (isBuyer && isPast3Pm && (trade.entryPrice <= 5.0 || (liveLtp > 0 && liveLtp <= 5.0)))
+        const currentMin = ist.getHours() * 60 + ist.getMinutes();
+        const isLateSession = isCommodity ? currentMin >= (22 * 60 + 30) : currentMin >= (15 * 60);
+        const lateFloor = isNaturalGas ? 0.8 : (isCommodity ? 3.0 : 5.0);
+        if (isBuyer && isLateSession && (trade.entryPrice <= lateFloor || (liveLtp > 0 && liveLtp <= lateFloor)))
             return true;
         if (isBuyer && trade.entryPrice < minViableLtp)
             return true;
@@ -1707,26 +1724,26 @@ export class ConfluenceEngine {
         const isOffMarket = sessionInfo.session === 'OFF_MARKET' || sessionInfo.session === 'PRE_MARKET_STANDBY';
         const isPast340Pm = !isCommodity && (currentMin >= (15 * 60 + 40));
         const isPast330Pm = !isCommodity && (currentMin >= (15 * 60 + 30));
-        const isPastCutoff = !isCommodity ? (currentMin >= (14 * 60 + 30)) : (currentMin >= (22 * 60 + 30));
+        const isPastCutoff = !isCommodity ? (currentMin >= (14 * 60 + 30)) : (currentMin >= (22 * 60));
         const isBefore925Am = !isCommodity ? (currentMin < (9 * 60 + 25)) : (currentMin < (9 * 60));
         const isMarketSettled = isCommodity
-            ? (currentMin >= (9 * 60 + 25) && currentMin < (22 * 60 + 30))
+            ? (currentMin >= (9 * 60 + 25) && currentMin < (22 * 60))
             : (currentMin >= (9 * 60 + 25) && currentMin < (14 * 60 + 30));
         // Symbol configuration & lot size for rupee P&L calculation
         const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const instrumentLot = symCfg?.lot || (symbol === 'NIFTY' ? 65 : symbol === 'BANKNIFTY' ? 30 : 50);
         // Institutional Timing Rule: Fresh intraday trade calls are strictly cut off at 02:30 PM IST (14:30 IST)
-        // for Equities/Indices and 10:30 PM IST for Commodities.
-        // For post-cutoff or off-market reference views, fallback benchmark times must never exceed 02:25 PM IST.
-        const effectiveEntryTimeFormatted = isPastCutoff ? '02:15 PM IST' : timeFormatted;
-        const effectiveCarryForwardTimeFormatted = isPastCutoff ? '02:25 PM IST' : timeFormatted;
+        // for Equities/Indices (close at 03:40 PM) and 10:00 PM IST (22:00 IST) for Commodities (close at 11:00 PM).
+        // For post-cutoff or off-market reference views, fallback benchmark times must never exceed 02:25 PM IST (or 09:55 PM for MCX).
+        const effectiveEntryTimeFormatted = isPastCutoff ? (isCommodity ? '09:45 PM IST' : '02:15 PM IST') : timeFormatted;
+        const effectiveCarryForwardTimeFormatted = isPastCutoff ? (isCommodity ? '09:55 PM IST' : '02:25 PM IST') : timeFormatted;
         // Dynamic Market Momentum, Expiry Gamma & CAS Volatility Fluctuation Detection
         const momentumInfo = ConfluenceEngine.detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, technicalIndicators, cprData, indiaVix, daysToExpiry ?? 2, activeExpiryDate);
         // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
         if (isOffMarket) {
             if (isCommodity) {
                 sessionInfo.sessionName = 'MCX Post-Market Settlement';
-                sessionInfo.quotaDescription = 'Commodity Market Closed (23:30 - 09:00 IST) • Showing Session Ledger';
+                sessionInfo.quotaDescription = 'Commodity Market Closed (23:00 - 09:00 IST) • Showing Session Ledger';
             }
             else {
                 sessionInfo.sessionName = 'Market Closed at 03:40 PM IST';

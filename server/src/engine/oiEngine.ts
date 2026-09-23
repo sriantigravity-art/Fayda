@@ -151,15 +151,16 @@ export class OIEngine {
     let totalPutOIChange5m = 0;
 
     const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+    const isNaturalGas = symbol === 'NATURALGAS';
     const utcTime = now + (new Date().getTimezoneOffset() * 60000);
     const istTime = new Date(utcTime + (3600000 * 5.5));
-    const isPast3Pm = istTime.getHours() >= 15;
+    const isPast3Pm = !isCommodity && istTime.getHours() >= 15;
     const isMarketOpenForSymbol = (() => {
       const day = istTime.getDay();
       if (day === 0 || day === 6) return false;
       const currentMin = istTime.getHours() * 60 + istTime.getMinutes();
       if (isCommodity) {
-        return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+        return currentMin >= (9 * 60) && currentMin < (23 * 60);
       }
       return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
     })();
@@ -404,8 +405,10 @@ export class OIEngine {
       });      // ─────────────────────────────────────────────────────────────
       // Call Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
       // ─────────────────────────────────────────────────────────────
-      const minViableSurgeCeLtp = isPast3Pm ? 15.0 : 5.0;
-      if (isMarketOpenForSymbol && callSurge.level !== 'NORMAL' && raw.callVolume >= 10000 && Math.abs(strike - atmStrike) <= 350 && raw.callLtp >= minViableSurgeCeLtp) {
+      const minViableSurgeCeLtp = isNaturalGas ? 0.6 : (isCommodity ? 5.0 : (isPast3Pm ? 15.0 : 5.0));
+      const minSurgeCeVol = isNaturalGas ? 100 : (isCommodity ? 500 : 10000);
+      const maxSurgeCeDist = isNaturalGas ? 25 : (['BANKNIFTY', 'SENSEX', 'BANKEX', 'GOLD', 'SILVER'].includes(symbol) ? 500 : 350);
+      if (isMarketOpenForSymbol && callSurge.level !== 'NORMAL' && raw.callVolume >= minSurgeCeVol && Math.abs(strike - atmStrike) <= maxSurgeCeDist && raw.callLtp >= minViableSurgeCeLtp) {
         // Multi-Factor Confluence Adjustment
         let calibratedCallScore = callSurge.score;
         if (spotPctChange > 0.05) calibratedCallScore += 6; // Spot trend alignment
@@ -495,8 +498,10 @@ export class OIEngine {
       // ─────────────────────────────────────────────────────────────
       // Put Surge Event (Multi-Factor Confluence: Direction, Greeks, IV & Liquidity)
       // ─────────────────────────────────────────────────────────────
-      const minViableSurgePeLtp = isPast3Pm ? 15.0 : 5.0;
-      if (isMarketOpenForSymbol && putSurge.level !== 'NORMAL' && raw.putVolume >= 10000 && Math.abs(strike - atmStrike) <= 350 && raw.putLtp >= minViableSurgePeLtp) {
+      const minViableSurgePeLtp = isNaturalGas ? 0.6 : (isCommodity ? 5.0 : (isPast3Pm ? 15.0 : 5.0));
+      const minSurgePeVol = isNaturalGas ? 100 : (isCommodity ? 500 : 10000);
+      const maxSurgePeDist = isNaturalGas ? 25 : (['BANKNIFTY', 'SENSEX', 'BANKEX', 'GOLD', 'SILVER'].includes(symbol) ? 500 : 350);
+      if (isMarketOpenForSymbol && putSurge.level !== 'NORMAL' && raw.putVolume >= minSurgePeVol && Math.abs(strike - atmStrike) <= maxSurgePeDist && raw.putLtp >= minViableSurgePeLtp) {
         // Multi-Factor Confluence Adjustment
         let calibratedPutScore = putSurge.score;
         if (spotPctChange < -0.05) calibratedPutScore += 6; // Spot trend alignment (falling index)

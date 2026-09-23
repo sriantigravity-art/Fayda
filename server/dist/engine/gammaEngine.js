@@ -13,7 +13,9 @@ export class GammaEngine {
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const ist = new Date(utc + (3600000 * 5.5));
-        const isPast3Pm = ist.getHours() >= 15;
+        const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+        const isNaturalGas = symbol === 'NATURALGAS';
+        const isPast3Pm = !isCommodity && ist.getHours() >= 15;
         // Filter strikes within ±4 steps from ATM
         const candidateStrikes = strikes.filter(s => Math.abs(s.strikePrice - atmStrike) <= (step * 5));
         for (const strikeData of candidateStrikes) {
@@ -21,9 +23,9 @@ export class GammaEngine {
             const stepDist = Math.abs(strike - atmStrike) / Math.max(1, step);
             // 1. Evaluate Call Option (CE)
             const callLtp = strikeData.callLtp;
-            const callMaxLtp = (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
+            const callMaxLtp = isNaturalGas ? 12 : (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
             // Derivative floor: Absolute floor >= 2.0; after 3:00 PM no cheap options (>= 15.0 required); before 3:00 PM >= 5.0 allowed on perfect entry
-            const minViableCeLtp = isPast3Pm ? 15.0 : 5.0;
+            const minViableCeLtp = isNaturalGas ? 0.6 : (isCommodity ? 3.0 : (isPast3Pm ? 15.0 : 5.0));
             if (callLtp >= minViableCeLtp && callLtp <= callMaxLtp) {
                 const isShortCovering = strikeData.callBuildup === 'SHORT_COVERING' || (strikeData.callOIChange1m < 0 && strikeData.callLtpChange > 0);
                 const isLongAccum = strikeData.callBuildup === 'LONG_BUILDUP';
@@ -91,8 +93,8 @@ export class GammaEngine {
             }
             // 2. Evaluate Put Option (PE)
             const putLtp = strikeData.putLtp;
-            const putMaxLtp = (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
-            const minViablePeLtp = isPast3Pm ? 15.0 : 5.0;
+            const putMaxLtp = isNaturalGas ? 12 : (symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER') ? 140 : 65;
+            const minViablePeLtp = isNaturalGas ? 0.6 : (isCommodity ? 3.0 : (isPast3Pm ? 15.0 : 5.0));
             if (putLtp >= minViablePeLtp && putLtp <= putMaxLtp) {
                 const isShortCovering = strikeData.putBuildup === 'SHORT_COVERING' || (strikeData.putOIChange1m < 0 && strikeData.putLtpChange > 0);
                 const isLongAccum = strikeData.putBuildup === 'LONG_BUILDUP';

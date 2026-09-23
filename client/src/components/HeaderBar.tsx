@@ -242,7 +242,7 @@ export const HeaderBar: React.FC = () => {
     const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY' || cfg?.exchange === 'MCX';
 
     if (isCommodity) {
-      return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+      return currentMin >= (9 * 60) && currentMin < (23 * 60);
     }
 
     // NSE & BSE open at 09:00 AM (pre-open/open) and close at 03:40 PM IST

@@ -1314,8 +1314,8 @@ export type MarketSessionWindow =
   | 'INTRADAY_SQUARE_OFF'       // 15:30 - 15:40 IST (Intraday Position Square-off)
   | 'COMMODITY_EU'              // 15:40 - 18:00 IST
   | 'COMMODITY_US_OPEN'         // 18:00 - 20:00 IST
-  | 'COMMODITY_US_EOD'          // 20:00 - 23:30 IST
-  | 'OFF_MARKET';               // 15:40 - 24:00 IST / Weekends
+  | 'COMMODITY_US_EOD'          // 20:00 - 22:00 IST (MCX Alpha Entries until 22:00 IST)
+  | 'OFF_MARKET';               // 15:40 - 24:00 IST / Weekends (23:00 - 09:00 for MCX)
 
 export interface TipConfluenceFactor {
   confirmed: boolean;

@@ -323,20 +323,20 @@ class SignalLedgerService {
 
     // ── INSTITUTIONAL INTRADAY ENTRY CUTOFF (TOP-NOTCH TRADER RULE) ──
     // Equities & Index options cutoff: 14:30 IST (1 hr before 15:30 close).
-    // MCX Commodities cutoff: 22:30 IST (1 hr before 23:30 close).
+    // MCX Commodities cutoff: 22:00 IST (1 hr before 23:00 close).
     // Trades need adequate runway for delta expansion and target achievement without theta collapse.
     const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
     const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY';
     const utc = Date.now() + (new Date().getTimezoneOffset() * 60000);
     const ist = new Date(utc + (3600000 * 5.5));
     const currentMin = ist.getHours() * 60 + ist.getMinutes();
-    const cutoffMin = isCommodity ? (22 * 60 + 30) : (14 * 60 + 30);
+    const cutoffMin = isCommodity ? (22 * 60) : (14 * 60 + 30);
     const openingMin = isCommodity ? (9 * 60) : (9 * 60 + 25);
     const signalMin = SignalLedgerService.parseTimeStringToMinutes(signal.callGivenTimeFormatted);
 
     const effectiveMin = signalMin !== null ? signalMin : currentMin;
     if (effectiveMin >= cutoffMin) {
-      console.warn(`[SignalLedgerService] Discarded fresh signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Intraday entry cutoff reached (${isCommodity ? '22:30' : '14:30'} IST). Final hour reserved strictly for position management.`);
+      console.warn(`[SignalLedgerService] Discarded fresh signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Intraday entry cutoff reached (${isCommodity ? '22:00' : '14:30'} IST). Final hour reserved strictly for position management.`);
       return null;
     }
     if (effectiveMin < openingMin) {

@@ -30,7 +30,7 @@ export function isMarketOpenForSymbol(symbol: string): boolean {
 
   const currentMin = hours * 60 + minutes;
   if (isCommodity) {
-    return currentMin >= (9 * 60) && currentMin < (23 * 60 + 30);
+    return currentMin >= (9 * 60) && currentMin < (23 * 60);
   }
 
   // NSE & BSE: Open 09:00 AM to 03:40 PM IST
@@ -49,7 +49,7 @@ export function isNseMarketOpen(): boolean {
  * - If market is currently open: returns current live timestamp (Date.now())
  * - If market is closed:
  *   - For NSE/BSE: returns timestamp of 15:40:00 IST on the last active trading session
- *   - For MCX Commodities: returns timestamp of 23:30:00 IST on the last active trading session
+ *   - For MCX Commodities: returns timestamp of 23:00:00 IST on the last active trading session
  */
 export function getLastMarketSessionAnchor(symbol: string): {
   anchorMs: number;
@@ -67,8 +67,8 @@ export function getLastMarketSessionAnchor(symbol: string): {
     return {
       anchorMs: nowMs,
       isLive: true,
-      closingTimeFormatted: isCommodity ? '23:30 IST' : '15:40 IST',
-      reopenNotice: isCommodity ? 'Closes at 11:30 PM IST' : 'Closes at 03:40 PM IST'
+      closingTimeFormatted: isCommodity ? '11:00 PM IST' : '03:40 PM IST',
+      reopenNotice: isCommodity ? 'Closes at 11:00 PM IST' : 'Closes at 03:40 PM IST'
     };
   }
 
@@ -87,7 +87,7 @@ export function getLastMarketSessionAnchor(symbol: string): {
     // Tue-Fri morning before 09:00 -> last session was yesterday (1 day ago)
     daysBack = 1;
   } else {
-    // Weekday after market close (>= 15:40 for NSE/BSE, or >= 23:30 for MCX) -> today
+    // Weekday after market close (>= 15:40 for NSE/BSE, or >= 23:00 for MCX) -> today
     daysBack = 0;
   }
 
@@ -103,21 +103,21 @@ export function getLastMarketSessionAnchor(symbol: string): {
 
   // Closing candle anchor time:
   // For NSE/BSE: 15:40:00 IST (10:10:00 UTC)
-  // For MCX: 23:30:00 IST (18:00:00 UTC)
+  // For MCX: 23:00:00 IST (17:30:00 UTC)
   const closeHour = isCommodity ? 23 : 15;
-  const closeMin = isCommodity ? 30 : 40;
+  const closeMin = isCommodity ? 0 : 40;
 
   // UTC equivalent: IST - 5:30
   // 15:40 IST -> 10:10 UTC
-  // 23:30 IST -> 18:00 UTC
-  const utcHour = closeHour === 15 ? 10 : 18;
-  const utcMin = closeHour === 15 ? 10 : 0;
+  // 23:00 IST -> 17:30 UTC
+  const utcHour = closeHour === 15 ? 10 : 17;
+  const utcMin = closeHour === 15 ? 10 : 30;
   const anchorMs = Date.UTC(sYear, sMonth, sDay, utcHour, utcMin, 0);
 
   return {
     anchorMs,
     isLive: false,
-    closingTimeFormatted: isCommodity ? '11:30 PM IST' : '03:40 PM IST',
+    closingTimeFormatted: isCommodity ? '11:00 PM IST' : '03:40 PM IST',
     reopenNotice: 'Reopens at 09:00 AM IST on next working day'
   };
 }
@@ -132,10 +132,10 @@ export function getBarTimeRangeForSymbol(symbol: string, minutes: number): strin
   const pad = (n: number) => n.toString().padStart(2, '0');
 
   if (!isOpen) {
-    // Closed: anchor to 15:40 IST for NSE/BSE, or 23:30 IST for MCX
+    // Closed: anchor to 15:40 IST for NSE/BSE, or 23:00 IST for MCX
     const isCommodity = isCommoditySymbol(symbol);
     const closeHour = isCommodity ? 23 : 15;
-    const closeMinute = isCommodity ? 30 : 40;
+    const closeMinute = isCommodity ? 0 : 40;
 
     let startMinute = closeMinute - minutes;
     let startHour = closeHour;

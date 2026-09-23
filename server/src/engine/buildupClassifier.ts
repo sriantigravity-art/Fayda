@@ -21,31 +21,50 @@ export function determineTradeAction(
   actionDescription: string;
   confidence: 'HIGH' | 'MEDIUM' | 'EXTREME';
 } {
+  const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol as string);
+  const isNaturalGas = (symbol as string) === 'NATURALGAS';
+
   const isNearAtm = Math.abs(strike - atmStrike) <= (
-    symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER' ? 400 : 100
+    symbol === 'BANKNIFTY' || symbol === 'SENSEX' || symbol === 'BANKEX' || symbol === 'GOLD' || symbol === 'SILVER' ? 400 : 
+    isNaturalGas ? 15 : 100
   );
 
   // Time-of-day check for derivative viability
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   const ist = new Date(utc + (3600000 * 5.5));
-  const isPast3Pm = ist.getHours() >= 15;
+  const currentMin = ist.getHours() * 60 + ist.getMinutes();
 
-  // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
-  if (ltp < 2.0) {
+  // Equities close at 15:30/15:40; MCX commodities trade until 23:00 IST (11:00 PM)
+  const isEquityLateSession = !isCommodity && (currentMin >= 15 * 60);
+  const isCommodityLateSession = isCommodity && (currentMin >= (22 * 60)); // 10:00 PM IST (1 hr before 11:00 PM close)
+
+  // Minimum viable floor:
+  // - NATURALGAS: Strike step is 5, lot size 1250, ATM options trade at ₹1.5 - ₹5.0. Floor = ₹0.50
+  // - Other commodities: Floor = ₹1.00
+  // - Equities (NIFTY/BANKNIFTY): Floor = ₹2.00
+  const minViableFloor = isNaturalGas ? 0.5 : (isCommodity ? 1.0 : 2.0);
+
+  if (ltp < minViableFloor) {
     return {
       tradeAction: 'NEUTRAL_WATCH',
-      actionTitle: '⚠️ SUB-PENNY DECAY (< ₹2.00)',
-      actionDescription: `Option premium at ₹${ltp.toFixed(2)} is below viable derivative threshold (₹2.00). High theta burn & expiry to ₹0 risk. No buy signal permitted.`,
+      actionTitle: `⚠️ SUB-PENNY DECAY (< ₹${minViableFloor.toFixed(2)})`,
+      actionDescription: `Option premium at ₹${ltp.toFixed(2)} is below viable derivative threshold (₹${minViableFloor.toFixed(2)}). High theta burn & expiry to ₹0 risk. No buy signal permitted.`,
       confidence: 'HIGH'
     };
   }
 
-  if (isPast3Pm && ltp <= 5.0) {
+  // Late session restriction:
+  const isLateSessionProhibited = (isEquityLateSession && ltp <= 5.0) ||
+    (isCommodityLateSession && ltp <= (isNaturalGas ? 0.8 : 3.0));
+
+  if (isLateSessionProhibited) {
     return {
       tradeAction: 'NEUTRAL_WATCH',
-      actionTitle: '⚠️ POST-3:00 PM LOW PREMIUM PROHIBITED',
-      actionDescription: `After 03:00 PM IST, low premium derivative contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay.`,
+      actionTitle: isCommodity ? '⚠️ MCX FINAL-HOUR LOW PREMIUM PROHIBITED' : '⚠️ POST-3:00 PM LOW PREMIUM PROHIBITED',
+      actionDescription: isCommodity
+        ? `After 10:00 PM IST, low premium commodity contracts are prohibited due to late-session margin square-offs.`
+        : `After 03:00 PM IST, low premium derivative contracts (≤ ₹5.00) are strictly prohibited due to imminent terminal theta decay.`,
       confidence: 'HIGH'
     };
   }
