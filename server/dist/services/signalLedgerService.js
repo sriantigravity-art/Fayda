@@ -44,6 +44,29 @@ class SignalLedgerService {
         const ist = new Date(utc + (3600000 * 5.5));
         return ist.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' IST';
     }
+    static parseTimeStringToMinutes(timeStr) {
+        if (!timeStr)
+            return null;
+        const clean = timeStr.replace(' IST', '').trim();
+        const ampmMatch = clean.match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+        if (ampmMatch) {
+            let h = parseInt(ampmMatch[1], 10);
+            const m = parseInt(ampmMatch[2], 10);
+            const ampm = ampmMatch[4].toUpperCase();
+            if (ampm === 'PM' && h !== 12)
+                h += 12;
+            if (ampm === 'AM' && h === 12)
+                h = 0;
+            return h * 60 + m;
+        }
+        const hmsMatch = clean.match(/^(\d+):(\d+)(?::(\d+))?$/);
+        if (hmsMatch) {
+            const h = parseInt(hmsMatch[1], 10);
+            const m = parseInt(hmsMatch[2], 10);
+            return h * 60 + m;
+        }
+        return null;
+    }
     loadFromFile() {
         try {
             if (fs.existsSync(this.dataFilePath)) {
@@ -52,6 +75,15 @@ class SignalLedgerService {
                 if (Array.isArray(list)) {
                     // Strictly purge corrupted/distorted derivative calls (< 2.0 Rs)
                     list = list.filter(c => !((c.optionType === 'CE' || c.optionType === 'PE') && c.entryPrice < 2.0));
+                    // Institutional Rule: Strictly purge all legacy signals given after 03:00 PM (15:00 IST)
+                    list = list.filter(c => {
+                        const timeStr = c.callGivenTime || c.timeFormatted;
+                        const mins = SignalLedgerService.parseTimeStringToMinutes(timeStr);
+                        if (mins !== null && mins >= 900) { // 15:00 IST = 900 mins
+                            return false;
+                        }
+                        return true;
+                    });
                     // Group by date
                     const dateGroups = new Map();
                     list.forEach(c => {
@@ -244,6 +276,27 @@ class SignalLedgerService {
                 return null;
             }
         }
+        // ── INSTITUTIONAL INTRADAY ENTRY CUTOFF (TOP-NOTCH TRADER RULE) ──
+        // Equities & Index options cutoff: 14:30 IST (1 hr before 15:30 close).
+        // MCX Commodities cutoff: 22:30 IST (1 hr before 23:30 close).
+        // Trades need adequate runway for delta expansion and target achievement without theta collapse.
+        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
+        const isCommodity = cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY';
+        const utc = Date.now() + (new Date().getTimezoneOffset() * 60000);
+        const ist = new Date(utc + (3600000 * 5.5));
+        const currentMin = ist.getHours() * 60 + ist.getMinutes();
+        const cutoffMin = isCommodity ? (22 * 60 + 30) : (14 * 60 + 30);
+        const openingMin = isCommodity ? (9 * 60) : (9 * 60 + 25);
+        const signalMin = SignalLedgerService.parseTimeStringToMinutes(signal.callGivenTimeFormatted);
+        const effectiveMin = signalMin !== null ? signalMin : currentMin;
+        if (effectiveMin >= cutoffMin) {
+            console.warn(`[SignalLedgerService] Discarded fresh signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Intraday entry cutoff reached (${isCommodity ? '22:30' : '14:30'} IST). Final hour reserved strictly for position management.`);
+            return null;
+        }
+        if (effectiveMin < openingMin) {
+            console.warn(`[SignalLedgerService] Discarded fresh signal ${signal.symbol} ${signal.strikePrice} ${signal.optionType}: Market opening noise cooling period active (< ${isCommodity ? '09:00' : '09:25'} IST).`);
+            return null;
+        }
         const today = this.getTodayDateStr();
         const timeFormatted = signal.callGivenTimeFormatted || this.getIstTimeFormatted();
         // Deduplicate strictly by (today, symbol, strikePrice, optionType, action)
@@ -274,7 +327,6 @@ class SignalLedgerService {
         if (todayCallsForSymbol.length >= 4) {
             return todayCallsForSymbol[0];
         }
-        const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === signal.symbol);
         const lotSize = cfg?.lot || 50;
         let category = 'OPTIONS';
         if (cfg?.category === 'COMMODITIES' || cfg?.segment === 'COMMODITY') {

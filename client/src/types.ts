@@ -969,6 +969,9 @@ export interface ProbableClosingPriceData {
   summaryNote: string;
   calculatedAt: string;              // ISO timestamp
   simulated?: boolean;               // True if previewed outside 15:10 - 15:40 IST
+  isMarketClosed?: boolean;          // True if current time >= 15:40 IST or weekend
+  isFinalized?: boolean;             // True if official settlement is finalized at 03:40 PM IST
+  settlementLockedAt?: string;       // e.g. '03:40:00 PM IST'
 }
 
 export interface MarketIndexState {
@@ -1153,8 +1156,10 @@ export type MarketSessionWindow =
   | 'OPENING_SETTLING'          // 09:15 - 09:25 IST (Opening Auction Noise Settling)
   | 'MORNING_POWER_OPEN'        // 09:25 - 10:00 IST (Market Settled)
   | 'MID_MORNING_TREND'         // 10:00 - 12:00 IST
-  | 'MIDDAY_EUROPE_SPREAD'      // 12:00 - 14:30 IST
-  | 'AFTERNOON_GAMMA_POWER_HOUR'// 14:30 - 15:30 IST
+  | 'MIDDAY_EUROPE_SPREAD'      // 12:00 - 14:00 IST
+  | 'AFTERNOON_GAMMA_POWER_HOUR'// 14:00 - 14:30 IST (Final 30-min active entries)
+  | 'FINAL_HOUR_MANAGEMENT'     // 14:30 - 15:10 IST (Intraday cutoff: position management only, zero fresh entries)
+  | 'CAS_CLOSING_AUCTION'       // 15:10 - 15:30 IST (CAS price discovery & broker auto square-offs)
   | 'INTRADAY_SQUARE_OFF'       // 15:30 - 15:40 IST (Intraday Position Square-off)
   | 'COMMODITY_EU'              // 15:40 - 18:00 IST
   | 'COMMODITY_US_OPEN'         // 18:00 - 20:00 IST

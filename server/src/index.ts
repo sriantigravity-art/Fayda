@@ -463,9 +463,12 @@ const fetchSymbolSnapshot = async (symConfig: SymbolConfig) => {
       // 4. VWAP / Trend alignment check: prevents counter-trend trap entries
       const nowUtc = Date.now();
       const istMinutes = Math.floor(((nowUtc + (5.5 * 3600 * 1000)) % 86400000) / 60000);
-      const isPastOpeningNoise = istMinutes >= (9 * 60 + 25); // After 09:25 AM IST
+      const isCommodity = symConfig.category === 'COMMODITIES' || symConfig.segment === 'COMMODITY';
+      const isPastOpeningNoise = istMinutes >= (isCommodity ? (9 * 60) : (9 * 60 + 25)); // After 09:25 AM IST (09:00 for MCX)
+      const cutoffMin = isCommodity ? (22 * 60 + 30) : (14 * 60 + 30); // Institutional 14:30 IST cutoff (1 hr before 15:30 close)
+      const isBeforeCutoff = istMinutes < cutoffMin;
 
-      if (isOpen && isPastOpeningNoise && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET') {
+      if (isOpen && isPastOpeningNoise && isBeforeCutoff && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET' && indexState.unifiedTipsPackage.currentSession !== 'FINAL_HOUR_MANAGEMENT' && indexState.unifiedTipsPackage.currentSession !== 'CAS_CLOSING_AUCTION') {
         const utp = indexState.unifiedTipsPackage;
         const minEntryPrice = symConfig.isIndex ? 15 : 2.5;
 

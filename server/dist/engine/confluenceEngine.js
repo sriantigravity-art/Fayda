@@ -1048,20 +1048,36 @@ export class ConfluenceEngine {
                 quotaDescription: 'Top 2 High-Conviction Trend Trades'
             };
         }
-        else if (currentMin >= (12 * 60) && currentMin < (14 * 60 + 30)) {
+        else if (currentMin >= (12 * 60) && currentMin < (14 * 60)) {
             return {
                 session: 'MIDDAY_EUROPE_SPREAD',
                 sessionName: 'Midday Europe Crossover & Consolidation',
-                windowTime: '12:00 - 14:30 IST',
+                windowTime: '12:00 - 14:00 IST',
                 quotaDescription: 'Top 1 Capital-Protected Spread Trade'
             };
         }
-        else if (currentMin >= (14 * 60 + 30) && currentMin < (15 * 60 + 30)) {
+        else if (currentMin >= (14 * 60) && currentMin < (14 * 60 + 30)) {
             return {
                 session: 'AFTERNOON_GAMMA_POWER_HOUR',
-                sessionName: 'Afternoon 0DTE Power Hour & Expiry Squeeze',
-                windowTime: '14:30 - 15:30 IST',
-                quotaDescription: 'Top 1-2 Gamma Squeeze / Momentum Trades'
+                sessionName: 'Afternoon 0DTE Power 30-Min & Final Entries',
+                windowTime: '14:00 - 14:30 IST',
+                quotaDescription: 'Final Intraday Entries • Window Closes Strictly at 14:30 IST'
+            };
+        }
+        else if (currentMin >= (14 * 60 + 30) && currentMin < (15 * 60 + 10)) {
+            return {
+                session: 'FINAL_HOUR_MANAGEMENT',
+                sessionName: 'Final Hour Position Management (Cutoff Applied)',
+                windowTime: '14:30 - 15:10 IST',
+                quotaDescription: 'Intraday Entry Cutoff Reached (14:30 IST). Zero fresh calls. Managing open positions: Trailing SL & profit taking.'
+            };
+        }
+        else if (currentMin >= (15 * 60 + 10) && currentMin < (15 * 60 + 30)) {
+            return {
+                session: 'CAS_CLOSING_AUCTION',
+                sessionName: 'Broker Auto Square-Off & CAS Auction',
+                windowTime: '15:10 - 15:30 IST',
+                quotaDescription: 'Broker RMS auto-square-off & Closing Auction Session (CAS). Zero fresh calls permitted.'
             };
         }
         else if (currentMin >= (15 * 60 + 30) && currentMin < (15 * 60 + 40)) {
@@ -1691,17 +1707,19 @@ export class ConfluenceEngine {
         const isOffMarket = sessionInfo.session === 'OFF_MARKET' || sessionInfo.session === 'PRE_MARKET_STANDBY';
         const isPast340Pm = !isCommodity && (currentMin >= (15 * 60 + 40));
         const isPast330Pm = !isCommodity && (currentMin >= (15 * 60 + 30));
+        const isPastCutoff = !isCommodity ? (currentMin >= (14 * 60 + 30)) : (currentMin >= (22 * 60 + 30));
         const isBefore925Am = !isCommodity ? (currentMin < (9 * 60 + 25)) : (currentMin < (9 * 60));
         const isMarketSettled = isCommodity
-            ? (currentMin >= (9 * 60 + 25) && currentMin < (23 * 60 + 30))
-            : (currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 30));
+            ? (currentMin >= (9 * 60 + 25) && currentMin < (22 * 60 + 30))
+            : (currentMin >= (9 * 60 + 25) && currentMin < (14 * 60 + 30));
         // Symbol configuration & lot size for rupee P&L calculation
         const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const instrumentLot = symCfg?.lot || (symbol === 'NIFTY' ? 65 : symbol === 'BANKNIFTY' ? 30 : 50);
-        // When equity markets close at 03:40 PM IST, stop giving live timestamps like 03:52 PM.
-        // Instead clamp to the session closing benchmark (03:15 - 03:20 PM IST).
-        const effectiveEntryTimeFormatted = isPast340Pm ? '03:15 PM IST' : timeFormatted;
-        const effectiveCarryForwardTimeFormatted = isPast340Pm ? '03:20 PM IST' : timeFormatted;
+        // Institutional Timing Rule: Fresh intraday trade calls are strictly cut off at 02:30 PM IST (14:30 IST)
+        // for Equities/Indices and 10:30 PM IST for Commodities.
+        // For post-cutoff or off-market reference views, fallback benchmark times must never exceed 02:25 PM IST.
+        const effectiveEntryTimeFormatted = isPastCutoff ? '02:15 PM IST' : timeFormatted;
+        const effectiveCarryForwardTimeFormatted = isPastCutoff ? '02:25 PM IST' : timeFormatted;
         // Dynamic Market Momentum, Expiry Gamma & CAS Volatility Fluctuation Detection
         const momentumInfo = ConfluenceEngine.detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, technicalIndicators, cprData, indiaVix, daysToExpiry ?? 2, activeExpiryDate);
         // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
@@ -2117,23 +2135,25 @@ export class ConfluenceEngine {
             else {
                 primStatus = (momentumInfo.isExpiryDay && !isCommodity) ? 'EXPIRED' : 'INTRADAY_CLOSED';
                 actionabilityStatus = 'SQUARE_OFF';
-                // Unreached Target/SL -> Auto-move to Trade Journal
-                signalLedgerService.recordOrUpdateMilestone({
-                    symbol,
-                    strikePrice: targetStrike,
-                    optionType: optType,
-                    action: primAction,
-                    signalSource: 'UNIFIED_QUANTUM',
-                    entryPrice,
-                    target1Price: t1Price,
-                    target2Price: t2Price,
-                    stoplossPrice: slPrice,
-                    currentLtp,
-                    callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
-                    entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
-                    status: 'INTRADAY_CLOSED',
-                    notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)}. ${btstEval.squareOffReason || ''}`
-                });
+                // Unreached Target/SL -> Auto-move to Trade Journal (only for genuine trades active during the session)
+                if (isValidExisting) {
+                    signalLedgerService.recordOrUpdateMilestone({
+                        symbol,
+                        strikePrice: targetStrike,
+                        optionType: optType,
+                        action: primAction,
+                        signalSource: 'UNIFIED_QUANTUM',
+                        entryPrice,
+                        target1Price: t1Price,
+                        target2Price: t2Price,
+                        stoplossPrice: slPrice,
+                        currentLtp,
+                        callGivenTimeFormatted: primMilestones.callGivenTimeFormatted,
+                        entryPriceTimeFormatted: primMilestones.entryPriceTimeFormatted,
+                        status: 'INTRADAY_CLOSED',
+                        notes: `Intraday session ended without Target/SL. Position squared off at CMP ₹${currentLtp.toFixed(2)}. ${btstEval.squareOffReason || ''}`
+                    });
+                }
             }
         }
         else if (pnlPct >= 1.5) {
@@ -4141,11 +4161,15 @@ export class ConfluenceEngine {
         // ── 4. Tier 3: 0DTE Gamma Sniper / Hero-or-Zero ─────────────────────────
         let gammaTrade = null;
         const topHz = heroZeroSignals && heroZeroSignals.length > 0 ? heroZeroSignals[0] : null;
-        const isPast3PmForGamma = ist.getHours() >= 15;
-        const minViableGammaLtp = isPast3PmForGamma ? 15.0 : 5.0;
-        if (topHz && topHz.ltp >= minViableGammaLtp && (sessionInfo.session === 'AFTERNOON_GAMMA_POWER_HOUR' || topHz.gammaScore >= 80)) {
-            const contractSymbol = `${topHz.contractSymbol} (0DTE Gamma Burst)`;
-            const existingGamma = previousSessionTrades.find(t => t.contractSymbol === contractSymbol);
+        const minViableGammaLtp = 5.0;
+        // Institutional Rule: Fresh 0DTE / Gamma signals strictly prohibited after 14:30 IST
+        // (Only permitted if managing an existing trade entered before cutoff)
+        const canCreateFreshGamma = !isPastCutoff && !isBefore925Am && !isOffMarket;
+        const candidateGammaSymbol = topHz ? `${topHz.contractSymbol} (0DTE Gamma Burst)` : '';
+        const existingGamma = previousSessionTrades.find(t => t.contractSymbol === candidateGammaSymbol);
+        const canProcessGamma = topHz && (existingGamma ? true : canCreateFreshGamma);
+        if (canProcessGamma && topHz && topHz.ltp >= minViableGammaLtp && (sessionInfo.session === 'AFTERNOON_GAMMA_POWER_HOUR' || topHz.gammaScore >= 80)) {
+            const contractSymbol = candidateGammaSymbol;
             const entryPrice = existingGamma ? existingGamma.entryPrice : topHz.ltp;
             const entryTime = existingGamma ? existingGamma.entryTime : new Date().toISOString();
             const entryTimeFormatted = existingGamma ? existingGamma.entryTimeFormatted : effectiveEntryTimeFormatted;
@@ -4197,7 +4221,7 @@ export class ConfluenceEngine {
                     carryForwardTimeFormatted = timeFormatted;
                 }
             }
-            if (gammaStatus === 'SL_HIT' || entryPrice < 2.0 || topHz.ltp < 2.0 || (isPast3PmForGamma && (entryPrice <= 5.0 || topHz.ltp <= 5.0))) {
+            if (gammaStatus === 'SL_HIT' || entryPrice < 2.0 || topHz.ltp < 2.0 || (isPastCutoff && (entryPrice <= 5.0 || topHz.ltp <= 5.0))) {
                 gammaTrade = null;
             }
             else {

@@ -85,7 +85,7 @@ export class CasClosingEngine {
         phaseLabel: 'Continuous Trading Session (Pre-CAS)',
         phaseDescription: 'Official 30-minute settlement window begins at 3:00 PM IST. Live broker square-offs start at 3:10 PM.',
         isActiveWindow: false,
-        elapsedMinutesInCas: 18, // Simulated default for preview
+        elapsedMinutesInCas: 0,
         countdownSeconds: Math.max(0, (910 - totalMinutes) * 60 - seconds)
       };
     } else if (totalMinutes < 910) {
@@ -132,11 +132,11 @@ export class CasClosingEngine {
         countdownSeconds: (940 - totalMinutes) * 60 - seconds
       };
     } else {
-      // Post 15:40
+      // Post 15:40 (Market Closed at 3:40 PM IST)
       return {
         phase: 'OFF_HOURS',
-        phaseLabel: 'Post-Market Settlement Complete',
-        phaseDescription: 'Official closing price finalized by exchange. Ready for next session.',
+        phaseLabel: 'Official Settlement Finalized (Market Closed at 03:40 PM)',
+        phaseDescription: 'Official closing price finalized by exchange at 03:40 PM IST. Reconciled with 30-min constituent VWAP.',
         isActiveWindow: false,
         elapsedMinutesInCas: 30,
         countdownSeconds: 0
@@ -173,23 +173,44 @@ export class CasClosingEngine {
     } = params;
 
     const istDate = this.getIstDate(nowMs);
+    const totalMinutes = istDate.getHours() * 60 + istDate.getMinutes();
+    const dayOfWeek = istDate.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isPast340Pm = isWeekend || totalMinutes >= (15 * 60 + 40);
     const phaseInfo = this.determinePhase(istDate);
 
-    // Is active window live or simulated preview
-    const isSimulated = !phaseInfo.isActiveWindow || forceSimulatedTime;
-    const effectiveElapsed = isSimulated ? 18 : phaseInfo.elapsedMinutesInCas; // 18 mins simulated is peak broker square-off
+    // Active live CAS window occurs strictly between 3:10 PM and 3:40 PM IST on weekdays
+    const isLiveCasWindow = phaseInfo.isActiveWindow && !isPast340Pm && !forceSimulatedTime;
+
+    let effectiveElapsed: number;
+    let volumeAccumulatedPct: number;
+    let confidenceScore: number;
+    let isSimulated: boolean;
+
+    if (isPast340Pm) {
+      // Post 3:40 PM: Market is fully closed, settlement is 100% complete and official
+      effectiveElapsed = 30;
+      volumeAccumulatedPct = 100;
+      confidenceScore = 100;
+      isSimulated = false;
+    } else if (isLiveCasWindow) {
+      effectiveElapsed = phaseInfo.elapsedMinutesInCas;
+      volumeAccumulatedPct = Math.min(100, Math.round(
+        effectiveElapsed <= 10 
+          ? (effectiveElapsed / 10) * 35 
+          : 35 + ((effectiveElapsed - 10) / 20) * 65
+      ));
+      confidenceScore = Math.min(99, Math.round(50 + (effectiveElapsed / 30) * 48));
+      isSimulated = false;
+    } else {
+      // Pre-3:00 PM preview or weekend preview
+      effectiveElapsed = 18;
+      volumeAccumulatedPct = 65;
+      confidenceScore = 80;
+      isSimulated = true;
+    }
+
     const elapsedRatio = Math.min(1, Math.max(0.1, effectiveElapsed / 30));
-
-    // Volume accumulated in 30-min window increases non-linearly (peaks during 15:10 - 15:25)
-    // 35% by 15:10, 65% by 15:18, 85% by 15:25, 100% by 15:30
-    const volumeAccumulatedPct = Math.min(100, Math.round(
-      effectiveElapsed <= 10 
-        ? (effectiveElapsed / 10) * 35 
-        : 35 + ((effectiveElapsed - 10) / 20) * 65
-    ));
-
-    // Confidence score based on elapsed time into CAS
-    const confidenceScore = Math.min(99, Math.round(50 + (effectiveElapsed / 30) * 48));
 
     // Calculation method
     const calculationMethod: 'NSE_30M_VWAP' | 'BSE_CAS_AUCTION' = 
@@ -317,7 +338,9 @@ export class CasClosingEngine {
 
     // Summary note
     const driftDir = finalIndexDriftPts >= 0 ? '+' : '';
-    const summaryNote = calculationMethod === 'NSE_30M_VWAP'
+    const summaryNote = isPast340Pm
+      ? `Official ${calculationMethod === 'NSE_30M_VWAP' ? 'NSE 30-min constituent VWAP' : 'BSE CAS'} closing price finalized at ₹${probableClose.toLocaleString('en-IN')} (${driftDir}${finalIndexDriftPts} pts vs screen LTP ₹${spotPrice.toLocaleString('en-IN')}). Market closed at 03:40 PM IST.`
+      : calculationMethod === 'NSE_30M_VWAP'
       ? `NSE 30-min VWAP model projects official close at ₹${probableClose.toLocaleString('en-IN')} (${driftDir}${finalIndexDriftPts} pts vs screen LTP ₹${spotPrice.toLocaleString('en-IN')}) with ${confidenceScore}% volume certainty.`
       : `BSE CAS order uncrossing model projects official close at ₹${probableClose.toLocaleString('en-IN')} (${driftDir}${finalIndexDriftPts} pts drift vs screen LTP ₹${spotPrice.toLocaleString('en-IN')}).`;
 
@@ -331,14 +354,17 @@ export class CasClosingEngine {
       phaseLabel: phaseInfo.phaseLabel,
       phaseDescription: phaseInfo.phaseDescription,
       phaseCountdownSeconds: phaseInfo.countdownSeconds,
-      isActiveWindow: phaseInfo.isActiveWindow,
+      isActiveWindow: isLiveCasWindow,
+      isMarketClosed: isPast340Pm,
+      isFinalized: isPast340Pm,
+      settlementLockedAt: isPast340Pm ? '03:40:00 PM IST' : undefined,
       calculationMethod,
       confidenceScore,
       volumeAccumulatedPct,
       topConstituents: constituentRows.slice(0, 10),
       pinRiskStrikes: pinRiskStrikes.slice(0, 7),
       summaryNote,
-      calculatedAt: new Date(nowMs).toISOString(),
+      calculatedAt: isPast340Pm ? new Date(new Date(istDate).setHours(15, 40, 0, 0)).toISOString() : new Date(nowMs).toISOString(),
       simulated: isSimulated
     };
   }

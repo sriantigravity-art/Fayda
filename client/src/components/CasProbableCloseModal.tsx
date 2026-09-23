@@ -49,6 +49,19 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
   const volumeAccumulated = data?.volumeAccumulatedPct ?? 70;
   const calculationMethod = data?.calculationMethod ?? 'NSE_30M_VWAP';
 
+  // Check IST time to determine accurate session phase
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const istDate = new Date(utc + (3600000 * 5.5));
+  const currentMin = istDate.getHours() * 60 + istDate.getMinutes();
+  const isWeekend = istDate.getDay() === 0 || istDate.getDay() === 6;
+
+  // Market closes at 3:40 PM IST (15:40 = 940 mins).
+  // Live CAS window is strictly 3:10 PM - 3:40 PM IST.
+  const isPast340Pm = Boolean(data?.isMarketClosed ?? (isWeekend || currentMin >= (15 * 60 + 40)));
+  const isPre310Pm = !isWeekend && currentMin < (15 * 60 + 10);
+  const isLiveCasWindow = Boolean(data?.isActiveWindow ?? (!isWeekend && !isPast340Pm && !isPre310Pm));
+
   const phases: { id: CasPhase; time: string; title: string; subtitle: string; icon: string }[] = [
     { id: 'PRE_CAS', time: '3:00 - 3:10 PM', title: 'Pre-CAS Window', subtitle: 'Continuous trades + initial volume baseline', icon: '⏱️' },
     { id: 'BROKER_SQUAREOFF', time: '3:10 - 3:20 PM', title: 'Broker Auto Square-Off Wave', subtitle: 'Zerodha, Lemonn, Groww MIS intraday volume surge', icon: '⚡' },
@@ -78,8 +91,14 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-sm sm:text-base text-terminal-text tracking-wide flex items-center gap-2">
                   <span>PROBABLE CLOSING PRICE & CAS RADAR</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase">
-                    3:10 PM+ VWAP Engine
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
+                    isPast340Pm
+                      ? 'bg-slate-700/60 text-slate-300 border border-slate-600'
+                      : isLiveCasWindow
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse'
+                      : 'bg-sky-500/15 text-sky-400 border border-sky-500/30'
+                  }`}>
+                    {isPast340Pm ? 'Official Close Finalized (03:40 PM IST)' : isLiveCasWindow ? '3:10 PM+ Live VWAP Engine' : 'Pre-CAS VWAP Preview'}
                   </span>
                 </h3>
               </div>
@@ -87,9 +106,17 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
                 <span>Asset: <strong className="text-terminal-text font-bold">{selectedIndex}</strong></span>
                 <span>•</span>
                 <span>Method: <strong className="text-accent-sky font-semibold">{calculationMethod === 'NSE_30M_VWAP' ? 'NSE 30-Min Constituent VWAP' : 'BSE Closing Auction Session (CAS)'}</strong></span>
-                {data?.simulated && (
+                {isPast340Pm ? (
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                    Session Finalized (03:40 PM)
+                  </span>
+                ) : data?.simulated ? (
                   <span className="text-[10px] text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
                     Simulation Preview
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 animate-pulse">
+                    Live Session
                   </span>
                 )}
               </p>
@@ -128,8 +155,10 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
             {/* Probable Official Close (30-min VWAP) */}
             <div className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/20 via-purple-500/15 to-sky-500/20 border-2 border-amber-500/50 flex flex-col shadow-lg relative overflow-hidden">
               <div className="absolute top-1 right-2">
-                <span className="text-[9px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950">
-                  Target Settlement
+                <span className={`text-[9px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                  isPast340Pm ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-500 text-slate-950'
+                }`}>
+                  {isPast340Pm ? 'Official Settlement' : 'Target Settlement'}
                 </span>
               </div>
               <span className="text-[11px] font-mono text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
@@ -172,9 +201,19 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
               <Zap className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
               <span>{data?.summaryNote || 'Calculating 30-minute VWAP constituent dynamics...'}</span>
             </div>
-            <span className="hidden sm:inline text-[10px] text-terminal-muted shrink-0">
-              3:10 PM MIS auto-square offs active
-            </span>
+            {isPast340Pm ? (
+              <span className="hidden sm:inline text-[10px] text-slate-400 font-mono shrink-0">
+                🔒 Official CAS Close Finalized at 03:40 PM
+              </span>
+            ) : isLiveCasWindow ? (
+              <span className="hidden sm:inline text-[10px] text-amber-400 font-bold shrink-0 animate-pulse">
+                ⚡ 3:10 PM MIS auto-square offs active
+              </span>
+            ) : (
+              <span className="hidden sm:inline text-[10px] text-terminal-muted shrink-0">
+                ⏱️ Pre-CAS Model • MIS square-offs start 3:10 PM
+              </span>
+            )}
           </div>
         </div>
 
@@ -246,22 +285,36 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   {phases.map((p, idx) => {
-                    const isPhaseActive = currentPhase === p.id;
+                    const isPhaseActive = isLiveCasWindow && currentPhase === p.id;
+                    const isPhaseConcluded = isPast340Pm || (
+                      currentPhase === 'BROKER_SQUAREOFF' && p.id === 'PRE_CAS' ||
+                      currentPhase === 'MOC_AUCTION' && (p.id === 'PRE_CAS' || p.id === 'BROKER_SQUAREOFF') ||
+                      currentPhase === 'OFFICIAL_SETTLEMENT' && p.id !== 'OFFICIAL_SETTLEMENT'
+                    );
+
                     return (
                       <div
                         key={idx}
                         className={`p-3 rounded-xl border transition-all ${
                           isPhaseActive
                             ? 'bg-amber-500/15 border-amber-500/60 shadow-md ring-1 ring-amber-500/30'
-                            : 'bg-terminal-card/80 border-terminal-border/60 opacity-80 hover:opacity-100'
+                            : isPast340Pm
+                            ? 'bg-terminal-panel/60 border-slate-700/60 opacity-90'
+                            : isPhaseConcluded
+                            ? 'bg-terminal-card/80 border-emerald-500/30 opacity-80'
+                            : 'bg-terminal-card/80 border-terminal-border/60 opacity-60'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-sm">{p.icon}</span>
                           <span className={`text-[10px] font-mono font-extrabold px-1.5 py-0.2 rounded ${
-                            isPhaseActive ? 'bg-amber-500 text-slate-950' : 'bg-terminal-panel text-terminal-muted'
+                            isPhaseActive 
+                              ? 'bg-amber-500 text-slate-950' 
+                              : isPast340Pm
+                              ? 'bg-slate-800 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-terminal-panel text-terminal-muted'
                           }`}>
-                            {p.time}
+                            {isPast340Pm ? '✓ Concluded' : p.time}
                           </span>
                         </div>
                         <h5 className="font-bold text-xs text-terminal-text leading-tight">{p.title}</h5>
@@ -486,10 +539,28 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
         {/* ── 5. FOOTER: CONTROLS & CLOSE ── */}
         <div className="px-4 sm:px-6 py-3 border-t border-terminal-border/80 bg-terminal-panel/80 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-2 text-[11px] font-mono text-terminal-muted">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Live CAS tracking active</span>
-            <span>•</span>
-            <span>Updated: <strong className="text-terminal-text">{new Date().toLocaleTimeString('en-IN')}</strong></span>
+            {isPast340Pm ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-slate-500" />
+                <span className="text-slate-300 font-semibold">Official Settlement Finalized (Market Closed at 03:40 PM IST)</span>
+                <span>•</span>
+                <span>Session Locked: <strong className="text-terminal-text font-bold">{data?.settlementLockedAt || '03:40:00 PM IST'}</strong></span>
+              </>
+            ) : isLiveCasWindow ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-emerald-400 font-bold">Live CAS tracking active</span>
+                <span>•</span>
+                <span>Updated: <strong className="text-terminal-text">{new Date().toLocaleTimeString('en-IN')}</strong></span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-400/80" />
+                <span className="text-amber-400 font-semibold">Pre-CAS Standby (Live Radar Activates at 3:10 PM IST)</span>
+                <span>•</span>
+                <span>Market Status: <strong className="text-terminal-text font-bold">Continuous Trading</strong></span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">
