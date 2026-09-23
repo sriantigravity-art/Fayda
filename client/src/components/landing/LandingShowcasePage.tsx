@@ -289,6 +289,7 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
           sessionStorage.setItem('fayda_show_persona_on_login', 'true');
         } catch {}
         setIsPersonaModalOpen(true);
+        onLaunchDemo();
       } else {
         setAuthError(res.error || 'Invalid credentials. Please verify your details.');
       }
@@ -320,6 +321,7 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
           sessionStorage.setItem('fayda_show_persona_on_login', 'true');
         } catch {}
         setIsPersonaModalOpen(true);
+        onLaunchDemo();
       } else {
         setAuthError(res.error || 'Registration failed. Email may already exist.');
       }

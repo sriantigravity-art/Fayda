@@ -288,16 +288,22 @@ export const HeaderBar: React.FC = () => {
 
         {/* LEFT SECTION: BRAND + ASSET SELECTOR + CONTEXT METRICS + CLOSED/LIVE NSE + CONNECT BROKER */}
         <div className="flex items-center space-x-1 sm:space-x-2 shrink-0 min-w-0">
-          {/* Logo & Brand Name */}
-          <div className="flex items-center space-x-1.5 shrink-0">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-sky/15 flex items-center justify-center border border-accent-sky/30 shadow-subtle shrink-0">
-              <img src="/favicon-32x32.png" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" alt="Fayda" />
+          {/* Logo & Brand Name (Click to view Fayda Home Page) */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('fayda-show-home'))}
+            className="flex items-center space-x-1.5 shrink-0 cursor-pointer group text-left p-1 -m-1 rounded-lg hover:bg-terminal-panel/80 transition focus:outline-none focus:ring-1 focus:ring-accent-sky/50"
+            title="Go to Fayda Pro Home Page"
+            aria-label="Fayda Pro Home Page"
+          >
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-sky/15 group-hover:bg-accent-sky/25 flex items-center justify-center border border-accent-sky/30 group-hover:border-accent-sky/50 shadow-subtle shrink-0 transition">
+              <img src="/favicon-32x32.png" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain group-hover:scale-105 transition-transform" alt="Fayda" />
             </div>
             <div className="hidden sm:flex flex-col leading-none">
-              <span className="font-bold text-xs tracking-tight text-terminal-text">FAYDA PRO</span>
+              <span className="font-bold text-xs tracking-tight text-terminal-text group-hover:text-accent-sky transition">FAYDA PRO</span>
               <span className="text-[9px] text-terminal-muted font-mono tracking-wider">MARKET OS</span>
             </div>
-          </div>
+          </button>
 
           <div className="h-4 w-[1px] bg-terminal-border hidden sm:block shrink-0" />
 

@@ -267,10 +267,15 @@ const MainDashboard: React.FC = () => {
       <footer className="border-t border-terminal-border bg-terminal-card px-4 py-3 text-[11px] font-sans text-terminal-muted flex flex-col md:flex-row items-center justify-between gap-3 mt-auto shadow-inner">
         {/* Left: Terminal Branding & Real-time Stream Status */}
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-center md:text-left">
-          <span className="font-bold text-terminal-text tracking-tight flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('fayda-show-home'))}
+            className="font-bold text-terminal-text tracking-tight flex items-center gap-1.5 cursor-pointer hover:text-accent-sky transition focus:outline-none"
+            title="Go to Fayda Pro Home Page"
+          >
             <img src="/favicon-32x32.png" className="w-4 h-4 object-contain" alt="" />
             <span className="text-xs font-black">FAYDA PRO TERMINAL</span>
-          </span>
+          </button>
           <span className="text-terminal-border hidden sm:inline">•</span>
           <span className="hidden sm:inline">Official NSE / BSE Real-time Stream</span>
           <span className="text-terminal-border hidden sm:inline">•</span>
@@ -411,6 +416,18 @@ const DashboardGate: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { setIsPersonaModalOpen } = useTradingPersona();
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [showHomeView, setShowHomeView] = useState(false);
+
+  useEffect(() => {
+    const handleShowHome = () => setShowHomeView(true);
+    const handleShowTerminal = () => setShowHomeView(false);
+    window.addEventListener('fayda-show-home', handleShowHome);
+    window.addEventListener('fayda-show-terminal', handleShowTerminal);
+    return () => {
+      window.removeEventListener('fayda-show-home', handleShowHome);
+      window.removeEventListener('fayda-show-terminal', handleShowTerminal);
+    };
+  }, []);
 
   const handleLaunchDemo = () => {
     try {
@@ -418,9 +435,10 @@ const DashboardGate: React.FC = () => {
     } catch {}
     setIsPersonaModalOpen(true);
     setIsDemoMode(true);
+    setShowHomeView(false);
   };
 
-  if (!isAuthenticated && !isDemoMode) {
+  if ((!isAuthenticated && !isDemoMode) || showHomeView) {
     return <TerminalLoginGate onLaunchDemo={handleLaunchDemo} />;
   }
   return <MainDashboard />;
