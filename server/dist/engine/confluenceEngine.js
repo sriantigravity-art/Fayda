@@ -950,7 +950,31 @@ export class ConfluenceEngine {
             };
         }
         if (isCommodity) {
-            if (currentMin >= (15 * 60 + 40) && currentMin < (18 * 60)) {
+            if (currentMin < (9 * 60)) {
+                return {
+                    session: 'OFF_MARKET',
+                    sessionName: 'MCX Pre-Market Settlement',
+                    windowTime: '23:30 - 09:00 IST',
+                    quotaDescription: 'Commodity Market Closed • Opens at 09:00 AM IST'
+                };
+            }
+            else if (currentMin >= (9 * 60) && currentMin < (9 * 60 + 25)) {
+                return {
+                    session: 'OPENING_SETTLING',
+                    sessionName: 'MCX Opening & Settling Phase',
+                    windowTime: '09:00 - 09:25 IST',
+                    quotaDescription: 'MCX trading active. Opening orders settling. High-conviction signals activate after 09:25 AM IST.'
+                };
+            }
+            else if (currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 40)) {
+                return {
+                    session: 'COMMODITY_EU',
+                    sessionName: 'Morning Asian / Domestic MCX',
+                    windowTime: '09:25 - 15:40 IST',
+                    quotaDescription: 'Top 1-2 Early Commodity Setups'
+                };
+            }
+            else if (currentMin >= (15 * 60 + 40) && currentMin < (18 * 60)) {
                 return {
                     session: 'COMMODITY_EU',
                     sessionName: 'European Energy & Metals Prime',
@@ -974,14 +998,6 @@ export class ConfluenceEngine {
                     quotaDescription: 'Top 1 Commodity Swing / Hedge Trade'
                 };
             }
-            else if (currentMin >= (9 * 60) && currentMin < (15 * 60 + 40)) {
-                return {
-                    session: 'COMMODITY_EU',
-                    sessionName: 'Morning Asian / Domestic MCX',
-                    windowTime: '09:00 - 15:40 IST',
-                    quotaDescription: 'Top 1-2 Early Commodity Setups'
-                };
-            }
             else {
                 return {
                     session: 'OFF_MARKET',
@@ -992,19 +1008,35 @@ export class ConfluenceEngine {
             }
         }
         // NSE / BSE Equity & Derivatives
-        if (currentMin >= (9 * 60) && currentMin < (9 * 60 + 15)) {
+        if (currentMin < (9 * 60)) {
             return {
-                session: 'PRE_MARKET_DISCOVERY',
-                sessionName: 'Pre-Market Discovery & Opening Setup',
-                windowTime: '09:00 - 09:15 IST',
-                quotaDescription: 'Pre-Market Order Discovery & Gap Analysis'
+                session: 'PRE_MARKET_STANDBY',
+                sessionName: 'Pre-Market Standby',
+                windowTime: 'Before 09:00 AM IST',
+                quotaDescription: 'Market opens at 09:00 AM IST (Live trading 09:15 AM). Live signals activate after market settles at 09:25 AM IST. Completed trades are in Journal.'
             };
         }
-        else if (currentMin >= (9 * 60 + 15) && currentMin < (10 * 60)) {
+        else if (currentMin >= (9 * 60) && currentMin < (9 * 60 + 15)) {
+            return {
+                session: 'PRE_MARKET_DISCOVERY',
+                sessionName: 'Pre-Market Discovery (Market Open for Orders)',
+                windowTime: '09:00 - 09:15 IST',
+                quotaDescription: 'Pre-market order discovery in progress. Live signals start after market settles at 09:25 AM IST. Past trades archived in Journal.'
+            };
+        }
+        else if (currentMin >= (9 * 60 + 15) && currentMin < (9 * 60 + 25)) {
+            return {
+                session: 'OPENING_SETTLING',
+                sessionName: 'Market Opening & Settling Phase',
+                windowTime: '09:15 - 09:25 IST',
+                quotaDescription: 'Regular market open. Filtering opening auction noise and stabilizing VWAP. High-conviction signals start after 09:25 AM IST.'
+            };
+        }
+        else if (currentMin >= (9 * 60 + 25) && currentMin < (10 * 60)) {
             return {
                 session: 'MORNING_POWER_OPEN',
-                sessionName: 'Morning Power Open',
-                windowTime: '09:15 - 10:00 IST',
+                sessionName: 'Morning Power Open (Market Settled)',
+                windowTime: '09:25 - 10:00 IST',
                 quotaDescription: 'Top 1-2 High-Velocity Breakout Trades'
             };
         }
@@ -1024,20 +1056,28 @@ export class ConfluenceEngine {
                 quotaDescription: 'Top 1 Capital-Protected Spread Trade'
             };
         }
-        else if (currentMin >= (14 * 60 + 30) && currentMin < (15 * 60 + 40)) {
+        else if (currentMin >= (14 * 60 + 30) && currentMin < (15 * 60 + 30)) {
             return {
                 session: 'AFTERNOON_GAMMA_POWER_HOUR',
                 sessionName: 'Afternoon 0DTE Power Hour & Expiry Squeeze',
-                windowTime: '14:30 - 15:40 IST',
+                windowTime: '14:30 - 15:30 IST',
                 quotaDescription: 'Top 1-2 Gamma Squeeze / Momentum Trades'
+            };
+        }
+        else if (currentMin >= (15 * 60 + 30) && currentMin < (15 * 60 + 40)) {
+            return {
+                session: 'INTRADAY_SQUARE_OFF',
+                sessionName: 'Intraday Square-Off & Settlement',
+                windowTime: '15:30 - 15:40 IST',
+                quotaDescription: 'Squaring off open intraday trades & archiving to Journal'
             };
         }
         else {
             return {
                 session: 'OFF_MARKET',
                 sessionName: 'Post-Market EOD Review',
-                windowTime: '15:40 - 09:00 IST',
-                quotaDescription: 'EOD Analysis & Next Day Setup'
+                windowTime: '15:40 - 24:00 IST',
+                quotaDescription: 'Session closed at 03:40 PM. All completed trades archived in Trade Journal.'
             };
         }
     }
@@ -1643,16 +1683,22 @@ export class ConfluenceEngine {
         const isBull = masterConfluence.overallSignal.includes('BUY_CALL') || masterConfluence.masterDecision === 'BUY_CALL';
         const isBear = masterConfluence.overallSignal.includes('BUY_PUT') || masterConfluence.masterDecision === 'BUY_PUT';
         const isDirectional = isBull || isBear;
+        const currentMin = ist.getHours() * 60 + ist.getMinutes();
         const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
-        const isOffMarket = sessionInfo.session === 'OFF_MARKET';
-        const isPast340Pm = !isCommodity && isOffMarket;
+        const isOffMarket = sessionInfo.session === 'OFF_MARKET' || sessionInfo.session === 'PRE_MARKET_STANDBY';
+        const isPast340Pm = !isCommodity && (currentMin >= (15 * 60 + 40));
+        const isPast330Pm = !isCommodity && (currentMin >= (15 * 60 + 30));
+        const isBefore925Am = !isCommodity ? (currentMin < (9 * 60 + 25)) : (currentMin < (9 * 60));
+        const isMarketSettled = isCommodity
+            ? (currentMin >= (9 * 60 + 25) && currentMin < (23 * 60 + 30))
+            : (currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 30));
         // Symbol configuration & lot size for rupee P&L calculation
         const symCfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === symbol);
         const instrumentLot = symCfg?.lot || (symbol === 'NIFTY' ? 65 : symbol === 'BANKNIFTY' ? 30 : 50);
         // When equity markets close at 03:40 PM IST, stop giving live timestamps like 03:52 PM.
         // Instead clamp to the session closing benchmark (03:15 - 03:20 PM IST).
         const effectiveEntryTimeFormatted = isPast340Pm ? '03:15 PM IST' : timeFormatted;
-        const effectiveCarryForwardTimeFormatted = isPast340Pm ? '03:20 PM IST' : (isOffMarket ? '03:20 PM IST' : timeFormatted);
+        const effectiveCarryForwardTimeFormatted = isPast340Pm ? '03:20 PM IST' : timeFormatted;
         // Dynamic Market Momentum, Expiry Gamma & CAS Volatility Fluctuation Detection
         const momentumInfo = ConfluenceEngine.detectMarketMomentumAndTargets(symbol, spotPrice, atmStrike, strikes, pcr, technicalIndicators, cprData, indiaVix, daysToExpiry ?? 2, activeExpiryDate);
         // ── 0. Off-Market Benchmark Study Mode ──────────────────────────────────
@@ -1767,7 +1813,7 @@ export class ConfluenceEngine {
                 }
             }
             else {
-                const isMarketClosedOrEod = isPast340Pm || sessionInfo.session === 'OFF_MARKET';
+                const isMarketClosedOrEod = isPast340Pm;
                 if (isMarketClosedOrEod) {
                     const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
                         tip: {
@@ -1900,9 +1946,40 @@ export class ConfluenceEngine {
                 isCarriedForward: status === 'CARRIED_FORWARD',
                 carriedFromSession: prev.sessionName
             };
-            if (updated.status === 'CARRIED_FORWARD' || updated.status === 'INTRADAY_CLOSED' || updated.status === 'TARGET1_HIT' || updated.status === 'TARGET2_HIT') {
+            if (updated.status === 'CARRIED_FORWARD') {
                 carriedForwardTrades.push(updated);
             }
+        }
+        // ── Pre-Market / Market Opening Settling Guard (Before 09:25 AM IST) ──
+        // In Indian markets:
+        // • Market opens at 09:00 AM IST for pre-market orders/discovery.
+        // • Regular trading begins at 09:15 AM IST.
+        // • Opening volatility & VWAP anchor settle after 09:25 AM IST.
+        // • Completed / squared-off trades from earlier sessions belong in the Trade Journal.
+        // New live high-conviction trades must ONLY start to generate & show after 09:25 AM IST.
+        if (isBefore925Am) {
+            return {
+                currentSession: sessionInfo.session,
+                currentSessionName: sessionInfo.sessionName,
+                sessionWindowTime: sessionInfo.windowTime,
+                quotaDescription: sessionInfo.quotaDescription,
+                primaryTrade: null,
+                topCallTrade: null,
+                topPutTrade: null,
+                topSellerPutTrade: null,
+                topSellerCallTrade: null,
+                topSellerNeutralTrade: null,
+                hedgedSpreadTrade: null,
+                gammaTrade: null,
+                carriedForwardTrades: carriedForwardTrades.filter(t => t.status === 'CARRIED_FORWARD'),
+                activeExpiryDate,
+                upcomingExpiries,
+                nextExpiryDate,
+                isExpiryDay: momentumInfo.isExpiryDay,
+                directionalBias,
+                directionalGuidance,
+                lastEvaluatedAt: new Date().toISOString()
+            };
         }
         // ── 2. Tier 1: Primary Directional Momentum Trade ───────────────────────
         let primaryTrade = null;

@@ -105,7 +105,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     const pkg = state?.unifiedTipsPackage;
     const hero = pkg?.primaryTrade || pkg?.topCallTrade || pkg?.topPutTrade || pkg?.gammaTrade;
     const spot = state?.spotPrice;
-    if (!hero || hero.action === 'STANDBY') {
+    if (!hero || hero.action === 'STANDBY' || hero.status === 'INTRADAY_CLOSED' || hero.status === 'SQUARE_OFF' || hero.status === 'EXPIRED') {
       return { hasSignal: false, spot };
     }
     const isTargetHit = hero.status === 'TARGET1_HIT' || hero.status === 'TARGET2_HIT' || hero.status === 'TARGET_HIT';
@@ -115,7 +115,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     const isPut = hero.action.includes('PUT');
 
     return {
-      hasSignal: true,
+      hasSignal: !isSquareOff && !isTargetHit && !isSlHit,
       spot,
       action: hero.action,
       contractSymbol: hero.contractSymbol,
@@ -140,14 +140,14 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
            a.includes('TARGET') || a.includes('SL_HIT') || a.includes('SQUARE_OFF');
   };
 
-  // Helper to prioritize fresh active signals: "show new signals only if given"
+  // Helper to prioritize fresh active signals: show active signals only, never completed/squared-off ones as hero
   const getBestTip = (candidates: (UnifiedSmartTip | null | undefined)[]): UnifiedSmartTip | null => {
     const valid = candidates.filter((t): t is UnifiedSmartTip => Boolean(t && t.action !== 'STANDBY' && t.status !== 'EXPIRED'));
     // 1. Pick first active (non-completed) signal if available
     const active = valid.find(t => !isCompletedTrade(t));
     if (active) return active;
-    // 2. Fallback to latest trade (which will show docked in journal status)
-    return valid[0] || null;
+    // Do not fall back to completed/squared-off trades as hero cards in the live cockpit
+    return null;
   };
 
   // User explicitly selected strike tip
@@ -197,7 +197,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     const isPast3Pm = istTime.getHours() >= 15;
 
     candidates.forEach(c => {
-      if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED') return;
+      if (!c.tip || c.tip.action === 'STANDBY' || c.tip.status === 'EXPIRED' || c.tip.status === 'INTRADAY_CLOSED' || c.tip.status === 'SQUARE_OFF') return;
 
       // Strict Derivative Viability: < 2.0 Rs never allowed; after 3:00 PM <= 5.0 Rs prohibited in derivatives
       const isBuyer = c.tip.tradingRole !== 'SELLER';
@@ -1432,13 +1432,128 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="p-6 rounded-xl border border-dashed border-terminal-border text-center space-y-2 bg-terminal-panel/30 font-mono">
-            <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto opacity-75" />
-            <h3 className="text-sm font-bold text-terminal-text">CAPITAL PRESERVATION ZONE — NO ACTIVE HIGH-CONVICTION TRADE</h3>
-            <p className="text-xs text-terminal-muted max-w-lg mx-auto leading-relaxed">
-              Fayda Quantum Engine has detected low momentum divergence or rangebound chop. 
-              The system protects capital by withholding trades until surge velocity and 10-indicator confluence mutually align.
-            </p>
+          <div className="p-6 sm:p-8 rounded-2xl border border-terminal-border/80 bg-gradient-to-b from-terminal-panel/60 to-terminal-card/80 text-center space-y-4 font-mono shadow-inner">
+            {tipsPackage?.currentSession === 'PRE_MARKET_STANDBY' ? (
+              <>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-md">
+                  <Clock className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                    <span>🌅 PRE-MARKET STANDBY</span>
+                    <span>•</span>
+                    <span>OPENS AT 09:00 AM IST</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-terminal-text tracking-wide mt-2">
+                    MARKET NOT STARTED YET — PRE-MARKET AUDIT READY
+                  </h3>
+                  <p className="text-xs text-terminal-muted max-w-xl mx-auto leading-relaxed mt-1">
+                    Pre-market order discovery begins at 09:00 AM IST. Regular equity trading starts at 09:15 AM, and high-conviction AI signals will activate once the market settles after <strong>09:25 AM IST</strong>.
+                  </p>
+                </div>
+              </>
+            ) : tipsPackage?.currentSession === 'PRE_MARKET_DISCOVERY' ? (
+              <>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-md">
+                  <Sparkles className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <span>⏱️ PRE-MARKET DISCOVERY (09:00 - 09:15 AM)</span>
+                    <span>•</span>
+                    <span>ORDER MATCHING ACTIVE</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-terminal-text tracking-wide mt-2">
+                    MARKET OPENED FOR ORDER DISCOVERY — SIGNALS SETTLE AT 09:25 AM
+                  </h3>
+                  <p className="text-xs text-terminal-muted max-w-xl mx-auto leading-relaxed mt-1">
+                    Market opened at 09:00 AM for auction discovery. Live high-conviction signals will activate once opening market volatility and VWAP settle after <strong>09:25 AM IST</strong>.
+                  </p>
+                </div>
+              </>
+            ) : tipsPackage?.currentSession === 'OPENING_SETTLING' ? (
+              <>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-md">
+                  <ShieldCheck className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-teal-500/15 text-teal-400 border border-teal-500/30">
+                    <span>🛡️ MARKET SETTLING PHASE (09:15 - 09:25 AM)</span>
+                    <span>•</span>
+                    <span>AUCTION NOISE FILTER ACTIVE</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-terminal-text tracking-wide mt-2">
+                    STABILIZING OPENING VOLATILITY & VWAP BENCHMARK
+                  </h3>
+                  <p className="text-xs text-terminal-muted max-w-xl mx-auto leading-relaxed mt-1">
+                    Regular market is open. The quantum engine protects capital by filtering opening 10-minute spread distortion. Fresh high-conviction trades will activate promptly after <strong>09:25 AM IST</strong>.
+                  </p>
+                </div>
+              </>
+            ) : tipsPackage?.currentSession === 'OFF_MARKET' || tipsPackage?.currentSession === 'INTRADAY_SQUARE_OFF' ? (
+              <>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-md">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                    <span>🌙 INTRADAY SESSION CLOSED</span>
+                    <span>•</span>
+                    <span>MOVED TO TRADE JOURNAL</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-terminal-text tracking-wide mt-2">
+                    ALL INTRADAY TRADES SQUARED OFF & DOCKED IN JOURNAL
+                  </h3>
+                  <p className="text-xs text-terminal-muted max-w-xl mx-auto leading-relaxed mt-1">
+                    Regular equity trading closed for the session. Intraday positions have been squared off to avoid overnight decay. Full date-wise trade audits and P&L are available in the Journal.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-md">
+                  <AlertTriangle className="w-6 h-6 opacity-85" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    <span>⚡ CAPITAL PRESERVATION ZONE</span>
+                    <span>•</span>
+                    <span>CONFLUENCE FILTER ACTIVE</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-terminal-text tracking-wide mt-2">
+                    NO ACTIVE HIGH-CONVICTION SIGNAL FOR {selectedIndex}
+                  </h3>
+                  <p className="text-xs text-terminal-muted max-w-xl mx-auto leading-relaxed mt-1">
+                    Fayda Quantum Engine is actively scanning order flow, VWAP anchors, and breakout patterns. New signals trigger when 10-indicator confluence score reaches ≥80%.
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('fayda:open-journal'));
+                  const journalEl = document.getElementById('signals-ledger-journal') || document.getElementById('trade-journal');
+                  if (journalEl) {
+                    journalEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-mono font-bold text-xs shadow-lg transition flex items-center gap-2 cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Open Trade Journal (Past Signals & P&L)</span>
+              </button>
+
+              <div className="text-[11px] text-terminal-muted flex items-center gap-2">
+                <span>Spot: <strong className="text-terminal-text">₹{currentIndexState?.spotPrice?.toFixed(2) || '---'}</strong></span>
+                <span>•</span>
+                <span>ATM Strike: <strong className="text-terminal-text">{currentIndexState?.atmStrike || '---'}</strong></span>
+                <span>•</span>
+                <span>PCR: <strong className="text-terminal-text">{currentIndexState?.pcr?.overallPcr?.toFixed(2) || '1.0'}</strong></span>
+              </div>
+            </div>
           </div>
         )}
 

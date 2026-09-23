@@ -152,6 +152,9 @@ export const HeaderBar: React.FC = () => {
 
   // Global Keyboard Shortcuts: Ctrl+K / Cmd+K (Palette), F11 (Fullscreen), and F (Fullscreen)
   useEffect(() => {
+    const handleOpenJournal = () => setIsJournalModalOpen(true);
+    window.addEventListener('fayda:open-journal', handleOpenJournal);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();

@@ -763,7 +763,16 @@ export class OIEngine {
             updatedAtIso: new Date(now).toISOString(),
             unifiedTipsPackage: (() => {
                 const mc = ConfluenceEngine.calculateMasterConfluence(symbol, spotPrice, strikesData, pcr, maxPain, straddleRange, daysToExpiry, patternBreakout);
-                const prevTrades = this.sessionTradesHistory.get(symbol) || [];
+                const nowMs = Date.now();
+                const utcMs = nowMs + (new Date().getTimezoneOffset() * 60000);
+                const istDate = new Date(utcMs + (3600000 * 5.5));
+                const currentMin = istDate.getHours() * 60 + istDate.getMinutes();
+                const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+                const isBefore925 = !isCommodity ? currentMin < (9 * 60 + 25) : currentMin < (9 * 60);
+                if (isBefore925) {
+                    this.sessionTradesHistory.delete(symbol);
+                }
+                const prevTrades = isBefore925 ? [] : (this.sessionTradesHistory.get(symbol) || []);
                 const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(symbol, spotPrice, strikesData, mc, faydaScan.activeSetup, faydaScan.allDetectedSetups, multiLegScan.recommendedStrategy, patternBreakout, heroZeroSignals, cprData, marketRegime, pcr, indiaVix, prevTrades, technicalIndicators, maxPain, daysToExpiry, activeExpiry, expiries, this.recentSurges.filter(s => s.indexSymbol === symbol));
                 // Update active session trades for carry-forward (strictly deduplicated by contractSymbol)
                 const activeToKeep = [];

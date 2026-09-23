@@ -1093,15 +1093,18 @@ export interface JournalReportResponse {
 }
 
 export type MarketSessionWindow =
-  | 'PRE_MARKET_DISCOVERY'      // 09:00 - 09:15 IST
-  | 'MORNING_POWER_OPEN'        // 09:15 - 10:00 IST
+  | 'PRE_MARKET_STANDBY'        // Before 09:00 IST
+  | 'PRE_MARKET_DISCOVERY'      // 09:00 - 09:15 IST (Market Starts)
+  | 'OPENING_SETTLING'          // 09:15 - 09:25 IST (Opening Auction Noise Settling)
+  | 'MORNING_POWER_OPEN'        // 09:25 - 10:00 IST (Market Settled)
   | 'MID_MORNING_TREND'         // 10:00 - 12:00 IST
   | 'MIDDAY_EUROPE_SPREAD'      // 12:00 - 14:30 IST
-  | 'AFTERNOON_GAMMA_POWER_HOUR'// 14:30 - 15:40 IST
+  | 'AFTERNOON_GAMMA_POWER_HOUR'// 14:30 - 15:30 IST
+  | 'INTRADAY_SQUARE_OFF'       // 15:30 - 15:40 IST (Intraday Position Square-off)
   | 'COMMODITY_EU'              // 15:40 - 18:00 IST
   | 'COMMODITY_US_OPEN'         // 18:00 - 20:00 IST
   | 'COMMODITY_US_EOD'          // 20:00 - 23:30 IST
-  | 'OFF_MARKET';
+  | 'OFF_MARKET';               // 15:40 - 24:00 IST / Weekends
 export interface TipConfluenceFactor {
   confirmed: boolean;
   score: number;

@@ -926,7 +926,17 @@ export class OIEngine {
           daysToExpiry,
           patternBreakout
         );
-        const prevTrades = this.sessionTradesHistory.get(symbol) || [];
+        const nowMs = Date.now();
+        const utcMs = nowMs + (new Date().getTimezoneOffset() * 60000);
+        const istDate = new Date(utcMs + (3600000 * 5.5));
+        const currentMin = istDate.getHours() * 60 + istDate.getMinutes();
+        const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(symbol);
+        const isBefore925 = !isCommodity ? currentMin < (9 * 60 + 25) : currentMin < (9 * 60);
+
+        if (isBefore925) {
+          this.sessionTradesHistory.delete(symbol);
+        }
+        const prevTrades = isBefore925 ? [] : (this.sessionTradesHistory.get(symbol) || []);
         const tipsPackage = ConfluenceEngine.generateUnifiedTipsPackage(
           symbol,
           spotPrice,
