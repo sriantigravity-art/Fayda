@@ -79,6 +79,18 @@ const getRecentTradingDays = () => {
   return { todayStr, prevDayStr, pastTradingDays, isPreMarket };
 };
 
+export const COMMODITY_SYMBOLS = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+
+export const getJournalCallCategory = (c: { category?: string; symbol?: string; action?: string }): 'OPTIONS_BUY' | 'OPTIONS_SELL' | 'STOCKS' | 'COMMODITIES' => {
+  const sym = (c.symbol || '').toUpperCase();
+  const cat = (c.category || '').toUpperCase();
+  const act = (c.action || '').toUpperCase();
+  if (cat === 'COMMODITIES' || COMMODITY_SYMBOLS.includes(sym)) return 'COMMODITIES';
+  if (act.startsWith('SELL')) return 'OPTIONS_SELL';
+  if (cat === 'STOCKS') return 'STOCKS';
+  return 'OPTIONS_BUY';
+};
+
 // Client-side fallback report generator for instant loading and resilience
 const generateClientFallbackReport = (dateStr?: string, category: AssetCategory = 'ALL', status: string = 'ALL'): JournalReportResponse => {
   const { todayStr, prevDayStr, pastTradingDays, isPreMarket } = getRecentTradingDays();
@@ -552,7 +564,14 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
   const rawCalls: JournalTradeCall[] = dateDataMap[targetDate] || [];
 
   const filtered = rawCalls.filter(c => {
-    if (category !== 'ALL' && c.category !== category) return false;
+    const callCat = getJournalCallCategory(c);
+    if (category !== 'ALL') {
+      if (category === 'OPTIONS' && callCat !== 'OPTIONS_BUY' && callCat !== 'OPTIONS_SELL') return false;
+      if (category === 'OPTIONS_BUY' && callCat !== 'OPTIONS_BUY') return false;
+      if (category === 'OPTIONS_SELL' && callCat !== 'OPTIONS_SELL') return false;
+      if (category === 'STOCKS' && callCat !== 'STOCKS') return false;
+      if (category === 'COMMODITIES' && callCat !== 'COMMODITIES') return false;
+    }
     if (status !== 'ALL') {
       if (status === 'PROFIT' && c.status !== 'TARGET_HIT') return false;
       if (status === 'LOSS' && c.status !== 'STOPLOSS_HIT') return false;
@@ -563,9 +582,38 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
 
   let prof = 0, loss = 0, near = 0, active = 0, gainPts = 0, lossPts = 0;
   let bestTradeItem: JournalTradeCall | null = null;
+
+  const catStats = {
+    optionsBuy: { total: 0, profitable: 0, loss: 0 },
+    optionsSell: { total: 0, profitable: 0, loss: 0 },
+    stocks: { total: 0, profitable: 0, loss: 0 },
+    commodities: { total: 0, profitable: 0, loss: 0 }
+  };
+
+  // Compute category breakdown across all calls for the day
+  rawCalls.forEach(c => {
+    const isTargetHit = c.status === 'TARGET_HIT';
+    const isSlHit = c.status === 'STOPLOSS_HIT';
+    const isWin = isTargetHit || c.pointsPnl > 0;
+    const isLoss = isSlHit || c.pointsPnl < 0;
+
+    const callCat = getJournalCallCategory(c);
+    const key = callCat === 'OPTIONS_BUY' ? 'optionsBuy'
+      : callCat === 'OPTIONS_SELL' ? 'optionsSell'
+      : callCat === 'STOCKS' ? 'stocks'
+      : 'commodities';
+
+    catStats[key].total++;
+    if (isWin) catStats[key].profitable++;
+    if (isLoss) catStats[key].loss++;
+  });
+
   filtered.forEach(c => {
-    if (c.status === 'TARGET_HIT') prof++;
-    else if (c.status === 'STOPLOSS_HIT') loss++;
+    const isTargetHit = c.status === 'TARGET_HIT';
+    const isSlHit = c.status === 'STOPLOSS_HIT';
+
+    if (isTargetHit) prof++;
+    else if (isSlHit) loss++;
     else if (c.nearTargetPct >= 80) near++;
     else active++;
 
@@ -581,9 +629,18 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
   const winRatePct = totalDecided > 0 ? +((prof / totalDecided) * 100).toFixed(2) : 0;
   const nearTargetAccuracyPct = filtered.length > 0 ? +(((prof + near) / filtered.length) * 100).toFixed(2) : 0;
 
+  const calcWinRate = (p: number, l: number, tot: number) => {
+    const d = p + l;
+    if (d > 0) return Math.round((p / d) * 100);
+    return tot > 0 ? Math.round((p / tot) * 100) : 0;
+  };
+
   return {
     date: targetDate,
     availableDates: dates,
+    category,
+    symbolFilter: 'ALL',
+    statusFilter: status,
     summary: {
       totalCalls: filtered.length,
       profitableCalls: prof,
@@ -602,9 +659,43 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         pnlPct: bestTradeItem.pnlPct
       } : null,
       categoryBreakdown: {
-        options: { total: filtered.filter(c => c.category === 'OPTIONS').length, winRate: 0, netPts: 0 },
-        stocks: { total: filtered.filter(c => c.category === 'STOCKS').length, winRate: 0, netPts: 0 },
-        commodities: { total: filtered.filter(c => c.category === 'COMMODITIES').length, winRate: 0, netPts: 0 }
+        optionsBuy: {
+          total: catStats.optionsBuy.total,
+          profitable: catStats.optionsBuy.profitable,
+          loss: catStats.optionsBuy.loss,
+          winRate: calcWinRate(catStats.optionsBuy.profitable, catStats.optionsBuy.loss, catStats.optionsBuy.total),
+          netPoints: 0
+        },
+        optionsSell: {
+          total: catStats.optionsSell.total,
+          profitable: catStats.optionsSell.profitable,
+          loss: catStats.optionsSell.loss,
+          winRate: calcWinRate(catStats.optionsSell.profitable, catStats.optionsSell.loss, catStats.optionsSell.total),
+          netPoints: 0
+        },
+        stocks: {
+          total: catStats.stocks.total,
+          profitable: catStats.stocks.profitable,
+          loss: catStats.stocks.loss,
+          winRate: calcWinRate(catStats.stocks.profitable, catStats.stocks.loss, catStats.stocks.total),
+          netPoints: 0
+        },
+        commodities: {
+          total: catStats.commodities.total,
+          profitable: catStats.commodities.profitable,
+          loss: catStats.commodities.loss,
+          winRate: calcWinRate(catStats.commodities.profitable, catStats.commodities.loss, catStats.commodities.total),
+          netPoints: 0
+        },
+        options: {
+          total: catStats.optionsBuy.total + catStats.optionsSell.total,
+          winRate: calcWinRate(
+            catStats.optionsBuy.profitable + catStats.optionsSell.profitable,
+            catStats.optionsBuy.loss + catStats.optionsSell.loss,
+            catStats.optionsBuy.total + catStats.optionsSell.total
+          ),
+          netPoints: 0
+        }
       }
     },
     signals: filtered
@@ -752,19 +843,27 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
     setCurrentPage(1);
   }, [selectedDate, selectedCategory, statusFilter]);
 
-  // Client-side text search filter
+  // Client-side text search & category filter
   const displayedSignals = useMemo(() => {
     if (!report?.signals) return [];
-    if (!searchQuery.trim()) return report.signals;
+    let list = report.signals;
+    if (selectedCategory !== 'ALL') {
+      list = list.filter(c => {
+        const cat = getJournalCallCategory(c);
+        if (selectedCategory === 'OPTIONS') return cat === 'OPTIONS_BUY' || cat === 'OPTIONS_SELL';
+        return cat === selectedCategory;
+      });
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return report.signals.filter(s => 
+    return list.filter(s => 
       s.symbol.toLowerCase().includes(q) ||
       s.contractName.toLowerCase().includes(q) ||
       s.action.toLowerCase().includes(q) ||
       s.signalSource.toLowerCase().includes(q) ||
       s.timeFormatted.toLowerCase().includes(q)
     );
-  }, [report?.signals, searchQuery]);
+  }, [report?.signals, searchQuery, selectedCategory]);
 
   const totalPages = Math.max(1, Math.ceil(displayedSignals.length / PAGE_SIZE));
   const paginatedSignals = useMemo(() => {
@@ -776,13 +875,16 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
 
   const handleCopySummary = () => {
     if (!summary || !report) return;
+    const cats = summary.categoryBreakdown;
     const text = `📊 Fayda Pro Trade Journal Summary (${report.date})
-• Total Calls: ${summary.totalCalls}
-• Win Rate: ${summary.winRatePct}%
+• Total Predictions: ${summary.totalCalls}
+• Win Rates by Category:
+  - Options Buy: ${cats?.optionsBuy ? `${cats.optionsBuy.winRate}% (${cats.optionsBuy.profitable}W / ${cats.optionsBuy.loss}L • ${cats.optionsBuy.total} calls)` : 'N/A'}
+  - Option Sell: ${cats?.optionsSell ? `${cats.optionsSell.winRate}% (${cats.optionsSell.profitable}W / ${cats.optionsSell.loss}L • ${cats.optionsSell.total} calls)` : 'N/A'}
+  - Stocks: ${cats?.stocks ? `${cats.stocks.winRate}% (${cats.stocks.profitable}W / ${cats.stocks.loss}L • ${cats.stocks.total} calls)` : 'N/A'}
+  - Commodities: ${cats?.commodities ? `${cats.commodities.winRate}% (${cats.commodities.profitable}W / ${cats.commodities.loss}L • ${cats.commodities.total} calls)` : 'N/A'}
+• Overall Win Rate: ${summary.winRatePct}%
 • Near-Target Accuracy (≥80%): ${summary.nearTargetAccuracyPct}%
-• Total Book Profit: +${summary.totalPointsProfit} pts
-• Total Book Loss: -${summary.totalPointsLoss} pts
-• Net P&L: ${summary.netPoints >= 0 ? '+' : ''}${summary.netPoints} pts
 • Avg Risk-Reward: ${summary.avgRiskReward}
 ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${summary.bestTrade.points} pts / +${summary.bestTrade.pnlPct}%)` : ''}`;
 
@@ -893,114 +995,272 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
       {/* ========================================================================= */}
       {/* 2. Top Summary KPI Cards (Win Rate, Points Profit/Loss, Near-Target Acc)  */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* 2. Top Summary KPI Cards: Category Win Rates & Performance Overview       */}
+      {/* ========================================================================= */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3 mb-4">
-          {/* Card 1: Win Rate % */}
-          <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
-            <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
-              <span>Win Rate</span>
-              <Award className="w-3.5 h-3.5 text-amber" />
-            </div>
-            <div className="mt-1 flex items-baseline space-x-1.5">
-              <span className="text-xl sm:text-2xl font-black font-mono text-bull tracking-tight">
-                {summary.winRatePct}%
-              </span>
-              <span className="text-[10px] text-terminal-muted font-mono">
-                ({summary.profitableCalls}W / {summary.lossCalls}L)
-              </span>
-            </div>
-            <div className="w-full bg-slate-200 dark:bg-terminal-bg h-1.5 rounded-full mt-2 overflow-hidden">
-              <div
-                className="bg-bull h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, summary.winRatePct)}%` }}
-              />
-            </div>
+        <div className="space-y-2.5 sm:space-y-3 mb-4">
+          {/* Row 1: Category Win Rate Cards (Options Buy, Option Sell, Stocks, Commodities) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {/* 1. Options Buy Card */}
+            {(() => {
+              const cat = summary.categoryBreakdown?.optionsBuy;
+              const winRate = cat?.winRate ?? 0;
+              const isSelected = selectedCategory === 'OPTIONS_BUY';
+              return (
+                <div 
+                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_BUY')}
+                  className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
+                    isSelected 
+                      ? 'border-accent-cyan ring-1 ring-accent-cyan bg-accent-cyan/5' 
+                      : 'border-slate-200 dark:border-terminal-border hover:border-accent-cyan/60'
+                  }`}
+                  title="Click to filter ledger by Options Buy calls"
+                >
+                  <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                    <span className="flex items-center gap-1.5 text-accent-cyan">
+                      <Zap className="w-3.5 h-3.5" />
+                      Options Buy
+                    </span>
+                    <span className="text-[10px] text-terminal-muted lowercase font-normal">
+                      {isSelected ? '(active)' : 'filter'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <div className="flex items-baseline space-x-1.5">
+                      <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight group-hover:text-accent-cyan transition-colors">
+                        {cat && cat.total > 0 ? `${winRate}%` : 'N/A'}
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono">
+                        ({cat?.profitable || 0}W / {cat?.loss || 0}L)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-terminal-card text-terminal-muted">
+                      {cat?.total || 0} calls
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-terminal-bg h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="bg-accent-cyan h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, winRate)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 2. Option Sell Card */}
+            {(() => {
+              const cat = summary.categoryBreakdown?.optionsSell;
+              const winRate = cat?.winRate ?? 0;
+              const isSelected = selectedCategory === 'OPTIONS_SELL';
+              return (
+                <div 
+                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_SELL')}
+                  className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
+                    isSelected 
+                      ? 'border-purple-400 ring-1 ring-purple-400 bg-purple-500/5' 
+                      : 'border-slate-200 dark:border-terminal-border hover:border-purple-400/60'
+                  }`}
+                  title="Click to filter ledger by Option Sell calls"
+                >
+                  <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                    <span className="flex items-center gap-1.5 text-purple-400">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      Option Sell
+                    </span>
+                    <span className="text-[10px] text-terminal-muted lowercase font-normal">
+                      {isSelected ? '(active)' : 'filter'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <div className="flex items-baseline space-x-1.5">
+                      <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight group-hover:text-purple-400 transition-colors">
+                        {cat && cat.total > 0 ? `${winRate}%` : 'N/A'}
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono">
+                        ({cat?.profitable || 0}W / {cat?.loss || 0}L)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-terminal-card text-terminal-muted">
+                      {cat?.total || 0} calls
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-terminal-bg h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, winRate)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 3. Stocks Card */}
+            {(() => {
+              const cat = summary.categoryBreakdown?.stocks;
+              const winRate = cat?.winRate ?? 0;
+              const isSelected = selectedCategory === 'STOCKS';
+              return (
+                <div 
+                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'STOCKS')}
+                  className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
+                    isSelected 
+                      ? 'border-emerald-400 ring-1 ring-emerald-400 bg-emerald-500/5' 
+                      : 'border-slate-200 dark:border-terminal-border hover:border-emerald-400/60'
+                  }`}
+                  title="Click to filter ledger by Stock calls"
+                >
+                  <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Stocks
+                    </span>
+                    <span className="text-[10px] text-terminal-muted lowercase font-normal">
+                      {isSelected ? '(active)' : 'filter'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <div className="flex items-baseline space-x-1.5">
+                      <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight group-hover:text-emerald-400 transition-colors">
+                        {cat && cat.total > 0 ? `${winRate}%` : 'N/A'}
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono">
+                        ({cat?.profitable || 0}W / {cat?.loss || 0}L)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-terminal-card text-terminal-muted">
+                      {cat?.total || 0} calls
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-terminal-bg h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, winRate)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 4. Commodities Card */}
+            {(() => {
+              const cat = summary.categoryBreakdown?.commodities;
+              const winRate = cat?.winRate ?? 0;
+              const isSelected = selectedCategory === 'COMMODITIES';
+              return (
+                <div 
+                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'COMMODITIES')}
+                  className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
+                    isSelected 
+                      ? 'border-amber ring-1 ring-amber bg-amber/5' 
+                      : 'border-slate-200 dark:border-terminal-border hover:border-amber/60'
+                  }`}
+                  title="Click to filter ledger by Commodity calls"
+                >
+                  <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                    <span className="flex items-center gap-1.5 text-amber">
+                      <Flame className="w-3.5 h-3.5" />
+                      Commodities
+                    </span>
+                    <span className="text-[10px] text-terminal-muted lowercase font-normal">
+                      {isSelected ? '(active)' : 'filter'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <div className="flex items-baseline space-x-1.5">
+                      <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight group-hover:text-amber transition-colors">
+                        {cat && cat.total > 0 ? `${winRate}%` : 'N/A'}
+                      </span>
+                      <span className="text-[10px] text-terminal-muted font-mono">
+                        ({cat?.profitable || 0}W / {cat?.loss || 0}L)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-terminal-card text-terminal-muted">
+                      {cat?.total || 0} calls
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-terminal-bg h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="bg-amber h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, winRate)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Card 2: Net P&L Points */}
-          <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
-            <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
-              <span>Net Points P&L</span>
-              <TrendingUp className="w-3.5 h-3.5 text-bull" />
-            </div>
-            <div className="mt-1 flex items-baseline space-x-1">
-              <span className={`text-xl sm:text-2xl font-black font-mono tracking-tight ${summary.netPoints >= 0 ? 'text-bull' : 'text-bear'}`}>
-                {summary.netPoints >= 0 ? '+' : ''}{summary.netPoints.toLocaleString('en-IN')}
-              </span>
-              <span className="text-[10px] text-terminal-muted font-mono">pts</span>
-            </div>
-            <div className="flex items-center justify-between text-[9px] text-terminal-muted font-mono mt-1 pt-1 border-t border-slate-200 dark:border-terminal-border/60">
-              <span className="text-bull">+{summary.totalPointsProfit} gain</span>
-              <span className="text-bear">-{summary.totalPointsLoss} loss</span>
-            </div>
-          </div>
-
-          {/* Card 3: Target Hit & Nearness Accuracy */}
-          <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
-            <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
-              <span>Near-Target Acc</span>
-              <Target className="w-3.5 h-3.5 text-accent-cyan" />
-            </div>
-            <div className="mt-1 flex items-baseline space-x-1.5">
-              <span className="text-xl sm:text-2xl font-black font-mono text-accent-cyan tracking-tight">
-                {summary.nearTargetAccuracyPct}%
-              </span>
-              <span className="text-[10px] text-terminal-muted font-mono">
-                (≥80% reached)
-              </span>
-            </div>
-            <p className="text-[9px] text-terminal-muted mt-1 truncate">
-              {summary.nearTargetCalls} calls came within 80-99% of target
-            </p>
-          </div>
-
-          {/* Card 4: Total Executed Calls */}
-          <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
-            <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
-              <span>Total Predictions</span>
-              <Layers className="w-3.5 h-3.5 text-purple-400" />
-            </div>
-            <div className="mt-1 flex items-baseline space-x-1.5">
-              <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight">
-                {summary.totalCalls}
-              </span>
-              <span className="text-[10px] text-terminal-muted font-mono">trades logged</span>
-            </div>
-            <div className="text-[9px] text-terminal-muted font-mono mt-1 pt-1 border-t border-slate-200 dark:border-terminal-border/60">
-              Avg R:R: <strong className="text-terminal-text">{summary.avgRiskReward}</strong>
-            </div>
-          </div>
-
-          {/* Card 5: Best Trade of the Day (Hidden on tiny screens) */}
-          <div 
-            onClick={() => {
-              const bestCall = report?.signals?.find(s => s.contractName === summary.bestTrade?.contractName) || report?.signals?.[0];
-              if (bestCall) handleOpenTradeDetail(bestCall);
-            }}
-            className="hidden lg:flex bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex-col justify-between col-span-2 lg:col-span-1 cursor-pointer hover:border-accent-cyan/60 hover:shadow-md transition group"
-            title="Click to view setup details for top performer"
-          >
-            <div className="flex items-center justify-between text-terminal-muted text-[10px] font-mono uppercase font-bold">
-              <span>Top Performer</span>
-              <Sparkles className="w-3.5 h-3.5 text-amber group-hover:scale-110 transition-transform" />
-            </div>
-            {summary.bestTrade ? (
-              <div className="mt-1">
-                <span className="text-xs font-bold font-mono text-terminal-text block truncate group-hover:text-accent-cyan transition-colors" title={summary.bestTrade.contractName}>
-                  {summary.bestTrade.contractName}
+          {/* Row 2: Secondary Overview Cards (Total Predictions, Near-Target Acc, Top Performer) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+            {/* Card A: Total Executed Calls & Overall Win Rate */}
+            <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
+              <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                <span>Total Predictions</span>
+                <Layers className="w-3.5 h-3.5 text-purple-400" />
+              </div>
+              <div className="mt-1 flex items-baseline space-x-1.5">
+                <span className="text-xl sm:text-2xl font-black font-mono text-terminal-text tracking-tight">
+                  {summary.totalCalls}
                 </span>
-                <span className="text-sm font-black font-mono text-bull block">
-                  +{summary.bestTrade.points} pts (+{summary.bestTrade.pnlPct}%)
+                <span className="text-[10px] text-terminal-muted font-mono">trades logged</span>
+              </div>
+              <div className="text-[9px] text-terminal-muted font-mono mt-1 pt-1 border-t border-slate-200 dark:border-terminal-border/60 flex items-center justify-between">
+                <span>Avg R:R: <strong className="text-terminal-text">{summary.avgRiskReward}</strong></span>
+                <span>Overall Win Rate: <strong className="text-bull font-bold">{summary.winRatePct}%</strong></span>
+              </div>
+            </div>
+
+            {/* Card B: Target Hit & Nearness Accuracy */}
+            <div className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between">
+              <div className="flex items-center justify-between text-terminal-muted text-[10px] sm:text-xs font-mono uppercase font-bold">
+                <span>Near-Target Acc</span>
+                <Target className="w-3.5 h-3.5 text-accent-cyan" />
+              </div>
+              <div className="mt-1 flex items-baseline space-x-1.5">
+                <span className="text-xl sm:text-2xl font-black font-mono text-accent-cyan tracking-tight">
+                  {summary.nearTargetAccuracyPct}%
+                </span>
+                <span className="text-[10px] text-terminal-muted font-mono">
+                  (≥80% reached)
                 </span>
               </div>
-            ) : (
-              <div className="mt-2">
-                <span className="text-xs text-terminal-muted italic block">No closed trades yet</span>
-                <span className="text-[10px] text-terminal-muted block">Awaiting target / SL exit</span>
+              <p className="text-[9px] text-terminal-muted mt-1 truncate">
+                {summary.nearTargetCalls} calls came within 80-99% of target
+              </p>
+            </div>
+
+            {/* Card C: Best Trade of the Day */}
+            <div 
+              onClick={() => {
+                const bestCall = report?.signals?.find(s => s.contractName === summary.bestTrade?.contractName) || report?.signals?.[0];
+                if (bestCall) handleOpenTradeDetail(bestCall);
+              }}
+              className="bg-slate-50 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer hover:border-accent-cyan/60 hover:shadow-md transition group"
+              title="Click to view setup details for top performer"
+            >
+              <div className="flex items-center justify-between text-terminal-muted text-[10px] font-mono uppercase font-bold">
+                <span>Top Performer</span>
+                <Sparkles className="w-3.5 h-3.5 text-amber group-hover:scale-110 transition-transform" />
               </div>
-            )}
-            <div className="text-[9px] text-accent-cyan font-mono mt-1">
-              {summary.bestTrade ? 'Audit-verified target (Click to open)' : 'Real-time ledger audit'}
+              {summary.bestTrade ? (
+                <div className="mt-1">
+                  <span className="text-xs font-bold font-mono text-terminal-text block truncate group-hover:text-accent-cyan transition-colors" title={summary.bestTrade.contractName}>
+                    {summary.bestTrade.contractName}
+                  </span>
+                  <span className="text-sm font-black font-mono text-bull block">
+                    +{summary.bestTrade.points} pts (+{summary.bestTrade.pnlPct}%)
+                  </span>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <span className="text-xs text-terminal-muted italic block">No closed trades yet</span>
+                  <span className="text-[10px] text-terminal-muted block">Awaiting target / SL exit</span>
+                </div>
+              )}
+              <div className="text-[9px] text-accent-cyan font-mono mt-1">
+                {summary.bestTrade ? 'Audit-verified target (Click to open)' : 'Real-time ledger audit'}
+              </div>
             </div>
           </div>
         </div>
@@ -1012,17 +1272,23 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 pb-2 border-b border-slate-200 dark:border-terminal-border/60">
         {/* Category Filter Tabs */}
         <div className="flex items-center space-x-1 p-1 bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border rounded-xl text-xs font-mono">
-          {(['ALL', 'OPTIONS', 'STOCKS', 'COMMODITIES'] as AssetCategory[]).map((cat) => (
+          {[
+            { id: 'ALL' as AssetCategory, label: 'All' },
+            { id: 'OPTIONS_BUY' as AssetCategory, label: 'Options Buy' },
+            { id: 'OPTIONS_SELL' as AssetCategory, label: 'Option Sell' },
+            { id: 'STOCKS' as AssetCategory, label: 'Stocks' },
+            { id: 'COMMODITIES' as AssetCategory, label: 'Commodities' }
+          ].map((tab) => (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1 rounded-lg font-bold transition uppercase cursor-pointer ${
-                selectedCategory === cat
+              key={tab.id}
+              onClick={() => setSelectedCategory(tab.id)}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg font-bold transition cursor-pointer text-[11px] sm:text-xs uppercase ${
+                selectedCategory === tab.id
                   ? 'bg-accent-cyan text-slate-950 font-black shadow-sm'
                   : 'text-terminal-muted hover:text-terminal-text'
               }`}
             >
-              {cat}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -1167,7 +1433,8 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-terminal-border/50 bg-white dark:bg-terminal-card/80">
               {paginatedSignals.map((call) => {
-                const isBull = call.action === 'BUY_CALL' || call.action === 'BUY';
+                const isSell = call.action?.startsWith('SELL');
+                const isBull = !isSell && (call.action === 'BUY_CALL' || call.action === 'BUY');
                 const isTargetHit = call.status === 'TARGET_HIT';
                 const isSlHit = call.status === 'STOPLOSS_HIT';
                 const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
@@ -1246,11 +1513,17 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                     {/* Asset & Contract */}
                     <td className="py-3 px-3 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
-                          isBull ? 'bg-bull/15 text-bull border border-bull/30' : 'bg-bear/15 text-bear border border-bear/30'
-                        }`}>
-                          {call.action === 'BUY_CALL' ? 'CALL' : call.action === 'BUY_PUT' ? 'PUT' : call.action}
-                        </span>
+                        {isSell ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                            SELL {call.optionType || ''}
+                          </span>
+                        ) : (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
+                            isBull ? 'bg-bull/15 text-bull border border-bull/30' : 'bg-bear/15 text-bear border border-bear/30'
+                          }`}>
+                            {call.action === 'BUY_CALL' ? 'CALL' : call.action === 'BUY_PUT' ? 'PUT' : call.action}
+                          </span>
+                        )}
                         <span className="font-bold text-terminal-text">
                           {call.contractName}
                         </span>

@@ -106,7 +106,18 @@ export class OIEngine {
             if (isCommodity) {
                 return currentMin >= (9 * 60) && currentMin < (23 * 60);
             }
-            return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
+            return currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 40);
+        })();
+        // Live high-conviction trade signals strictly start after 09:25 AM IST once opening auction noise settles down
+        const isSignalGenerationActive = (() => {
+            const day = istTime.getDay();
+            if (day === 0 || day === 6)
+                return false;
+            const currentMin = istTime.getHours() * 60 + istTime.getMinutes();
+            if (isCommodity) {
+                return currentMin >= (9 * 60) && currentMin < (23 * 60);
+            }
+            return currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 30);
         })();
         let totalCallVolume = 0;
         let totalPutVolume = 0;
@@ -315,7 +326,7 @@ export class OIEngine {
             const minViableSurgeCeLtp = isNaturalGas ? 0.6 : (isCommodity ? 5.0 : (isPast3Pm ? 15.0 : 5.0));
             const minSurgeCeVol = isNaturalGas ? 100 : (isCommodity ? 500 : 10000);
             const maxSurgeCeDist = isNaturalGas ? 25 : (['BANKNIFTY', 'SENSEX', 'BANKEX', 'GOLD', 'SILVER'].includes(symbol) ? 500 : 350);
-            if (isMarketOpenForSymbol && callSurge.level !== 'NORMAL' && raw.callVolume >= minSurgeCeVol && Math.abs(strike - atmStrike) <= maxSurgeCeDist && raw.callLtp >= minViableSurgeCeLtp) {
+            if (isSignalGenerationActive && callSurge.level !== 'NORMAL' && raw.callVolume >= minSurgeCeVol && Math.abs(strike - atmStrike) <= maxSurgeCeDist && raw.callLtp >= minViableSurgeCeLtp) {
                 // Multi-Factor Confluence Adjustment
                 let calibratedCallScore = callSurge.score;
                 if (spotPctChange > 0.05)
@@ -410,7 +421,7 @@ export class OIEngine {
             const minViableSurgePeLtp = isNaturalGas ? 0.6 : (isCommodity ? 5.0 : (isPast3Pm ? 15.0 : 5.0));
             const minSurgePeVol = isNaturalGas ? 100 : (isCommodity ? 500 : 10000);
             const maxSurgePeDist = isNaturalGas ? 25 : (['BANKNIFTY', 'SENSEX', 'BANKEX', 'GOLD', 'SILVER'].includes(symbol) ? 500 : 350);
-            if (isMarketOpenForSymbol && putSurge.level !== 'NORMAL' && raw.putVolume >= minSurgePeVol && Math.abs(strike - atmStrike) <= maxSurgePeDist && raw.putLtp >= minViableSurgePeLtp) {
+            if (isSignalGenerationActive && putSurge.level !== 'NORMAL' && raw.putVolume >= minSurgePeVol && Math.abs(strike - atmStrike) <= maxSurgePeDist && raw.putLtp >= minViableSurgePeLtp) {
                 // Multi-Factor Confluence Adjustment
                 let calibratedPutScore = putSurge.score;
                 if (spotPctChange < -0.05)
@@ -632,6 +643,10 @@ export class OIEngine {
             const validNew = detectedSurgesThisTick.filter(s => !isContractOrSignalExpired(s.expiryDate, s.timestamp, s.validUntilMinutes));
             this.recentSurges = [...validNew, ...this.recentSurges].slice(0, this.maxSurgeHistory);
         }
+        // Purge non-commodity surges when signals are inactive (e.g. before 09:25 AM settling)
+        if (!isCommodity && !isSignalGenerationActive) {
+            this.recentSurges = this.recentSurges.filter(s => ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(s.indexSymbol));
+        }
         // ─────────────────────────────────────────────────────────────
         // CPR & Fayda 25 Strategies & Multi-Leg Spreads Engine & Breakouts
         // ─────────────────────────────────────────────────────────────
@@ -654,7 +669,7 @@ export class OIEngine {
         const bearSpread = multiLegScan.allStrategies.find(s => s.strategyId === 'BEAR_PUT_SPREAD') || multiLegScan.allStrategies[1];
         let bullishPick = null;
         let bearishPick = null;
-        if (isMarketOpenForSymbol) {
+        if (isSignalGenerationActive) {
             const qualifiedBullSurges = indexSurges.filter(s => s.optionType === 'CE' &&
                 s.tradeAction === 'BUY_CALL' &&
                 s.surgeScore >= 88 &&
@@ -706,7 +721,7 @@ export class OIEngine {
                 bearishPick = topBear;
             }
         }
-        const highestScoreEvent = indexSurges.length > 0
+        const highestScoreEvent = (isSignalGenerationActive && indexSurges.length > 0)
             ? [...indexSurges].sort((a, b) => b.surgeScore - a.surgeScore)[0]
             : null;
         // Evaluate 0DTE Gamma Spike & Hero-or-Zero Setups

@@ -125,8 +125,17 @@ class SignalLedgerService {
                                 return 1;
                             return b.pointsPnl - a.pointsPnl;
                         });
-                        const capped = sorted.slice(0, 18);
-                        capped.forEach(c => {
+                        // Curate balanced representation across categories (options buy, options sell, stocks, commodities)
+                        const catMap = new Map();
+                        sorted.forEach(c => {
+                            const k = c.action?.startsWith('SELL') ? 'OPTIONS_SELL' : c.category;
+                            if (!catMap.has(k))
+                                catMap.set(k, []);
+                            catMap.get(k).push(c);
+                        });
+                        const curated = [];
+                        catMap.forEach(list => curated.push(...list.slice(0, 16)));
+                        curated.forEach(c => {
                             this.calls.set(c.id, c);
                         });
                     });
@@ -618,10 +627,34 @@ class SignalLedgerService {
         const category = categoryQuery || 'ALL';
         const symbolFilter = symbolQuery || 'ALL';
         const statusFilter = statusQuery || 'ALL';
+        const COMMODITY_SYMBOLS = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+        const getCallCategory = (c) => {
+            const sym = (c.symbol || '').toUpperCase();
+            const cat = (c.category || '').toUpperCase();
+            const act = (c.action || '').toUpperCase();
+            if (cat === 'COMMODITIES' || COMMODITY_SYMBOLS.includes(sym))
+                return 'COMMODITIES';
+            if (act.startsWith('SELL'))
+                return 'OPTIONS_SELL';
+            if (cat === 'STOCKS')
+                return 'STOCKS';
+            return 'OPTIONS_BUY';
+        };
         const allDayCalls = Array.from(this.calls.values()).filter(c => c.date === selectedDate);
         const filteredSignals = allDayCalls.filter(c => {
-            if (category !== 'ALL' && c.category !== category)
-                return false;
+            const callCat = getCallCategory(c);
+            if (category !== 'ALL') {
+                if (category === 'OPTIONS' && callCat !== 'OPTIONS_BUY' && callCat !== 'OPTIONS_SELL')
+                    return false;
+                if (category === 'OPTIONS_BUY' && callCat !== 'OPTIONS_BUY')
+                    return false;
+                if (category === 'OPTIONS_SELL' && callCat !== 'OPTIONS_SELL')
+                    return false;
+                if (category === 'STOCKS' && callCat !== 'STOCKS')
+                    return false;
+                if (category === 'COMMODITIES' && callCat !== 'COMMODITIES')
+                    return false;
+            }
             if (symbolFilter !== 'ALL' && c.symbol !== symbolFilter)
                 return false;
             if (statusFilter !== 'ALL') {
@@ -646,16 +679,20 @@ class SignalLedgerService {
         let bestTrade = null;
         // Category breakdown counters
         const catStats = {
-            options: { total: 0, win: 0, netPts: 0 },
-            stocks: { total: 0, win: 0, netPts: 0 },
-            commodities: { total: 0, win: 0, netPts: 0 }
+            optionsBuy: { total: 0, profitable: 0, loss: 0, win: 0, netPts: 0 },
+            optionsSell: { total: 0, profitable: 0, loss: 0, win: 0, netPts: 0 },
+            stocks: { total: 0, profitable: 0, loss: 0, win: 0, netPts: 0 },
+            commodities: { total: 0, profitable: 0, loss: 0, win: 0, netPts: 0 }
         };
         allDayCalls.forEach(c => {
-            const isWin = c.status === 'TARGET_HIT' || c.pointsPnl > 0;
-            const isLoss = c.status === 'STOPLOSS_HIT' || c.pointsPnl < 0;
-            if (c.status === 'TARGET_HIT')
+            const callCat = getCallCategory(c);
+            const isTargetHit = c.status === 'TARGET_HIT';
+            const isStoplossHit = c.status === 'STOPLOSS_HIT';
+            const isWin = isTargetHit || c.pointsPnl > 0;
+            const isLoss = isStoplossHit || c.pointsPnl < 0;
+            if (isTargetHit)
                 profitableCount++;
-            else if (c.status === 'STOPLOSS_HIT')
+            else if (isStoplossHit)
                 lossCount++;
             else if (c.status === 'NEAR_TARGET' || (c.nearTargetPct ?? 0) >= 80)
                 nearTargetCount++;
@@ -668,24 +705,19 @@ class SignalLedgerService {
             if (!bestTrade || c.pointsPnl > bestTrade.pointsPnl) {
                 bestTrade = c;
             }
-            if (c.category === 'OPTIONS') {
-                catStats.options.total++;
-                if (isWin)
-                    catStats.options.win++;
-                catStats.options.netPts += c.pointsPnl;
+            const key = callCat === 'OPTIONS_BUY' ? 'optionsBuy'
+                : callCat === 'OPTIONS_SELL' ? 'optionsSell'
+                    : callCat === 'STOCKS' ? 'stocks'
+                        : 'commodities';
+            catStats[key].total++;
+            if (isWin) {
+                catStats[key].profitable++;
+                catStats[key].win++;
             }
-            else if (c.category === 'STOCKS') {
-                catStats.stocks.total++;
-                if (isWin)
-                    catStats.stocks.win++;
-                catStats.stocks.netPts += c.pointsPnl;
+            if (isLoss) {
+                catStats[key].loss++;
             }
-            else if (c.category === 'COMMODITIES') {
-                catStats.commodities.total++;
-                if (isWin)
-                    catStats.commodities.win++;
-                catStats.commodities.netPts += c.pointsPnl;
-            }
+            catStats[key].netPts += c.pointsPnl;
         });
         const totalDecided = profitableCount + lossCount;
         const winRatePct = totalDecided > 0 ? +((profitableCount / totalDecided) * 100).toFixed(1) : 0;
@@ -693,6 +725,12 @@ class SignalLedgerService {
             ? +(((profitableCount + nearTargetCount) / allDayCalls.length) * 100).toFixed(1)
             : 0;
         const netPoints = +(totalPointsProfit - totalPointsLoss).toFixed(2);
+        const calcWinRate = (prof, loss, total) => {
+            const decided = prof + loss;
+            if (decided > 0)
+                return Math.round((prof / decided) * 100);
+            return total > 0 ? Math.round((prof / total) * 100) : 0;
+        };
         const summary = {
             totalCalls: allDayCalls.length,
             profitableCalls: profitableCount,
@@ -711,20 +749,38 @@ class SignalLedgerService {
                 pnlPct: bestTrade.pnlPct
             } : null,
             categoryBreakdown: {
-                options: {
-                    total: catStats.options.total,
-                    winRate: catStats.options.total > 0 ? Math.round((catStats.options.win / catStats.options.total) * 100) : 0,
-                    netPoints: +catStats.options.netPts.toFixed(1)
+                optionsBuy: {
+                    total: catStats.optionsBuy.total,
+                    profitable: catStats.optionsBuy.profitable,
+                    loss: catStats.optionsBuy.loss,
+                    winRate: calcWinRate(catStats.optionsBuy.profitable, catStats.optionsBuy.loss, catStats.optionsBuy.total),
+                    netPoints: +catStats.optionsBuy.netPts.toFixed(1)
+                },
+                optionsSell: {
+                    total: catStats.optionsSell.total,
+                    profitable: catStats.optionsSell.profitable,
+                    loss: catStats.optionsSell.loss,
+                    winRate: calcWinRate(catStats.optionsSell.profitable, catStats.optionsSell.loss, catStats.optionsSell.total),
+                    netPoints: +catStats.optionsSell.netPts.toFixed(1)
                 },
                 stocks: {
                     total: catStats.stocks.total,
-                    winRate: catStats.stocks.total > 0 ? Math.round((catStats.stocks.win / catStats.stocks.total) * 100) : 0,
+                    profitable: catStats.stocks.profitable,
+                    loss: catStats.stocks.loss,
+                    winRate: calcWinRate(catStats.stocks.profitable, catStats.stocks.loss, catStats.stocks.total),
                     netPoints: +catStats.stocks.netPts.toFixed(1)
                 },
                 commodities: {
                     total: catStats.commodities.total,
-                    winRate: catStats.commodities.total > 0 ? Math.round((catStats.commodities.win / catStats.commodities.total) * 100) : 0,
+                    profitable: catStats.commodities.profitable,
+                    loss: catStats.commodities.loss,
+                    winRate: calcWinRate(catStats.commodities.profitable, catStats.commodities.loss, catStats.commodities.total),
                     netPoints: +catStats.commodities.netPts.toFixed(1)
+                },
+                options: {
+                    total: catStats.optionsBuy.total + catStats.optionsSell.total,
+                    winRate: calcWinRate(catStats.optionsBuy.profitable + catStats.optionsSell.profitable, catStats.optionsBuy.loss + catStats.optionsSell.loss, catStats.optionsBuy.total + catStats.optionsSell.total),
+                    netPoints: +(catStats.optionsBuy.netPts + catStats.optionsSell.netPts).toFixed(1)
                 }
             }
         };

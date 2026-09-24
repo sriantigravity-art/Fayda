@@ -1122,7 +1122,7 @@ export interface WebSocketMessage {
   timestamp: string;
 }
 
-export type AssetCategory = 'ALL' | 'OPTIONS' | 'STOCKS' | 'COMMODITIES';
+export type AssetCategory = 'ALL' | 'OPTIONS' | 'OPTIONS_BUY' | 'OPTIONS_SELL' | 'STOCKS' | 'COMMODITIES';
 export type TradeCallStatus =
   | 'TARGET_HIT'
   | 'STOPLOSS_HIT'
@@ -1267,6 +1267,14 @@ export interface JournalTradeCall {
   adminNotes?: string;          // Admin's custom note
 }
 
+export interface CategoryWinRateMetric {
+  total: number;
+  profitable: number;
+  loss: number;
+  winRate: number; // percentage e.g. 75%
+  netPoints?: number;
+}
+
 export interface JournalSummaryMetrics {
   totalCalls: number;
   profitableCalls: number;
@@ -1277,7 +1285,7 @@ export interface JournalSummaryMetrics {
   nearTargetAccuracyPct: number; // Calls reaching >= 80% of target
   totalPointsProfit: number;
   totalPointsLoss: number;
-  netPoints: number;
+  netPoints?: number;
   avgRiskReward: string;
   bestTrade: {
     contractName: string;
@@ -1285,9 +1293,11 @@ export interface JournalSummaryMetrics {
     pnlPct: number;
   } | null;
   categoryBreakdown: {
-    options: { total: number; winRate: number; netPoints: number };
-    stocks: { total: number; winRate: number; netPoints: number };
-    commodities: { total: number; winRate: number; netPoints: number };
+    optionsBuy: CategoryWinRateMetric;
+    optionsSell: CategoryWinRateMetric;
+    stocks: CategoryWinRateMetric;
+    commodities: CategoryWinRateMetric;
+    options?: { total: number; winRate: number; netPoints: number };
   };
 }
 
