@@ -4,6 +4,7 @@ import { useTerminalMode } from '../context/TerminalModeContext';
 import type { OptionStrikeData, TechnicalIndicatorsData } from '../types';
 import { StrikePriceLiveChart, type StrikeTimeframe } from './StrikePriceLiveChart';
 import { StrikeAnalyticsRightPanel } from './StrikeAnalyticsRightPanel';
+import { formatISTTime } from '../utils/formatTime';
 import {
   Sliders,
   TrendingUp,
@@ -201,7 +202,7 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
     const baseTi: TechnicalIndicatorsData = {
       symbol: selectedIndex,
       spotPrice,
-      timestamp: new Date().toLocaleTimeString('en-IN', { hour12: false }),
+      timestamp: formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: true }),
       ema: {
         ema9: +(spotPrice * 0.998).toFixed(1),
         ema20: +(spotPrice * 0.995).toFixed(1),
@@ -801,7 +802,7 @@ export const TacticalStrikeSliderRadar: React.FC = () => {
               10 Technical Indicators Matrix — Tailored for {mode?.toUpperCase() || 'INTERMEDIATE'}
             </span>
             <span className="text-[10px] font-mono text-terminal-muted">
-              Live Updated: {ti.timestamp || new Date().toLocaleTimeString('en-IN', { hour12: false })}
+              Live Updated: {ti.timestamp || formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: true })}
             </span>
           </div>
 

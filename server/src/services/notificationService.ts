@@ -28,7 +28,7 @@ function getIST(): string {
   const ist = new Date(utc + (3600000 * 5.5));
   return ist.toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false
+    hour: '2-digit', minute: '2-digit', hour12: true
   }) + ' IST';
 }
 

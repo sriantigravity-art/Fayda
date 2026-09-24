@@ -196,7 +196,7 @@ export class OIEngine {
     const strikesData: OptionStrikeData[] = [];
     const detectedSurgesThisTick: SurgeEvent[] = [];
 
-    const timeStr = new Date(now).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+    const timeStr = new Date(now).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true });
 
     // Process each strike with GreekEngine, IV & Liquidity Evaluators
     for (const raw of strikesRaw) {

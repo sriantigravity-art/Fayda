@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useMarket } from '../context/MarketContext';
 import { ALL_SYMBOLS_CONFIG, type ProbableClosingPriceData, type CasPhase } from '../types';
+import { formatISTTime } from '../utils/formatTime';
 
 interface CasProbableCloseModalProps {
   isOpen: boolean;
@@ -551,7 +552,7 @@ export const CasProbableCloseModal: React.FC<CasProbableCloseModalProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <span className="text-emerald-400 font-bold">Live CAS tracking active</span>
                 <span>•</span>
-                <span>Updated: <strong className="text-terminal-text">{new Date().toLocaleTimeString('en-IN')}</strong></span>
+                <span>Updated: <strong className="text-terminal-text">{formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: true })}</strong></span>
               </>
             ) : (
               <>

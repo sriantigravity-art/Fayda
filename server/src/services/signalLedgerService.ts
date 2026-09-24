@@ -54,7 +54,47 @@ class SignalLedgerService {
   private getIstTimeFormatted(dateObj: Date = new Date()): string {
     const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
     const ist = new Date(utc + (3600000 * 5.5));
-    return ist.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' IST';
+    return ist.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) + ' IST';
+  }
+
+  public static formatTo12Hour(timeStr?: string): string {
+    if (!timeStr) return '';
+    const clean = timeStr.replace(' IST', '').trim();
+    // If already has AM/PM
+    const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (ampmMatch) {
+      const h = parseInt(ampmMatch[1], 10);
+      const m = ampmMatch[2];
+      const s = ampmMatch[3];
+      const ampm = ampmMatch[4].toUpperCase();
+      const hStr = h < 10 ? `0${h}` : `${h}`;
+      return s ? `${hStr}:${m}:${s} ${ampm} IST` : `${hStr}:${m} ${ampm} IST`;
+    }
+    // If 24-hr format like HH:mm(:ss)?
+    const hmsMatch = clean.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (hmsMatch) {
+      const h = parseInt(hmsMatch[1], 10);
+      const m = hmsMatch[2];
+      const s = hmsMatch[3];
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      const hStr = h12 < 10 ? `0${h12}` : `${h12}`;
+      return s ? `${hStr}:${m}:${s} ${ampm} IST` : `${hStr}:${m} ${ampm} IST`;
+    }
+    return timeStr;
+  }
+
+  public static sanitizeTradeTime(timeStr?: string, isCommodity: boolean = false, fallbackTime: string = '03:30:00 PM IST'): string | undefined {
+    if (!timeStr) return undefined;
+    const mins = SignalLedgerService.parseTimeStringToMinutes(timeStr);
+    if (!isCommodity) {
+      // Equity & Derivatives close strictly by 03:40 PM IST (15:40 = 940 mins).
+      // Any target/stoploss/exit time after 15:40 IST must be capped to 03:30 PM or 03:40 PM IST!
+      if (mins !== null && mins > (15 * 60 + 40)) {
+        return fallbackTime;
+      }
+    }
+    return SignalLedgerService.formatTo12Hour(timeStr);
   }
 
   public static parseTimeStringToMinutes(timeStr?: string): number | null {
@@ -84,17 +124,40 @@ class SignalLedgerService {
         const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
         let list: JournalTradeCall[] = JSON.parse(raw);
         if (Array.isArray(list)) {
+          const COMMODITY_SYMBOLS = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+
           // Strictly purge corrupted/distorted derivative calls (< 2.0 Rs)
           list = list.filter(c => !((c.optionType === 'CE' || c.optionType === 'PE') && c.entryPrice < 2.0));
 
-          // Institutional Rule: Strictly purge all legacy signals given after 03:00 PM (15:00 IST)
+          // Institutional Rule: Strictly purge all legacy signals given after 03:00 PM (15:00 IST) for equity
           list = list.filter(c => {
-            const timeStr = c.callGivenTime || c.timeFormatted;
-            const mins = SignalLedgerService.parseTimeStringToMinutes(timeStr);
-            if (mins !== null && mins >= 900) { // 15:00 IST = 900 mins
-              return false;
+            const sym = (c.symbol || '').toUpperCase();
+            const isCommodity = c.category === 'COMMODITIES' || COMMODITY_SYMBOLS.includes(sym);
+            if (!isCommodity) {
+              const timeStr = c.callGivenTime || c.timeFormatted;
+              const mins = SignalLedgerService.parseTimeStringToMinutes(timeStr);
+              if (mins !== null && mins >= 900) { // 15:00 IST = 900 mins
+                return false;
+              }
             }
             return true;
+          });
+
+          // Sanitize every call to 12-hour format and clamp non-commodity times to 09:15 - 15:40 IST
+          list.forEach(c => {
+            const sym = (c.symbol || '').toUpperCase();
+            const isCommodity = c.category === 'COMMODITIES' || COMMODITY_SYMBOLS.includes(sym);
+
+            c.timeFormatted = SignalLedgerService.sanitizeTradeTime(c.timeFormatted, isCommodity, '02:15:00 PM IST') || c.timeFormatted;
+            if (c.callGivenTime) c.callGivenTime = SignalLedgerService.sanitizeTradeTime(c.callGivenTime, isCommodity, '02:15:00 PM IST');
+            if (c.entryPriceTimeFormatted) c.entryPriceTimeFormatted = SignalLedgerService.sanitizeTradeTime(c.entryPriceTimeFormatted, isCommodity, '02:15:00 PM IST');
+            if (c.targetHitTime) c.targetHitTime = SignalLedgerService.sanitizeTradeTime(c.targetHitTime, isCommodity, '03:20:00 PM IST');
+            if (c.target1HitTimeFormatted) c.target1HitTimeFormatted = SignalLedgerService.sanitizeTradeTime(c.target1HitTimeFormatted, isCommodity, '03:20:00 PM IST');
+            if (c.target2HitTimeFormatted) c.target2HitTimeFormatted = SignalLedgerService.sanitizeTradeTime(c.target2HitTimeFormatted, isCommodity, '03:25:00 PM IST');
+            if (c.stoplossTime) c.stoplossTime = SignalLedgerService.sanitizeTradeTime(c.stoplossTime, isCommodity, '03:15:00 PM IST');
+            if (c.stoplossHitTime) c.stoplossHitTime = SignalLedgerService.sanitizeTradeTime(c.stoplossHitTime, isCommodity, '03:15:00 PM IST');
+            if (c.halfProfitBookTime) c.halfProfitBookTime = SignalLedgerService.sanitizeTradeTime(c.halfProfitBookTime, isCommodity, '03:10:00 PM IST');
+            if (c.adminActionTime) c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
           });
 
           // Group by date
@@ -152,7 +215,7 @@ class SignalLedgerService {
             });
           });
 
-          console.log(`[SignalLedgerService] Pruned and loaded ${this.calls.size} curated trade calls across ${this.datesSet.size} dates.`);
+          console.log(`[SignalLedgerService] Pruned, sanitized (12h IST) and loaded ${this.calls.size} curated trade calls across ${this.datesSet.size} dates.`);
           // Immediately persist the clean dataset
           const cleanList = Array.from(this.calls.values());
           fs.writeFileSync(this.dataFilePath, JSON.stringify(cleanList, null, 2), 'utf-8');
@@ -220,7 +283,7 @@ class SignalLedgerService {
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const ist = new Date(utc + (3600000 * 5.5));
-    const timeStr = ist.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' IST';
+    const timeStr = ist.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) + ' IST';
 
     call.adminAction = action;
     call.adminActionTime = timeStr;
@@ -494,18 +557,21 @@ class SignalLedgerService {
     }
 
     if (call) {
+      const COMMODITY_SYMBOLS = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+      const isCommodity = COMMODITY_SYMBOLS.includes((data.symbol || '').toUpperCase());
+
       call.currentLtp = +data.currentLtp.toFixed(2);
       call.peakLtp = Math.max(call.peakLtp, data.currentLtp);
-      if (data.callGivenTimeFormatted) call.callGivenTime = data.callGivenTimeFormatted;
-      if (data.entryPriceTimeFormatted) call.entryPriceTimeFormatted = data.entryPriceTimeFormatted;
-      if (data.target1HitTimeFormatted) call.target1HitTimeFormatted = data.target1HitTimeFormatted;
+      if (data.callGivenTimeFormatted) call.callGivenTime = SignalLedgerService.sanitizeTradeTime(data.callGivenTimeFormatted, isCommodity, '02:15:00 PM IST') || data.callGivenTimeFormatted;
+      if (data.entryPriceTimeFormatted) call.entryPriceTimeFormatted = SignalLedgerService.sanitizeTradeTime(data.entryPriceTimeFormatted, isCommodity, '02:15:00 PM IST');
+      if (data.target1HitTimeFormatted) call.target1HitTimeFormatted = SignalLedgerService.sanitizeTradeTime(data.target1HitTimeFormatted, isCommodity, '03:20:00 PM IST');
       if (data.target2HitTimeFormatted) {
-        call.target2HitTimeFormatted = data.target2HitTimeFormatted;
-        call.targetHitTime = data.target2HitTimeFormatted;
+        call.target2HitTimeFormatted = SignalLedgerService.sanitizeTradeTime(data.target2HitTimeFormatted, isCommodity, '03:25:00 PM IST');
+        call.targetHitTime = call.target2HitTimeFormatted;
       }
       if (data.stoplossTimeFormatted) {
-        call.stoplossTime = data.stoplossTimeFormatted;
-        call.stoplossHitTime = data.stoplossTimeFormatted;
+        call.stoplossTime = SignalLedgerService.sanitizeTradeTime(data.stoplossTimeFormatted, isCommodity, '03:15:00 PM IST');
+        call.stoplossHitTime = call.stoplossTime;
       }
 
       const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
@@ -575,6 +641,23 @@ class SignalLedgerService {
   }
 
   public updateLivePrices(symbol: string, strikes: { strikePrice: number; callLtp: number; putLtp: number }[]) {
+    const COMMODITY_SYMBOLS = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
+    const isCommodity = COMMODITY_SYMBOLS.includes((symbol || '').toUpperCase());
+    const utc = Date.now() + (new Date().getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+    const dayOfWeek = ist.getDay();
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) return;
+    if (!isCommodity && (currentMin < 540 || currentMin >= 940)) {
+      // Equity & Derivatives market closed at 03:40 PM IST (15:40)!
+      return;
+    }
+    if (isCommodity && (currentMin < 540 || currentMin >= 1410)) {
+      // MCX Commodity market closed at 11:30 PM IST (23:30)!
+      return;
+    }
+
     let hasChanges = false;
     const today = this.getTodayDateStr();
 

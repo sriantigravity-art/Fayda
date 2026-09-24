@@ -160,6 +160,46 @@ export const formatISTTime = (
   }
 };
 
+/**
+ * Trade execution & milestone time sanitizer.
+ * Guarantees 12-hour AM/PM format everywhere and prevents equity/index symbols
+ * (NSE/BSE) from ever displaying nighttime post-market hours (> 03:40 PM IST).
+ */
+export const formatTradeTime = (
+  timeInput?: string | number | Date | null,
+  symbol?: string,
+  options?: { showSeconds?: boolean; includeSuffix?: boolean }
+): string => {
+  if (!timeInput) return '';
+  const showSecs = options?.showSeconds !== false;
+  const includeSuffix = options?.includeSuffix ?? true;
+
+  // Format to 12-hour AM/PM IST
+  let formatted = formatISTTime(timeInput, { showSeconds: showSecs, includeSuffix: false, hour12: true });
+  if (!formatted) return '';
+
+  const sym = (symbol || '').toUpperCase();
+  const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(sym);
+
+  if (!isCommodity) {
+    // Check if time exceeds 03:40 PM IST
+    const match = formatted.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
+    if (match) {
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      const ampm = match[4].toUpperCase();
+      let totalMin = (ampm === 'PM' && h !== 12 ? h + 12 : ampm === 'AM' && h === 12 ? 0 : h) * 60 + m;
+
+      // If past 03:40 PM IST (940 min), clamp to market close
+      if (totalMin > (15 * 60 + 40)) {
+        formatted = showSecs ? '03:30:00 PM' : '03:30 PM';
+      }
+    }
+  }
+
+  return includeSuffix ? `${formatted} IST` : formatted;
+};
+
 export const formatISTDate = (dateInput?: string | number | Date | null): string => {
   if (!dateInput) {
     return getCorrectedNow().toLocaleDateString('en-IN', {

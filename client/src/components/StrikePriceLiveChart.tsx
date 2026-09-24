@@ -350,7 +350,7 @@ export const StrikePriceLiveChart: React.FC<StrikePriceLiveChartProps> = ({
       const pctDelta = Math.abs((cl - o) / (o || 1)) * 100;
       const trendStrength = Math.min(100, Math.round(pctDelta * 25 + (c.buyVol / (c.vol || 1)) * 50));
       const d = new Date(c.time);
-      const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
       const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' });
 
       result.push({

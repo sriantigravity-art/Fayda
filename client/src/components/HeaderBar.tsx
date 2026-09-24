@@ -208,28 +208,16 @@ export const HeaderBar: React.FC = () => {
 
 
 
-  // 12-hour vs 24-hour clock preference (default: 12-hour with AM/PM)
-  const [is24Hour, setIs24Hour] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('fayda_clock_24h') === 'true';
-    } catch {
-      return false;
+  // Clean up legacy 24-hour preference
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('fayda_clock_24h');
     }
-  });
+  } catch {}
 
-  const toggleClockFormat = () => {
-    setIs24Hour(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem('fayda_clock_24h', String(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // Live real-time clock with seconds strictly formatted in IST
+  // Live real-time clock with seconds strictly formatted in 12-hour AM/PM IST
   const [currentTime, setCurrentTime] = useState<string>(() => {
-    return formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: !is24Hour });
+    return formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: true });
   });
 
   // Market Hours: NSE/BSE Equity (09:15 - 15:40 IST) vs MCX Commodities (09:00 - 23:30 IST)
@@ -253,12 +241,12 @@ export const HeaderBar: React.FC = () => {
 
   useEffect(() => {
     const update = () => {
-      setCurrentTime(formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: !is24Hour }));
+      setCurrentTime(formatISTTime(null, { showSeconds: true, includeSuffix: true, hour12: true }));
     };
     update();
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, [is24Hour]);
+  }, []);
 
   const expiryDates = currentIndexState?.expiryDates || [];
   const selectedExpiry = currentIndexState?.selectedExpiry || '';
@@ -794,15 +782,13 @@ export const HeaderBar: React.FC = () => {
 
         {/* Right Container: Live IST Clock */}
         <div className="flex items-center space-x-1.5 font-sans ml-auto shrink-0">
-          <button
-            type="button"
-            onClick={toggleClockFormat}
-            className="flex items-center space-x-1 font-mono text-terminal-muted hover:text-accent-sky text-[11px] cursor-pointer transition select-none bg-terminal-panel/80 hover:bg-terminal-panel border border-terminal-border px-2 py-0.5 sm:py-1 rounded-lg shrink-0 shadow-xs"
-            title="Indian Standard Time (IST - Asia/Kolkata). Click to toggle 12h (AM/PM) / 24h format."
+          <div
+            className="flex items-center space-x-1 font-mono text-terminal-text text-[11px] select-none bg-terminal-panel/80 border border-terminal-border px-2 py-0.5 sm:py-1 rounded-lg shrink-0 shadow-xs"
+            title="Indian Standard Time (IST - Asia/Kolkata) • 12-Hour AM/PM"
           >
             <Clock className="w-3 h-3 text-accent-sky shrink-0" />
             <span className="font-semibold">{currentTime}</span>
-          </button>
+          </div>
         </div>
       </div>
 

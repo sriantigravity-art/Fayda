@@ -9,6 +9,7 @@ import {
   type AssetCategory,
   type IndexSymbol
 } from '../types';
+import { formatTradeTime } from '../utils/formatTime';
 import { 
   Calendar, 
   Filter, 
@@ -221,7 +222,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: `call_${prevDayStr}_5`,
         date: prevDayStr,
         timestamp: `${prevDayStr}T13:45:10.000Z`,
-        timeFormatted: '13:45:10 IST',
+        timeFormatted: '01:45:10 PM IST',
         symbol: 'CRUDEOIL',
         category: 'COMMODITIES',
         contractName: 'CRUDEOIL 6150 PE',
@@ -249,7 +250,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: `call_${prevDayStr}_6`,
         date: prevDayStr,
         timestamp: `${prevDayStr}T14:20:05.000Z`,
-        timeFormatted: '14:20:05 IST',
+        timeFormatted: '02:20:05 PM IST',
         symbol: 'SENSEX',
         category: 'OPTIONS',
         contractName: 'SENSEX 79800 CE',
@@ -363,7 +364,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: 'call_2026-08-31_4',
         date: '2026-08-31',
         timestamp: '2026-08-31T13:10:20.000Z',
-        timeFormatted: '13:10:20 IST',
+        timeFormatted: '01:10:20 PM IST',
         symbol: 'TCS',
         category: 'STOCKS',
         contractName: 'TCS 4400 CE',
@@ -391,7 +392,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: 'call_2026-08-31_5',
         date: '2026-08-31',
         timestamp: '2026-08-31T18:40:00.000Z',
-        timeFormatted: '18:40:00 IST',
+        timeFormatted: '06:40:00 PM IST',
         symbol: 'NATURALGAS',
         category: 'COMMODITIES',
         contractName: 'NATURALGAS 180 CE',
@@ -419,7 +420,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: 'call_2026-08-31_6',
         date: '2026-08-31',
         timestamp: '2026-08-31T14:05:00.000Z',
-        timeFormatted: '14:05:00 IST',
+        timeFormatted: '02:05:00 PM IST',
         symbol: 'HDFCBANK',
         category: 'STOCKS',
         contractName: 'HDFCBANK 1840 PE',
@@ -505,7 +506,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
         id: 'call_2026-08-28_3',
         date: '2026-08-28',
         timestamp: '2026-08-28T19:10:00.000Z',
-        timeFormatted: '19:10:00 IST',
+        timeFormatted: '07:10:00 PM IST',
         symbol: 'GOLD',
         category: 'COMMODITIES',
         contractName: 'GOLD 72000 CE',
@@ -755,14 +756,14 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       target1Price: `₹${call.target1Price.toFixed(2)}`,
       target1Pct: call.entryPrice > 0 ? parseFloat((((call.target1Price - call.entryPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
       target2Price: call.target2Price ? `₹${call.target2Price.toFixed(2)}` : undefined,
-      givenTimeFormatted: call.callGivenTime || call.timeFormatted,
-      callGivenTimeFormatted: call.callGivenTime || call.timeFormatted,
+      givenTimeFormatted: formatTradeTime(call.callGivenTime || call.timeFormatted, call.symbol),
+      callGivenTimeFormatted: formatTradeTime(call.callGivenTime || call.timeFormatted, call.symbol),
       isEntryTriggered: true,
       actualEntryPrice: call.entryPrice,
-      entryPriceTimeFormatted: call.entryPriceTimeFormatted || call.timeFormatted,
-      target1HitTimeFormatted: call.target1HitTimeFormatted || (isTargetHit ? (call.targetHitTime || call.timeFormatted) : undefined),
-      target2HitTimeFormatted: call.target2HitTimeFormatted || (isTargetHit && call.target2Price && (call.peakLtp >= call.target2Price) ? (call.targetHitTime || call.timeFormatted) : undefined),
-      stoplossTimeFormatted: call.stoplossTime || call.stoplossHitTime || (isSl ? call.timeFormatted : undefined),
+      entryPriceTimeFormatted: formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol),
+      target1HitTimeFormatted: call.target1HitTimeFormatted ? formatTradeTime(call.target1HitTimeFormatted, call.symbol) : (isTargetHit ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
+      target2HitTimeFormatted: call.target2HitTimeFormatted ? formatTradeTime(call.target2HitTimeFormatted, call.symbol) : (isTargetHit && call.target2Price && (call.peakLtp >= call.target2Price) ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
+      stoplossTimeFormatted: call.stoplossTime ? formatTradeTime(call.stoplossTime, call.symbol) : call.stoplossHitTime ? formatTradeTime(call.stoplossHitTime, call.symbol) : (isSl ? formatTradeTime(call.timeFormatted, call.symbol) : undefined),
       bookedTimeFormatted: call.targetHitTime || call.stoplossHitTime || call.timeFormatted,
       elapsedTimeFormatted: `${call.pointsPnl >= 0 ? '+' : ''}${call.pointsPnl.toFixed(2)} pts (${call.pnlPct.toFixed(2)}%)`,
       actionGuidance: call.nearTargetDescription || (isTargetHit ? 'Target 1 hit successfully with solid profit booking.' : isSl ? 'Strict Stop Loss respected to protect capital.' : 'Trade achieved near-target price extension.'),
@@ -1481,30 +1482,30 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                       <div className="flex flex-col space-y-1">
                         <div className="flex items-center space-x-1 font-bold text-terminal-text">
                           <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
-                          <span>{call.entryPriceTimeFormatted || call.timeFormatted}</span>
+                          <span>{formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol)}</span>
                         </div>
                         {call.target1HitTimeFormatted && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
                             <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
-                            <span>T1: {call.target1HitTimeFormatted}</span>
+                            <span>T1: {formatTradeTime(call.target1HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
                         {call.target2HitTimeFormatted && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
                             <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                            <span>T2: {call.target2HitTimeFormatted}</span>
+                            <span>T2: {formatTradeTime(call.target2HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
                         {(call.stoplossTime || call.stoplossHitTime) && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bear font-bold">
                             <XCircle className="w-2.5 h-2.5 shrink-0" />
-                            <span>SL: {call.stoplossTime || call.stoplossHitTime}</span>
+                            <span>SL: {formatTradeTime(call.stoplossTime || call.stoplossHitTime, call.symbol)}</span>
                           </div>
                         )}
                         {(call.status === 'INTRADAY_CLOSED' || call.status === 'SQUARE_OFF') && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-amber font-bold">
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
-                            <span>Exit: {call.timeFormatted}</span>
+                            <span>Exit: {formatTradeTime(call.timeFormatted, call.symbol)}</span>
                           </div>
                         )}
                       </div>

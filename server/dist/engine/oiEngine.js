@@ -135,7 +135,7 @@ export class OIEngine {
         let atmPutTheta = 0;
         const strikesData = [];
         const detectedSurgesThisTick = [];
-        const timeStr = new Date(now).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+        const timeStr = new Date(now).toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true });
         // Process each strike with GreekEngine, IV & Liquidity Evaluators
         for (const raw of strikesRaw) {
             const strike = raw.strikePrice;
