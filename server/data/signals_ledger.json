@@ -2352,7 +2352,7 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹99.40.",
     "exitLtp": 5.77,
-    "targetHitTime": "21:46:09 IST",
+    "targetHitTime": "22:58:51 IST",
     "target1HitTimeFormatted": "02:15 PM IST",
     "target2HitTimeFormatted": "02:15 PM IST"
   },
@@ -2389,7 +2389,7 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹88.30.",
     "exitLtp": 6.77,
-    "targetHitTime": "21:45:33 IST"
+    "targetHitTime": "22:57:36 IST"
   },
   {
     "id": "call_2026-09-23_NIFTY_23500_CE_SELL",
@@ -2424,7 +2424,7 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹99.40.",
     "exitLtp": 7.37,
-    "targetHitTime": "21:46:09 IST"
+    "targetHitTime": "22:58:51 IST"
   },
   {
     "id": "call_2026-09-23_BANKNIFTY_56400_PE_SELL",
@@ -2459,7 +2459,7 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹280.26.",
     "exitLtp": 8.99,
-    "targetHitTime": "21:45:23 IST"
+    "targetHitTime": "22:57:27 IST"
   },
   {
     "id": "call_2026-09-23_BANKEX_63800_PE_SELL",
@@ -2494,7 +2494,7 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹297.57.",
     "exitLtp": 12.91,
-    "targetHitTime": "21:45:32 IST"
+    "targetHitTime": "22:57:36 IST"
   },
   {
     "id": "call_2026-09-23_BANKEX_64000_CE_SELL",
@@ -2635,7 +2635,7 @@
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹75.00.",
     "exitLtp": 56.14,
     "targetHitTime": "20:41:11 IST",
-    "stoplossHitTime": "21:45:24 IST"
+    "stoplossHitTime": "22:57:27 IST"
   },
   {
     "id": "call_2026-09-23_COPPER_1420_PE_BUY_PUT",
@@ -3180,6 +3180,6 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹458.70.",
     "exitLtp": 12.95,
-    "targetHitTime": "21:41:30 IST"
+    "targetHitTime": "22:57:45 IST"
   }
 ]

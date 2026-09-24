@@ -336,7 +336,7 @@ body {
 .animate-marquee-seamless {
   display: flex;
   width: max-content;
-  animation: marqueeSeamless 38s linear infinite;
+  animation: marqueeSeamless 70s linear infinite;
 }
 
 .animate-marquee-seamless:hover {
@@ -346,12 +346,33 @@ body {
 .animate-marquee-ticker {
   display: flex;
   width: max-content;
-  animation: marqueeTicker 28s linear infinite;
+  animation: marqueeTicker 75s linear infinite;
 }
 
 .animate-marquee-ticker:hover,
 .animate-marquee-ticker:active,
 .animate-marquee-ticker:focus {
+  animation-play-state: paused;
+}
+
+@keyframes marqueeReverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-reverse {
+  display: flex;
+  width: max-content;
+  animation: marqueeReverse 75s linear infinite;
+}
+
+.animate-marquee-reverse:hover,
+.animate-marquee-reverse:active,
+.animate-marquee-reverse:focus {
   animation-play-state: paused;
 }
 
@@ -368,7 +389,7 @@ body {
 .animate-ticker-seamless {
   display: flex;
   width: max-content;
-  animation: tickerSeamless 55s linear infinite;
+  animation: tickerSeamless 80s linear infinite;
 }
 
 .animate-ticker-seamless:hover {

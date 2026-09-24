@@ -259,37 +259,7 @@ export const SurgeAlertBanner: React.FC = () => {
 
   return (
     <>
-      {/* ─────────────────────────────────────────────────────────────
-          1. RIGHT SIDE TRIGGER BUTTON: Clean Floating Tab
-         ───────────────────────────────────────────────────────────── */}
-      {!isOpen && (
-        <button
-          type="button"
-          onClick={toggleModal}
-          className="hidden sm:flex fixed right-0 top-[28%] sm:top-[30%] -translate-y-1/2 z-40 items-center justify-center py-3.5 px-2 rounded-l-2xl border-l-2 border-t-2 border-b-2 font-mono font-black text-[10px] sm:text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[-4px_0_20px_rgba(255,59,105,0.45)] backdrop-blur-md bg-gradient-to-b from-terminal-panel via-terminal-card to-terminal-panel border-bear/80 text-terminal-text hover:text-bear hover:border-bear cursor-pointer group"
-          title="Open Flash Surge Radar Modal"
-        >
-          {/* Mobile View (< sm): Compact Glowing Right-Edge Icon */}
-          <div className="flex sm:hidden items-center justify-center relative p-0.5">
-            <Zap className="w-5 h-5 text-bear drop-shadow-[0_0_10px_rgba(255,59,105,0.8)] animate-pulse" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bear shadow-[0_0_6px_#FF3B69]" />
-          </div>
 
-          {/* Tablet & Desktop View (>= sm): Clean Vertical Tab */}
-          <div className="hidden sm:flex flex-col items-center gap-1.5" style={{ writingMode: 'vertical-rl' }}>
-            <div className="flex items-center justify-center gap-1 rotate-180 mb-1">
-              <ChevronLeft className="w-3.5 h-3.5 text-bear animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full bg-bear opacity-75 animate-ping" style={{ animationDuration: '2.5s' }} />
-            </div>
-            
-            <div className="flex items-center gap-1 text-bear">
-              <Zap className="w-3.5 h-3.5 rotate-90 text-bear" />
-              <span>FLASH SURGE</span>
-            </div>
-          </div>
-        </button>
-      )}
 
       {/* ─────────────────────────────────────────────────────────────
           2. STANDALONE CENTERED MODALBOX (Theme Aware: Pure Light / Dark)

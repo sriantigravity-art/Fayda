@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTradingPersona } from '../../context/TradingPersonaContext';
+import { useMarket } from '../../context/MarketContext';
 import { FaydaBrandLogo } from '../common/FaydaBrandLogo';
 import { FeatureDetailModal } from './FeatureDetailModal';
 import { LandingCmsEditorModal } from './LandingCmsEditorModal';
@@ -72,6 +73,10 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
   const { login, register, isAuthenticated, isSuperAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { setIsPersonaModalOpen } = useTradingPersona();
+  const { indices } = useMarket();
+
+  // Exchange Feed Slider Ref
+  const exchangeSliderRef = useRef<HTMLDivElement>(null);
 
   // CMS Content State
   const [cmsData, setCmsData] = useState<LandingCmsData>(() => getLandingCmsData());
@@ -370,6 +375,157 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
     }
   };
 
+  // All Exchange Feed Benchmarks (NSE, BSE, MCX, FX) with Real-Time / Correlated Fallback
+  const exchangeFeedItems = useMemo(() => {
+    const list = [
+      // NSE Benchmarks
+      { symbol: 'NIFTY', name: 'NIFTY 50', exchange: 'NSE', fallbackPrice: '23,346.40', fallbackChg: '+84.80 (+0.36%)', fallbackPos: true },
+      { symbol: 'BANKNIFTY', name: 'BANK NIFTY', exchange: 'NSE', fallbackPrice: '50,340.20', fallbackChg: '+215.10 (+0.43%)', fallbackPos: true },
+      { symbol: 'FINNIFTY', name: 'FIN NIFTY', exchange: 'NSE', fallbackPrice: '22,860.50', fallbackChg: '+92.40 (+0.41%)', fallbackPos: true },
+      { symbol: 'MIDCPNIFTY', name: 'MIDCAP NIFTY', exchange: 'NSE', fallbackPrice: '12,410.80', fallbackChg: '+48.20 (+0.39%)', fallbackPos: true },
+      { symbol: 'NIFTYNXT50', name: 'NIFTY NEXT 50', exchange: 'NSE', fallbackPrice: '68,240.00', fallbackChg: '+180.50 (+0.27%)', fallbackPos: true },
+      { symbol: 'INDIAVIX', name: 'INDIA VIX', exchange: 'NSE', fallbackPrice: '12.84', fallbackChg: '-0.32 (-2.43%)', fallbackPos: false },
+      
+      // BSE Benchmarks
+      { symbol: 'SENSEX', name: 'BSE SENSEX', exchange: 'BSE', fallbackPrice: '76,450.10', fallbackChg: '+280.40 (+0.37%)', fallbackPos: true },
+      { symbol: 'BANKEX', name: 'BSE BANKEX', exchange: 'BSE', fallbackPrice: '56,820.40', fallbackChg: '+240.10 (+0.42%)', fallbackPos: true },
+      { symbol: 'BSE100', name: 'BSE 100', exchange: 'BSE', fallbackPrice: '24,180.00', fallbackChg: '+65.00 (+0.27%)', fallbackPos: true },
+      
+      // MCX Commodities
+      { symbol: 'CRUDEOIL', name: 'CRUDE OIL', exchange: 'MCX', fallbackPrice: '6,140.00', fallbackChg: '-42.00 (-0.68%)', fallbackPos: false },
+      { symbol: 'NATURALGAS', name: 'NATURAL GAS', exchange: 'MCX', fallbackPrice: '286.40', fallbackChg: '+4.20 (+1.49%)', fallbackPos: true },
+      { symbol: 'GOLD', name: 'GOLD 10G', exchange: 'MCX', fallbackPrice: '74,800.00', fallbackChg: '+310.00 (+0.42%)', fallbackPos: true },
+      { symbol: 'SILVER', name: 'SILVER 1KG', exchange: 'MCX', fallbackPrice: '88,950.00', fallbackChg: '+620.00 (+0.70%)', fallbackPos: true },
+      { symbol: 'COPPER', name: 'COPPER', exchange: 'MCX', fallbackPrice: '842.10', fallbackChg: '-3.20 (-0.38%)', fallbackPos: false },
+      { symbol: 'ZINC', name: 'ZINC', exchange: 'MCX', fallbackPrice: '264.80', fallbackChg: '+1.50 (+0.57%)', fallbackPos: true },
+      
+      // Currency & Global
+      { symbol: 'USDINR', name: 'USD / INR', exchange: 'FX', fallbackPrice: '83.42', fallbackChg: '-0.04 (-0.05%)', fallbackPos: false },
+      { symbol: 'GIFTNIFTY', name: 'GIFT NIFTY', exchange: 'GLOBAL', fallbackPrice: '23,410.00', fallbackChg: '+63.60 (+0.27%)', fallbackPos: true }
+    ];
+
+    return list.map(item => {
+      const live = indices[item.symbol];
+      if (live && live.spotPrice) {
+        const isPos = (live.change ?? 0) >= 0;
+        return {
+          name: item.name,
+          exchange: item.exchange,
+          price: live.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          chg: `${isPos ? '+' : ''}${(live.change ?? 0).toFixed(2)} (${isPos ? '+' : ''}${(live.changePct ?? 0).toFixed(2)}%)`,
+          pos: isPos
+        };
+      }
+      return {
+        name: item.name,
+        exchange: item.exchange,
+        price: item.fallbackPrice,
+        chg: item.fallbackChg,
+        pos: item.fallbackPos
+      };
+    });
+  }, [indices]);
+
+  // Curated Top 25 Nifty 50 constituent stocks for Fixed Footer Row 1
+  const niftyStocks = useMemo(() => {
+    const rawList = [
+      { symbol: 'RELIANCE', price: 2985.40, chg: 36.50, pct: 1.24 },
+      { symbol: 'HDFCBANK', price: 1642.10, chg: 13.80, pct: 0.85 },
+      { symbol: 'ICICIBANK', price: 1215.30, chg: 17.00, pct: 1.42 },
+      { symbol: 'INFY', price: 1892.50, chg: -6.10, pct: -0.32 },
+      { symbol: 'TCS', price: 4230.00, chg: 23.20, pct: 0.55 },
+      { symbol: 'ITC', price: 492.60, chg: 1.00, pct: 0.20 },
+      { symbol: 'SBIN', price: 812.40, chg: 8.80, pct: 1.10 },
+      { symbol: 'BHARTIARTL', price: 1580.20, chg: 25.60, pct: 1.65 },
+      { symbol: 'LT', price: 3620.00, chg: 33.00, pct: 0.92 },
+      { symbol: 'AXISBANK', price: 1180.50, chg: 5.30, pct: 0.45 },
+      { symbol: 'KOTAKBANK', price: 1780.00, chg: -4.50, pct: -0.25 },
+      { symbol: 'TATAMOTORS', price: 985.60, chg: 20.70, pct: 2.15 },
+      { symbol: 'MARUTI', price: 12450.00, chg: 98.00, pct: 0.80 },
+      { symbol: 'BAJFINANCE', price: 7150.00, chg: 74.00, pct: 1.05 },
+      { symbol: 'SUNPHARMA', price: 1785.00, chg: 11.50, pct: 0.65 },
+      { symbol: 'TITAN', price: 3450.00, chg: -13.80, pct: -0.40 },
+      { symbol: 'TATASTEEL', price: 154.20, chg: 2.70, pct: 1.80 },
+      { symbol: 'HCLTECH', price: 1740.00, chg: 5.20, pct: 0.30 },
+      { symbol: 'NTPC', price: 395.40, chg: 5.80, pct: 1.50 },
+      { symbol: 'ONGC', price: 292.00, chg: 2.60, pct: 0.90 },
+      { symbol: 'ADANIENT', price: 3120.00, chg: 53.60, pct: 1.75 },
+      { symbol: 'ADANIPORTS', price: 1440.00, chg: 16.30, pct: 1.15 },
+      { symbol: 'POWERGRID', price: 315.00, chg: 3.70, pct: 1.20 },
+      { symbol: 'M&M', price: 2840.00, chg: 53.00, pct: 1.90 },
+      { symbol: 'COALINDIA', price: 485.00, chg: 3.60, pct: 0.75 }
+    ];
+    return rawList.map(stk => {
+      const live = indices[stk.symbol];
+      if (live && live.spotPrice) {
+        const isPos = (live.change ?? 0) >= 0;
+        return {
+          symbol: stk.symbol,
+          price: live.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          chg: `${isPos ? '+' : ''}${(live.change ?? 0).toFixed(2)} (${isPos ? '+' : ''}${(live.changePct ?? 0).toFixed(2)}%)`,
+          pos: isPos
+        };
+      }
+      const isPos = stk.pct >= 0;
+      return {
+        symbol: stk.symbol,
+        price: stk.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        chg: `${isPos ? '+' : ''}${stk.chg.toFixed(2)} (${isPos ? '+' : ''}${stk.pct.toFixed(2)}%)`,
+        pos: isPos
+      };
+    });
+  }, [indices]);
+
+  // Curated Top 25 BSE Sensex constituent stocks for Fixed Footer Row 2
+  const bseStocks = useMemo(() => {
+    const rawList = [
+      { symbol: 'SENSEX', price: 76450.10, chg: 280.40, pct: 0.37 },
+      { symbol: 'TCS', price: 4230.00, chg: 23.20, pct: 0.55 },
+      { symbol: 'RELIANCE', price: 2985.40, chg: 36.50, pct: 1.24 },
+      { symbol: 'HDFCBANK', price: 1642.10, chg: 13.80, pct: 0.85 },
+      { symbol: 'ICICIBANK', price: 1215.30, chg: 17.00, pct: 1.42 },
+      { symbol: 'INFOSYS', price: 1892.50, chg: -6.10, pct: -0.32 },
+      { symbol: 'ITC', price: 492.60, chg: 1.00, pct: 0.20 },
+      { symbol: 'L&T', price: 3620.00, chg: 33.00, pct: 0.92 },
+      { symbol: 'SBIN', price: 812.40, chg: 8.80, pct: 1.10 },
+      { symbol: 'BHARTIARTL', price: 1580.20, chg: 25.60, pct: 1.65 },
+      { symbol: 'AXISBANK', price: 1180.50, chg: 5.30, pct: 0.45 },
+      { symbol: 'MARUTI', price: 12450.00, chg: 98.00, pct: 0.80 },
+      { symbol: 'SUNPHARMA', price: 1785.00, chg: 11.50, pct: 0.65 },
+      { symbol: 'TITAN', price: 3450.00, chg: -13.80, pct: -0.40 },
+      { symbol: 'BAJFINANCE', price: 7150.00, chg: 74.00, pct: 1.05 },
+      { symbol: 'TATASTEEL', price: 154.20, chg: 2.70, pct: 1.80 },
+      { symbol: 'ULTRACEMCO', price: 11200.00, chg: 78.40, pct: 0.70 },
+      { symbol: 'ASIANPAINT', price: 3150.00, chg: -25.20, pct: -0.80 },
+      { symbol: 'NESTLEIND', price: 2480.00, chg: 3.70, pct: 0.15 },
+      { symbol: 'POWERGRID', price: 315.00, chg: 3.70, pct: 1.20 },
+      { symbol: 'M&M', price: 2840.00, chg: 53.00, pct: 1.90 },
+      { symbol: 'KOTAKBANK', price: 1780.00, chg: -4.50, pct: -0.25 },
+      { symbol: 'HINDUNILVR', price: 2720.00, chg: 10.80, pct: 0.40 },
+      { symbol: 'TECHM', price: 1560.00, chg: 13.10, pct: 0.85 },
+      { symbol: 'BAJAJFINSV', price: 1840.00, chg: 17.30, pct: 0.95 }
+    ];
+    return rawList.map(stk => {
+      const live = indices[stk.symbol];
+      if (live && live.spotPrice) {
+        const isPos = (live.change ?? 0) >= 0;
+        return {
+          symbol: stk.symbol,
+          price: live.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          chg: `${isPos ? '+' : ''}${(live.change ?? 0).toFixed(2)} (${isPos ? '+' : ''}${(live.changePct ?? 0).toFixed(2)}%)`,
+          pos: isPos
+        };
+      }
+      const isPos = stk.pct >= 0;
+      return {
+        symbol: stk.symbol,
+        price: stk.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        chg: `${isPos ? '+' : ''}${stk.chg.toFixed(2)} (${isPos ? '+' : ''}${stk.pct.toFixed(2)}%)`,
+        pos: isPos
+      };
+    });
+  }, [indices]);
+
   // Curated Past Trades Dataset (TraderSmith Style Past Performance)
   const pastTrades = useMemo(() => [
     { id: '1', date: '18-Sep-2026', symbol: 'NIFTY', strike: '23300 CE', action: 'BUY CALL', entry: 114, exit: 168, pnlPct: 47.36, status: 'TARGET 2 HIT', outcome: 'WIN' },
@@ -424,7 +580,7 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
   ];
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 select-none overflow-x-hidden">
+    <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 select-none overflow-x-hidden pb-16 sm:pb-20">
       
       {/* ========================================================================= */}
       {/* 0. TOP ANNOUNCEMENT BANNER                                               */}
@@ -981,32 +1137,106 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. LIVE MARKET QUOTE RIBBON                                               */}
+      {/* 3. LIVE MARKET EXCHANGE FEED SLIDER (ALL ASSETS: NSE • BSE • MCX)         */}
       {/* ========================================================================= */}
-      <div className="w-full bg-slate-100 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800 py-2.5 px-4 overflow-x-auto no-scrollbar">
-        <div className="max-w-[1840px] mx-auto flex items-center space-x-4 sm:space-x-6 min-w-max text-xs font-mono">
-          <div className="flex items-center space-x-1 font-bold text-slate-500">
-            <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-            <span>EXCHANGE FEED:</span>
+      <div className="w-full bg-slate-100 dark:bg-slate-900/95 border-y border-slate-200 dark:border-slate-800 py-2 sm:py-2.5 px-2 sm:px-4 relative overflow-hidden select-none">
+        <div className="max-w-[1840px] mx-auto flex items-center gap-2.5 sm:gap-3">
+          
+          {/* Pinned Left Broadcast Live Badge */}
+          <div className="flex items-center space-x-1.5 shrink-0 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] sm:text-xs font-bold shadow-xs">
+            <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0" />
+            <span className="font-extrabold tracking-wide hidden xs:inline">EXCHANGE FEED:</span>
+            <span className="text-[9px] font-black uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">LIVE</span>
           </div>
 
-          {[
-            { name: 'NIFTY 50', price: '23,346.40', chg: '+84.80 (+0.36%)', pos: true },
-            { name: 'BANK NIFTY', price: '50,340.20', chg: '+215.10 (+0.43%)', pos: true },
-            { name: 'SENSEX', price: '76,450.10', chg: '+280.40 (+0.37%)', pos: true },
-            { name: 'CRUDE OIL', price: '6,140.00', chg: '-42.00 (-0.68%)', pos: false },
-            { name: 'GOLD 10G', price: '74,800.00', chg: '+310.00 (+0.42%)', pos: true },
-            { name: 'USD / INR', price: '83.42', chg: '-0.04 (-0.05%)', pos: false },
-            { name: 'GIFT NIFTY', price: '23,410.00', chg: '+63.60 (+0.27%)', pos: true }
-          ].map((m, idx) => (
-            <div key={idx} className="flex items-center space-x-2 px-3 py-1 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <span className="font-bold text-slate-800 dark:text-slate-200">{m.name}</span>
-              <span className="font-extrabold text-slate-950 dark:text-white">₹{m.price}</span>
-              <span className={`font-bold ${m.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {m.chg}
-              </span>
+          {/* Slider Left Arrow */}
+          <button
+            type="button"
+            onClick={() => {
+              if (exchangeSliderRef.current) {
+                exchangeSliderRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+              }
+            }}
+            className="hidden md:flex p-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shrink-0 shadow-xs"
+            title="Scroll Left"
+            aria-label="Previous Exchange Feed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Auto-sliding Marquee Track with Duplicate for Infinite Loop */}
+          <div
+            ref={exchangeSliderRef}
+            className="flex-1 overflow-x-auto no-scrollbar relative flex items-center group cursor-grab active:cursor-grabbing"
+          >
+            <div className="flex animate-marquee-ticker whitespace-nowrap text-xs font-mono">
+              {/* Loop 1 */}
+              <div className="flex items-center space-x-2.5 sm:space-x-3.5 shrink-0 pr-3">
+                {exchangeFeedItems.map((m, idx) => (
+                  <div
+                    key={`feed1-${idx}`}
+                    className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/90 shadow-xs hover:border-accent-sky/50 transition duration-150 shrink-0"
+                  >
+                    <span className={`text-[9px] font-mono font-black px-1.5 py-0.2 rounded border ${
+                      m.exchange === 'NSE' ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25' :
+                      m.exchange === 'BSE' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25' :
+                      m.exchange === 'MCX' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25' :
+                      'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25'
+                    }`}>
+                      {m.exchange}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{m.name}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{m.price}</span>
+                    <span className={`font-bold flex items-center gap-0.5 text-[11px] ${m.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {m.pos ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
+                      <span>{m.chg}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Loop 2 (Seamless Infinite Repeat) */}
+              <div className="flex items-center space-x-2.5 sm:space-x-3.5 shrink-0 pr-3" aria-hidden="true">
+                {exchangeFeedItems.map((m, idx) => (
+                  <div
+                    key={`feed2-${idx}`}
+                    className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/90 shadow-xs hover:border-accent-sky/50 transition duration-150 shrink-0"
+                  >
+                    <span className={`text-[9px] font-mono font-black px-1.5 py-0.2 rounded border ${
+                      m.exchange === 'NSE' ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25' :
+                      m.exchange === 'BSE' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25' :
+                      m.exchange === 'MCX' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25' :
+                      'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25'
+                    }`}>
+                      {m.exchange}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{m.name}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{m.price}</span>
+                    <span className={`font-bold flex items-center gap-0.5 text-[11px] ${m.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {m.pos ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
+                      <span>{m.chg}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+          </div>
+
+          {/* Slider Right Arrow */}
+          <button
+            type="button"
+            onClick={() => {
+              if (exchangeSliderRef.current) {
+                exchangeSliderRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+              }
+            }}
+            className="hidden md:flex p-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shrink-0 shadow-xs"
+            title="Scroll Right"
+            aria-label="Next Exchange Feed"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
         </div>
       </div>
 
@@ -1851,7 +2081,7 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
       {/* ========================================================================= */}
       {/* 12. FLOATING SUPER ADMIN CMS EDIT BUTTON                                  */}
       {/* ========================================================================= */}
-      <div className="fixed bottom-4 right-4 z-[150]">
+      <div className="fixed bottom-16 sm:bottom-16 right-4 z-[150]">
         <button
           type="button"
           onClick={() => setIsCmsEditorOpen(true)}
@@ -1878,6 +2108,95 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
         onClose={() => setIsCmsEditorOpen(false)}
         onSaved={() => setCmsData(getLandingCmsData())}
       />
+
+      {/* ========================================================================= */}
+      {/* FIXED FOOTER: TWO-ROW NIFTY & BSE LIVE STOCKS TICKER                      */}
+      {/* ========================================================================= */}
+      <footer aria-label="Live Nifty and BSE Stocks Tickers" className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.22)] flex flex-col divide-y divide-slate-100 dark:divide-slate-800/70 select-none">
+        
+        {/* ROW 1: NIFTY 50 CONSTITUENTS TICKER */}
+        <div className="h-6 sm:h-7 px-2 sm:px-3 flex items-center overflow-hidden">
+          {/* Pinned Left Header Badge */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-400 font-mono text-[9px] sm:text-[10px] font-black shrink-0 mr-2 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+            <span>NIFTY 50</span>
+            <span className="hidden sm:inline text-slate-400 font-normal">| NSE</span>
+          </div>
+
+          {/* Marquee Track with Duplicate for Infinite Loop */}
+          <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 relative flex items-center group">
+            <div className="flex animate-marquee-ticker whitespace-nowrap text-[10px] sm:text-[11px] font-mono">
+              {/* Loop 1 */}
+              <div className="flex items-center space-x-4 sm:space-x-6 shrink-0 pr-4 sm:pr-6">
+                {niftyStocks.map((stk, idx) => (
+                  <div key={`n1-${idx}`} className="flex items-center gap-1.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 px-1.5 py-0.5 rounded transition cursor-default">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{stk.symbol}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{stk.price}</span>
+                    <span className={`font-semibold flex items-center text-[9.5px] ${stk.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {stk.pos ? '▲' : '▼'} {stk.chg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Loop 2 (Seamless loop) */}
+              <div className="flex items-center space-x-4 sm:space-x-6 shrink-0 pr-4 sm:pr-6" aria-hidden="true">
+                {niftyStocks.map((stk, idx) => (
+                  <div key={`n2-${idx}`} className="flex items-center gap-1.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 px-1.5 py-0.5 rounded transition cursor-default">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{stk.symbol}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{stk.price}</span>
+                    <span className={`font-semibold flex items-center text-[9.5px] ${stk.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {stk.pos ? '▲' : '▼'} {stk.chg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 2: BSE SENSEX 30 CONSTITUENTS TICKER */}
+        <div className="h-6 sm:h-7 px-2 sm:px-3 flex items-center overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
+          {/* Pinned Left Header Badge */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 font-mono text-[9px] sm:text-[10px] font-black shrink-0 mr-2 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>SENSEX 30</span>
+            <span className="hidden sm:inline text-slate-400 font-normal">| BSE</span>
+          </div>
+
+          {/* Marquee Track with Duplicate for Infinite Loop (Same direction as Nifty ticker) */}
+          <div className="overflow-hidden whitespace-nowrap flex-1 min-w-0 relative flex items-center group">
+            <div className="flex animate-marquee-ticker whitespace-nowrap text-[10px] sm:text-[11px] font-mono">
+              {/* Loop 1 */}
+              <div className="flex items-center space-x-4 sm:space-x-6 shrink-0 pr-4 sm:pr-6">
+                {bseStocks.map((stk, idx) => (
+                  <div key={`b1-${idx}`} className="flex items-center gap-1.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 px-1.5 py-0.5 rounded transition cursor-default">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{stk.symbol}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{stk.price}</span>
+                    <span className={`font-semibold flex items-center text-[9.5px] ${stk.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {stk.pos ? '▲' : '▼'} {stk.chg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Loop 2 (Seamless loop) */}
+              <div className="flex items-center space-x-4 sm:space-x-6 shrink-0 pr-4 sm:pr-6" aria-hidden="true">
+                {bseStocks.map((stk, idx) => (
+                  <div key={`b2-${idx}`} className="flex items-center gap-1.5 hover:bg-slate-200/50 dark:hover:bg-slate-800/60 px-1.5 py-0.5 rounded transition cursor-default">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{stk.symbol}</span>
+                    <span className="font-extrabold text-slate-950 dark:text-white">₹{stk.price}</span>
+                    <span className={`font-semibold flex items-center text-[9.5px] ${stk.pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {stk.pos ? '▲' : '▼'} {stk.chg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </footer>
 
     </div>
   );
