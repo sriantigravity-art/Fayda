@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type TipConfluenceBreakdown, type OptionSellerMetrics } from '../types';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
+import { isSignalSettledAndOpen } from '../utils/marketHours';
 export { ConfluenceChecklist };
 
 
@@ -72,8 +73,10 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
   const otmPutObj = strikesList.find(s => s.strikePrice <= spotPrice - step * 2) || strikesList[0];
   const otmCallObj = strikesList.find(s => s.strikePrice >= spotPrice + step * 2) || strikesList[strikesList.length - 1];
 
+  const isSettled = isSignalSettledAndOpen(selectedIndex);
   const minCockpitCutoff = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(selectedIndex) ? 20.0 : 10.0;
   const isPkgCallValid = Boolean(
+    isSettled &&
     pkg?.topCallTrade && 
     pkg.topCallTrade.status !== 'SL_HIT' && 
     pkg.topCallTrade.status !== 'STOPLOSS_HIT' && 
@@ -84,6 +87,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (pkg.topCallTrade.confluenceScore || 0) >= 75
   );
   const isPkgPutValid = Boolean(
+    isSettled &&
     pkg?.topPutTrade && 
     pkg.topPutTrade.status !== 'SL_HIT' && 
     pkg.topPutTrade.status !== 'STOPLOSS_HIT' && 
@@ -94,69 +98,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (pkg.topPutTrade.confluenceScore || 0) >= 75
   );
 
-  let topCallTrade = (isPkgCallValid ? pkg?.topCallTrade : null) || (atmObj ? {
-    id: `synth-call-${atmObj.strikePrice}`,
-    symbol: selectedIndex,
-    contractSymbol: `${selectedIndex} ${atmObj.strikePrice} CE`,
-    strikePrice: atmObj.strikePrice,
-    action: 'BUY_CALL',
-    optionType: 'CE',
-    tradingRole: 'BUYER',
-    executionType: 'NET_DEBIT',
-    tierLabel: 'HIGH-PROBABILITY HOURLY CALL SETUP',
-    sessionName: 'Live Market',
-    confluenceScore: 86,
-    entryPrice: +(atmCallLtp * 0.96).toFixed(1),
-    entryRange: `₹${(atmCallLtp * 0.94).toFixed(1)} - ₹${(atmCallLtp * 0.98).toFixed(1)}`,
-    currentLtp: atmCallLtp,
-    target1Price: +(atmCallLtp * 1.30).toFixed(1),
-    target1Pct: 30,
-    target2Price: +(atmCallLtp * 1.65).toFixed(1),
-    target2Pct: 65,
-    stoplossPrice: +(atmCallLtp * 0.78).toFixed(1),
-    stoplossPct: 22,
-    riskReward: '1:2.4',
-    entryTimeFormatted: 'Live Intraday',
-    status: 'ACTIVE',
-    strategyTag: 'Bullish Momentum Breakout',
-    explanations: {
-      beginner: '🎯 SYSTEM ADVISORY: BUY CALL (CE) | Bullish momentum breakout confirmed | Action: Enter on dip | Strict SL active.',
-      intermediate: '⚡ SYSTEM DIRECTIVE: Bullish Expansion above CPR Pivot | Action: Accumulate CE | Confluence confirmed by call OI covering.',
-      expert: '📊 SYSTEM QUANT DATA: Positive delta expansion above VWAP | Flow: Aggressive institutional buyer absorption | High delta velocity.'
-    }
-  } as any : null);
-
-  let topPutTrade = (isPkgPutValid ? pkg?.topPutTrade : null) || (atmObj ? {
-    id: `synth-put-${atmObj.strikePrice}`,
-    symbol: selectedIndex,
-    contractSymbol: `${selectedIndex} ${atmObj.strikePrice} PE`,
-    strikePrice: atmObj.strikePrice,
-    action: 'BUY_PUT',
-    optionType: 'PE',
-    tradingRole: 'BUYER',
-    executionType: 'NET_DEBIT',
-    tierLabel: 'HIGH-PROBABILITY HOURLY PUT SETUP',
-    sessionName: 'Live Market',
-    confluenceScore: 84,
-    entryPrice: +(atmPutLtp * 0.96).toFixed(1),
-    entryRange: `₹${(atmPutLtp * 0.94).toFixed(1)} - ₹${(atmPutLtp * 0.98).toFixed(1)}`,
-    currentLtp: atmPutLtp,
-    target1Price: +(atmPutLtp * 1.30).toFixed(1),
-    target1Pct: 30,
-    target2Price: +(atmPutLtp * 1.65).toFixed(1),
-    target2Pct: 65,
-    stoplossPrice: +(atmPutLtp * 0.78).toFixed(1),
-    stoplossPct: 22,
-    riskReward: '1:2.4',
-    entryTimeFormatted: 'Live Intraday',
-    status: 'ACTIVE',
-    strategyTag: 'Bearish Pullback Reversal',
-    explanations: {
-      beginner: '🎯 SYSTEM ADVISORY: BUY PUT (PE) | Bearish rejection at resistance roof | Action: Enter on pullback | Strict SL active.',
-      intermediate: '⚡ SYSTEM DIRECTIVE: Resistance Rejection below VWAP | Action: Accumulate PE | Put buyer volume expansion confirmed.',
-      expert: '📊 SYSTEM QUANT DATA: Short-gamma acceleration below liquidity pool | Flow: Negative delta order flow | Put volume surge.'
-    }
-  } as any : null);
+  let topCallTrade = isPkgCallValid ? pkg?.topCallTrade : null;
+  let topPutTrade = isPkgPutValid ? pkg?.topPutTrade : null;
 
   // Dynamically attach real-time live option strike LTP and compute accurate PnL
   if (topCallTrade && topCallTrade.strikePrice) {
@@ -196,81 +139,8 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     }
   }
 
-  const topSellerPutTrade = pkg?.topSellerPutTrade || (otmPutObj ? {
-    id: `synth-seller-put-${otmPutObj.strikePrice}`,
-    symbol: selectedIndex,
-    contractSymbol: `${selectedIndex} ${otmPutObj.strikePrice} PE Bull Put Spread`,
-    strikePrice: otmPutObj.strikePrice,
-    action: 'SELL_PUT_SPREAD',
-    optionType: 'PE',
-    tradingRole: 'SELLER',
-    executionType: 'NET_CREDIT',
-    tierLabel: 'HIGH-POP BULL PUT CREDIT SPREAD',
-    sessionName: 'Live Market',
-    confluenceScore: 86,
-    entryPrice: Math.max(otmPutObj.putLtp || 25, 10),
-    entryRange: `₹${Math.max(otmPutObj.putLtp || 25, 10).toFixed(1)} Credit`,
-    currentLtp: Math.max(otmPutObj.putLtp || 25, 10),
-    target1Price: +(Math.max(otmPutObj.putLtp || 25, 10) * 0.20).toFixed(1),
-    target1Pct: 80,
-    target2Price: +(Math.max(otmPutObj.putLtp || 25, 10) * 0.05).toFixed(1),
-    target2Pct: 95,
-    stoplossPrice: +(Math.max(otmPutObj.putLtp || 25, 10) * 2.0).toFixed(1),
-    stoplossPct: 100,
-    riskReward: '1:3.0',
-    entryTimeFormatted: 'Live Intraday',
-    status: 'ACTIVE',
-    strategyTag: 'Bull Put Credit Spread (High POP)',
-    sellerMetrics: {
-      marginRequired: 38500,
-      breakevenBufferPts: Math.round(step * 2),
-      thetaBurnRate: '+₹140/hr',
-      popPct: 84
-    },
-    explanations: {
-      beginner: '🛡️ SYSTEM SELLER STRATEGY: Bull Put Credit Spread | Action: Sell OTM Put + Buy Hedge | Retain 80%+ premium via theta decay.',
-      intermediate: '⚡ SYSTEM DIRECTIVE: Bull Put Spread anchored below OI support | Delta-hedged with defined safety wing.',
-      expert: '📊 SYSTEM QUANT DATA: Credit structure outside 1.5σ corridor | Positive theta velocity active.'
-    }
-  } as any : null);
-
-  const topSellerCallTrade = pkg?.topSellerCallTrade || (otmCallObj ? {
-    id: `synth-seller-call-${otmCallObj.strikePrice}`,
-    symbol: selectedIndex,
-    contractSymbol: `${selectedIndex} ${otmCallObj.strikePrice} CE Bear Call Spread`,
-    strikePrice: otmCallObj.strikePrice,
-    action: 'SELL_CALL_SPREAD',
-    optionType: 'CE',
-    tradingRole: 'SELLER',
-    executionType: 'NET_CREDIT',
-    tierLabel: 'HIGH-POP BEAR CALL CREDIT SPREAD',
-    sessionName: 'Live Market',
-    confluenceScore: 85,
-    entryPrice: Math.max(otmCallObj.callLtp || 25, 10),
-    entryRange: `₹${Math.max(otmCallObj.callLtp || 25, 10).toFixed(1)} Credit`,
-    currentLtp: Math.max(otmCallObj.callLtp || 25, 10),
-    target1Price: +(Math.max(otmCallObj.callLtp || 25, 10) * 0.20).toFixed(1),
-    target1Pct: 80,
-    target2Price: +(Math.max(otmCallObj.callLtp || 25, 10) * 0.05).toFixed(1),
-    target2Pct: 95,
-    stoplossPrice: +(Math.max(otmCallObj.callLtp || 25, 10) * 2.0).toFixed(1),
-    stoplossPct: 100,
-    riskReward: '1:3.0',
-    entryTimeFormatted: 'Live Intraday',
-    status: 'ACTIVE',
-    strategyTag: 'Bear Call Credit Spread (High POP)',
-    sellerMetrics: {
-      marginRequired: 38500,
-      breakevenBufferPts: Math.round(step * 2),
-      thetaBurnRate: '+₹135/hr',
-      popPct: 83
-    },
-    explanations: {
-      beginner: '🛡️ SYSTEM SELLER STRATEGY: Bear Call Credit Spread | Action: Sell OTM Call + Buy Hedge | Call resistance roof locks premium.',
-      intermediate: '⚡ SYSTEM DIRECTIVE: Bear Call Spread placed above OI ceiling | High probability of theta decay.',
-      expert: '📊 SYSTEM QUANT DATA: Short-gamma resistance fence above 1.5σ | High decay velocity with capped tail risk.'
-    }
-  } as any : null);
+  const topSellerPutTrade = isSettled ? (pkg?.topSellerPutTrade || null) : null;
+  const topSellerCallTrade = isSettled ? (pkg?.topSellerCallTrade || null) : null;
 
   const topSellerNeutralTrade = pkg?.topSellerNeutralTrade;
   const mc = masterConfluence;

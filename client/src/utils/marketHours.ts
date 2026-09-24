@@ -45,6 +45,32 @@ export function isNseMarketOpen(): boolean {
 }
 
 /**
+ * Checks if the market is open AND past the opening settling noise period (after 09:25 AM IST):
+ * - MCX Commodities: 09:00 - 23:00 IST (Mon-Fri)
+ * - NSE / BSE Equity Derivatives: 09:25 - 15:30 IST (Mon-Fri)
+ * Fresh live signals only activate after 09:25 AM IST once market volatility & VWAP settle down!
+ */
+export function isSignalSettledAndOpen(symbol: string): boolean {
+  const { hours, minutes, dayOfWeek, year, month, day } = getISTComponents();
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+
+  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const isCommodity = isCommoditySymbol(symbol);
+
+  if (isDateMarketHoliday(isoDate, isCommodity ? 'MCX' : 'NSE')) {
+    return false;
+  }
+
+  const currentMin = hours * 60 + minutes;
+  if (isCommodity) {
+    return currentMin >= (9 * 60) && currentMin < (23 * 60);
+  }
+
+  // NSE / BSE: Regular trading opens 09:15, signals start strictly after 09:25 AM IST
+  return currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 30);
+}
+
+/**
  * Returns the anchor time (in ms) for chart candle sequences:
  * - If market is currently open: returns current live timestamp (Date.now())
  * - If market is closed:

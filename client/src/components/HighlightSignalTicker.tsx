@@ -8,7 +8,7 @@ import type { IndexSymbol, OngoingProfitBoxData, MarketMomentumRegime } from '..
 import { ALL_SYMBOLS_CONFIG } from '../types';
 import { formatISTTime, getISTComponents } from '../utils/formatTime';
 import { isContractOrSignalExpired } from '../utils/expiryHelper';
-import { isMarketOpenForSymbol, isCommoditySymbol, getSafeTipTimeFormatted } from '../utils/marketHours';
+import { isMarketOpenForSymbol, isCommoditySymbol, getSafeTipTimeFormatted, isSignalSettledAndOpen } from '../utils/marketHours';
 
 export const HighlightSignalTicker: React.FC = () => {
   const { indices, visibleIndices, setSelectedIndex, selectedIndex, openTradeTipModal } = useMarket();
@@ -35,13 +35,13 @@ export const HighlightSignalTicker: React.FC = () => {
   const COMMODITY_SYMBOLS: IndexSymbol[] = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'];
   const isCommodity = (sym: string) => COMMODITY_SYMBOLS.includes(sym as IndexSymbol);
 
-  // Check Official Market Hours: 09:00 to 15:40 IST (Mon-Fri) for NSE/BSE Equity
+  // Check Settled Active Market Hours (09:25 to 15:30 IST Mon-Fri for NSE/BSE Equity)
   const isNseMarketHours = () => {
     const { hours, minutes, dayOfWeek } = getISTComponents();
     if (dayOfWeek === 0 || dayOfWeek === 6) return false;
 
     const currentMin = hours * 60 + minutes;
-    return currentMin >= (9 * 60) && currentMin < (15 * 60 + 40);
+    return currentMin >= (9 * 60 + 25) && currentMin < (15 * 60 + 30);
   };
 
   // Check if specific symbol market is currently open
@@ -88,6 +88,11 @@ export const HighlightSignalTicker: React.FC = () => {
         multiLegStrategy
       } = idxState || { atmStrike: 100, strikes: [], recommendedTrades: {} as any };
 
+      // Market settling guard: signals strictly start after 09:25 AM IST once opening noise settles down
+      if (!isSignalSettledAndOpen(sym)) {
+        return null;
+      }
+
       const primeCall = idxState?.sessionTips?.topCallTrade;
       const primePut = idxState?.sessionTips?.topPutTrade;
 
@@ -113,9 +118,7 @@ export const HighlightSignalTicker: React.FC = () => {
       const primePick = (isTipEligible(primeCall) ? primeCall : null)
         || (isTipEligible(primePut) ? primePut : null)
         || (isTipEligible(idxState?.unifiedTipsPackage?.primaryTrade) ? idxState?.unifiedTipsPackage?.primaryTrade : null)
-        || (isTipEligible(idxState?.unifiedTipsPackage?.gammaTrade) ? idxState?.unifiedTipsPackage?.gammaTrade : null)
-        || primeCall
-        || primePut;
+        || (isTipEligible(idxState?.unifiedTipsPackage?.gammaTrade) ? idxState?.unifiedTipsPackage?.gammaTrade : null);
       const isSymOpen = isSymbolMarketOpen(sym);
       const fallbackTime = isSymOpen
         ? formatISTTime(lastUpdated || new Date())
@@ -267,68 +270,12 @@ export const HighlightSignalTicker: React.FC = () => {
         }
       }
 
-      // 3. Live reference setup for currently open symbols
-      const isBull = true;
-      const maxRange = cfg?.defaultRange ? cfg.defaultRange * 2.5 : 500;
-      const step = cfg?.step || 50;
-      const r1 = resistanceLevels && resistanceLevels.length > 0 
-        ? (resistanceLevels.find(r => Math.abs(r.strikePrice - atmStrike) <= maxRange && r.strikePrice >= atmStrike) || resistanceLevels[0])
-        : null;
-      const targetStrike = r1 ? r1.strikePrice : (atmStrike + step * 2);
-      const optType = isBull ? 'CE' : 'PE';
-      const strikeObj = strikes.find(s => s.strikePrice === targetStrike);
-      const ltp = strikeObj ? strikeObj.callLtp : 120;
-      const cleanLtp = Math.max(10, ltp);
-
-      const dyn = calculateDynamicTarget(cleanLtp, targetStrike, atmStrike);
-      const isSlHit = cleanLtp > 0 && dyn.slPrice > 0 && cleanLtp <= dyn.slPrice;
-
-      const horizon = calculateTargetHorizon(
-        sym,
-        targetStrike,
-        atmStrike,
-        optType,
-        cleanLtp,
-        dyn.targetPrice,
-        88,
-        daysToExpiry ?? 2,
-        pcr?.atmPlusMinus5Pcr ?? 1.0,
-        isIndex
-      );
-
-      const rawTimestamp = lastUpdated || new Date().toISOString();
-
-      return {
-        symbol: sym,
-        strike: `${sym} ${targetStrike} ${optType}`,
-        action: isBull ? 'BUY CALL' : 'BUY PUT',
-        isBull,
-        isLiveSignal: false,
-        ltp: cleanLtp,
-        entry: `₹${(cleanLtp * 0.98).toFixed(2)} - ₹${(cleanLtp * 1.02).toFixed(2)}`,
-        exitSL: `₹${dyn.slPrice.toFixed(2)}`,
-        target: `₹${dyn.targetPrice.toFixed(2)}`,
-        riskReward: dyn.riskReward,
-        score: 88,
-        rawTimestamp,
-        time: getSafeTipTimeFormatted(sym, fallbackTime),
-        isStoplossHit: isSlHit,
-        horizon,
-        breakoutStatus: patternBreakout ? `✓ ${patternBreakout.activePattern.patternName} Breakout` : undefined,
-        faydaStrategyMatch: faydaStrategy ? `✓ ${faydaStrategy.strategyName}` : undefined,
-        multiLegAlternative: multiLegStrategy ? {
-          spreadName: multiLegStrategy.strategyName,
-          legsSummary: multiLegStrategy.description,
-          maxRiskRupees: typeof multiLegStrategy.maxLossRupees === 'number' ? multiLegStrategy.maxLossRupees : 2500,
-          maxProfitRupees: typeof multiLegStrategy.maxProfitRupees === 'number' ? multiLegStrategy.maxProfitRupees : 5000,
-          breakeven: multiLegStrategy.upperBreakeven || 0,
-          marginBenefitPct: multiLegStrategy.marginSavingsPct || 70
-        } : undefined
-      };
+      // No active high-conviction trade for this symbol
+      return null;
     });
 
-    // Clear stopped-out positions from the live signal area to the Trade Journal
-    return rawList.filter(item => item && !item.isStoplossHit);
+    // Clear stopped-out positions and empty/null entries from the ticker
+    return rawList.filter((item): item is NonNullable<typeof item> => Boolean(item && !item.isStoplossHit));
   }, [symbolsToScan, indices, isBeginner, isIntermediate, isExpert, isLiveNseMarket, currentTime]);
 
   const renderSetupItem = (item: (typeof activeSetups)[0], uniquePrefix: string) => {
