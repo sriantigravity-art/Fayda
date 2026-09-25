@@ -924,59 +924,103 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               >
                 {assetSignalStrikes.map(item => {
                   const isHeroActive = currentHeroTip?.id === item.tip.id;
+                  const entryVal = item.tip.entryPrice > 0 ? item.tip.entryPrice.toFixed(1) : (item.tip.entryRange || '---');
+                  const tgtVal = item.tip.target1Price > 0 ? item.tip.target1Price.toFixed(1) : '---';
+                  const slVal = item.tip.stoplossPrice > 0 ? item.tip.stoplossPrice.toFixed(1) : '---';
+                  const ltpVal = item.ltp > 0 ? item.ltp.toFixed(1) : '---';
+
                   return (
                     <button
                       key={item.tip.id}
-                      id={`strike-tip-pill-${item.tip.id}`}
+                      id={`strike-tip-card-${item.tip.id}`}
                       type="button"
                       onClick={() => setSelectedStrikeTipId(item.tip.id)}
-                      className={`shrink-0 px-3 py-1.5 rounded-xl font-mono text-xs transition-all duration-200 cursor-pointer flex items-center gap-2.5 border select-none ${
+                      className={`shrink-0 w-64 sm:w-72 p-3.5 rounded-xl font-mono text-xs transition-all duration-200 cursor-pointer flex flex-col justify-between border select-none shadow-md ${
                         isHeroActive
-                          ? 'bg-gradient-to-r from-sky-500/25 via-cyan-500/20 to-emerald-500/25 text-white border-accent-cyan shadow-[0_0_15px_rgba(0,229,255,0.4)] ring-2 ring-accent-cyan'
-                          : 'bg-terminal-bg/80 hover:bg-terminal-panel text-terminal-muted hover:text-terminal-text border-terminal-border/80 hover:border-terminal-border'
+                          ? 'bg-gradient-to-b from-slate-900 to-terminal-card border-accent-cyan shadow-[0_0_18px_rgba(0,229,255,0.4)] ring-2 ring-accent-cyan'
+                          : 'bg-terminal-bg/95 hover:bg-terminal-panel border-terminal-border hover:border-terminal-border/90'
                       }`}
                       title={`View ${item.contractSymbol} (${item.label})`}
                     >
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        item.isCall ? 'bg-bull' : item.isPut ? 'bg-bear' : 'bg-accent-gold'
-                      }`} />
-
-                      <div className="flex flex-col items-start leading-tight">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <span className={isHeroActive ? 'text-accent-cyan font-black' : 'text-terminal-text'}>
-                            {item.contractSymbol}
+                      {/* Top row: Symbol + Strategy & Status */}
+                      <div className="flex items-start justify-between gap-1.5 w-full pb-2 border-b border-terminal-border/60">
+                        <div className="flex flex-col text-left">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                              item.isCall ? 'bg-emerald-400 animate-pulse' : item.isPut ? 'bg-rose-400 animate-pulse' : 'bg-purple-400'
+                            }`} />
+                            <span className={`font-black text-sm ${isHeroActive ? 'text-accent-cyan' : 'text-terminal-text'} truncate max-w-[135px]`}>
+                              {item.contractSymbol}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-terminal-muted truncate mt-0.5 font-medium">
+                            {item.label}
                           </span>
-                          <span className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
-                            item.isCall 
-                              ? 'bg-emerald-500/20 text-emerald-400' 
-                              : item.isPut 
-                              ? 'bg-rose-500/20 text-rose-400' 
-                              : 'bg-purple-500/20 text-purple-400'
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className={`text-[9.5px] px-2 py-0.5 rounded font-black ${
+                            item.isCall
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                              : item.isPut
+                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                              : 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
                           }`}>
                             {item.action.replace(/_/g, ' ')}
                           </span>
-                        </div>
-                        <div className="text-[10px] text-terminal-muted flex items-center gap-1.5 mt-0.5">
-                          <span>LTP: <strong className="text-terminal-text">₹{item.ltp.toFixed(2)}</strong></span>
-                          <span>•</span>
-                          <span>{item.score}% Quantum</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shadow-sm ${
+                            item.isTargetHit
+                              ? 'bg-emerald-600 text-white'
+                              : item.isSlHit
+                              ? 'bg-rose-600 text-white'
+                              : item.isCarriedForward
+                              ? 'bg-purple-600 text-white'
+                              : item.isSquareOff
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-sky-600 text-white'
+                          }`}>
+                            {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isCarriedForward ? '🌙 BTST' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Status chip */}
-                      <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-black shrink-0 ${
-                        item.isTargetHit
-                          ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40'
-                          : item.isSlHit
-                          ? 'bg-rose-500/25 text-rose-400 border border-rose-500/40'
-                          : item.isCarriedForward
-                          ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
-                          : item.isSquareOff
-                          ? 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
-                          : 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
-                      }`}>
-                        {item.isTargetHit ? '🎯 TGT HIT' : item.isSlHit ? '🛑 SL HIT' : item.isCarriedForward ? '🌙 BTST' : item.isSquareOff ? '⚠️ SQ OFF' : '⚡ ACTIVE'}
-                      </span>
+                      {/* Middle row: 4 SOLID BOXES for ENTRY, TARGET, STOPLOSS, LTP */}
+                      <div className="grid grid-cols-4 gap-1.5 my-2.5 w-full">
+                        {/* Entry Box - Solid Dark Blue */}
+                        <div className="bg-blue-600 dark:bg-blue-700 text-white rounded-lg p-1.5 text-center shadow-sm">
+                          <div className="text-[8.5px] font-extrabold text-blue-100 uppercase tracking-wider leading-none">ENTRY</div>
+                          <div className="text-xs font-black text-white mt-1 leading-tight">₹{entryVal}</div>
+                        </div>
+
+                        {/* Target Box - Solid Green */}
+                        <div className="bg-emerald-600 dark:bg-green-700 text-white rounded-lg p-1.5 text-center shadow-sm">
+                          <div className="text-[8.5px] font-extrabold text-emerald-100 uppercase tracking-wider leading-none">TARGET</div>
+                          <div className="text-xs font-black text-white mt-1 leading-tight">₹{tgtVal}</div>
+                        </div>
+
+                        {/* Stop Loss Box - Solid Red */}
+                        <div className="bg-rose-600 dark:bg-red-700 text-white rounded-lg p-1.5 text-center shadow-sm">
+                          <div className="text-[8.5px] font-extrabold text-rose-100 uppercase tracking-wider leading-none">STOPLOSS</div>
+                          <div className="text-xs font-black text-white mt-1 leading-tight">₹{slVal}</div>
+                        </div>
+
+                        {/* LTP Box - Solid Yellow */}
+                        <div className="bg-amber-500 text-slate-950 rounded-lg p-1.5 text-center shadow-sm font-black">
+                          <div className="text-[8.5px] font-black text-amber-950 uppercase tracking-wider leading-none">LTP</div>
+                          <div className="text-xs font-black text-slate-950 mt-1 leading-tight">₹{ltpVal}</div>
+                        </div>
+                      </div>
+
+                      {/* Bottom row: Quantum Score & Confluence */}
+                      <div className="flex items-center justify-between text-[10.5px] pt-1.5 border-t border-terminal-border/50 w-full text-terminal-muted">
+                        <span className="flex items-center gap-1 font-bold text-amber-400">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{item.score}% Quantum</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-terminal-muted font-semibold">
+                          {item.tip.riskReward ? `R:R ${item.tip.riskReward}` : 'High Confluence'}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
@@ -1203,19 +1247,19 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
                 </span>
               </div>
 
-              {/* Real-time LTP and live PnL */}
-              <div className="flex items-center gap-3 font-mono">
-                <div className="text-right">
-                  <div className="text-xs text-terminal-muted">LIVE LTP</div>
-                  <div className="text-lg sm:text-xl font-black text-terminal-text">
+              {/* Real-time LTP and live PnL in Solid Badges */}
+              <div className="flex items-center gap-2.5 font-mono">
+                <div className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-slate-950 shadow-md border border-amber-400 text-right">
+                  <div className="text-[9.5px] font-black uppercase tracking-wider text-amber-950 leading-none">LIVE LTP</div>
+                  <div className="text-lg sm:text-xl font-black text-slate-950 mt-0.5 leading-tight">
                     ₹{currentHeroTip.currentLtp.toFixed(2)}
                   </div>
                 </div>
-                <div className={`px-2.5 py-1.5 rounded-lg text-right font-bold text-xs ${
-                  isProfitable ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                <div className={`px-3 py-1.5 rounded-xl text-right font-black text-xs shadow-md border ${
+                  isProfitable ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-rose-600 text-white border-rose-500'
                 }`}>
-                  <div>{isProfitable ? '+' : ''}{pnlPoints.toFixed(2)} pts</div>
-                  <div className="text-[10px]">{isProfitable ? '+' : ''}{pnlPct.toFixed(1)}%</div>
+                  <div className="leading-tight">{isProfitable ? '+' : ''}{pnlPoints.toFixed(2)} pts</div>
+                  <div className="text-[10px] opacity-90 leading-tight mt-0.5">{isProfitable ? '+' : ''}{pnlPct.toFixed(1)}%</div>
                 </div>
               </div>
             </div>
@@ -1244,49 +1288,70 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               />
             </div>
 
-            {/* Middle Grid: Actionable Trade Execution Levels */}
+            {/* Middle Grid: Actionable Trade Execution Levels (SOLID COLORED SQUARE BOXES) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-4 relative z-10 font-mono">
-              {/* Level 1: Entry Range */}
-              <div className="p-3 rounded-lg bg-terminal-panel/60 border border-terminal-border/70 space-y-1">
-                <div className="text-[10px] text-terminal-muted uppercase tracking-wider font-semibold">Entry Zone</div>
-                <div className="text-sm font-bold text-sky-600 dark:text-sky-400">{currentHeroTip.entryRange}</div>
-                <div className="text-[10px] text-terminal-muted">
+              {/* Level 1: Entry Zone - Solid Dark Blue */}
+              <div className="p-3.5 rounded-xl bg-blue-600 dark:bg-blue-700 text-white shadow-lg border border-blue-400/40 space-y-1">
+                <div className="text-[10px] text-blue-100 uppercase tracking-wider font-extrabold flex items-center justify-between">
+                  <span>Entry Zone</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">BUY</span>
+                </div>
+                <div className="text-base sm:text-lg font-black text-white">{currentHeroTip.entryRange}</div>
+                <div className="text-[10.5px] text-blue-100 font-semibold">
                   Trigger: <strong>₹{(currentHeroTip.triggerPrice || currentHeroTip.entryPrice).toFixed(2)}</strong>
                 </div>
               </div>
 
-              {/* Level 2: Stop Loss */}
-              <div className="p-3 rounded-lg bg-terminal-panel/60 border border-terminal-border/70 space-y-1">
-                <div className="text-[10px] text-terminal-muted uppercase tracking-wider font-semibold">Stop Loss</div>
-                <div className="text-sm font-bold text-rose-500">₹{currentHeroTip.stoplossPrice.toFixed(2)}</div>
-                <div className="text-[10px] text-rose-500/80">-{currentHeroTip.stoplossPct.toFixed(0)}% (Trailing SL)</div>
-              </div>
-
-              {/* Level 3: Target 1 */}
-              <div className="p-3 rounded-lg bg-terminal-panel/60 border border-terminal-border/70 space-y-1">
-                <div className="text-[10px] text-terminal-muted uppercase tracking-wider font-semibold">Target 1 (Book 50%)</div>
-                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₹{currentHeroTip.target1Price.toFixed(2)}</div>
-                <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">+{currentHeroTip.target1Pct.toFixed(0)}% (R:R {currentHeroTip.riskReward})</div>
-              </div>
-
-              {/* Level 4: Target 2 / Runner */}
-              <div className="p-3 rounded-lg bg-terminal-panel/60 border border-terminal-border/70 space-y-1">
-                <div className="text-[10px] text-terminal-muted uppercase tracking-wider font-semibold">Target 2 (Runner)</div>
-                <div className="text-sm font-bold text-emerald-500">
-                  {currentHeroTip.target2Price ? `₹${currentHeroTip.target2Price.toFixed(2)}` : 'Trail with SuperTrend'}
+              {/* Level 2: Stop Loss - Solid Red */}
+              <div className="p-3.5 rounded-xl bg-rose-600 dark:bg-red-700 text-white shadow-lg border border-rose-400/40 space-y-1">
+                <div className="text-[10px] text-rose-100 uppercase tracking-wider font-extrabold flex items-center justify-between">
+                  <span>Stop Loss</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">RISK</span>
                 </div>
-                <div className="text-[10px] text-emerald-500/80">+{currentHeroTip.target2Pct.toFixed(0)}% (Max Gain)</div>
+                <div className="text-base sm:text-lg font-black text-white">₹{currentHeroTip.stoplossPrice.toFixed(2)}</div>
+                <div className="text-[10.5px] text-rose-100 font-semibold">
+                  -{currentHeroTip.stoplossPct.toFixed(0)}% (Trailing SL)
+                </div>
               </div>
 
-              {/* Level 5: Actionability & Trade Status */}
-              <div className="col-span-2 sm:col-span-1 p-3 rounded-lg bg-terminal-panel/60 border border-terminal-border/70 space-y-1 flex flex-col justify-center">
-                <div className="text-[10px] text-terminal-muted uppercase tracking-wider font-semibold">Signal Status</div>
-                <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-500">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              {/* Level 3: Target 1 - Solid Green */}
+              <div className="p-3.5 rounded-xl bg-emerald-600 dark:bg-green-700 text-white shadow-lg border border-emerald-400/40 space-y-1">
+                <div className="text-[10px] text-emerald-100 uppercase tracking-wider font-extrabold flex items-center justify-between">
+                  <span>Target 1 (Book 50%)</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">PROFIT</span>
+                </div>
+                <div className="text-base sm:text-lg font-black text-white">₹{currentHeroTip.target1Price.toFixed(2)}</div>
+                <div className="text-[10.5px] text-emerald-100 font-semibold">
+                  +{currentHeroTip.target1Pct.toFixed(0)}% (R:R {currentHeroTip.riskReward})
+                </div>
+              </div>
+
+              {/* Level 4: Target 2 / Runner - Solid Dark Green / Teal */}
+              <div className="p-3.5 rounded-xl bg-teal-700 dark:bg-emerald-800 text-white shadow-lg border border-teal-400/40 space-y-1">
+                <div className="text-[10px] text-teal-100 uppercase tracking-wider font-extrabold flex items-center justify-between">
+                  <span>Target 2 (Runner)</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">MAX</span>
+                </div>
+                <div className="text-base sm:text-lg font-black text-white">
+                  {currentHeroTip.target2Price ? `₹${currentHeroTip.target2Price.toFixed(2)}` : 'Trail SuperTrend'}
+                </div>
+                <div className="text-[10.5px] text-teal-100 font-semibold">
+                  +{currentHeroTip.target2Pct.toFixed(0)}% (Max Gain)
+                </div>
+              </div>
+
+              {/* Level 5: Live LTP & Status - Solid Yellow / Gold */}
+              <div className="col-span-2 sm:col-span-1 p-3.5 rounded-xl bg-amber-500 text-slate-950 shadow-lg border border-amber-400 space-y-1 flex flex-col justify-center font-black">
+                <div className="text-[10px] text-amber-950 uppercase tracking-wider font-black flex items-center justify-between">
+                  <span>LIVE LTP & STATUS</span>
+                  <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
+                </div>
+                <div className="text-base sm:text-lg font-black text-slate-950">
+                  ₹{currentHeroTip.currentLtp.toFixed(2)}
+                </div>
+                <div className="text-[10.5px] text-amber-950 font-extrabold flex items-center justify-between">
                   <span>{currentHeroTip.status}</span>
-                </div>
-                <div className="text-[10px] text-terminal-muted">
-                  Lot Size: <strong>{cfg?.lot || 50}</strong>
+                  <span>Lot: {cfg?.lot || 50}</span>
                 </div>
               </div>
             </div>
@@ -1304,79 +1369,79 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2.5 text-xs">
                 {/* 1. Entry Triggered */}
-                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                <div className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-sm ${
                   entryTriggerTime !== '---' 
-                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' 
+                    ? 'bg-blue-600 text-white border-blue-400/50' 
                     : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
                 }`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-sky-400" />
-                    <span>Entry Triggered</span>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-blue-200" />
+                    <span className={entryTriggerTime !== '---' ? 'text-blue-100' : ''}>Entry Triggered</span>
                   </div>
-                  <div className="text-xs font-black text-terminal-text mt-1">{entryTriggerTime}</div>
-                  <div className="text-[9px] text-sky-400/80 mt-0.5">₹{(currentHeroTip.triggerPrice || currentHeroTip.entryPrice).toFixed(2)}</div>
+                  <div className={`text-xs font-black mt-1 ${entryTriggerTime !== '---' ? 'text-white' : 'text-terminal-text'}`}>{entryTriggerTime}</div>
+                  <div className={`text-[9.5px] mt-0.5 font-bold ${entryTriggerTime !== '---' ? 'text-blue-100' : 'text-sky-400/80'}`}>₹{(currentHeroTip.triggerPrice || currentHeroTip.entryPrice).toFixed(2)}</div>
                 </div>
 
                 {/* 2. Target 1 Hit */}
-                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                <div className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-sm ${
                   isTarget1Hit || target1HitTime !== '---'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                    ? 'bg-emerald-600 text-white border-emerald-400/50'
                     : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
                 }`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    <span>Target 1 Hit</span>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-200" />
+                    <span className={isTarget1Hit || target1HitTime !== '---' ? 'text-emerald-100' : ''}>Target 1 Hit</span>
                   </div>
-                  <div className="text-xs font-black text-terminal-text mt-1">{target1HitTime}</div>
-                  <div className="text-[9px] text-emerald-400/80 mt-0.5">
+                  <div className={`text-xs font-black mt-1 ${isTarget1Hit || target1HitTime !== '---' ? 'text-white' : 'text-terminal-text'}`}>{target1HitTime}</div>
+                  <div className={`text-[9.5px] mt-0.5 font-bold ${isTarget1Hit || target1HitTime !== '---' ? 'text-emerald-100' : 'text-emerald-400/80'}`}>
                     {target1HitTime !== '---' ? `₹${currentHeroTip.target1Price.toFixed(2)} (+${currentHeroTip.target1Pct.toFixed(0)}%)` : 'In Progress'}
                   </div>
                 </div>
 
                 {/* 3. Target 2 Hit */}
-                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                <div className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-sm ${
                   isTarget2Hit || target2HitTime !== '---'
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                    ? 'bg-teal-700 text-white border-teal-400/50'
                     : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
                 }`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-400" />
-                    <span>Target 2 Hit</span>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-teal-200" />
+                    <span className={isTarget2Hit || target2HitTime !== '---' ? 'text-teal-100' : ''}>Target 2 Hit</span>
                   </div>
-                  <div className="text-xs font-black text-terminal-text mt-1">{target2HitTime}</div>
-                  <div className="text-[9px] text-emerald-400/80 mt-0.5">
+                  <div className={`text-xs font-black mt-1 ${isTarget2Hit || target2HitTime !== '---' ? 'text-white' : 'text-terminal-text'}`}>{target2HitTime}</div>
+                  <div className={`text-[9.5px] mt-0.5 font-bold ${isTarget2Hit || target2HitTime !== '---' ? 'text-teal-100' : 'text-emerald-400/80'}`}>
                     {target2HitTime !== '---' ? `₹${(currentHeroTip.target2Price || 0).toFixed(2)} (+${currentHeroTip.target2Pct.toFixed(0)}%)` : 'Runner Target'}
                   </div>
                 </div>
 
                 {/* 4. Stop Loss Triggered */}
-                <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                <div className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-sm ${
                   isSlHit || stoplossHitTime !== '---'
-                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                    ? 'bg-rose-600 text-white border-rose-400/50'
                     : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
                 }`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <XCircle className="w-3 h-3 text-rose-400" />
-                    <span>Stop Loss</span>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <XCircle className="w-3 h-3 text-rose-200" />
+                    <span className={isSlHit || stoplossHitTime !== '---' ? 'text-rose-100' : ''}>Stop Loss</span>
                   </div>
-                  <div className="text-xs font-black text-terminal-text mt-1">{stoplossHitTime}</div>
-                  <div className="text-[9px] text-rose-400/80 mt-0.5">
+                  <div className={`text-xs font-black mt-1 ${isSlHit || stoplossHitTime !== '---' ? 'text-white' : 'text-terminal-text'}`}>{stoplossHitTime}</div>
+                  <div className={`text-[9.5px] mt-0.5 font-bold ${isSlHit || stoplossHitTime !== '---' ? 'text-rose-100' : 'text-rose-400/80'}`}>
                     {isSlHit ? `Triggered at ₹${currentHeroTip.stoplossPrice.toFixed(2)}` : `Safe (> ₹${currentHeroTip.stoplossPrice.toFixed(2)})`}
                   </div>
                 </div>
 
                 {/* 5. Square Off */}
-                <div className={`col-span-2 sm:col-span-1 p-2.5 rounded-lg border flex flex-col justify-between ${
+                <div className={`col-span-2 sm:col-span-1 p-2.5 rounded-xl border flex flex-col justify-between shadow-sm ${
                   isSquareOff || squareOffTime !== '---'
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                    ? 'bg-amber-600 text-white border-amber-400/50'
                     : 'bg-terminal-card/60 border-terminal-border/60 text-terminal-muted'
                 }`}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-amber-400" />
-                    <span>Square Off</span>
+                  <div className="text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-200" />
+                    <span className={isSquareOff || squareOffTime !== '---' ? 'text-amber-100' : ''}>Square Off</span>
                   </div>
-                  <div className="text-xs font-black text-terminal-text mt-1">{squareOffTime}</div>
-                  <div className="text-[9px] text-amber-400/80 mt-0.5">
+                  <div className={`text-xs font-black mt-1 ${isSquareOff || squareOffTime !== '---' ? 'text-white' : 'text-terminal-text'}`}>{squareOffTime}</div>
+                  <div className={`text-[9.5px] mt-0.5 font-bold ${isSquareOff || squareOffTime !== '---' ? 'text-amber-100' : 'text-amber-400/80'}`}>
                     {isSquareOff ? 'Docked in Journal' : '03:15 PM EOD'}
                   </div>
                 </div>
@@ -1785,13 +1850,30 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
 
                     <div>
                       <div className="text-xs font-bold text-terminal-text truncate">{tip.contractSymbol}</div>
-                      <div className="text-[11px] text-terminal-muted mt-0.5">
-                        Entry: <strong className="text-terminal-text">₹{tip.entryPrice.toFixed(2)}</strong> • LTP: <strong className="text-terminal-text">₹{tip.currentLtp.toFixed(2)}</strong>
+                    </div>
+
+                    {/* 4 Solid Colored Metric Boxes */}
+                    <div className="grid grid-cols-4 gap-1.5 my-1.5">
+                      <div className="px-1.5 py-1 rounded-md bg-blue-600 text-white flex flex-col items-center justify-center shadow-sm">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-blue-100">Entry</span>
+                        <span className="text-[10px] font-mono font-bold leading-tight">₹{tip.entryPrice.toFixed(1)}</span>
+                      </div>
+                      <div className="px-1.5 py-1 rounded-md bg-emerald-600 text-white flex flex-col items-center justify-center shadow-sm">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-100">Target</span>
+                        <span className="text-[10px] font-mono font-bold leading-tight">₹{tip.target1Price.toFixed(1)}</span>
+                      </div>
+                      <div className="px-1.5 py-1 rounded-md bg-rose-600 text-white flex flex-col items-center justify-center shadow-sm">
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-rose-100">Stoploss</span>
+                        <span className="text-[10px] font-mono font-bold leading-tight">₹{tip.stoplossPrice.toFixed(1)}</span>
+                      </div>
+                      <div className="px-1.5 py-1 rounded-md bg-amber-500 text-slate-950 flex flex-col items-center justify-center shadow-sm">
+                        <span className="text-[8px] font-black uppercase tracking-wider text-amber-950">LTP</span>
+                        <span className="text-[10px] font-mono font-black leading-tight">₹{tip.currentLtp.toFixed(1)}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] pt-2 border-t border-terminal-border/50">
-                      <span className="text-terminal-muted">T1: ₹{tip.target1Price.toFixed(2)} | SL: ₹{tip.stoplossPrice.toFixed(2)}</span>
+                    <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-terminal-border/50">
+                      <span className="text-terminal-muted font-mono text-[9.5px]">R:R {(Math.max(0.1, (tip.target1Price - tip.entryPrice) / Math.max(0.1, tip.entryPrice - tip.stoplossPrice))).toFixed(1)}</span>
                       <div className="flex items-center space-x-2">
                         <button
                           type="button"

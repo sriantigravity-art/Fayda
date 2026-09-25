@@ -109,12 +109,12 @@ export class FyersService {
     FINNIFTY: 'NSE:FINNIFTY-INDEX',
     MIDCPNIFTY: 'NSE:MIDCPNIFTY-INDEX',
     NIFTYNXT50: 'NSE:NIFTYNXT50-INDEX',
-    CRUDEOIL: 'MCX:CRUDEOIL26SEPFUT',
-    NATURALGAS: 'MCX:NATURALGAS26SEPFUT',
+    CRUDEOIL: 'MCX:CRUDEOIL26OCTFUT',
+    NATURALGAS: 'MCX:NATURALGAS26OCTFUT',
     GOLD: 'MCX:GOLD26OCTFUT',
     SILVER: 'MCX:SILVER26DECFUT',
-    COPPER: 'MCX:COPPER26SEPFUT',
-    ZINC: 'MCX:ZINC26SEPFUT'
+    COPPER: 'MCX:COPPER26OCTFUT',
+    ZINC: 'MCX:ZINC26OCTFUT'
   };
 
   public onConnected: ((config: FyersConfig) => void) | null = null;
@@ -769,7 +769,24 @@ export class FyersService {
         };
       }
 
-      // If Fyers returned a specific JSON error message
+      // If Fyers returned a rate limit or API limit on profile endpoint, but the token itself is valid
+      if (json && json.message && (json.message.toLowerCase().includes('limit') || json.code === 429 || response.status === 429)) {
+        if (isJwtValid && jwtPayload) {
+          console.warn(`[Fyers] Profile endpoint limit hit (${json.message}), but JWT token is valid — retaining active connection.`);
+          this.config.isConnected = true;
+          const rawName = jwtPayload.fy_id || this.config.userName || 'SRS';
+          this.config.userName = rawName;
+          this.config.lastConnected = new Date().toISOString();
+          this.savePersistedConfig();
+          return {
+            success: true,
+            message: `Connected successfully (${json.message})`,
+            userName: rawName
+          };
+        }
+      }
+
+      // If Fyers returned an explicit authentication error (e.g. invalid token, expired session)
       if (json && json.message && json.s === 'error') {
         this.config.isConnected = false;
         return {
@@ -835,7 +852,7 @@ export class FyersService {
   }
 
   public async fetchOptionChain(symbol: IndexSymbol, expiryTimestamp?: string): Promise<FyersOptionChainResult | null> {
-    if (!this.config.isConnected || !this.config.accessToken) {
+    if (!this.config.accessToken || this.isAccessTokenExpired()) {
       return null;
     }
 

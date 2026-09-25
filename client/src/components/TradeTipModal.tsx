@@ -101,7 +101,12 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
   const isCarriedForward = tip.status === 'CARRIED_FORWARD' || (tip.isCarriedForward && tip.status !== 'INTRADAY_CLOSED' && tip.status !== 'EXPIRED');
   const isSl = tip.action === 'SQUARE_OFF' || isSlHit;
   const isSpread = tip.optionType === 'SPREAD' || tip.action?.includes('SPREAD');
-  const isSeller = tip.tradingRole === 'SELLER' || tip.executionType === 'NET_CREDIT' || isSpread;
+  const isSeller = tip.tradingRole === 'SELLER' 
+    || tip.executionType === 'NET_CREDIT' 
+    || isSpread 
+    || (tip.action ? tip.action.toUpperCase().includes('SELL') : false)
+    || (tip.contractSymbol ? tip.contractSymbol.toUpperCase().includes('SELL') : false)
+    || (tip.strategyCategory ? tip.strategyCategory.toUpperCase().includes('SELL') : false);
 
   const currentIndex = indices[tip.symbol];
   const liveSpot = currentIndex?.spotPrice || 0;
@@ -125,12 +130,30 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       ? tip.entryPrice 
       : (parseFloat(String(tip.entryPrice).replace(/[^0-9.]/g, '')) || (tip.currentLtp || 100)));
 
-  // Current active LTP is liveOptionLtp if available, otherwise tip.currentLtp
-  const ltpNum = (liveOptionLtp && liveOptionLtp > 0) ? liveOptionLtp : (tip.currentLtp || rawEntry);
+  // If this trade is from the journal or has reached a terminal status, ALWAYS preserve its recorded LTP!
+  // Do NOT allow live simulated option chains to overwrite historical closed trade prices!
+  const isClosedOrJournal = Boolean(
+    tip.tierLabel?.includes('JOURNAL') ||
+    tip.status === 'INTRADAY_CLOSED' ||
+    tip.status === 'TARGET_HIT' ||
+    tip.status === 'TARGET1_HIT' ||
+    tip.status === 'TARGET2_HIT' ||
+    tip.status === 'STOPLOSS_HIT' ||
+    tip.status === 'SL_HIT' ||
+    tip.status === 'SQUARE_OFF' ||
+    tip.status === 'EXPIRED'
+  );
 
-  // Guard against wrong/corrupted penny tips where premium was distorted (e.g. ₹1.04 entry vs ₹277 live LTP)
-  const minModalViableLtp = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'BANKEX'].includes(tip.symbol) ? 20.0 : 10.0;
-  const isDistorted = !isSeller && (rawEntry < minModalViableLtp || (ltpNum > 0 && rawEntry > 0 && (ltpNum / rawEntry > 3.5 || rawEntry / ltpNum > 3.5)));
+  const recordedLtp = (typeof tip.currentLtp === 'number' && tip.currentLtp > 0) ? tip.currentLtp : rawEntry;
+  // Current active LTP: for closed/journal trades, strictly use recorded LTP.
+  // For live trades, guard against synthetic chain spikes (> 3.5x entry or < 0.25x entry).
+  const isLiveOptionPlausible = liveOptionLtp > 0 && (rawEntry <= 2 || (liveOptionLtp / rawEntry <= 3.5 && rawEntry / liveOptionLtp <= 4.0));
+  const ltpNum = isClosedOrJournal 
+    ? recordedLtp 
+    : (isLiveOptionPlausible ? liveOptionLtp : recordedLtp);
+
+  // Guard against wrong/corrupted penny tips where entry was corrupted (e.g. ₹1.04 entry vs ₹277 live LTP)
+  const isDistorted = !isSeller && (rawEntry < 2.0 && ltpNum > 50);
   const entryNum = isDistorted ? ltpNum : rawEntry;
 
   const slNum = typeof tip.stoplossPrice === 'number' 
@@ -165,16 +188,20 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     || Boolean(slNum > 0 && isSeller && ltpNum >= slNum);
 
   // Accurate PnL calculation:
-  // User directive: If stoploss is triggered, calculate entry price - stoploss with lot shown.
-  // Also profit should be calculated like this (Target - entry).
+  // For BUYER:
+  //   Profit when LTP/Target > Entry (pnlPts = exit - entry)
+  //   Loss when LTP/SL < Entry (pnlPts = sl - entry, negative)
+  // For SELLER:
+  //   Profit when LTP/Target < Entry (pnlPts = entry - exit)
+  //   Loss when LTP/SL > Entry (pnlPts = entry - sl, negative)
   let pnlPts = 0;
   if (isStoplossReached && slNum > 0) {
-    pnlPts = isSeller ? +(entryNum - slNum).toFixed(2) : +(slNum - entryNum).toFixed(2);
+    pnlPts = isSeller ? -Math.abs(+(slNum - entryNum).toFixed(2)) : -Math.abs(+(entryNum - slNum).toFixed(2));
   } else if (isTarget2Reached && (t2Num > 0 || t1Num > 0)) {
     const tgt = t2Num > 0 ? t2Num : t1Num;
-    pnlPts = isSeller ? +(entryNum - tgt).toFixed(2) : +(tgt - entryNum).toFixed(2);
+    pnlPts = isSeller ? Math.abs(+(entryNum - tgt).toFixed(2)) : Math.abs(+(tgt - entryNum).toFixed(2));
   } else if (isTarget1Reached && t1Num > 0) {
-    pnlPts = isSeller ? +(entryNum - t1Num).toFixed(2) : +(t1Num - entryNum).toFixed(2);
+    pnlPts = isSeller ? Math.abs(+(entryNum - t1Num).toFixed(2)) : Math.abs(+(t1Num - entryNum).toFixed(2));
   } else {
     pnlPts = isSeller
       ? +(entryNum - ltpNum).toFixed(2)
@@ -198,16 +225,16 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
     dynamicDecisionText = `🛑 0DTE Contract Expired (₹0.00) — Expired worthless at 03:40 PM IST. Cannot be held or entered.`;
   } else if (isTarget2Reached) {
     dynamicDecisionTag = 'BOOK_HALF';
-    dynamicDecisionText = `🏆 Target 2 Achieved (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Maximum strategy alpha reached: Liquidate full position and lock peak gains.`;
+    dynamicDecisionText = `🏆 Target 2 Achieved (+${Math.abs(pnlPercent)}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Maximum strategy alpha reached: Liquidate full position and lock peak gains.`;
   } else if (isTarget1Reached) {
     dynamicDecisionTag = 'BOOK_HALF';
-    dynamicDecisionText = `🎯 Target 1 Achieved (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Lock 50% profit and trail stoploss to entry cost (₹${entryNum.toFixed(1)}) for risk-free runners.`;
+    dynamicDecisionText = `🎯 Target 1 Achieved (+${Math.abs(pnlPercent)}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')})! Lock 50% profit and trail stoploss to entry cost (₹${entryNum.toFixed(1)}) for risk-free runners.`;
   } else if (isStoplossReached) {
     dynamicDecisionTag = 'EXIT_SL';
-    dynamicDecisionText = `🛑 Stoploss Hit (${pnlPercent}% / -₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Capital protection mandate: Close trade now and preserve capital.`;
+    dynamicDecisionText = `🛑 Stoploss Hit (-${Math.abs(pnlPercent)}% / -₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Capital protection mandate: Close trade now and preserve capital.`;
   } else if (pnlPercent >= 15) {
     dynamicDecisionTag = 'TRAIL_SL';
-    dynamicDecisionText = `🚀 Running in Profit (+${pnlPercent}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Trail stoploss to entry price (₹${entryNum.toFixed(1)}).`;
+    dynamicDecisionText = `🚀 Running in Profit (+${Math.abs(pnlPercent)}% / +₹${Math.abs(pnlInRupees).toLocaleString('en-IN')}) — Trail stoploss to entry price (₹${entryNum.toFixed(1)}).`;
   } else if (Math.abs(pnlPercent) <= 2) {
     dynamicDecisionTag = 'ENTER';
     dynamicDecisionText = `🟢 In Optimal Entry Zone (LTP ₹${ltpNum.toFixed(1)}) — Good risk:reward near trigger price.`;
@@ -231,18 +258,20 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       tag: '🔰 Safe Beginner View (Zero Jargon)',
       roleTag: isExpired
         ? '🛑 Expired Contract (0DTE Settled at 03:40 PM)'
+        : isSeller
+        ? '🔰 Safe Seller Setup (Sell Option - Premium Decay Strategy)'
         : isBull 
         ? '🔰 Safe Green Setup (Buy Call - Expecting Market Upward Move)' 
         : '🔰 Safe Red Setup (Buy Put - Expecting Market Downward Move)',
-      entryLabel: '🔰 PERFECT BUY PRICE',
-      t1Label: '🎯 1ST PROFIT GOAL',
-      t2Label: '🚀 2ND BONUS GOAL',
-      slLabel: '🛡️ CAPITAL SHIELD (STOP LOSS)',
+      entryLabel: isSeller ? '🔰 PERFECT SELL PRICE' : '🔰 PERFECT BUY PRICE',
+      t1Label: isSeller ? '🎯 1ST BUYBACK GOAL' : '🎯 1ST PROFIT GOAL',
+      t2Label: isSeller ? '🚀 2ND BUYBACK GOAL' : '🚀 2ND BONUS GOAL',
+      slLabel: isSeller ? '🛡️ CAPITAL SHIELD (SL HIGH)' : '🛡️ CAPITAL SHIELD (STOP LOSS)',
       ongoingLabel: isMarketOpen ? '💵 YOUR LIVE PROFIT / LOT' : '💵 YOUR CLOSING P&L / LOT',
       riskRewardLabel: 'REWARD vs RISK',
       decisionTagLabels: {
         BOOK_HALF: '🎯 SECURE 50% PROFIT NOW',
-        TRAIL_SL: '🚀 MOVE SHIELD TO BUY PRICE',
+        TRAIL_SL: '🚀 MOVE SHIELD TO ENTRY PRICE',
         EXIT_SL: '🛑 SHIELD HIT - EXIT SAFELY',
         ENTER: '🟢 PERFECT ENTRY ACTIVE',
         HOLD: isMarketOpen ? '⏸️ PATIENTLY HOLD FOR GOAL' : '🌙 CARRY FORWARD (BTST / STBT)',
@@ -251,28 +280,30 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       decisionAdvice: isExpired && !isSeller
         ? `🛑 SYSTEM DIRECTIVE: CONTRACT EXPIRED | Settled at ₹0.00 | Action: Switch to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached 
-        ? `🛑 SYSTEM DIRECTIVE: Stoploss Breached (${rawPnlPct}%) | Action: Close trade immediately to protect funds. Never average losing trades.`
+        ? `🛑 SYSTEM DIRECTIVE: Stoploss Breached (-${Math.abs(rawPnlPct)}%) | Action: Close trade immediately to protect funds. Never average losing trades.`
         : isTarget2Reached
-        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Action: Liquidate full position; lock ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits.`
+        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${Math.abs(rawPnlPct)}%) | Action: Liquidate full position; lock ₹${Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')} cash profits.`
         : isTarget1Reached
-        ? `🎯 SYSTEM DIRECTIVE: Target 1 Hit (+${rawPnlPct}%) | Action: Book 50% profit; shift Capital Shield to buy price.`
+        ? `🎯 SYSTEM DIRECTIVE: Target 1 Hit (+${Math.abs(rawPnlPct)}%) | Action: Book 50% profit; shift Capital Shield to cost.`
         : !isMarketOpen
         ? (isBull
             ? `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (BTST) | Market closed at 03:40 PM IST | Action: Carry forward position overnight for tomorrow's 09:15 AM opening gap-up. Maintain trailing stoploss at cost ₹${entryNum.toFixed(1)}.`
             : `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (STBT) | Market closed at 03:40 PM IST | Action: Carry forward position overnight for tomorrow's 09:15 AM opening gap-down. Maintain trailing stoploss at cost ₹${entryNum.toFixed(1)}.`)
         : rawPnlPct >= 15
-        ? `🚀 SYSTEM DIRECTIVE: Strong Profit (+${rawPnlPct}%) | Action: Trail Capital Shield to entry price (₹${entryNum.toFixed(1)}) for risk-free ride.`
+        ? `🚀 SYSTEM DIRECTIVE: Strong Profit (+${Math.abs(rawPnlPct)}%) | Action: Trail Capital Shield to entry price (₹${entryNum.toFixed(1)}) for risk-free ride.`
         : `⏸️ SYSTEM ADVISORY: Moving towards Target 1 (₹${typeof tip.target1Price === 'number' ? tip.target1Price.toFixed(1) : tip.target1Price}) | Action: Maintain position above shield.`,
       desc: tip.explanations?.beginner ||
-        `🎯 SYSTEM ADVISORY: BUY 1 Lot in entry zone | Target 1: Book 50% profit | Rule: Trail Capital Shield to cost to protect funds.`
+        `🎯 SYSTEM ADVISORY: ${isSeller ? 'SELL' : 'BUY'} 1 Lot in entry zone | Target 1: Book 50% profit | Rule: Trail Capital Shield to cost to protect funds.`
     },
     INTERMEDIATE: {
       tag: '📈 Technical Momentum & Confluence',
-      roleTag: isExpired ? '🛑 0DTE Terminal Expiration' : tip.tierLabel || (isBull ? '🎯 High-Probability Long Momentum Setup' : '🎯 High-Probability Short Momentum Setup'),
-      entryLabel: 'PERFECT ENTRY PRICE',
-      t1Label: 'TARGET 1 (+25%)',
-      t2Label: 'TARGET 2 (+48%)',
-      slLabel: 'STOP LOSS (-12%)',
+      roleTag: isExpired 
+        ? '🛑 0DTE Terminal Expiration' 
+        : tip.tierLabel || (isSeller ? '🎯 High-Probability Short Premium Decay Setup' : isBull ? '🎯 High-Probability Long Momentum Setup' : '🎯 High-Probability Short Momentum Setup'),
+      entryLabel: isSeller ? 'PERFECT SELL TRIGGER' : 'PERFECT ENTRY PRICE',
+      t1Label: isSeller ? 'TARGET 1 (DECAY)' : 'TARGET 1 (+25%)',
+      t2Label: isSeller ? 'TARGET 2 (DECAY)' : 'TARGET 2 (+48%)',
+      slLabel: isSeller ? 'STOP LOSS (BUYBACK)' : 'STOP LOSS (-12%)',
       ongoingLabel: isMarketOpen ? 'ONGOING LIVE P&L' : 'CLOSING SESSION P&L',
       riskRewardLabel: 'RISK : REWARD',
       decisionTagLabels: {
@@ -286,27 +317,31 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       decisionAdvice: isExpired && !isSeller
         ? `🛑 SYSTEM DIRECTIVE: 0DTE Expiry Invalidation | 100% time decay realized | Action: Roll over to Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached
-        ? `🛑 SYSTEM DIRECTIVE: Stoploss Hit (${rawPnlPct}%) | Invalidation breached | Action: Position closed & archived to journal.`
+        ? `🛑 SYSTEM DIRECTIVE: Stoploss Hit (-${Math.abs(rawPnlPct)}%) | Invalidation breached | Action: Position closed & archived to journal.`
         : isTarget2Reached
-        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${rawPnlPct}%) | Peak alpha reached | Action: Lock all profits and exit position.`
+        ? `🏆 SYSTEM DIRECTIVE: Target 2 Achieved (+${Math.abs(rawPnlPct)}%) | Peak alpha reached | Action: Lock all profits and exit position.`
         : isTarget1Reached
-        ? `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${rawPnlPct}%) | Action: Lock 50% profit, trail SL to entry cost, let runners aim for Target 2.`
+        ? `🎯 SYSTEM DIRECTIVE: Target 1 Achieved (+${Math.abs(rawPnlPct)}%) | Action: Lock 50% profit, trail SL to entry cost, let runners aim for Target 2.`
         : !isMarketOpen
         ? (isBull
             ? `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (BTST) | Multi-timeframe trend & OI confirmed | Action: Hold overnight into next session 09:15 AM open | Target morning gap-up / continuation; trailing SL at cost ₹${entryNum.toFixed(1)}.`
             : `🌙 SYSTEM DIRECTIVE: CARRY FORWARD (STBT) | Multi-timeframe trend & OI confirmed | Action: Hold overnight into next session 09:15 AM open | Target morning gap-down / continuation; trailing SL at cost ₹${entryNum.toFixed(1)}.`)
         : rawPnlPct >= 15
-        ? `🚀 SYSTEM DIRECTIVE: Momentum Expansion (+${rawPnlPct}%) | CPR confirmed | Action: Trail SL to breakeven cost.`
+        ? `🚀 SYSTEM DIRECTIVE: Momentum Expansion (+${Math.abs(rawPnlPct)}%) | CPR confirmed | Action: Trail SL to breakeven cost.`
         : `⏸️ SYSTEM ADVISORY: Holding Above Stoploss (LTP ₹${ltpNum.toFixed(1)}) | Action: Maintain position towards Target 1.`,
       desc: tip.explanations?.intermediate ||
         `⚡ SYSTEM DIRECTIVE: ${tip.strategyTag || 'Multi-Strategy Confluence'} confirmed | 9-EMA & CPR trigger active | Target 1 R:R: 1:2.2 | Action: Trail SL on trigger.`
     },
     EXPERT: {
       tag: '🔬 Quantitative Greeks & Order Flow',
-      roleTag: isExpired ? '🛑 0DTE Terminal Cash Settlement (Delta = 0)' : '🔬 Institutional Order Flow & Greeks Confluence',
-      entryLabel: 'PERFECT ENTRY TRIGGER',
-      t1Label: '1.2σ EXPANSION TARGET',
-      t2Label: '1.8σ GAMMA RUNNER',
+      roleTag: isExpired 
+        ? '🛑 0DTE Terminal Cash Settlement (Delta = 0)' 
+        : isSeller 
+        ? '🔬 Quantitative Short Gamma & Theta Decay Confluence' 
+        : '🔬 Institutional Order Flow & Greeks Confluence',
+      entryLabel: isSeller ? 'NET CREDIT TRIGGER' : 'PERFECT ENTRY TRIGGER',
+      t1Label: isSeller ? '1.2σ DECAY TARGET' : '1.2σ EXPANSION TARGET',
+      t2Label: isSeller ? '1.8σ GAMMA RUNNER' : '1.8σ GAMMA RUNNER',
       slLabel: 'INVALIDATION THRESHOLD',
       ongoingLabel: isMarketOpen ? 'LIVE ALPHA P&L' : 'CLOSING ALPHA P&L',
       riskRewardLabel: 'ASYMMETRIC R:R',
@@ -321,15 +356,15 @@ export const TradeTipModal: React.FC<TradeTipModalProps> = ({ tip, isOpen, onClo
       decisionAdvice: isExpired && !isSeller
         ? `🛑 SYSTEM DIRECTIVE: 0DTE Terminal Settlement | Delta = 0, Gamma = 0 | Action: Re-deploy delta into Next Expiry (${tip.nextExpiryDate || 'Next Weekly'}).`
         : isStoplossReached
-        ? `🛑 SYSTEM DIRECTIVE: Structural Invalidation (${rawPnlPct}%) | POC breached | Action: Delta hedge deactivated.`
+        ? `🛑 SYSTEM DIRECTIVE: Structural Invalidation (-${Math.abs(rawPnlPct)}%) | POC breached | Action: Delta hedge deactivated.`
         : isTarget2Reached
-        ? `🏆 SYSTEM DIRECTIVE: 1.8σ Gamma Runner Hit (+${rawPnlPct}%) | Mean reversion risk | Action: Liquidate full delta exposure.`
+        ? `🏆 SYSTEM DIRECTIVE: 1.8σ Gamma Runner Hit (+${Math.abs(rawPnlPct)}%) | Mean reversion risk | Action: Liquidate full delta exposure.`
         : isTarget1Reached
-        ? `🎯 SYSTEM DIRECTIVE: 1.2σ Mean Expansion Hit (+${rawPnlPct}%) | Action: De-risk 50% delta, trail stop to breakeven POC.`
+        ? `🎯 SYSTEM DIRECTIVE: 1.2σ Mean Expansion Hit (+${Math.abs(rawPnlPct)}%) | Action: De-risk 50% delta, trail stop to breakeven POC.`
         : !isMarketOpen
         ? `🌙 SYSTEM DIRECTIVE: OVERNIGHT CARRY FORWARD (BTST/STBT) | Gamma & delta structure held into market close | Action: Maintain overnight positioning targeting opening volatility expansion at 09:15 AM IST.`
         : rawPnlPct >= 15
-        ? `🚀 SYSTEM DIRECTIVE: Positive Gamma Flow (+${rawPnlPct}%) | Impulse active | Action: Trail stop to entry cluster.`
+        ? `🚀 SYSTEM DIRECTIVE: Positive Gamma Flow (+${Math.abs(rawPnlPct)}%) | Impulse active | Action: Trail stop to entry cluster.`
         : `⏸️ SYSTEM ADVISORY: Delta Drift Stable (IV: ${tip.iv || 13.2}%) | Action: Positive order flow above VWAP; maintain position.`,
       desc: tip.explanations?.expert ||
         `📊 SYSTEM QUANT DATA: Delta: ${isBull ? '+0.48' : '-0.48'} | Gamma: 0.032 | Theta: -₹140/hr | IV: ${tip.iv || 13.2}% | Flow: Order flow surge above VWAP.`
@@ -607,7 +642,7 @@ Generated via Fayda Trading Terminal`;
                   <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
                     profitBoxData.isProfit ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                   }`}>
-                    {profitBoxData.isProfit ? '+' : ''}₹{Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')}
+                    {profitBoxData.isProfit ? '+' : '-'}₹{Math.abs(profitBoxData.pnlRupees).toLocaleString('en-IN')}
                   </span>
                   <span className="text-xs font-mono text-slate-500 dark:text-slate-400">/ lot ({lotSize} units)</span>
                   <span className={`px-2 py-0.5 rounded-lg text-xs font-mono font-black border shrink-0 ${

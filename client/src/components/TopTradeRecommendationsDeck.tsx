@@ -2341,53 +2341,50 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
 
           {/* Middle: 4 Key Metrics Blocks (Entry, LTP, Target, SL) */}
+          {/* Middle: 4 Key Metrics Blocks (Entry, LTP, Target, SL) in Solid Color Boxes */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 min-w-[280px]">
-            {/* Entry Range */}
-            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
-              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">Perfect Entry</span>
-              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate block">
+            {/* Entry Range - Solid Blue */}
+            <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm border border-blue-500">
+              <span className="text-[9px] font-mono text-blue-100 uppercase block font-bold">Perfect Entry</span>
+              <span className="text-xs font-mono font-bold text-white truncate block">
                 {item.entryRange || `₹${item.entryPrice.toFixed(2)}`}
               </span>
-              <span className={`text-[9px] font-mono font-bold mt-0.5 truncate block ${item.isEntryTriggered ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+              <span className="text-[9px] font-mono font-semibold mt-0.5 truncate block text-blue-100">
                 {item.isEntryTriggered ? `🟢 In: ${item.entryPriceTimeFormatted || 'Live'}` : `⏳ Trigger @ ₹${item.entryPrice.toFixed(2)}`}
               </span>
             </div>
 
-            {/* Live LTP & P&L */}
-            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800/80">
-              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase block">{isMarketOpen ? 'Live LTP' : 'Closing LTP'}</span>
+            {/* Live LTP & P&L - Solid Yellow/Amber */}
+            <div className="p-2 rounded-lg bg-amber-500 text-slate-950 shadow-sm border border-amber-400">
+              <span className="text-[9px] font-mono text-amber-950 uppercase block font-black">{isMarketOpen ? 'Live LTP' : 'Closing LTP'}</span>
               <div className="flex items-baseline justify-between">
-                <span className={`text-xs font-mono font-black ${
-                  isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'
-                }`}>
+                <span className="text-xs font-mono font-black text-slate-950">
                   ₹{item.currentLtp.toFixed(1)}
                 </span>
-                <span className={`text-[10px] font-mono font-bold ${
-                  isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                }`}>
+                <span className="text-[10px] font-mono font-black text-slate-900 bg-amber-400/80 px-1 rounded">
                   {ltpDiff >= 0 ? '+' : ''}{Math.round(ltpDiff * lotSize)}
                 </span>
               </div>
             </div>
 
-            {/* Target 1 */}
-            <div className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60">
-              <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 uppercase block">Target 1</span>
-              <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400 truncate block">
+            {/* Target 1 - Solid Green */}
+            <div className="p-2 rounded-lg bg-emerald-600 text-white shadow-sm border border-emerald-500">
+              <span className="text-[9px] font-mono text-emerald-100 uppercase block font-bold">Target 1</span>
+              <span className="text-xs font-mono font-black text-white truncate block">
                 ₹{item.target1Price.toFixed(1)} (+{item.target1Pct}%)
               </span>
-              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 truncate block">
+              <span className="text-[9px] font-mono text-emerald-100 font-bold mt-0.5 truncate block">
                 {item.target1HitTimeFormatted ? `🏆 Hit: ${item.target1HitTimeFormatted}` : 'Pending Target'}
               </span>
             </div>
 
-            {/* Stop Loss */}
-            <div className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-800/60">
-              <span className="text-[9px] font-mono text-rose-700 dark:text-rose-400 uppercase block">Stop Loss (SL)</span>
-              <span className="text-xs font-mono font-black text-rose-700 dark:text-rose-400 truncate block">
+            {/* Stop Loss - Solid Red */}
+            <div className="p-2 rounded-lg bg-rose-600 text-white shadow-sm border border-rose-500">
+              <span className="text-[9px] font-mono text-rose-100 uppercase block font-bold">Stop Loss (SL)</span>
+              <span className="text-xs font-mono font-black text-white truncate block">
                 ₹{item.stoplossPrice.toFixed(1)} (-{item.stoplossPct}%)
               </span>
-              <span className="text-[9px] font-mono text-rose-600 dark:text-rose-400 font-bold mt-0.5 truncate block">
+              <span className="text-[9px] font-mono text-rose-100 font-bold mt-0.5 truncate block">
                 {item.stoplossTimeFormatted ? `🛑 Hit: ${item.stoplossTimeFormatted}` : 'Active Shield'}
               </span>
             </div>
@@ -2538,37 +2535,37 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           </div>
         </div>
 
-        {/* 3-Column Execution Matrix */}
-        <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 font-mono mb-3">
-          {/* Entry Zone */}
-          <div>
-            <span className="text-[9px] uppercase text-slate-400 dark:text-slate-500 block font-bold">Perfect Entry</span>
-            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate block">
+        {/* 3-Column Execution Matrix in Solid Color Boxes */}
+        <div className="grid grid-cols-3 gap-2 font-mono mb-3">
+          {/* Entry Zone - Solid Blue */}
+          <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm border border-blue-500">
+            <span className="text-[9px] uppercase text-blue-100 block font-bold">Perfect Entry</span>
+            <span className="text-xs sm:text-sm font-bold text-white truncate block">
               {item.entryRange || `₹${item.entryPrice.toFixed(2)}`}
             </span>
-            <span className="text-[9.5px] text-slate-500 dark:text-slate-400 block mt-0.5">
+            <span className="text-[9.5px] text-blue-100 block mt-0.5 truncate">
               Given: {item.callGivenTimeFormatted || item.entryTimeFormatted}
             </span>
           </div>
 
-          {/* Target 1 */}
-          <div>
-            <span className="text-[9px] uppercase text-emerald-700 dark:text-emerald-400 block font-bold">Target 1 (+{item.target1Pct}%)</span>
-            <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 truncate block">
+          {/* Target 1 - Solid Green */}
+          <div className="p-2 rounded-lg bg-emerald-600 text-white shadow-sm border border-emerald-500">
+            <span className="text-[9px] uppercase text-emerald-100 block font-bold">Target 1 (+{item.target1Pct}%)</span>
+            <span className="text-xs sm:text-sm font-black text-white truncate block">
               ₹{item.target1Price.toFixed(1)}
             </span>
-            <span className="text-[9.5px] text-emerald-600/80 dark:text-emerald-400/80 block mt-0.5">
+            <span className="text-[9.5px] text-emerald-100 block mt-0.5 truncate">
               +{Math.max(0, Math.round(item.target1Price - item.entryPrice))} pts / lot
             </span>
           </div>
 
-          {/* Stop Loss */}
-          <div>
-            <span className="text-[9px] uppercase text-rose-700 dark:text-rose-400 block font-bold">Stop Loss (-{item.stoplossPct}%)</span>
-            <span className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400 truncate block">
+          {/* Stop Loss - Solid Red */}
+          <div className="p-2 rounded-lg bg-rose-600 text-white shadow-sm border border-rose-500">
+            <span className="text-[9px] uppercase text-rose-100 block font-bold">Stop Loss (-{item.stoplossPct}%)</span>
+            <span className="text-xs sm:text-sm font-black text-white truncate block">
               ₹{item.stoplossPrice.toFixed(1)}
             </span>
-            <span className="text-[9.5px] text-rose-600/80 dark:text-rose-400/80 block mt-0.5">
+            <span className="text-[9.5px] text-rose-100 block mt-0.5 truncate">
               Risk Shield
             </span>
           </div>

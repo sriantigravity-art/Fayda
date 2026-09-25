@@ -24,12 +24,12 @@ export const ALL_SYMBOLS_CONFIG: SymbolConfig[] = [
   { symbol: 'NIFTYNXT50', name: 'Nifty Next 50', category: 'INDICES', step: 100, lot: 25, defaultRange: 400, fyersSymbol: 'NSE:NIFTYNXT50-INDEX', isIndex: true, segment: 'EQUITY', exchange: 'NSE' },
 
   // MCX Commodities (Live Option Chains & Futures)
-  { symbol: 'CRUDEOIL', name: 'Crude Oil (MCX)', category: 'COMMODITIES', step: 50, lot: 100, defaultRange: 400, fyersSymbol: 'MCX:CRUDEOIL26SEPFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
-  { symbol: 'NATURALGAS', name: 'Natural Gas (MCX)', category: 'COMMODITIES', step: 5, lot: 1250, defaultRange: 30, fyersSymbol: 'MCX:NATURALGAS26SEPFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
+  { symbol: 'CRUDEOIL', name: 'Crude Oil (MCX)', category: 'COMMODITIES', step: 50, lot: 100, defaultRange: 400, fyersSymbol: 'MCX:CRUDEOIL26OCTFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
+  { symbol: 'NATURALGAS', name: 'Natural Gas (MCX)', category: 'COMMODITIES', step: 5, lot: 1250, defaultRange: 30, fyersSymbol: 'MCX:NATURALGAS26OCTFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
   { symbol: 'GOLD', name: 'Gold (MCX)', category: 'COMMODITIES', step: 200, lot: 100, defaultRange: 1500, fyersSymbol: 'MCX:GOLD26OCTFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
   { symbol: 'SILVER', name: 'Silver (MCX)', category: 'COMMODITIES', step: 500, lot: 30, defaultRange: 3000, fyersSymbol: 'MCX:SILVER26DECFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
-  { symbol: 'COPPER', name: 'Copper (MCX)', category: 'COMMODITIES', step: 5, lot: 2500, defaultRange: 50, fyersSymbol: 'MCX:COPPER26SEPFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
-  { symbol: 'ZINC', name: 'Zinc (MCX)', category: 'COMMODITIES', step: 2.5, lot: 5000, defaultRange: 20, fyersSymbol: 'MCX:ZINC26SEPFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
+  { symbol: 'COPPER', name: 'Copper (MCX)', category: 'COMMODITIES', step: 5, lot: 2500, defaultRange: 50, fyersSymbol: 'MCX:COPPER26OCTFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
+  { symbol: 'ZINC', name: 'Zinc (MCX)', category: 'COMMODITIES', step: 2.5, lot: 5000, defaultRange: 20, fyersSymbol: 'MCX:ZINC26OCTFUT', isIndex: false, segment: 'COMMODITY', exchange: 'MCX' },
 
   // Top Nifty 50 F&O Stocks
   { symbol: 'RELIANCE', name: 'Reliance Industries', category: 'NIFTY50_STOCKS', step: 10, lot: 250, defaultRange: 60, fyersSymbol: 'NSE:RELIANCE-EQ', isIndex: false },

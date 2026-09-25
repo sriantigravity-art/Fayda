@@ -125,18 +125,10 @@ export function sanitizeSpotData(
     };
   }
 
-  // 3. If market is closed for this asset (e.g. NSE equity after 15:40 IST), suppress stale intraday delta
-  if (!isOpen) {
-    return {
-      spotPrice: effectiveSpot,
-      change: 0,
-      pctChange: 0
-    };
-  }
-
+  // 3. If market is closed for this asset, preserve genuine closing change and pctChange
   return {
     spotPrice: effectiveSpot,
-    change: candidate.change ?? 0,
-    pctChange: candidate.pctChange ?? 0
+    change: candidate.change ?? fallback.change ?? 0,
+    pctChange: candidate.pctChange ?? fallback.pctChange ?? 0
   };
 }

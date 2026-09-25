@@ -729,10 +729,11 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
 
   const handleOpenTradeDetail = (call: JournalTradeCall) => {
     if (!call) return;
-    const isSl = call.status === 'STOPLOSS_HIT';
+    const isSl = call.status === 'STOPLOSS_HIT' || call.status === 'SL_HIT' || !!call.stoplossHitTime;
     const isTargetHit = call.status === 'TARGET_HIT';
-    const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
+    const isNearTarget = !isSl && (call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80);
 
+    const isSell = call.action?.startsWith('SELL') || call.category === 'OPTIONS_SELL';
     const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
     const lotSize = call.lotSize || cfg?.lot || 50;
 
@@ -743,18 +744,20 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       contractSymbol: call.contractName,
       strikePrice: call.strikePrice,
       optionType: call.optionType,
-      action: call.action === 'BUY_CALL' ? 'BUY_CALL' : call.action === 'BUY_PUT' ? 'BUY_PUT' : (call.action as any),
+      action: isSell ? 'SELL' : call.action === 'BUY_CALL' ? 'BUY_CALL' : call.action === 'BUY_PUT' ? 'BUY_PUT' : (call.action as any),
+      tradingRole: isSell ? 'SELLER' : 'BUYER',
+      executionType: isSell ? 'NET_CREDIT' : 'NET_DEBIT',
       tierLabel: '📖 POST-MARKET TRADE JOURNAL LEDGER',
       sessionName: call.sessionPhase || 'Recorded Trade Call',
       confluenceScore: isTargetHit ? 95 : isNearTarget ? 88 : 78,
       lotSize,
       entryPrice: call.entryPrice,
       entryRange: `₹${call.entryPrice.toFixed(2)}`,
-      currentLtp: isSl ? call.stoplossPrice : isTargetHit ? call.target1Price : (call.exitLtp || call.currentLtp || call.peakLtp),
+      currentLtp: isSl ? call.stoplossPrice : isTargetHit ? call.target1Price : (call.exitLtp || call.currentLtp || call.entryPrice),
       stoplossPrice: `₹${call.stoplossPrice.toFixed(2)}`,
-      stoplossPct: call.entryPrice > 0 ? parseFloat((((call.entryPrice - call.stoplossPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
+      stoplossPct: call.entryPrice > 0 ? parseFloat(((isSell ? (call.entryPrice - call.stoplossPrice) : (call.stoplossPrice - call.entryPrice)) / call.entryPrice * 100).toFixed(2)) : undefined,
       target1Price: `₹${call.target1Price.toFixed(2)}`,
-      target1Pct: call.entryPrice > 0 ? parseFloat((((call.target1Price - call.entryPrice) / call.entryPrice) * 100).toFixed(2)) : undefined,
+      target1Pct: call.entryPrice > 0 ? parseFloat(((isSell ? (call.entryPrice - call.target1Price) : (call.target1Price - call.entryPrice)) / call.entryPrice * 100).toFixed(2)) : undefined,
       target2Price: call.target2Price ? `₹${call.target2Price.toFixed(2)}` : undefined,
       givenTimeFormatted: formatTradeTime(call.callGivenTime || call.timeFormatted, call.symbol),
       callGivenTimeFormatted: formatTradeTime(call.callGivenTime || call.timeFormatted, call.symbol),
@@ -762,11 +765,17 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       actualEntryPrice: call.entryPrice,
       entryPriceTimeFormatted: formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol),
       target1HitTimeFormatted: call.target1HitTimeFormatted ? formatTradeTime(call.target1HitTimeFormatted, call.symbol) : (isTargetHit ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
-      target2HitTimeFormatted: call.target2HitTimeFormatted ? formatTradeTime(call.target2HitTimeFormatted, call.symbol) : (isTargetHit && call.target2Price && (call.peakLtp >= call.target2Price) ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
+      target2HitTimeFormatted: call.target2HitTimeFormatted 
+        ? formatTradeTime(call.target2HitTimeFormatted, call.symbol) 
+        : (isTargetHit && call.target2Price && (isSell ? ((call.peakLtp && call.peakLtp <= call.target2Price) || (call.currentLtp && call.currentLtp <= call.target2Price)) : (call.peakLtp >= call.target2Price)) 
+            ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) 
+            : undefined),
       stoplossTimeFormatted: call.stoplossTime ? formatTradeTime(call.stoplossTime, call.symbol) : call.stoplossHitTime ? formatTradeTime(call.stoplossHitTime, call.symbol) : (isSl ? formatTradeTime(call.timeFormatted, call.symbol) : undefined),
       bookedTimeFormatted: call.targetHitTime || call.stoplossHitTime || call.timeFormatted,
       elapsedTimeFormatted: `${call.pointsPnl >= 0 ? '+' : ''}${call.pointsPnl.toFixed(2)} pts (${call.pnlPct.toFixed(2)}%)`,
-      actionGuidance: call.nearTargetDescription || (isTargetHit ? 'Target 1 hit successfully with solid profit booking.' : isSl ? 'Strict Stop Loss respected to protect capital.' : 'Trade achieved near-target price extension.'),
+      actionGuidance: isSl 
+        ? (call.nearTargetDescription && !call.nearTargetDescription.toLowerCase().includes('active') ? call.nearTargetDescription : `Strict Stop Loss hit (Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)}). Capital preserved.`)
+        : (call.nearTargetDescription || (isTargetHit ? 'Target 1 hit successfully with solid profit booking.' : 'Trade achieved near-target price extension.')),
       actionBadge: isTargetHit ? '🎯 TARGET HIT' : isSl ? '🛑 STOPLOSS HIT' : '⚡ NEAR TARGET',
       actionClass: isTargetHit ? 'bg-bull/20 text-bull border border-bull/40' : isSl ? 'bg-bear/20 text-bear border border-bear/40' : 'bg-amber/20 text-amber border border-amber/40',
       status: isSl ? 'SL_HIT' : isTargetHit ? 'TARGET_HIT' : 'ACTIVE',
@@ -930,7 +939,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
             <Calendar className="w-4 h-4 text-accent-cyan" />
             <select
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setSearchQuery('');
+              }}
               className="bg-transparent text-xs font-mono font-bold text-terminal-text focus:outline-none cursor-pointer"
             >
               {availableDates.map((d) => {
@@ -1010,7 +1022,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               const isSelected = selectedCategory === 'OPTIONS_BUY';
               return (
                 <div 
-                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_BUY')}
+                  onClick={() => {
+                    setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_BUY');
+                    setSearchQuery('');
+                  }}
                   className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
                     isSelected 
                       ? 'border-accent-cyan ring-1 ring-accent-cyan bg-accent-cyan/5' 
@@ -1057,7 +1072,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               const isSelected = selectedCategory === 'OPTIONS_SELL';
               return (
                 <div 
-                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_SELL')}
+                  onClick={() => {
+                    setSelectedCategory(isSelected ? 'ALL' : 'OPTIONS_SELL');
+                    setSearchQuery('');
+                  }}
                   className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
                     isSelected 
                       ? 'border-purple-400 ring-1 ring-purple-400 bg-purple-500/5' 
@@ -1104,7 +1122,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               const isSelected = selectedCategory === 'STOCKS';
               return (
                 <div 
-                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'STOCKS')}
+                  onClick={() => {
+                    setSelectedCategory(isSelected ? 'ALL' : 'STOCKS');
+                    setSearchQuery('');
+                  }}
                   className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
                     isSelected 
                       ? 'border-emerald-400 ring-1 ring-emerald-400 bg-emerald-500/5' 
@@ -1151,7 +1172,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               const isSelected = selectedCategory === 'COMMODITIES';
               return (
                 <div 
-                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : 'COMMODITIES')}
+                  onClick={() => {
+                    setSelectedCategory(isSelected ? 'ALL' : 'COMMODITIES');
+                    setSearchQuery('');
+                  }}
                   className={`bg-slate-50 dark:bg-terminal-panel/90 border rounded-xl p-3 shadow-inner flex flex-col justify-between cursor-pointer transition group hover:shadow-md ${
                     isSelected 
                       ? 'border-amber ring-1 ring-amber bg-amber/5' 
@@ -1282,7 +1306,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSelectedCategory(tab.id)}
+              onClick={() => {
+                setSelectedCategory(tab.id);
+                setSearchQuery('');
+              }}
               className={`px-2.5 sm:px-3 py-1 rounded-lg font-bold transition cursor-pointer text-[11px] sm:text-xs uppercase ${
                 selectedCategory === tab.id
                   ? 'bg-accent-cyan text-slate-950 font-black shadow-sm'
@@ -1344,15 +1371,25 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           </div>
 
           {/* Search Box */}
-          <div className="relative flex-1 md:w-48">
+          <div className="relative flex-1 md:w-56">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-terminal-muted" />
             <input
               type="text"
               placeholder="Search strike/asset..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border rounded-xl pl-8 pr-3 py-1 text-xs font-mono text-terminal-text placeholder-terminal-muted focus:outline-none focus:border-accent-cyan"
+              className="w-full bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border rounded-xl pl-8 pr-7 py-1 text-xs font-mono text-terminal-text placeholder-terminal-muted focus:outline-none focus:border-accent-cyan"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1406,11 +1443,27 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
               )}
             </div>
           ) : (
-            <div className="space-y-1 max-w-md">
+            <div className="space-y-2 max-w-md">
               <p className="text-sm font-bold font-mono text-terminal-text">No Trade Calls Found for Selected Filter</p>
-              <p className="text-xs font-mono">
-                Try switching the date, clearing the search query, or selecting 'All Assets' to view past recorded trade predictions.
-              </p>
+              {searchQuery ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-mono text-terminal-muted">
+                    No calls match <span className="text-accent-cyan font-bold">"{searchQuery}"</span> in {selectedCategory === 'ALL' ? 'all assets' : selectedCategory.replace('_', ' ')}.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-cyan/15 hover:bg-accent-cyan/25 text-accent-cyan border border-accent-cyan/40 text-xs font-mono font-bold transition cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Clear Search Filter ("{searchQuery}")</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs font-mono">
+                  Try switching the date, clearing status filters, or selecting 'All Assets' to view past recorded trade predictions.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -1422,7 +1475,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 <th className="py-2.5 px-3">Time</th>
                 <th className="py-2.5 px-3">Asset / Strike</th>
                 <th className="py-2.5 px-3">Signal Source</th>
-                <th className="py-2.5 px-3 text-center">Lot Size</th>
+                <th className="py-2.5 px-3 text-center">1 Lot Size</th>
                 <th className="py-2.5 px-3 text-right">Perfect Entry</th>
                 <th className="py-2.5 px-3 text-right">Target 1</th>
                 <th className="py-2.5 px-3 text-right">Stop Loss</th>
@@ -1437,22 +1490,13 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 const isSell = call.action?.startsWith('SELL');
                 const isBull = !isSell && (call.action === 'BUY_CALL' || call.action === 'BUY');
                 const isTargetHit = call.status === 'TARGET_HIT';
-                const isSlHit = call.status === 'STOPLOSS_HIT';
-                const isNearTarget = call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80;
+                const isSlHit = call.status === 'STOPLOSS_HIT' || call.status === 'SL_HIT' || !!call.stoplossHitTime;
+                const isNearTarget = !isSlHit && (call.status === 'NEAR_TARGET' || call.nearTargetPct >= 80);
 
                 const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
                 const lotSize = call.lotSize || cfg?.lot || 50;
                 const lots = call.lots || 1;
                 const totalQty = lotSize * lots;
-
-                // User directive: If stoploss is triggered, calculate entry price - stoploss with lot shown.
-                // Also profit should be calculated like this (Target - entry).
-                let points = call.pointsPnl;
-                if (isSlHit) {
-                  points = call.pointsPnl < 0 ? call.pointsPnl : +(call.stoplossPrice - call.entryPrice).toFixed(2);
-                } else if (isTargetHit) {
-                  points = call.pointsPnl > 0 ? call.pointsPnl : +(call.target1Price - call.entryPrice).toFixed(2);
-                }
 
                 const exitPrice = isSlHit 
                   ? call.stoplossPrice 
@@ -1460,15 +1504,45 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                   ? call.target1Price 
                   : (call.exitLtp || call.currentLtp);
 
+                let points = 0;
+                if (isSlHit) {
+                  points = isSell 
+                    ? -Math.abs(+(call.stoplossPrice - call.entryPrice).toFixed(2))
+                    : -Math.abs(+(call.entryPrice - call.stoplossPrice).toFixed(2));
+                } else if (isTargetHit) {
+                  points = isSell
+                    ? Math.abs(+(call.entryPrice - call.target1Price).toFixed(2))
+                    : Math.abs(+(call.target1Price - call.entryPrice).toFixed(2));
+                } else {
+                  points = isSell
+                    ? +(call.entryPrice - exitPrice).toFixed(2)
+                    : +(exitPrice - call.entryPrice).toFixed(2);
+                }
+
                 const pnlRupees = call.pnlRupees !== undefined 
                   ? call.pnlRupees 
                   : Math.round(points * totalQty);
 
                 const calculationFormula = isSlHit
-                  ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`
+                  ? (isSell
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`
+                      : `SL ₹${call.stoplossPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts`)
                   : isTargetHit
-                  ? `Target ₹${call.target1Price.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts`
-                  : `LTP ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts`;
+                  ? (isSell
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Target ₹${call.target1Price.toFixed(2)} = +${points} pts`
+                      : `Target ₹${call.target1Price.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts`)
+                  : (isSell
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Exit ₹${exitPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts`
+                      : `Exit ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts`);
+
+                // Near-Target Description & Progress percentage sanitization
+                let displayDescription = call.nearTargetDescription || '';
+                if (isSlHit) {
+                  if (!displayDescription || displayDescription.toLowerCase().includes('active') || displayDescription.toLowerCase().includes('in progress') || displayDescription.toLowerCase().includes('target hit')) {
+                    displayDescription = `🛑 Stoploss Hit: Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`;
+                  }
+                }
+                const displayProgressPct = isSlHit ? 0 : (call.nearTargetPct || 0);
 
                 return (
                   <tr 
@@ -1538,10 +1612,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                       </span>
                     </td>
 
-                    {/* Lot Size */}
+                    {/* 1 Lot Size */}
                     <td className="py-3 px-3 text-center whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded bg-sky-50 dark:bg-accent-sky/10 border border-sky-200 dark:border-accent-sky/30 text-accent-sky font-bold text-[10px]">
-                        {lots} Lot ({totalQty} Qty)
+                      <span className="px-2 py-0.5 rounded bg-sky-50 dark:bg-accent-sky/10 border border-sky-200 dark:border-accent-sky/30 text-accent-sky font-bold text-xs">
+                        {totalQty}
                       </span>
                     </td>
 
@@ -1575,10 +1649,10 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                       <div className="flex flex-col space-y-1">
                         <div className="flex items-center justify-between text-[10px]">
                           <span className={isTargetHit ? 'text-bull font-bold' : isNearTarget ? 'text-amber-800 dark:text-amber font-bold' : isSlHit ? 'text-bear font-bold' : 'text-terminal-muted'}>
-                            {call.nearTargetDescription}
+                            {displayDescription}
                           </span>
                           <span className="font-bold tabular-nums">
-                            {call.nearTargetPct}%
+                            {displayProgressPct}%
                           </span>
                         </div>
                         {/* Progress track */}
@@ -1587,7 +1661,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                             className={`h-full rounded-full transition-all duration-300 ${
                               isTargetHit ? 'bg-bull' : isNearTarget ? 'bg-amber' : isSlHit ? 'bg-bear' : 'bg-accent-cyan'
                             }`}
-                            style={{ width: `${Math.max(4, Math.min(100, call.nearTargetPct))}%` }}
+                            style={{ width: `${isSlHit ? 0 : Math.max(4, Math.min(100, displayProgressPct))}%` }}
                           />
                         </div>
                       </div>

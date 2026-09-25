@@ -96,13 +96,13 @@ export class BrokerManager {
         if (this.activeBroker === 'DHAN' && dhanService.getConfig().isConnected && dhanService.hasDataApi()) {
             return 'DHAN';
         }
-        if (this.activeBroker === 'FYERS' && fyersService.getConfig().isConnected) {
+        if (this.activeBroker === 'FYERS' && (fyersService.getConfig().isConnected || (!!fyersService.getConfig().accessToken && !fyersService.isAccessTokenExpired()))) {
             return 'FYERS';
         }
         // Auto-fallback to any connected broker with live data
         if (dhanService.getConfig().isConnected && dhanService.hasDataApi())
             return 'DHAN';
-        if (fyersService.getConfig().isConnected)
+        if (fyersService.getConfig().isConnected || (!!fyersService.getConfig().accessToken && !fyersService.isAccessTokenExpired()))
             return 'FYERS';
         return 'SIMULATOR';
     }

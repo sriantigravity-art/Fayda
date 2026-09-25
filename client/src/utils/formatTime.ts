@@ -116,8 +116,9 @@ export const formatISTTime = (
     } else if (typeof dateInput === 'string') {
       const trimmed = dateInput.trim();
       // Already formatted as "HH:mm(:ss)? AM/PM (IST)?"
-      if (/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)(\s*IST)?$/i.test(trimmed)) {
-        return includeSuffix && !/IST$/i.test(trimmed) ? `${trimmed} IST` : trimmed;
+      if (/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)(\s*IST)*/i.test(trimmed)) {
+        const cleanBase = trimmed.replace(/\s*IST/gi, '').trim();
+        return includeSuffix ? `${cleanBase} IST` : cleanBase;
       }
       // If 24-hour time string like "20:09:02" or "20:09" or "20:09:02 IST"
       const match24 = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(\s*IST)?$/i);
@@ -143,7 +144,8 @@ export const formatISTTime = (
     }
 
     if (isNaN(d.getTime())) {
-      return String(dateInput);
+      const cleanInput = String(dateInput).replace(/\s*IST/gi, '').trim();
+      return includeSuffix ? `${cleanInput} IST` : cleanInput;
     }
 
     const timeStr = d.toLocaleTimeString('en-US', {
@@ -154,9 +156,11 @@ export const formatISTTime = (
       second: showSecs ? '2-digit' : undefined
     });
 
-    return includeSuffix ? `${timeStr} IST` : timeStr;
+    const cleanTime = timeStr.replace(/\s*IST/gi, '').trim();
+    return includeSuffix ? `${cleanTime} IST` : cleanTime;
   } catch {
-    return String(dateInput || '');
+    const fallback = String(dateInput || '').replace(/\s*IST/gi, '').trim();
+    return includeSuffix ? `${fallback} IST` : fallback;
   }
 };
 
@@ -164,6 +168,7 @@ export const formatISTTime = (
  * Trade execution & milestone time sanitizer.
  * Guarantees 12-hour AM/PM format everywhere and prevents equity/index symbols
  * (NSE/BSE) from ever displaying nighttime post-market hours (> 03:40 PM IST).
+ * Also strictly eliminates duplicate 'IST IST' strings.
  */
 export const formatTradeTime = (
   timeInput?: string | number | Date | null,
@@ -174,9 +179,12 @@ export const formatTradeTime = (
   const showSecs = options?.showSeconds !== false;
   const includeSuffix = options?.includeSuffix ?? true;
 
-  // Format to 12-hour AM/PM IST
+  // Format to 12-hour AM/PM IST (request WITHOUT suffix first)
   let formatted = formatISTTime(timeInput, { showSeconds: showSecs, includeSuffix: false, hour12: true });
   if (!formatted) return '';
+
+  // Clean any remaining IST occurrences in base formatted string
+  formatted = formatted.replace(/\s*IST/gi, '').trim();
 
   const sym = (symbol || '').toUpperCase();
   const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes(sym);

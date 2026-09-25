@@ -350,17 +350,11 @@ const fetchSymbolSnapshot = async (symConfig) => {
                 spotChange = 0;
                 spotPctChange = 0;
             }
-            // Zero out change values if market is closed for this symbol
             const isOpen = isMarketOpenForSymbol(symConfig.symbol);
-            if (!isOpen) {
-                spotChange = 0;
-                spotPctChange = 0;
-            }
-            // ── Sticky change: if market is open but new poll returned change=0,
-            //    keep the last known non-zero value from cache to prevent flickering.
-            //    Fyers options-chain v3 sometimes returns ltpch=null on the first
-            //    fetch or when data is partially populated, causing a brief 0 flash.
-            if (isOpen && spotChange === 0 && spotPctChange === 0) {
+            // ── Sticky change: if incoming poll returned change=0,
+            //    keep the last known non-zero value from cache to prevent flickering / zeroing out closing deltas.
+            //    Fyers options-chain v3 sometimes returns ltpch=null on partial loads.
+            if (spotChange === 0 && spotPctChange === 0) {
                 const prev = cachedIndexStates.get(symConfig.symbol);
                 if (prev && typeof prev.change === 'number' && prev.change !== 0 && Math.abs(prev.change - 84.80) >= 0.05) {
                     spotChange = prev.change;
@@ -531,16 +525,11 @@ const pollBatchQuotes = async () => {
                 if (cached) {
                     const isOpen = isMarketOpenForSymbol(q.symbol);
                     cached.spotPrice = q.price;
-                    // Sticky change: if market is open but quotes returned change=0, keep last known value
-                    if (isOpen && q.change !== 0 && Math.abs(q.change - 84.80) >= 0.05) {
+                    // Sticky change: keep genuine incoming change value from quotes; if 0, keep last known non-zero
+                    if (q.change !== 0 && Math.abs(q.change - 84.80) >= 0.05) {
                         cached.change = q.change;
                         cached.pctChange = q.pctChange;
                     }
-                    else if (!isOpen) {
-                        cached.change = 0;
-                        cached.pctChange = 0;
-                    }
-                    // If isOpen && q.change === 0: leave cached.change as-is (sticky)
                     cached.updatedAtIso = new Date().toISOString();
                 }
             }

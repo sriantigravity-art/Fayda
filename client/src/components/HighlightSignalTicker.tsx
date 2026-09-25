@@ -405,22 +405,30 @@ export const HighlightSignalTicker: React.FC = () => {
         </div>
 
         {/* Entry */}
-        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">Entry:</span>
-          <span className="font-bold text-sky-300 dark:text-sky-700">{item.entry}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded bg-blue-600 text-white font-bold shadow-sm">
+          <span className="text-[8.5px] uppercase text-blue-100 font-bold">Entry:</span>
+          <span className="font-mono">{item.entry}</span>
         </div>
 
         {/* Live / Close LTP */}
-        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0">
-          <span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase font-bold">{isMarketOpen ? 'LTP:' : 'Close:'}</span>
-          <span className="font-black text-amber-300 dark:text-amber-700">₹{(item.ltp || 0).toFixed(1)}</span>
+        <div className="flex items-center gap-1 text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black shadow-sm">
+          <span className="text-[8.5px] uppercase text-amber-950 font-black">{isMarketOpen ? 'LTP:' : 'Close:'}</span>
+          <span className="font-mono">₹{(item.ltp || 0).toFixed(1)}</span>
         </div>
 
         {/* Target */}
-        <div className="hidden 2xl:flex items-center gap-1 text-[10px] font-mono shrink-0">
-          <span className="text-emerald-400 dark:text-emerald-700 text-[9px] uppercase font-bold">Target:</span>
-          <span className="font-bold text-emerald-300 dark:text-emerald-700">{item.target}</span>
+        <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded bg-emerald-600 text-white font-bold shadow-sm">
+          <span className="text-[8.5px] uppercase text-emerald-100 font-bold">Tgt:</span>
+          <span className="font-mono">{item.target}</span>
         </div>
+
+        {/* Stoploss */}
+        {item.exitSL && (
+          <div className="hidden md:flex items-center gap-1 text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold shadow-sm">
+            <span className="text-[8.5px] uppercase text-rose-100 font-bold">SL:</span>
+            <span className="font-mono">{item.exitSL}</span>
+          </div>
+        )}
 
         {/* ONGOING LIVE PROFIT BOX */}
         {profitBox && (

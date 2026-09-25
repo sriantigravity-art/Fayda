@@ -59,7 +59,7 @@ class SignalLedgerService {
 
   public static formatTo12Hour(timeStr?: string): string {
     if (!timeStr) return '';
-    const clean = timeStr.replace(' IST', '').trim();
+    const clean = timeStr.replace(/\s*IST/gi, '').trim();
     // If already has AM/PM
     const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
     if (ampmMatch) {
@@ -81,7 +81,7 @@ class SignalLedgerService {
       const hStr = h12 < 10 ? `0${h12}` : `${h12}`;
       return s ? `${hStr}:${m}:${s} ${ampm} IST` : `${hStr}:${m} ${ampm} IST`;
     }
-    return timeStr;
+    return clean ? `${clean} IST` : '';
   }
 
   public static sanitizeTradeTime(timeStr?: string, isCommodity: boolean = false, fallbackTime: string = '03:30:00 PM IST'): string | undefined {
@@ -99,7 +99,7 @@ class SignalLedgerService {
 
   public static parseTimeStringToMinutes(timeStr?: string): number | null {
     if (!timeStr) return null;
-    const clean = timeStr.replace(' IST', '').trim();
+    const clean = timeStr.replace(/\s*IST/gi, '').trim();
     const ampmMatch = clean.match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)$/i);
     if (ampmMatch) {
       let h = parseInt(ampmMatch[1], 10);
@@ -158,6 +158,15 @@ class SignalLedgerService {
             if (c.stoplossHitTime) c.stoplossHitTime = SignalLedgerService.sanitizeTradeTime(c.stoplossHitTime, isCommodity, '03:15:00 PM IST');
             if (c.halfProfitBookTime) c.halfProfitBookTime = SignalLedgerService.sanitizeTradeTime(c.halfProfitBookTime, isCommodity, '03:10:00 PM IST');
             if (c.adminActionTime) c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
+
+            if (c.status === 'STOPLOSS_HIT' || !!c.stoplossHitTime) {
+              c.status = 'STOPLOSS_HIT';
+              c.nearTargetPct = 0;
+              if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('Target Hit') || c.nearTargetDescription.includes('In Progress')) {
+                const pts = c.pointsPnl !== undefined ? c.pointsPnl : (c.stoplossPrice && c.entryPrice ? +(c.stoplossPrice - c.entryPrice).toFixed(2) : 0);
+                c.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${(c.entryPrice || 0).toFixed(2)} - SL ₹${(c.stoplossPrice || 0).toFixed(2)} = ${pts} pts`;
+              }
+            }
           });
 
           // Group by date
@@ -288,10 +297,12 @@ class SignalLedgerService {
     call.adminAction = action;
     call.adminActionTime = timeStr;
     if (exitPrice !== undefined && exitPrice > 0) {
+      const isSell = Boolean(call.action?.startsWith('SELL') || (call as any).category === 'OPTIONS_SELL' || (call as any).tradingRole === 'SELLER');
       call.adminExitPrice = exitPrice;
       call.exitLtp = exitPrice;
-      call.pointsPnl = +(exitPrice - call.entryPrice).toFixed(2);
-      call.pnlPct = +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1);
+      const points = isSell ? +(call.entryPrice - exitPrice).toFixed(2) : +(exitPrice - call.entryPrice).toFixed(2);
+      call.pointsPnl = points;
+      call.pnlPct = call.entryPrice > 0 ? +((points / call.entryPrice) * 100).toFixed(1) : 0;
     }
     if (adminNotes) call.adminNotes = adminNotes;
 
@@ -579,12 +590,13 @@ class SignalLedgerService {
       call.lotSize = lotSize;
       call.lots = 1;
 
+      const isSell = Boolean(call.action?.startsWith('SELL') || (call as any).category === 'OPTIONS_SELL' || (call as any).tradingRole === 'SELLER');
       if (data.status) {
         call.status = data.status;
         if (data.status === 'TARGET_HIT') {
           const exitPrice = call.target1Price || data.currentLtp;
-          const points = +(exitPrice - call.entryPrice).toFixed(2);
-          const pnlPct = call.entryPrice > 0 ? +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+          const points = isSell ? +(call.entryPrice - exitPrice).toFixed(2) : +(exitPrice - call.entryPrice).toFixed(2);
+          const pnlPct = call.entryPrice > 0 ? +((points / call.entryPrice) * 100).toFixed(1) : 0;
           const rupees = Math.round(points * lotSize);
 
           call.exitLtp = +exitPrice.toFixed(2);
@@ -592,13 +604,15 @@ class SignalLedgerService {
           call.pnlPct = pnlPct;
           call.pnlRupees = rupees;
           call.nearTargetPct = 100;
-          call.pnlCalculationFormula = `Target ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.pnlCalculationFormula = isSell
+            ? `Entry ₹${call.entryPrice.toFixed(2)} - Target ₹${exitPrice.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+            : `Target ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         } else if (data.status === 'STOPLOSS_HIT') {
           // Strictly calculate from Entry Price - Stoploss with lot, NOT floating LTP
           const exitPrice = call.stoplossPrice;
-          const points = +(call.stoplossPrice - call.entryPrice).toFixed(2);
-          const pnlPct = call.entryPrice > 0 ? -Math.abs(+(((call.entryPrice - call.stoplossPrice) / call.entryPrice) * 100).toFixed(1)) : 0;
+          const points = isSell ? +(call.entryPrice - call.stoplossPrice).toFixed(2) : +(call.stoplossPrice - call.entryPrice).toFixed(2);
+          const pnlPct = call.entryPrice > 0 ? -Math.abs(+(((Math.abs(call.entryPrice - call.stoplossPrice)) / call.entryPrice) * 100).toFixed(1)) : 0;
           const rupees = Math.round(points * lotSize);
 
           call.exitLtp = +exitPrice.toFixed(2);
@@ -606,11 +620,14 @@ class SignalLedgerService {
           call.pnlPct = pnlPct;
           call.pnlRupees = rupees;
           call.nearTargetPct = 0;
-          call.pnlCalculationFormula = `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.pnlCalculationFormula = isSell
+            ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+            : `SL ₹${call.stoplossPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         } else if (data.status === 'INTRADAY_CLOSED' || data.status === 'SQUARE_OFF') {
           const exitPrice = data.currentLtp;
-          const points = +(exitPrice - call.entryPrice).toFixed(2);
-          const pnlPct = call.entryPrice > 0 ? +(((exitPrice - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+          const points = isSell ? +(call.entryPrice - exitPrice).toFixed(2) : +(exitPrice - call.entryPrice).toFixed(2);
+          const pnlPct = call.entryPrice > 0 ? +((points / call.entryPrice) * 100).toFixed(1) : 0;
           const rupees = Math.round(points * lotSize);
 
           call.exitLtp = +exitPrice.toFixed(2);
@@ -618,18 +635,22 @@ class SignalLedgerService {
           call.pnlPct = pnlPct;
           call.pnlRupees = rupees;
           call.nearTargetPct = 0;
-          call.pnlCalculationFormula = `Squared off at CMP ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.pnlCalculationFormula = isSell
+            ? `Entry ₹${call.entryPrice.toFixed(2)} - CMP ₹${exitPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+            : `Squared off at CMP ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.nearTargetDescription = `⚠️ Squared Off (Session Close): Exit ₹${exitPrice.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
           if (data.notes) {
             call.notes = data.notes;
           }
         } else {
-          const points = +(data.currentLtp - call.entryPrice).toFixed(2);
-          const pnlPct = call.entryPrice > 0 ? +(((data.currentLtp - call.entryPrice) / call.entryPrice) * 100).toFixed(1) : 0;
+          const points = isSell ? +(call.entryPrice - data.currentLtp).toFixed(2) : +(data.currentLtp - call.entryPrice).toFixed(2);
+          const pnlPct = call.entryPrice > 0 ? +((points / call.entryPrice) * 100).toFixed(1) : 0;
           call.pointsPnl = points;
           call.pnlPct = pnlPct;
           call.pnlRupees = Math.round(points * lotSize);
-          call.pnlCalculationFormula = `LTP ₹${data.currentLtp.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.pnlCalculationFormula = isSell
+            ? `Entry ₹${call.entryPrice.toFixed(2)} - LTP ₹${data.currentLtp.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+            : `LTP ₹${data.currentLtp.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           if (data.notes) {
             call.notes = data.notes;
           }
@@ -671,64 +692,83 @@ class SignalLedgerService {
       const liveLtp = call.optionType === 'CE' ? strikeRow.callLtp : strikeRow.putLtp;
       if (!liveLtp || liveLtp <= 0) continue;
 
-      call.currentLtp = +liveLtp.toFixed(2);
-      if (liveLtp > call.peakLtp) {
-        call.peakLtp = +liveLtp.toFixed(2);
+      // Reject crazy synthetic spikes (> 3.5x entry or < 0.25x entry if entry is substantial)
+      if (call.entryPrice > 10 && (liveLtp / call.entryPrice > 3.5 || call.entryPrice / liveLtp > 4.0)) {
+        continue;
       }
 
+      const isSell = Boolean(call.action?.startsWith('SELL') || (call as any).category === 'OPTIONS_SELL' || (call as any).tradingRole === 'SELLER');
       const entry = call.entryPrice;
       const target = call.target1Price;
       const sl = call.stoplossPrice;
-      const targetDelta = target - entry;
       const cfg = ALL_SYMBOLS_CONFIG.find(c => c.symbol === call.symbol);
       const lotSize = call.lotSize || cfg?.lot || 50;
       call.lotSize = lotSize;
       call.lots = 1;
 
+      call.currentLtp = +liveLtp.toFixed(2);
+      if (isSell) {
+        // For seller: best price is the lowest price achieved
+        if (!call.peakLtp || liveLtp < call.peakLtp) {
+          call.peakLtp = +liveLtp.toFixed(2);
+        }
+      } else {
+        if (liveLtp > call.peakLtp) {
+          call.peakLtp = +liveLtp.toFixed(2);
+        }
+      }
+
       // Check Target 1 Hit
-      if (liveLtp >= target) {
+      const isTargetHit = isSell ? (liveLtp <= target && target < entry) : (liveLtp >= target && target > entry);
+      if (isTargetHit) {
         call.status = 'TARGET_HIT';
         call.exitLtp = +target.toFixed(2);
-        const points = +(target - entry).toFixed(2);
-        const pnlPct = entry > 0 ? +(((target - entry) / entry) * 100).toFixed(1) : 0;
+        const points = isSell ? +(entry - target).toFixed(2) : +(target - entry).toFixed(2);
+        const pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
         const rupees = Math.round(points * lotSize);
         call.pointsPnl = points;
         call.pnlPct = pnlPct;
         call.pnlRupees = rupees;
         call.nearTargetPct = 100;
-        call.pnlCalculationFormula = `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+        call.pnlCalculationFormula = isSell
+          ? `Entry ₹${entry.toFixed(2)} - Target ₹${target.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+          : `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.targetHitTime = this.getIstTimeFormatted();
         hasChanges = true;
         continue;
       }
 
-      // Check Stoploss Hit (Downside risk breached below entry)
-      if (liveLtp <= sl && liveLtp < entry) {
-        const achievedDelta = Math.max(0, call.peakLtp - entry);
-        const hadSubstantialGain = targetDelta > 0 && (achievedDelta / targetDelta) >= 0.70;
+      // Check Stoploss Hit
+      const isStoplossHit = isSell ? (liveLtp >= sl && sl > entry) : (liveLtp <= sl && sl < entry);
+      if (isStoplossHit) {
+        const targetDistance = Math.abs(target - entry);
+        const favorableMove = isSell ? Math.max(0, entry - (call.peakLtp || entry)) : Math.max(0, (call.peakLtp || entry) - entry);
+        const hadSubstantialGain = targetDistance > 0 && (favorableMove / targetDistance) >= 0.70;
 
         if (hadSubstantialGain) {
           call.status = 'PARTIAL_PROFIT';
           call.exitLtp = +liveLtp.toFixed(2);
-          call.pointsPnl = +(liveLtp - entry).toFixed(2);
-          call.pnlPct = entry > 0 ? +(((liveLtp - entry) / entry) * 100).toFixed(1) : 0;
-          call.pnlRupees = Math.round(call.pointsPnl * lotSize);
-          call.nearTargetDescription = `🛡️ Profit Protected (Peak reached ${Math.round((achievedDelta / targetDelta) * 100)}% of Target)`;
+          const points = isSell ? +(entry - liveLtp).toFixed(2) : +(liveLtp - entry).toFixed(2);
+          call.pointsPnl = points;
+          call.pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
+          call.pnlRupees = Math.round(points * lotSize);
+          call.nearTargetDescription = `🛡️ Profit Protected (Peak reached ${Math.round((favorableMove / targetDistance) * 100)}% of Target)`;
           call.halfProfitBookTime = this.getIstTimeFormatted();
         } else {
-          // Strictly calculate from Entry Price - Stoploss with lot, NOT floating LTP
           call.status = 'STOPLOSS_HIT';
           call.exitLtp = +sl.toFixed(2);
-          const points = +(sl - entry).toFixed(2);
-          const pnlPct = entry > 0 ? -Math.abs(+(((entry - sl) / entry) * 100).toFixed(1)) : 0;
+          const points = isSell ? +(entry - sl).toFixed(2) : +(sl - entry).toFixed(2);
+          const pnlPct = entry > 0 ? -Math.abs(+(((Math.abs(entry - sl)) / entry) * 100).toFixed(1)) : 0;
           const rupees = Math.round(points * lotSize);
           call.pointsPnl = points;
           call.pnlPct = pnlPct;
           call.pnlRupees = rupees;
           call.nearTargetPct = 0;
-          call.pnlCalculationFormula = `Entry ₹${entry.toFixed(2)} - SL ₹${sl.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
-          call.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${entry.toFixed(2)} - SL ₹${sl.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.pnlCalculationFormula = isSell
+            ? `Entry ₹${entry.toFixed(2)} - SL ₹${sl.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+            : `SL ₹${sl.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+          call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.stoplossHitTime = this.getIstTimeFormatted();
         }
         hasChanges = true;
@@ -736,18 +776,22 @@ class SignalLedgerService {
       }
 
       // In-flight progress & Near-Target verification
+      const targetDelta = Math.abs(target - entry);
       if (targetDelta > 0) {
-        const achievedDelta = Math.max(0, call.peakLtp - entry);
-        const nearness = Math.min(100, Math.round((achievedDelta / targetDelta) * 100));
+        const favorableMove = isSell ? Math.max(0, entry - liveLtp) : Math.max(0, liveLtp - entry);
+        const nearness = Math.min(100, Math.round((favorableMove / targetDelta) * 100));
+        const points = isSell ? +(entry - liveLtp).toFixed(2) : +(liveLtp - entry).toFixed(2);
         call.nearTargetPct = nearness;
-        call.pointsPnl = +(liveLtp - entry).toFixed(2);
-        call.pnlPct = entry > 0 ? +(((liveLtp - entry) / entry) * 100).toFixed(1) : 0;
-        call.pnlRupees = Math.round(call.pointsPnl * lotSize);
-        call.pnlCalculationFormula = `LTP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${call.pointsPnl} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+        call.pointsPnl = points;
+        call.pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
+        call.pnlRupees = Math.round(points * lotSize);
+        call.pnlCalculationFormula = isSell
+          ? `Entry ₹${entry.toFixed(2)} - LTP ₹${liveLtp.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+          : `LTP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points} pts (${call.pnlRupees >= 0 ? '+' : ''}₹${call.pnlRupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
 
         if (nearness >= 80) {
           call.status = 'NEAR_TARGET';
-          call.nearTargetDescription = `⚡ ${nearness}% Near Target (Peak ₹${call.peakLtp.toFixed(2)} vs ₹${target.toFixed(2)})`;
+          call.nearTargetDescription = `⚡ ${nearness}% Near Target (CMP ₹${liveLtp.toFixed(2)} vs ₹${target.toFixed(2)})`;
         } else {
           call.status = 'ACTIVE';
           call.nearTargetDescription = `${nearness}% of Target (LTP ₹${liveLtp.toFixed(2)})`;
