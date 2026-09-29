@@ -1558,32 +1558,34 @@ export class ConfluenceEngine {
       };
     }
 
-    // 4. Gate 3: Expiry Day & DTE Rule
-    if (tip.isExpiryDay && !isCommodity) {
-      return {
-        qualifiesForBtst: false,
-        marketTrendSentiment,
-        btstRationale: '0DTE Expiry Contract Settles Today',
-        squareOffReason: '0DTE contract expires today at 03:40 PM. Options settle at zero if OTM; auto carry-forward prohibited.'
-      };
-    }
-    if (tip.daysToExpiry !== undefined && tip.daysToExpiry <= 0 && !isCommodity) {
-      return {
-        qualifiesForBtst: false,
-        marketTrendSentiment,
-        btstRationale: 'Zero Days To Expiry',
-        squareOffReason: 'Contract has 0 days to expiry. Severe overnight theta decay risk.'
-      };
+    // 4. Gate 3: Strict Asset Expiry Check (SEBI / Exchange Settlement Rule)
+    if (!isCommodity) {
+      if (tip.isExpiryDay) {
+        return {
+          qualifiesForBtst: false,
+          marketTrendSentiment,
+          btstRationale: '0DTE Expiry Contract Settles Today (Carry Prohibited)',
+          squareOffReason: 'Asset Expiry Check Failed: 0DTE contract expires today at 03:30 PM. Options cease to exist tomorrow. Position must be closed and parked into Journal before 03:10 PM IST (prior to CAS).'
+        };
+      }
+      if (tip.daysToExpiry !== undefined && tip.daysToExpiry <= 0) {
+        return {
+          qualifiesForBtst: false,
+          marketTrendSentiment,
+          btstRationale: 'Zero Days To Expiry (0DTE Contract Settles Today)',
+          squareOffReason: 'Asset Expiry Check Failed: Contract has 0 days to expiry. Ceases trading today. Carry forward prohibited. Position must be closed and parked into Journal before 03:10 PM IST (prior to CAS).'
+        };
+      }
     }
 
-    // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 82%)
+    // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 88%)
     const score = tip.quantumScore || tip.confluenceScore || 0;
-    if (score < 82) {
+    if (score < 88) {
       return {
         qualifiesForBtst: false,
         marketTrendSentiment,
-        btstRationale: `Confluence (${score}%) Below 82% BTST Threshold`,
-        squareOffReason: `Mathematical confluence score (${score}%) is below the strict 82% threshold required for researched BTST setups.`
+        btstRationale: `Confluence (${score}%) Below 88% Institutional Threshold`,
+        squareOffReason: `Mathematical confluence score (${score}%) is below the strict 88% institutional threshold required for researched BTST/STBT setups.`
       };
     }
 
@@ -1999,6 +2001,7 @@ export class ConfluenceEngine {
     const isOffMarket = sessionInfo.session === 'OFF_MARKET' || sessionInfo.session === 'PRE_MARKET_STANDBY';
     const isPast340Pm = !isCommodity && (currentMin >= (15 * 60 + 40));
     const isPast330Pm = !isCommodity && (currentMin >= (15 * 60 + 30));
+    const isPast310Pm = !isCommodity && (currentMin >= (15 * 60 + 10)); // Pre-CAS (Closing Auction Session) 03:10 PM Square-off
     const isPastCutoff = !isCommodity ? (currentMin >= (14 * 60 + 30)) : (currentMin >= (22 * 60));
     const isBefore925Am = !isCommodity ? (currentMin < (9 * 60 + 25)) : (currentMin < (9 * 60));
     const isMarketSettled = isCommodity
@@ -2156,7 +2159,7 @@ export class ConfluenceEngine {
           lifecycleDirectiveText = `🌙 SYSTEM DIRECTIVE: CARRY FORWARD CONTINUE | LTP ₹${currentLtp.toFixed(1)} (${pnlPoints >= 0 ? '+' : ''}${pnlPoints.toFixed(1)} pts) | Action: Momentum intact. Hold with trailing SL at cost ₹${prev.entryPrice.toFixed(1)}.`;
         }
       } else {
-        const isMarketClosedOrEod = isPast340Pm;
+        const isMarketClosedOrEod = isPast310Pm;
         if (isMarketClosedOrEod) {
           const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
             tip: {
@@ -2180,7 +2183,8 @@ export class ConfluenceEngine {
             isCommodity
           });
 
-          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+          const isSafeToCarryForward = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry && isSafeToCarryForward) {
             status = 'CARRIED_FORWARD';
             hasAssignedBtstCarry = true;
             if (!carryForwardTimeFormatted) {
@@ -2394,7 +2398,7 @@ export class ConfluenceEngine {
     } else if (primMilestones.target1HitTimeFormatted) {
       actionabilityStatus = 'TRAIL_SL';
       primStatus = 'TARGET1_HIT';
-    } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < entryPrice))) {
+    } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast310Pm && currentLtp < entryPrice))) {
       actionabilityStatus = 'SL_HIT';
       primStatus = 'EXPIRED';
       if (!primMilestones.stoplossTimeFormatted) {
@@ -2408,7 +2412,7 @@ export class ConfluenceEngine {
     } else if (primMilestones.stoplossTimeFormatted) {
       actionabilityStatus = 'SL_HIT';
       primStatus = 'SL_HIT';
-    } else if (isPast340Pm || existingTrade?.isCarriedForward) {
+    } else if (isPast310Pm || existingTrade?.isCarriedForward) {
       const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
         tip: {
           action: primAction,
@@ -2431,7 +2435,8 @@ export class ConfluenceEngine {
         isCommodity
       });
 
-      if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+      const isSafeToCarryForward = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+      if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry && isSafeToCarryForward) {
         primStatus = 'CARRIED_FORWARD';
         hasAssignedBtstCarry = true;
         if (!carryForwardTimeFormatted) {
@@ -2589,7 +2594,7 @@ export class ConfluenceEngine {
         bookedTime: primMilestones.bookedTime,
         bookedTimeFormatted: primMilestones.bookedTimeFormatted,
         carryForwardTime,
-        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && primStatus === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
         carryForwardSuggestion: primCarrySuggestion,
         carryForwardAdvice: primCarryAdvice,
         marketRegime: momentumInfo.regime,
@@ -2706,7 +2711,7 @@ export class ConfluenceEngine {
         } else if (callMilestones.target1HitTimeFormatted) {
           status = 'TARGET1_HIT';
           actionabilityStatus = 'TRAIL_SL';
-        } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activeCall.entryPrice))) {
+        } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast310Pm && currentLtp < activeCall.entryPrice))) {
           status = 'EXPIRED';
           actionabilityStatus = 'SL_HIT';
           if (!callMilestones.stoplossTimeFormatted) {
@@ -2720,7 +2725,7 @@ export class ConfluenceEngine {
         } else if (callMilestones.stoplossTimeFormatted) {
           status = 'SL_HIT';
           actionabilityStatus = 'SL_HIT';
-        } else if (isPast340Pm || activeCall.isCarriedForward) {
+        } else if (isPast310Pm || activeCall.isCarriedForward) {
           const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
             tip: {
               action: activeCall.action,
@@ -2743,7 +2748,10 @@ export class ConfluenceEngine {
             isCommodity
           });
 
-          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+          // Strict Asset Expiry Check: Expiring 0DTE contracts settling today cannot be carried forward
+          const canCarryForwardAsset = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+
+          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry && canCarryForwardAsset) {
             status = 'CARRIED_FORWARD';
             hasAssignedBtstCarry = true;
             if (!carryForwardTimeFormatted) {
@@ -2854,7 +2862,7 @@ export class ConfluenceEngine {
             halfProfitBookTime: callMilestones.halfProfitBookTime,
             halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
             carryForwardTime,
-            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && status === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
             isCarriedForward: status === 'CARRIED_FORWARD',
             isBtstResearched: status === 'CARRIED_FORWARD',
             btstRationale: status === 'CARRIED_FORWARD' ? activeCall.carryForwardSuggestion : undefined,
@@ -2892,7 +2900,7 @@ export class ConfluenceEngine {
         if (alt) bestCeStrike = alt;
       }
 
-      const isCallExpired0Dte = momentumInfo.isExpiryDay && !isCommodity && (isPast340Pm || (bestCeStrike && bestCeStrike.callLtp <= 0.05));
+      const isCallExpired0Dte = momentumInfo.isExpiryDay && !isCommodity && (isPast310Pm || (bestCeStrike && bestCeStrike.callLtp <= 0.05));
 
       if (isCallExpired0Dte) {
         const fallbackStrike = strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
@@ -3064,7 +3072,7 @@ export class ConfluenceEngine {
         const dipMax = +(entryPrice * 0.99).toFixed(2);
         let callStatus: UnifiedSmartTip['status'] = 'ACTIVE';
         let callBtstEval: { qualifiesForBtst: boolean; marketTrendSentiment: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL_CHOPPY'; btstRationale: string; squareOffReason?: string } = { qualifiesForBtst: false, marketTrendSentiment: 'NEUTRAL_CHOPPY', btstRationale: '', squareOffReason: '' };
-        if (isPast340Pm) {
+        if (isPast310Pm) {
           callBtstEval = ConfluenceEngine.evaluateBtstResearchQualification({
             tip: {
               action: 'BUY_CALL',
@@ -3086,7 +3094,10 @@ export class ConfluenceEngine {
             isCommodity
           });
 
-          if (callBtstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+          // Strict Asset Expiry Check: Expiring 0DTE contracts settling today cannot be carried forward
+          const canCarryForwardAsset = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+
+          if (callBtstEval.qualifiesForBtst && !hasAssignedBtstCarry && canCarryForwardAsset) {
             callStatus = 'CARRIED_FORWARD';
             hasAssignedBtstCarry = true;
           } else {
@@ -3166,7 +3177,7 @@ export class ConfluenceEngine {
           halfProfitBookTimeFormatted: callMilestones.halfProfitBookTimeFormatted,
           bookedTime: callMilestones.bookedTime,
           bookedTimeFormatted: callMilestones.bookedTimeFormatted,
-          carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+          carryForwardTimeFormatted: (isPast310Pm && callStatus === 'CARRIED_FORWARD') ? '03:10 PM IST' : undefined,
           carryForwardSuggestion: newCallAdvice.carryForwardSuggestion,
           carryForwardAdvice: newCallAdvice.carryForwardAdvice,
           marketRegime: momentumInfo.regime,
@@ -3264,7 +3275,7 @@ export class ConfluenceEngine {
         } else if (putMilestones.target1HitTimeFormatted) {
           status = 'TARGET1_HIT';
           actionabilityStatus = 'TRAIL_SL';
-        } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast340Pm && currentLtp < activePut.entryPrice))) {
+        } else if (momentumInfo.isExpiryDay && !isCommodity && (currentLtp <= 0.05 || (isPast310Pm && currentLtp < activePut.entryPrice))) {
           status = 'EXPIRED';
           actionabilityStatus = 'SL_HIT';
           if (!putMilestones.stoplossTimeFormatted) {
@@ -3278,7 +3289,7 @@ export class ConfluenceEngine {
         } else if (putMilestones.stoplossTimeFormatted) {
           status = 'SL_HIT';
           actionabilityStatus = 'SL_HIT';
-        } else if (isPast340Pm || activePut.isCarriedForward) {
+        } else if (isPast310Pm || activePut.isCarriedForward) {
           const btstEval = ConfluenceEngine.evaluateBtstResearchQualification({
             tip: {
               action: activePut.action,
@@ -3301,7 +3312,10 @@ export class ConfluenceEngine {
             isCommodity
           });
 
-          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+          // Strict Asset Expiry Check: Expiring 0DTE contracts settling today cannot be carried forward
+          const canCarryForwardAsset = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+
+          if (btstEval.qualifiesForBtst && !hasAssignedBtstCarry && canCarryForwardAsset) {
             status = 'CARRIED_FORWARD';
             hasAssignedBtstCarry = true;
             if (!carryForwardTimeFormatted) {
@@ -3412,7 +3426,7 @@ export class ConfluenceEngine {
             halfProfitBookTime: putMilestones.halfProfitBookTime,
             halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
             carryForwardTime,
-            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+            carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && status === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
             isCarriedForward: status === 'CARRIED_FORWARD',
             isBtstResearched: status === 'CARRIED_FORWARD',
             btstRationale: status === 'CARRIED_FORWARD' ? activePut.carryForwardSuggestion : undefined,
@@ -3450,7 +3464,7 @@ export class ConfluenceEngine {
         if (alt) bestPeStrike = alt;
       }
 
-      const isPutExpired0Dte = momentumInfo.isExpiryDay && !isCommodity && (isPast340Pm || (bestPeStrike && bestPeStrike.putLtp <= 0.05));
+      const isPutExpired0Dte = momentumInfo.isExpiryDay && !isCommodity && (isPast310Pm || (bestPeStrike && bestPeStrike.putLtp <= 0.05));
 
       if (isPutExpired0Dte) {
         const fallbackStrike = strikes.find(s => s.strikePrice === atmStrike) || strikes[0];
@@ -3622,7 +3636,7 @@ export class ConfluenceEngine {
         const dipMax = +(entryPrice * 0.99).toFixed(2);
         let putStatus: UnifiedSmartTip['status'] = 'ACTIVE';
         let putBtstEval: { qualifiesForBtst: boolean; marketTrendSentiment: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL_CHOPPY'; btstRationale: string; squareOffReason?: string } = { qualifiesForBtst: false, marketTrendSentiment: 'NEUTRAL_CHOPPY', btstRationale: '', squareOffReason: '' };
-        if (isPast340Pm) {
+        if (isPast310Pm) {
           putBtstEval = ConfluenceEngine.evaluateBtstResearchQualification({
             tip: {
               action: 'BUY_PUT',
@@ -3644,7 +3658,10 @@ export class ConfluenceEngine {
             isCommodity
           });
 
-          if (putBtstEval.qualifiesForBtst && !hasAssignedBtstCarry) {
+          // Strict Asset Expiry Check: Expiring 0DTE contracts settling today cannot be carried forward
+          const canCarryForwardAsset = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0);
+
+          if (putBtstEval.qualifiesForBtst && !hasAssignedBtstCarry && canCarryForwardAsset) {
             putStatus = 'CARRIED_FORWARD';
             hasAssignedBtstCarry = true;
           } else {
@@ -3724,7 +3741,7 @@ export class ConfluenceEngine {
           halfProfitBookTimeFormatted: putMilestones.halfProfitBookTimeFormatted,
           bookedTime: putMilestones.bookedTime,
           bookedTimeFormatted: putMilestones.bookedTimeFormatted,
-          carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+          carryForwardTimeFormatted: (isPast310Pm && putStatus === 'CARRIED_FORWARD') ? '03:10 PM IST' : undefined,
           carryForwardSuggestion: newPutAdvice.carryForwardSuggestion,
           carryForwardAdvice: newPutAdvice.carryForwardAdvice,
           marketRegime: momentumInfo.regime,
@@ -3824,8 +3841,8 @@ export class ConfluenceEngine {
       } else if (sellerPutMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
         actionabilityStatus = 'SL_HIT';
-      } else if (isPast340Pm || activeSellerPut.isCarriedForward) {
-        const canCarrySellerPut = !momentumInfo.isExpiryDay && directionalBias === 'BULLISH';
+      } else if (isPast310Pm || activeSellerPut.isCarriedForward) {
+        const canCarrySellerPut = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0) && directionalBias === 'BULLISH';
         if (canCarrySellerPut) {
           status = 'CARRIED_FORWARD';
           if (!carryForwardTimeFormatted) {
@@ -3891,7 +3908,7 @@ export class ConfluenceEngine {
         stoplossTime: sellerPutMilestones.stoplossTime,
         stoplossTimeFormatted: sellerPutMilestones.stoplossTimeFormatted,
         carryForwardTime,
-        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && status === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD'
       };
       slotEntry.sellerPuts[0] = topSellerPutTrade;
@@ -3943,7 +3960,7 @@ export class ConfluenceEngine {
         lowerBreakeven
       };
 
-      const sellerPutStatus: UnifiedSmartTip['status'] = (isPast340Pm && !momentumInfo.isExpiryDay && directionalBias === 'BULLISH') ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
+      const sellerPutStatus: UnifiedSmartTip['status'] = (isPast310Pm && !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0) && directionalBias === 'BULLISH') ? 'CARRIED_FORWARD' : (isPast310Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
 
       const initialSellerPutMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
         existingTrade: null,
@@ -3988,7 +4005,7 @@ export class ConfluenceEngine {
         stoplossTimeFormatted: initialSellerPutMilestones.stoplossTimeFormatted,
         bookedTime: initialSellerPutMilestones.bookedTime,
         bookedTimeFormatted: initialSellerPutMilestones.bookedTimeFormatted,
-        carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+        carryForwardTimeFormatted: (isPast310Pm && sellerPutStatus === 'CARRIED_FORWARD') ? '03:10 PM IST' : undefined,
         carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         isCarriedForward: sellerPutStatus === 'CARRIED_FORWARD',
         entryPrice: netCreditPts,
@@ -4076,8 +4093,8 @@ export class ConfluenceEngine {
       } else if (sellerCallMilestones.stoplossTimeFormatted) {
         status = 'SL_HIT';
         actionabilityStatus = 'SL_HIT';
-      } else if (isPast340Pm || activeSellerCall.isCarriedForward) {
-        const canCarrySellerCall = !momentumInfo.isExpiryDay && directionalBias === 'BEARISH';
+      } else if (isPast310Pm || activeSellerCall.isCarriedForward) {
+        const canCarrySellerCall = !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0) && directionalBias === 'BEARISH';
         if (canCarrySellerCall) {
           status = 'CARRIED_FORWARD';
           if (!carryForwardTimeFormatted) {
@@ -4143,7 +4160,7 @@ export class ConfluenceEngine {
         stoplossTime: sellerCallMilestones.stoplossTime,
         stoplossTimeFormatted: sellerCallMilestones.stoplossTimeFormatted,
         carryForwardTime,
-        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && status === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
         isCarriedForward: status === 'CARRIED_FORWARD'
       };
       slotEntry.sellerCalls[0] = topSellerCallTrade;
@@ -4195,7 +4212,7 @@ export class ConfluenceEngine {
         upperBreakeven
       };
 
-      const sellerCallStatus: UnifiedSmartTip['status'] = (isPast340Pm && !momentumInfo.isExpiryDay && directionalBias === 'BEARISH') ? 'CARRIED_FORWARD' : (isPast340Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
+      const sellerCallStatus: UnifiedSmartTip['status'] = (isPast310Pm && !momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0) && directionalBias === 'BEARISH') ? 'CARRIED_FORWARD' : (isPast310Pm ? 'INTRADAY_CLOSED' : 'ACTIVE');
 
       const initialSellerCallMilestones = ConfluenceEngine.evaluateLifecycleMilestones({
         existingTrade: null,
@@ -4240,7 +4257,7 @@ export class ConfluenceEngine {
         stoplossTimeFormatted: initialSellerCallMilestones.stoplossTimeFormatted,
         bookedTime: initialSellerCallMilestones.bookedTime,
         bookedTimeFormatted: initialSellerCallMilestones.bookedTimeFormatted,
-        carryForwardTimeFormatted: isPast340Pm ? '03:20 PM IST' : undefined,
+        carryForwardTimeFormatted: (isPast310Pm && sellerCallStatus === 'CARRIED_FORWARD') ? '03:10 PM IST' : undefined,
         carryForwardSuggestion: '🛡️ SYSTEM SELLER DIRECTIVE: Overnight hold permitted | Theta decay in your favour (>75% POP) | Rule: Maintain defined risk hedge.',
         isCarriedForward: sellerCallStatus === 'CARRIED_FORWARD',
         entryPrice: netCreditPts,
@@ -4476,8 +4493,8 @@ export class ConfluenceEngine {
         spreadStatus = 'TARGET1_HIT';
       } else if (spreadMilestones.stoplossTimeFormatted) {
         spreadStatus = 'SL_HIT';
-      } else if (isPast340Pm || existingSpread?.isCarriedForward) {
-        if (!momentumInfo.isExpiryDay && directionalBias !== 'NEUTRAL') {
+      } else if (isPast310Pm || existingSpread?.isCarriedForward) {
+        if (!momentumInfo.isExpiryDay && (daysToExpiry === undefined || daysToExpiry > 0) && directionalBias !== 'NEUTRAL') {
           spreadStatus = 'CARRIED_FORWARD';
           if (!carryForwardTimeFormatted) {
             carryForwardTime = new Date().toISOString();
@@ -4532,7 +4549,7 @@ export class ConfluenceEngine {
         bookedTime: spreadMilestones.bookedTime,
         bookedTimeFormatted: spreadMilestones.bookedTimeFormatted,
         carryForwardTime,
-        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
+        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast310Pm && spreadStatus === 'CARRIED_FORWARD' ? '03:10 PM IST' : undefined),
         carryForwardSuggestion: '🛡️ SYSTEM SPREAD DIRECTIVE: Hedged overnight hold permitted | Defined risk profile | Rule: Both legs must be closed before expiry.',
         isCarriedForward: spreadStatus === 'CARRIED_FORWARD',
         entryPrice,
@@ -4631,18 +4648,8 @@ export class ConfluenceEngine {
         gammaStatus = 'TARGET1_HIT';
       } else if (gammaMilestones.stoplossTimeFormatted) {
         gammaStatus = 'SL_HIT';
-      } else if (isPast340Pm) {
+      } else if (isPast310Pm) {
         gammaStatus = 'EXPIRED';
-        if (!carryForwardTimeFormatted) {
-          carryForwardTime = new Date().toISOString();
-          carryForwardTimeFormatted = effectiveCarryForwardTimeFormatted;
-        }
-      } else if (existingGamma?.isCarriedForward) {
-        gammaStatus = 'CARRIED_FORWARD';
-        if (!carryForwardTimeFormatted) {
-          carryForwardTime = new Date().toISOString();
-          carryForwardTimeFormatted = timeFormatted;
-        }
       }
 
       if (gammaStatus === 'SL_HIT' || entryPrice < 2.0 || topHz.ltp < 2.0 || (isPastCutoff && (entryPrice <= 5.0 || topHz.ltp <= 5.0))) {
@@ -4675,10 +4682,10 @@ export class ConfluenceEngine {
         stoplossTimeFormatted: gammaMilestones.stoplossTimeFormatted,
         bookedTime: gammaMilestones.bookedTime,
         bookedTimeFormatted: gammaMilestones.bookedTimeFormatted,
-        carryForwardTime,
-        carryForwardTimeFormatted: carryForwardTimeFormatted || (isPast340Pm ? '03:20 PM IST' : undefined),
-        carryForwardSuggestion: '🛑 SYSTEM DIRECTIVE: 0DTE Expiry Warning | Action: Close by 03:25 PM | Rule: Expiring contracts settle at ₹0.00; never carry overnight.',
-        isCarriedForward: gammaStatus === 'CARRIED_FORWARD',
+        carryForwardTime: undefined,
+        carryForwardTimeFormatted: undefined,
+        carryForwardSuggestion: '🛑 SYSTEM DIRECTIVE: 0DTE Expiry Warning | Action: Closed before 03:10 PM CAS | Rule: Expiring contracts settle at ₹0.00; never carry overnight.',
+        isCarriedForward: false,
         entryPrice,
         entryRange: `₹${entryPrice.toFixed(2)}`,
         triggerPrice: entryPrice,

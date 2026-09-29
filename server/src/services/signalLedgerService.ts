@@ -194,6 +194,19 @@ export class SignalLedgerService {
       c.stoplossHitTime = undefined;
       c.stoplossTime = undefined;
     }
+
+    // 5. Strict Asset Expiry Check for Carry Forward (BTST / STBT / CARRIED_FORWARD)
+    if (c.status === 'CARRIED_FORWARD' || (c as any).status === 'BTST') {
+      const isCommoditySym = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes((c.symbol || '').toUpperCase());
+      if (!isCommoditySym) {
+        // Any contract expiring today (0DTE) CANNOT be carried forward to tomorrow
+        const isExpiringToday = Boolean((c as any).isExpiryDay || (c as any).daysToExpiry === 0);
+        if (isExpiringToday) {
+          c.status = 'INTRADAY_CLOSED';
+          c.nearTargetDescription = '⚠️ Auto-squared off before 03:10 PM: 0DTE Expiring Contract cannot be carried forward.';
+        }
+      }
+    }
   }
 
   private loadFromFile() {
@@ -236,6 +249,20 @@ export class SignalLedgerService {
             if (c.stoplossHitTime) c.stoplossHitTime = SignalLedgerService.sanitizeTradeTime(c.stoplossHitTime, isCommodity, '03:15:00 PM IST');
             if (c.halfProfitBookTime) c.halfProfitBookTime = SignalLedgerService.sanitizeTradeTime(c.halfProfitBookTime, isCommodity, '03:10:00 PM IST');
             if (c.adminActionTime) c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
+
+            // Pre-CAS Square-Off: Any active equity/derivative call past 03:10 PM IST must be squared off & parked into journal
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const ist = new Date(utc + (3600000 * 5.5));
+            const currentMin = ist.getHours() * 60 + ist.getMinutes();
+            if (c.date === this.getTodayDateStr() && !isCommodity && currentMin >= (15 * 60 + 10) && c.status === 'ACTIVE') {
+              c.status = 'INTRADAY_CLOSED';
+              c.timeFormatted = '03:10:00 PM IST';
+              if (!c.exitLtp) c.exitLtp = c.currentLtp || c.entryPrice;
+              if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('In Progress')) {
+                c.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${c.exitLtp.toFixed(2)}`;
+              }
+            }
 
             SignalLedgerService.sanitizeMilestones(c);
           });
@@ -846,6 +873,35 @@ export class SignalLedgerService {
           call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.stoplossHitTime = this.getIstTimeFormatted();
         }
+        SignalLedgerService.sanitizeMilestones(call);
+        hasChanges = true;
+        continue;
+      }
+
+      // Pre-CAS (Closing Auction Session) 03:10 PM Square-Off Rule:
+      // All active intraday equity & derivative calls must be closed before 03:10 PM (15:10 IST) and parked in the journal.
+      const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes((call.symbol || '').toUpperCase());
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const ist = new Date(utc + (3600000 * 5.5));
+      const currentMin = ist.getHours() * 60 + ist.getMinutes();
+      const isPast310Pm = !isCommodity && currentMin >= (15 * 60 + 10); // 03:10 PM IST Pre-CAS Cutoff
+
+      if (isPast310Pm && call.status !== 'CARRIED_FORWARD' && call.status !== 'BTST' && (call as any).adminAction !== 'BTST') {
+        call.status = 'INTRADAY_CLOSED';
+        call.exitLtp = +liveLtp.toFixed(2);
+        const points = isSell ? +(entry - liveLtp).toFixed(2) : +(liveLtp - entry).toFixed(2);
+        const pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
+        const rupees = Math.round(points * lotSize);
+        call.pointsPnl = points;
+        call.pnlPct = pnlPct;
+        call.pnlRupees = rupees;
+        call.nearTargetPct = 0;
+        call.timeFormatted = '03:10:00 PM IST';
+        call.pnlCalculationFormula = isSell
+          ? `Entry ₹${entry.toFixed(2)} - CMP ₹${liveLtp.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+          : `Squared off at CMP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+        call.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${liveLtp.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
         SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;

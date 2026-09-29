@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ALL_SYMBOLS_CONFIG } from '../types.js';
-class SignalLedgerService {
+export class SignalLedgerService {
     dataFilePath;
     calls = new Map(); // id -> call
     datesSet = new Set();
@@ -107,6 +107,89 @@ class SignalLedgerService {
         }
         return null;
     }
+    static isChronologicallyValid(earlierTime, laterTime, allowEqual = true) {
+        if (!earlierTime || !laterTime)
+            return true;
+        const mEarly = SignalLedgerService.parseTimeStringToMinutes(earlierTime);
+        const mLate = SignalLedgerService.parseTimeStringToMinutes(laterTime);
+        if (mEarly === null || mLate === null)
+            return true;
+        return allowEqual ? mLate >= mEarly : mLate > mEarly;
+    }
+    static sanitizeMilestones(c) {
+        const isSell = Boolean(c.action?.startsWith('SELL') || c.category === 'OPTIONS_SELL');
+        const entryTime = c.entryPriceTimeFormatted || c.callGivenTime || c.timeFormatted;
+        // 1. Target 1 cannot be earlier than entry time
+        if (c.target1HitTimeFormatted && entryTime) {
+            if (!SignalLedgerService.isChronologicallyValid(entryTime, c.target1HitTimeFormatted)) {
+                c.target1HitTimeFormatted = undefined;
+            }
+        }
+        // 2. Target 2 cannot be earlier than entry time or Target 1
+        if (c.target2HitTimeFormatted) {
+            if (entryTime && !SignalLedgerService.isChronologicallyValid(entryTime, c.target2HitTimeFormatted)) {
+                c.target2HitTimeFormatted = undefined;
+                c.targetHitTime = undefined;
+            }
+            else if (c.target1HitTimeFormatted && !SignalLedgerService.isChronologicallyValid(c.target1HitTimeFormatted, c.target2HitTimeFormatted)) {
+                c.target2HitTimeFormatted = undefined;
+                c.targetHitTime = undefined;
+            }
+        }
+        // 3. Stoploss Hit cannot be earlier than entry time
+        if (c.stoplossHitTime && entryTime) {
+            if (!SignalLedgerService.isChronologicallyValid(entryTime, c.stoplossHitTime)) {
+                c.stoplossHitTime = undefined;
+                c.stoplossTime = undefined;
+            }
+        }
+        // 4. Status Exclusivity
+        if (c.status === 'STOPLOSS_HIT' || !!c.stoplossHitTime) {
+            c.status = 'STOPLOSS_HIT';
+            c.nearTargetPct = 0;
+            c.target2HitTimeFormatted = undefined;
+            c.targetHitTime = undefined;
+            // Target 1 is only retained if it genuinely occurred strictly before SL
+            if (c.target1HitTimeFormatted && c.stoplossHitTime) {
+                if (!SignalLedgerService.isChronologicallyValid(c.target1HitTimeFormatted, c.stoplossHitTime, false)) {
+                    c.target1HitTimeFormatted = undefined;
+                }
+            }
+            else {
+                c.target1HitTimeFormatted = undefined;
+            }
+            // Strictly calculate correct SL points: |stoplossPrice - entryPrice|
+            if (c.entryPrice && c.stoplossPrice) {
+                const pts = isSell
+                    ? +(c.entryPrice - c.stoplossPrice).toFixed(2)
+                    : +(c.stoplossPrice - c.entryPrice).toFixed(2);
+                const absPts = Math.abs(pts);
+                c.pointsPnl = pts;
+                const lotSize = c.lotSize || 50;
+                c.pnlRupees = Math.round(pts * lotSize);
+                c.pnlCalculationFormula = isSell
+                    ? `Entry ₹${c.entryPrice.toFixed(2)} - SL ₹${c.stoplossPrice.toFixed(2)} = -${absPts.toFixed(2)} pts (${c.pnlRupees} on 1 Lot [${lotSize} Qty])`
+                    : `SL ₹${c.stoplossPrice.toFixed(2)} - Entry ₹${c.entryPrice.toFixed(2)} = -${absPts.toFixed(2)} pts (${c.pnlRupees} on 1 Lot [${lotSize} Qty])`;
+                c.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${c.entryPrice.toFixed(2)} - SL ₹${c.stoplossPrice.toFixed(2)} = -${absPts.toFixed(2)} pts`;
+            }
+        }
+        else if (c.status === 'TARGET_HIT') {
+            c.stoplossHitTime = undefined;
+            c.stoplossTime = undefined;
+        }
+        // 5. Strict Asset Expiry Check for Carry Forward (BTST / STBT / CARRIED_FORWARD)
+        if (c.status === 'CARRIED_FORWARD' || c.status === 'BTST') {
+            const isCommoditySym = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes((c.symbol || '').toUpperCase());
+            if (!isCommoditySym) {
+                // Any contract expiring today (0DTE) CANNOT be carried forward to tomorrow
+                const isExpiringToday = Boolean(c.isExpiryDay || c.daysToExpiry === 0);
+                if (isExpiringToday) {
+                    c.status = 'INTRADAY_CLOSED';
+                    c.nearTargetDescription = '⚠️ Auto-squared off before 03:10 PM: 0DTE Expiring Contract cannot be carried forward.';
+                }
+            }
+        }
+    }
     loadFromFile() {
         try {
             if (fs.existsSync(this.dataFilePath)) {
@@ -152,14 +235,21 @@ class SignalLedgerService {
                             c.halfProfitBookTime = SignalLedgerService.sanitizeTradeTime(c.halfProfitBookTime, isCommodity, '03:10:00 PM IST');
                         if (c.adminActionTime)
                             c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
-                        if (c.status === 'STOPLOSS_HIT' || !!c.stoplossHitTime) {
-                            c.status = 'STOPLOSS_HIT';
-                            c.nearTargetPct = 0;
-                            if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('Target Hit') || c.nearTargetDescription.includes('In Progress')) {
-                                const pts = c.pointsPnl !== undefined ? c.pointsPnl : (c.stoplossPrice && c.entryPrice ? +(c.stoplossPrice - c.entryPrice).toFixed(2) : 0);
-                                c.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${(c.entryPrice || 0).toFixed(2)} - SL ₹${(c.stoplossPrice || 0).toFixed(2)} = ${pts} pts`;
+                        // Pre-CAS Square-Off: Any active equity/derivative call past 03:10 PM IST must be squared off & parked into journal
+                        const now = new Date();
+                        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                        const ist = new Date(utc + (3600000 * 5.5));
+                        const currentMin = ist.getHours() * 60 + ist.getMinutes();
+                        if (c.date === this.getTodayDateStr() && !isCommodity && currentMin >= (15 * 60 + 10) && c.status === 'ACTIVE') {
+                            c.status = 'INTRADAY_CLOSED';
+                            c.timeFormatted = '03:10:00 PM IST';
+                            if (!c.exitLtp)
+                                c.exitLtp = c.currentLtp || c.entryPrice;
+                            if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('In Progress')) {
+                                c.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${c.exitLtp.toFixed(2)}`;
                             }
                         }
+                        SignalLedgerService.sanitizeMilestones(c);
                     });
                     // Group by date
                     const dateGroups = new Map();
@@ -407,6 +497,7 @@ class SignalLedgerService {
                     existing.target2HitTimeFormatted = signal.target2HitTimeFormatted;
                 if (signal.stoplossTimeFormatted)
                     existing.stoplossHitTime = signal.stoplossTimeFormatted;
+                SignalLedgerService.sanitizeMilestones(existing);
                 return existing;
             }
         }
@@ -464,6 +555,7 @@ class SignalLedgerService {
             stoplossHitTime: signal.stoplossTimeFormatted,
             notes: signal.notes
         };
+        SignalLedgerService.sanitizeMilestones(newCall);
         this.calls.set(id, newCall);
         this.datesSet.add(today);
         this.saveToFile();
@@ -591,6 +683,7 @@ class SignalLedgerService {
                     }
                 }
             }
+            SignalLedgerService.sanitizeMilestones(call);
             this.saveToFile();
         }
         return call;
@@ -666,6 +759,7 @@ class SignalLedgerService {
                     : `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                 call.targetHitTime = this.getIstTimeFormatted();
+                SignalLedgerService.sanitizeMilestones(call);
                 hasChanges = true;
                 continue;
             }
@@ -701,6 +795,34 @@ class SignalLedgerService {
                     call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
                     call.stoplossHitTime = this.getIstTimeFormatted();
                 }
+                SignalLedgerService.sanitizeMilestones(call);
+                hasChanges = true;
+                continue;
+            }
+            // Pre-CAS (Closing Auction Session) 03:10 PM Square-Off Rule:
+            // All active intraday equity & derivative calls must be closed before 03:10 PM (15:10 IST) and parked in the journal.
+            const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes((call.symbol || '').toUpperCase());
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const ist = new Date(utc + (3600000 * 5.5));
+            const currentMin = ist.getHours() * 60 + ist.getMinutes();
+            const isPast310Pm = !isCommodity && currentMin >= (15 * 60 + 10); // 03:10 PM IST Pre-CAS Cutoff
+            if (isPast310Pm && call.status !== 'CARRIED_FORWARD' && call.status !== 'BTST' && call.adminAction !== 'BTST') {
+                call.status = 'INTRADAY_CLOSED';
+                call.exitLtp = +liveLtp.toFixed(2);
+                const points = isSell ? +(entry - liveLtp).toFixed(2) : +(liveLtp - entry).toFixed(2);
+                const pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
+                const rupees = Math.round(points * lotSize);
+                call.pointsPnl = points;
+                call.pnlPct = pnlPct;
+                call.pnlRupees = rupees;
+                call.nearTargetPct = 0;
+                call.timeFormatted = '03:10:00 PM IST';
+                call.pnlCalculationFormula = isSell
+                    ? `Entry ₹${entry.toFixed(2)} - CMP ₹${liveLtp.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+                    : `Squared off at CMP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+                call.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${liveLtp.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
+                SignalLedgerService.sanitizeMilestones(call);
                 hasChanges = true;
                 continue;
             }
