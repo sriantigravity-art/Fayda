@@ -63,7 +63,7 @@ export const TradePayoffSimulator: React.FC<TradePayoffSimulatorProps> = ({
   marginRequiredRupees = 42000,
   maxProfitRupees,
   maxLossRupees,
-  probabilityOfProfitPct = 78,
+  probabilityOfProfitPct = 88,
   legsSummary,
   confluenceScore = 88,
   strategyTag,

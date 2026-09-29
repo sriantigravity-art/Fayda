@@ -62,6 +62,7 @@ import {
   VolumeX,
   Film
 } from 'lucide-react';
+import { RecentVerifiedTradesLedger } from '../RecentVerifiedTradesLedger';
 
 interface LandingShowcasePageProps {
   onLaunchDemo: () => void;
@@ -1293,82 +1294,8 @@ export const LandingShowcasePage: React.FC<LandingShowcasePageProps> = ({
           </div>
         </div>
 
-        {/* Filterable Closed Trades Ledger Table */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden space-y-3.5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Award className="w-4 h-4 text-emerald-500" />
-                <span>Recent Verified Trade Setups Ledger</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 font-mono">Logged time-stamps with exact entry, exit, and realized P&L</p>
-            </div>
-
-            {/* Asset Filter Tabs */}
-            <div className="flex items-center space-x-1 font-mono text-xs">
-              {(['ALL', 'NIFTY', 'BANKNIFTY', 'SENSEX', 'MCX'] as const).map(f => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setTradeFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer border text-[11px] ${
-                    tradeFilter === f
-                      ? 'bg-accent-sky text-slate-950 border-accent-sky font-bold'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left font-mono text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 text-[10px] uppercase">
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Contract Strike</th>
-                  <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Entry Price</th>
-                  <th className="py-2.5 px-3">Exit Price</th>
-                  <th className="py-2.5 px-3">Realized P&L</th>
-                  <th className="py-2.5 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {filteredTrades.map(trade => (
-                  <tr key={trade.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                    <td className="py-2.5 px-3 text-slate-500 font-medium">{trade.date}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">{trade.strike}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        trade.action.includes('CALL') ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {trade.action}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">₹{trade.entry.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">₹{trade.exit.toFixed(2)}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`font-semibold ${trade.pnlPct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {trade.pnlPct >= 0 ? '+' : ''}{trade.pnlPct.toFixed(2)}%
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        trade.outcome === 'WIN' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {trade.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Dynamic Verified Trade Setups Ledger (Changes data by the day, Top 10 with 7-8 Targets, 2-3 SL) */}
+        <RecentVerifiedTradesLedger />
 
       </section>
 

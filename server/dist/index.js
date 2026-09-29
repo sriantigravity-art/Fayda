@@ -387,7 +387,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
             if (isOpen && isPastOpeningNoise && isBeforeCutoff && indexState.unifiedTipsPackage && indexState.unifiedTipsPackage.currentSession !== 'OFF_MARKET' && indexState.unifiedTipsPackage.currentSession !== 'FINAL_HOUR_MANAGEMENT' && indexState.unifiedTipsPackage.currentSession !== 'CAS_CLOSING_AUCTION') {
                 const utp = indexState.unifiedTipsPackage;
                 const minEntryPrice = symConfig.isIndex ? 15 : 2.5;
-                if (utp.primaryTrade && utp.primaryTrade.confluenceScore >= 80 && utp.primaryTrade.entryPrice >= minEntryPrice) {
+                if (utp.primaryTrade && utp.primaryTrade.confluenceScore >= 88 && utp.primaryTrade.entryPrice >= minEntryPrice) {
                     const tech = indexState.technicalIndicators;
                     const spot = indexState.spotPrice;
                     const vwap = tech?.vwap?.value;
@@ -416,7 +416,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
                         });
                     }
                 }
-                if (utp.gammaTrade && utp.gammaTrade.confluenceScore >= 80 && utp.gammaTrade.entryPrice >= minEntryPrice) {
+                if (utp.gammaTrade && utp.gammaTrade.confluenceScore >= 88 && utp.gammaTrade.entryPrice >= minEntryPrice) {
                     signalLedgerService.recordSignal({
                         symbol: symConfig.symbol,
                         strikePrice: utp.gammaTrade.strikePrice,
@@ -432,7 +432,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
                     });
                 }
                 // Broadcast dedicated High-Probability Flash when new Top Call / Put triggers
-                if (isOpen && utp.topCallTrade && utp.topCallTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topCallTrade.id)) {
+                if (isOpen && utp.topCallTrade && utp.topCallTrade.confluenceScore >= 88 && !flashedHighProbTipIds.has(utp.topCallTrade.id)) {
                     flashedHighProbTipIds.add(utp.topCallTrade.id);
                     broadcast({
                         type: 'HIGH_PROB_FLASH',
@@ -447,7 +447,7 @@ const fetchSymbolSnapshot = async (symConfig) => {
                         timestamp: new Date().toISOString()
                     });
                 }
-                if (isOpen && utp.topPutTrade && utp.topPutTrade.confluenceScore >= 85 && !flashedHighProbTipIds.has(utp.topPutTrade.id)) {
+                if (isOpen && utp.topPutTrade && utp.topPutTrade.confluenceScore >= 88 && !flashedHighProbTipIds.has(utp.topPutTrade.id)) {
                     flashedHighProbTipIds.add(utp.topPutTrade.id);
                     broadcast({
                         type: 'HIGH_PROB_FLASH',

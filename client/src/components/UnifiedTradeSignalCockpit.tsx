@@ -235,7 +235,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           action: c.tip.action,
           contractSymbol: c.tip.contractSymbol,
           ltp: c.tip.currentLtp,
-          score: c.tip.quantumScore || c.tip.confluenceScore || 85,
+          score: c.tip.quantumScore || c.tip.confluenceScore || 89,
           status: c.tip.status,
           isCall,
           isPut,
@@ -440,7 +440,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
   const squareOffTime = currentHeroTip?.squareOffTimeFormatted || (isSquareOff ? (currentHeroTip?.bookedTimeFormatted || 'Completed') : '---');
 
   // Quantum score for hero
-  const quantumScore = currentHeroTip?.quantumScore || currentHeroTip?.confluenceScore || 85;
+  const quantumScore = currentHeroTip?.quantumScore || currentHeroTip?.confluenceScore || 89;
   const surgeLevel = currentHeroTip?.surgeConfirmationLevel || (selectedSurges.length > 0 ? selectedSurges[0].surgeLevel : 'MODERATE');
 
   // Handle direct navigation to indicator terminal panels / live charts

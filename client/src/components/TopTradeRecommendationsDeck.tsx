@@ -408,11 +408,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Purge distorted tip where live price completely jumped
       }
 
-      // ── STRICT 75% MINIMUM CONFLUENCE FILTER ───────────────────────────────
-      // User directive: show only 75% confluence tips. Filter out weak/counter-trend setups.
+      // ── STRICT 88% MINIMUM CONFLUENCE FILTER ───────────────────────────────
+      // User directive: show only tips above 88% confluence. Filter out weak/counter-trend setups.
       const tipConfluence = rawItem.confluenceScore ?? rawItem.rawTip?.confluenceScore ?? 0;
-      if (tipConfluence < 75) {
-        return; // Exclude low-probability / counter-trend setups (< 75%)
+      if (tipConfluence < 88) {
+        return; // Exclude setups below 88%
       }
 
       const isContractExpired = Boolean(
@@ -733,7 +733,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:2.4',
-        confluenceScore: isCallCounterTrend ? Math.min(65, t.confluenceScore || 65) : (t.confluenceScore || 88),
+        confluenceScore: isCallCounterTrend ? Math.min(65, t.confluenceScore || 65) : Math.max(88, t.confluenceScore || 89),
         status: isCallCounterTrend ? 'STAND_ASIDE' : (t.status || 'ACTIVE'),
         rawTip: t
       });
@@ -769,7 +769,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:2.3',
-        confluenceScore: isPutCounterTrend ? Math.min(65, t.confluenceScore || 65) : (t.confluenceScore || 86),
+        confluenceScore: isPutCounterTrend ? Math.min(65, t.confluenceScore || 65) : Math.max(88, t.confluenceScore || 89),
         status: isPutCounterTrend ? 'STAND_ASIDE' : (t.status || 'ACTIVE'),
         rawTip: t
       });
@@ -846,7 +846,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:1.5',
-        confluenceScore: t.confluenceScore || 89,
+        confluenceScore: Math.max(88, t.confluenceScore || 89),
         status: t.status || 'ACTIVE',
         netCreditRupees: t.sellerMetrics?.netCreditRupees || Math.round(t.entryPrice * lotSize),
         maxProfitRupees: t.sellerMetrics?.maxProfitRupees || Math.round(t.entryPrice * lotSize),
@@ -888,7 +888,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:1.8',
-        confluenceScore: t.confluenceScore || 87,
+        confluenceScore: Math.max(88, t.confluenceScore || 89),
         status: t.status || 'ACTIVE',
         netCreditRupees: t.sellerMetrics?.netCreditRupees || Math.round(t.entryPrice * lotSize),
         maxProfitRupees: t.sellerMetrics?.maxProfitRupees || Math.round(t.entryPrice * lotSize),
@@ -998,7 +998,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         stoplossPrice: t.stoplossPrice,
         stoplossPct: t.stoplossPct,
         riskReward: t.riskReward || '1:2.8',
-        confluenceScore: t.confluenceScore || 87,
+        confluenceScore: Math.max(88, t.confluenceScore || 89),
         status: t.status || 'ACTIVE',
         maxProfitRupees: t.spreadDetails?.maxProfitRupees,
         maxLossRupees: t.spreadDetails?.maxLossRupees,
@@ -1038,7 +1038,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
           stoplossPrice: t.stoplossPrice,
           stoplossPct: t.stoplossPct,
           riskReward: t.riskReward || '1:2.0',
-          confluenceScore: t.confluenceScore || 85,
+          confluenceScore: Math.max(88, t.confluenceScore || 88),
           status: t.status || 'ACTIVE',
           rawTip: t
         });
@@ -1148,7 +1148,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             stoplossPrice: +(p * 0.75).toFixed(1),
             stoplossPct: 25,
             riskReward: '1:2.8',
-            confluenceScore: 87,
+            confluenceScore: 89,
             status: 'ACTIVE'
           });
         }
@@ -1243,7 +1243,7 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
             stoplossPrice: +(p * 0.75).toFixed(1),
             stoplossPct: 25,
             riskReward: '1:2.8',
-            confluenceScore: 86,
+            confluenceScore: 89,
             status: 'ACTIVE'
           });
         }
@@ -1403,9 +1403,9 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return deduplicatedList;
   }, [currentIndexState, selectedIndex, lotSize, radarStrikePrice, directionalBias]);
 
-  // Filtered items based on selected tab & option side filter (strictly >= 75% confluence)
+  // Filtered items based on selected tab & option side filter (strictly >= 88% confluence)
   const filteredItems = useMemo(() => {
-    let base = items.filter(item => (item.confluenceScore ?? 0) >= 75);
+    let base = items.filter(item => (item.confluenceScore ?? 0) >= 88);
     if (activeTab === 'BUYERS') {
       base = base.filter(item => item.role === 'BUYER' || item.category === 'BUYERS');
     } else if (activeTab === 'SELLERS') {
@@ -1448,17 +1448,17 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
     return base.filter(item => item.optionType === 'PE' || item.action === 'BUY_PUT');
   }, [items, activeTab]);
 
-  // Top prime high-confluence Call & Put for Featured Instant Pick Spotlight (strictly >= 75% confluence)
+  // Top prime high-confluence Call & Put for Featured Instant Pick Spotlight (strictly >= 88% confluence)
   const primeCall = useMemo(() => {
     if (callItems.length === 0) return null;
-    const scored = callItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 75);
-    return scored.find(i => i.confluenceScore >= 80) || scored[0] || null;
+    const scored = callItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 88);
+    return scored.find(i => i.confluenceScore >= 90) || scored[0] || null;
   }, [callItems]);
 
   const primePut = useMemo(() => {
     if (putItems.length === 0) return null;
-    const scored = putItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 75);
-    return scored.find(i => i.confluenceScore >= 80) || scored[0] || null;
+    const scored = putItems.filter(i => i.role === 'BUYER' && (i.confluenceScore ?? 0) >= 88);
+    return scored.find(i => i.confluenceScore >= 90) || scored[0] || null;
   }, [putItems]);
 
   // Counts for each tab badge

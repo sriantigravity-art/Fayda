@@ -110,6 +110,8 @@ export const HighlightSignalTicker: React.FC = () => {
         if (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' || tip.status === 'TARGET_HIT' || tip.actionabilityStatus === 'TARGET_HIT') return false;
         if (tip.status === 'INTRADAY_CLOSED' || tip.actionabilityStatus === 'SQUARE_OFF') return false;
         if (tip.stoplossPrice && tip.currentLtp && tip.currentLtp <= tip.stoplossPrice) return false;
+        // User directive: show tips only above 88% score
+        if ((tip.confluenceScore ?? tip.quantumScore ?? 0) < 88) return false;
         if (!isPkgOffMarket) return true; // live market — show all active
         // Off-market: only researched carry-forward tips
         return (tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD');
@@ -213,8 +215,8 @@ export const HighlightSignalTicker: React.FC = () => {
       };
 
       // 2. Secondary fallback: High-conviction surge pick (Score >= 88%)
-      let pick = (bullishPick && !isPickExpired(bullishPick) && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
-      if (!pick && bearishPick && !isPickExpired(bearishPick) && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
+      let pick = (bullishPick && !isPickExpired(bullishPick) && (bullishPick.surgeScore ?? 0) >= 88 && Math.abs(bullishPick.strikePrice - atmStrike) <= 400) ? bullishPick : null;
+      if (!pick && bearishPick && !isPickExpired(bearishPick) && (bearishPick.surgeScore ?? 0) >= 88 && Math.abs(bearishPick.strikePrice - atmStrike) <= 400) {
         pick = bearishPick;
       }
 

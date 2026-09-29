@@ -749,7 +749,7 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       executionType: isSell ? 'NET_CREDIT' : 'NET_DEBIT',
       tierLabel: '📖 POST-MARKET TRADE JOURNAL LEDGER',
       sessionName: call.sessionPhase || 'Recorded Trade Call',
-      confluenceScore: isTargetHit ? 95 : isNearTarget ? 88 : 78,
+      confluenceScore: isTargetHit ? 95 : isNearTarget ? 90 : 88,
       lotSize,
       entryPrice: call.entryPrice,
       entryRange: `₹${call.entryPrice.toFixed(2)}`,

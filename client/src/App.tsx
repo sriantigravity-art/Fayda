@@ -46,6 +46,7 @@ import { TacticalStrikeSliderRadar } from './components/TacticalStrikeSliderRada
 import { TopTradeRecommendationsDeck } from './components/TopTradeRecommendationsDeck';
 import { UnifiedTradeSignalCockpit } from './components/UnifiedTradeSignalCockpit';
 import { InlineStrikeLiveChartWorkbench } from './components/InlineStrikeLiveChartWorkbench';
+import { RecentVerifiedTradesLedger } from './components/RecentVerifiedTradesLedger';
 import { initMobileAutoFullscreen } from './utils/mobileFullscreen';
 import { User, LogOut, Layers } from 'lucide-react';
 
@@ -171,6 +172,11 @@ const MainDashboard: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* 🏆 LAST WEEK VERIFIED TOP 10 TRADES LEDGER (Dynamic by Day: 7-8 Targets, 2-3 SL) */}
+        <div id="panel-verified-ledger" className="w-full">
+          <RecentVerifiedTradesLedger />
+        </div>
 
         {/* ⭐ PRO INLINE STRIKE LIVE CANDLESTICK CHART & ORDER FLOW ALPHA WORKBENCH */}
         {isSectionAllowed('strikeLiveWorkbench') && (

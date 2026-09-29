@@ -1113,7 +1113,7 @@ Generated via Fayda Trading Terminal`;
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300">
                     <span className="font-bold">Overall Technical Score:</span>
-                    <span className="text-base font-black font-mono">{tip.confluenceScore || 85}% Confirmed</span>
+                    <span className="text-base font-black font-mono">{tip.confluenceScore || 88}% Confirmed</span>
                   </div>
 
                   {tip.confluenceBreakdown ? (

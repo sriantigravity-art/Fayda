@@ -84,7 +84,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (!pkg.topCallTrade.stoplossPrice || !pkg.topCallTrade.currentLtp || pkg.topCallTrade.currentLtp > pkg.topCallTrade.stoplossPrice) &&
     pkg.topCallTrade.entryPrice >= minCockpitCutoff && 
     Math.abs(pkg.topCallTrade.pnlPct || 0) < 350 && 
-    (pkg.topCallTrade.confluenceScore || 0) >= 75
+    (pkg.topCallTrade.confluenceScore || 0) >= 88
   );
   const isPkgPutValid = Boolean(
     isSettled &&
@@ -95,7 +95,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (!pkg.topPutTrade.stoplossPrice || !pkg.topPutTrade.currentLtp || pkg.topPutTrade.currentLtp > pkg.topPutTrade.stoplossPrice) &&
     pkg.topPutTrade.entryPrice >= minCockpitCutoff && 
     Math.abs(pkg.topPutTrade.pnlPct || 0) < 350 && 
-    (pkg.topPutTrade.confluenceScore || 0) >= 75
+    (pkg.topPutTrade.confluenceScore || 0) >= 88
   );
 
   let topCallTrade = isPkgCallValid ? pkg?.topCallTrade : null;
@@ -1033,7 +1033,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       : '🔬 Institutional Option Selling Terminal (Delta-Neutral & Net Credit Spreads)'}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-500/40 shadow-sm">
-                    78% - 86% Prob. of Profit (POP)
+                    88% - 95% Prob. of Profit (POP)
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-terminal-muted font-mono flex items-center gap-1.5 mt-0.5">
@@ -1188,7 +1188,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 </div>
                 <div>
                   <div className="font-bold text-sm text-slate-900 dark:text-terminal-text">Bull Put Spread: Scanning</div>
-                  <div className="text-[11px] text-purple-600 dark:text-purple-400 font-mono mt-0.5">Awaiting ≥ 78% POP Confluence</div>
+                  <div className="text-[11px] text-purple-600 dark:text-purple-400 font-mono mt-0.5">Awaiting ≥ 88% POP Confluence</div>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-terminal-muted max-w-xs leading-relaxed">
                   Terminal monitors PE OI walls and standard deviation cushions. Credit spreads only triggered with defined capital shield.
@@ -1325,7 +1325,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                 </div>
                 <div>
                   <div className="font-bold text-sm text-slate-900 dark:text-terminal-text">Bear Call Spread: Scanning</div>
-                  <div className="text-[11px] text-purple-600 dark:text-purple-400 font-mono mt-0.5">Awaiting ≥ 78% POP Confluence</div>
+                  <div className="text-[11px] text-purple-600 dark:text-purple-400 font-mono mt-0.5">Awaiting ≥ 88% POP Confluence</div>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-terminal-muted max-w-xs leading-relaxed">
                   Terminal monitors CE resistance ceilings and IV crush zones. Trade armed when call sellers lock down higher strikes.

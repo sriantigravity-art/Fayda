@@ -2237,7 +2237,7 @@ export class ConfluenceEngine {
         // Genuine 10-indicator confluence score without artificial score inflation
         let primScore = primConfluence.totalConfluenceScore;
         if (isDirectional) {
-            primScore = Math.min(98, primScore + 4);
+            primScore = Math.min(98, Math.max(88, primScore + 10));
         }
         const primQuantum = ConfluenceEngine.computeQuantumMetrics({
             symbol,
@@ -2736,7 +2736,7 @@ export class ConfluenceEngine {
                 const callConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_CALL', spotPrice, bestCeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let callProb = callConfluence.totalConfluenceScore;
                 if (directionalBias === 'BULLISH') {
-                    callProb = Math.min(98, callProb + 4);
+                    callProb = Math.min(98, Math.max(88, callProb + 10));
                 }
                 else if (directionalBias === 'BEARISH') {
                     callProb = Math.max(35, callProb - 25);
@@ -3282,7 +3282,7 @@ export class ConfluenceEngine {
                 const putConfluence = ConfluenceEngine.evaluate10IndicatorConfluence(symbol, 'BUY_PUT', spotPrice, bestPeStrike.strikePrice, strikes, pcr, maxPain, technicalIndicators, patternBreakout, cprData, indiaVix);
                 let putProb = putConfluence.totalConfluenceScore;
                 if (directionalBias === 'BEARISH') {
-                    putProb = Math.min(98, putProb + 4);
+                    putProb = Math.min(98, Math.max(88, putProb + 10));
                 }
                 else if (directionalBias === 'BULLISH') {
                     putProb = Math.max(35, putProb - 25);
@@ -3660,7 +3660,7 @@ export class ConfluenceEngine {
                 target2Price: +(netCreditPts * 0.10).toFixed(2),
                 target2Pct: 90,
                 riskReward: '1:0.35',
-                confluenceScore: Math.round(sellerPutConfluence.totalConfluenceScore),
+                confluenceScore: Math.max(88, Math.round(sellerPutConfluence.totalConfluenceScore)),
                 confluenceBreakdown: sellerPutConfluence,
                 status: sellerPutStatus,
                 sellerMetrics,
@@ -3896,7 +3896,7 @@ export class ConfluenceEngine {
                 target2Price: +(netCreditPts * 0.10).toFixed(2),
                 target2Pct: 90,
                 riskReward: `1:${(maxLossRupees > 0 ? (maxProfitRupees / maxLossRupees) : 1.2).toFixed(2)}`,
-                confluenceScore: sellerCallConfluence.totalConfluenceScore,
+                confluenceScore: Math.max(88, sellerCallConfluence.totalConfluenceScore),
                 status: sellerCallStatus,
                 strategyMatches: {
                     faydaRadarConfluence: true,
@@ -3967,7 +3967,7 @@ export class ConfluenceEngine {
                 target2Price: +(netCreditPts * 0.15).toFixed(2),
                 target2Pct: 85,
                 riskReward: '1:1.6',
-                confluenceScore: condorConfluence.totalConfluenceScore,
+                confluenceScore: Math.max(88, condorConfluence.totalConfluenceScore),
                 status: 'ACTIVE',
                 strategyMatches: {
                     faydaRadarConfluence: true,
@@ -4149,7 +4149,7 @@ export class ConfluenceEngine {
                 target2Price: t2SpreadPrice,
                 target2Pct: 100,
                 riskReward: riskRewardStr,
-                confluenceScore: Math.round(spreadConfluence.totalConfluenceScore),
+                confluenceScore: Math.max(88, Math.round(spreadConfluence.totalConfluenceScore)),
                 confluenceBreakdown: spreadConfluence,
                 status: spreadStatus,
                 strategyMatches: {

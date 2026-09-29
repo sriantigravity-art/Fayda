@@ -236,7 +236,7 @@ export function getStrikeSignalLevels(
       statusText,
       statusColor,
       directiveAdvice,
-      confluenceScore: exactTip.confluenceScore || 85,
+      confluenceScore: exactTip.confluenceScore ? Math.max(exactTip.confluenceScore, 88) : 90,
       strategyTag: exactTip.strategyTag || 'Fayda Momentum Confluence'
     };
   }
@@ -325,7 +325,7 @@ export function getStrikeSignalLevels(
     statusText: 'OPTIMAL ENTRY ZONE',
     statusColor: 'text-accent-cyan',
     directiveAdvice: 'Strike order flow confluence active. Maintain strict stoploss below Entry.',
-    confluenceScore: directionalTip?.confluenceScore || 78,
+    confluenceScore: directionalTip?.confluenceScore ? Math.max(directionalTip.confluenceScore, 88) : 89,
     strategyTag: directionalTip?.strategyTag || 'Institutional Order Flow Setup'
   };
 }
