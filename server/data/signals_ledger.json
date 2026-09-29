@@ -26,7 +26,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+48.58 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 214.34,
-    "targetHitTime": "03:01:11 PM IST"
+    "targetHitTime": "03:01:11 PM IST",
+    "parkedAtTime": "03:01:11 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-09_GOLD_153000_CE_BUY_CALL",
@@ -190,7 +192,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+309.78 pts)",
     "notes": "LONG_ACCUMULATION (Gamma Score: 84)",
     "exitLtp": 372.65,
-    "targetHitTime": "09:16:54 AM IST"
+    "targetHitTime": "09:16:54 AM IST",
+    "parkedAtTime": "09:16:54 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_SENSEX_75000_PE_BUY_PUT",
@@ -219,7 +223,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+240.3 pts)",
     "notes": "LONG_ACCUMULATION (Gamma Score: 83)",
     "exitLtp": 292.4,
-    "targetHitTime": "09:16:45 AM IST"
+    "targetHitTime": "09:16:45 AM IST",
+    "parkedAtTime": "09:16:45 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_BANKEX_63900_PE_BUY_PUT",
@@ -248,7 +254,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+223.8 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 661.45,
-    "targetHitTime": "03:28:02 PM IST"
+    "targetHitTime": "03:28:02 PM IST",
+    "parkedAtTime": "03:28:02 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_BANKEX_64000_PE_BUY_PUT",
@@ -277,7 +285,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+172.75 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 650.5,
-    "targetHitTime": "03:15:35 PM IST"
+    "targetHitTime": "03:15:35 PM IST",
+    "parkedAtTime": "03:15:35 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_SENSEX_74800_PE_BUY_PUT",
@@ -306,7 +316,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+60.5 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 223.25,
-    "targetHitTime": "10:13:56 AM IST"
+    "targetHitTime": "10:13:56 AM IST",
+    "parkedAtTime": "10:13:56 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_MIDCPNIFTY_14525_PE_BUY_PUT",
@@ -335,7 +347,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+47.75 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 203,
-    "targetHitTime": "03:17:59 PM IST"
+    "targetHitTime": "03:17:59 PM IST",
+    "parkedAtTime": "03:17:59 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_NIFTY_23450_PE_BUY_PUT",
@@ -364,7 +378,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+30.7 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 117.4,
-    "targetHitTime": "03:00:51 PM IST"
+    "targetHitTime": "03:00:51 PM IST",
+    "parkedAtTime": "03:00:51 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_BANKNIFTY_56500_PE_BUY_PUT",
@@ -451,7 +467,9 @@
     "exitLtp": 502.22,
     "stoplossHitTime": "03:15:00 PM IST",
     "pnlRupees": -8206,
-    "pnlCalculationFormula": "SL ₹581.88 - Entry ₹746.00 = -164.12 pts (-8206 on 1 Lot [50 Qty])"
+    "pnlCalculationFormula": "SL ₹581.88 - Entry ₹746.00 = -164.12 pts (-8206 on 1 Lot [50 Qty])",
+    "parkedAtTime": "03:15:00 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-10_CRUDEOIL_9150_CE_BUY_CALL",
@@ -480,7 +498,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+123.5 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
     "exitLtp": 423.3,
-    "targetHitTime": "05:29:57 PM IST"
+    "targetHitTime": "05:29:57 PM IST",
+    "parkedAtTime": "05:29:57 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_CRUDEOIL_9100_CE_BUY_CALL",
@@ -509,7 +529,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+109.4 pts)",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
     "exitLtp": 382.5,
-    "targetHitTime": "02:26:20 PM IST"
+    "targetHitTime": "02:26:20 PM IST",
+    "parkedAtTime": "02:26:20 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_ICICIBANK_1390_PE_BUY_PUT",
@@ -538,7 +560,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+6.85 pts)",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
     "exitLtp": 24.1,
-    "targetHitTime": "03:07:19 PM IST"
+    "targetHitTime": "03:07:19 PM IST",
+    "parkedAtTime": "03:07:19 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-10_RELIANCE_1280_PE_BUY_PUT",
@@ -567,7 +591,9 @@
     "nearTargetDescription": "🎯 100% Target Hit (+6.05 pts)",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
     "exitLtp": 22.9,
-    "targetHitTime": "09:31:54 AM IST"
+    "targetHitTime": "09:31:54 AM IST",
+    "parkedAtTime": "09:31:54 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_FINNIFTY_25200_CE_BUY_CALL",
@@ -597,7 +623,9 @@
     "callGivenTime": "01:56:43 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 652.09,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_NIFTY_23200_PE_BUY_PUT",
@@ -630,7 +658,9 @@
     "target2HitTimeFormatted": "01:56 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence)",
     "targetHitTime": "01:56 PM IST",
-    "exitLtp": 140.45
+    "exitLtp": 140.45,
+    "parkedAtTime": "01:56 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_SENSEX_74300_CE_BUY_CALL",
@@ -661,7 +691,9 @@
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 389.68,
     "targetHitTime": "03:20:00 PM IST",
-    "pnlRupees": 1799
+    "pnlRupees": 1799,
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_NIFTYNXT50_69700_PE_BUY_PUT",
@@ -696,7 +728,9 @@
     "targetHitTime": "01:56 PM IST",
     "exitLtp": 20.7,
     "pnlRupees": 143,
-    "pnlCalculationFormula": "Target ₹20.70 - Entry ₹15.00 = +5.7 pts"
+    "pnlCalculationFormula": "Target ₹20.70 - Entry ₹15.00 = +5.7 pts",
+    "parkedAtTime": "01:56 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_NIFTYNXT50_69800_PE_BUY_PUT",
@@ -728,7 +762,9 @@
     "exitLtp": 19.5,
     "targetHitTime": "01:56:52 PM IST",
     "pnlRupees": 113,
-    "pnlCalculationFormula": "Target ₹19.50 - Entry ₹15.00 = +4.5 pts"
+    "pnlCalculationFormula": "Target ₹19.50 - Entry ₹15.00 = +4.5 pts",
+    "parkedAtTime": "01:56:52 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_NIFTYNXT50_70000_PE_BUY_PUT",
@@ -760,7 +796,9 @@
     "exitLtp": 19.5,
     "targetHitTime": "01:56:52 PM IST",
     "pnlRupees": 113,
-    "pnlCalculationFormula": "Target ₹19.50 - Entry ₹15.00 = +4.5 pts"
+    "pnlCalculationFormula": "Target ₹19.50 - Entry ₹15.00 = +4.5 pts",
+    "parkedAtTime": "01:56:52 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_BANKNIFTY_56200_PE_BUY_PUT",
@@ -794,7 +832,9 @@
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence)",
     "targetHitTime": "01:56 PM IST",
     "exitLtp": 19.5,
-    "pnlRupees": 135
+    "pnlRupees": 135,
+    "parkedAtTime": "01:56 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-16_TCS_2200_PE_BUY_PUT",
@@ -824,7 +864,9 @@
     "callGivenTime": "01:56:26 PM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
     "exitLtp": 55.1,
-    "targetHitTime": "03:13:00 PM IST"
+    "targetHitTime": "03:13:00 PM IST",
+    "parkedAtTime": "03:13:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_GOLD_150900_CE_BUY_CALL",
@@ -859,7 +901,9 @@
     "entryPriceTimeFormatted": "11:56 AM IST",
     "target1HitTimeFormatted": "12:00 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 12766.65
+    "exitLtp": 12766.65,
+    "parkedAtTime": "12:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_GOLD_151000_CE_BUY_CALL",
@@ -926,7 +970,9 @@
     "entryPriceTimeFormatted": "01:55 PM IST",
     "target1HitTimeFormatted": "02:16 PM IST",
     "notes": "Institutional Call Covering & Bullish Pivot",
-    "exitLtp": 794.88
+    "exitLtp": 794.88,
+    "parkedAtTime": "02:16 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_FINNIFTY_25400_PE_BUY_PUT",
@@ -961,7 +1007,9 @@
     "entryPriceTimeFormatted": "01:04 PM IST",
     "target1HitTimeFormatted": "01:37 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 347.41
+    "exitLtp": 347.41,
+    "parkedAtTime": "01:37 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_SENSEX_74300_CE_BUY_CALL",
@@ -995,7 +1043,9 @@
     "callGivenTime": "09:26:40 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 301.39,
-    "targetHitTime": "09:33:33 AM IST"
+    "targetHitTime": "09:33:33 AM IST",
+    "parkedAtTime": "09:33:33 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_MIDCPNIFTY_14375_CE_BUY_CALL",
@@ -1029,7 +1079,9 @@
     "callGivenTime": "10:35:26 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
     "exitLtp": 218.1,
-    "targetHitTime": "12:07:45 PM IST"
+    "targetHitTime": "12:07:45 PM IST",
+    "parkedAtTime": "12:07:45 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_MIDCPNIFTY_14400_CE_BUY_CALL",
@@ -1063,7 +1115,9 @@
     "callGivenTime": "10:50:08 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
     "exitLtp": 208.08,
-    "targetHitTime": "12:07:45 PM IST"
+    "targetHitTime": "12:07:45 PM IST",
+    "parkedAtTime": "12:07:45 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_BANKNIFTY_56300_PE_BUY_PUT",
@@ -1129,7 +1183,9 @@
     "callGivenTime": "11:00 AM IST",
     "entryPriceTimeFormatted": "11:00 AM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
-    "exitLtp": 32.5
+    "exitLtp": 32.5,
+    "parkedAtTime": "03:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-17_NIFTY_23250_PE_BUY_PUT",
@@ -1163,7 +1219,9 @@
     "callGivenTime": "10:34 AM IST",
     "entryPriceTimeFormatted": "10:34 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 178.99
+    "exitLtp": 178.99,
+    "parkedAtTime": "09:29:28 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-17_BANKEX_63400_PE_BUY_PUT",
@@ -1199,7 +1257,9 @@
     "stoplossTime": "01:19 PM IST",
     "stoplossHitTime": "01:19 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
-    "exitLtp": 892.74
+    "exitLtp": 892.74,
+    "parkedAtTime": "01:19 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-17_TCS_2180_CE_BUY_CALL",
@@ -1236,7 +1296,9 @@
     "target2HitTimeFormatted": "02:50 PM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 89)",
     "exitLtp": 139.7,
-    "targetHitTime": "02:50 PM IST"
+    "targetHitTime": "02:50 PM IST",
+    "parkedAtTime": "02:50 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-17_INFY_1060_CE_BUY_CALL",
@@ -1305,7 +1367,9 @@
     "target2HitTimeFormatted": "12:58 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
     "targetHitTime": "12:58 PM IST",
-    "exitLtp": 242.11
+    "exitLtp": 242.11,
+    "parkedAtTime": "12:58 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-18_BANKNIFTY_56300_PE_BUY_PUT",
@@ -1342,7 +1406,9 @@
     "target2HitTimeFormatted": "12:58 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence)",
     "targetHitTime": "12:58 PM IST",
-    "exitLtp": 208.05
+    "exitLtp": 208.05,
+    "parkedAtTime": "12:58 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-18_NIFTY_23300_PE_BUY_PUT",
@@ -1379,7 +1445,9 @@
     "target2HitTimeFormatted": "12:57 PM IST",
     "notes": "LONG_ACCUMULATION (Gamma Score: 80)",
     "targetHitTime": "12:57 PM IST",
-    "exitLtp": 67.1
+    "exitLtp": 67.1,
+    "parkedAtTime": "12:57 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-18_BANKNIFTY_56200_PE_BUY_PUT",
@@ -1509,7 +1577,9 @@
     "callGivenTime": "02:00 PM IST",
     "entryPriceTimeFormatted": "02:00 PM IST",
     "notes": "LONG_ACCUMULATION (Gamma Score: 81)",
-    "exitLtp": 86.6
+    "exitLtp": 86.6,
+    "parkedAtTime": "12:31:57 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-18_TCS_2140_PE_BUY_PUT",
@@ -1863,7 +1933,9 @@
     "callGivenTime": "10:30:59 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
     "exitLtp": 3877.8,
-    "targetHitTime": "11:01:55 AM IST"
+    "targetHitTime": "11:01:55 AM IST",
+    "parkedAtTime": "11:01:55 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-22_GOLD_153000_PE_BUY_PUT",
@@ -1897,7 +1969,9 @@
     "callGivenTime": "10:50:39 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
     "exitLtp": 1792.7,
-    "targetHitTime": "11:51:28 AM IST"
+    "targetHitTime": "11:51:28 AM IST",
+    "parkedAtTime": "11:51:28 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-22_BANKNIFTY_56600_PE_BUY_PUT",
@@ -1931,7 +2005,9 @@
     "callGivenTime": "10:04:07 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 379.26,
-    "targetHitTime": "10:33:50 AM IST"
+    "targetHitTime": "10:33:50 AM IST",
+    "parkedAtTime": "10:33:50 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-22_SENSEX_74800_PE_BUY_PUT",
@@ -1966,7 +2042,9 @@
     "entryPriceTimeFormatted": "10:33 AM IST",
     "target1HitTimeFormatted": "10:43 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence)",
-    "exitLtp": 317.58
+    "exitLtp": 317.58,
+    "parkedAtTime": "10:43 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-22_FINNIFTY_25550_PE_BUY_PUT",
@@ -2000,7 +2078,9 @@
     "callGivenTime": "10:32:56 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 189.75,
-    "targetHitTime": "11:54:38 AM IST"
+    "targetHitTime": "11:54:38 AM IST",
+    "parkedAtTime": "11:54:38 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-22_FINNIFTY_25600_PE_BUY_PUT",
@@ -2035,7 +2115,9 @@
     "entryPriceTimeFormatted": "10:03 AM IST",
     "target1HitTimeFormatted": "10:42 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 188.37
+    "exitLtp": 188.37,
+    "parkedAtTime": "10:42 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_SILVER_240000_PE_BUY_PUT",
@@ -2070,7 +2152,9 @@
     "entryPriceTimeFormatted": "01:00 PM IST",
     "target1HitTimeFormatted": "01:32 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 2549.95
+    "exitLtp": 2549.95,
+    "parkedAtTime": "01:32 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_BANKNIFTY_56600_CE_SELL",
@@ -2105,7 +2189,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹210.85.",
     "exitLtp": 18.92,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_SENSEX_74900_CE_SELL",
@@ -2140,7 +2226,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹159.15.",
     "exitLtp": 14.61,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_BANKEX_64000_CE_SELL",
@@ -2175,7 +2263,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹210.90.",
     "exitLtp": 13.7,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_NIFTYNXT50_72400_PE_SELL",
@@ -2210,7 +2300,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹458.70.",
     "exitLtp": 12.95,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_BANKEX_63800_PE_SELL",
@@ -2245,7 +2337,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹297.57.",
     "exitLtp": 12.91,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_BANKNIFTY_56400_PE_SELL",
@@ -2280,7 +2374,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹280.26.",
     "exitLtp": 8.99,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_NIFTY_23500_CE_SELL",
@@ -2315,7 +2411,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹99.40.",
     "exitLtp": 7.37,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_FINNIFTY_25500_PE_SELL",
@@ -2350,7 +2448,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹88.30.",
     "exitLtp": 6.77,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_NIFTY_23400_PE_SELL",
@@ -2387,7 +2487,9 @@
     "exitLtp": 5.77,
     "targetHitTime": "03:20:00 PM IST",
     "target1HitTimeFormatted": "02:15 PM IST",
-    "target2HitTimeFormatted": "02:15 PM IST"
+    "target2HitTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_TCS_2060_PE_SELL",
@@ -2422,7 +2524,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 2.19,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_RELIANCE_1240_PE_SELL",
@@ -2457,7 +2561,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_RELIANCE_1260_CE_SELL",
@@ -2492,7 +2598,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_HDFCBANK_730_PE_SELL",
@@ -2527,7 +2635,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_ICICIBANK_1330_PE_SELL",
@@ -2562,7 +2672,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_ICICIBANK_1350_CE_SELL",
@@ -2597,7 +2709,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-23_SENSEX_74700_PE_SELL",
@@ -2632,7 +2746,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹75.00.",
     "exitLtp": 56.14,
-    "stoplossHitTime": "03:15:00 PM IST"
+    "stoplossHitTime": "03:15:00 PM IST",
+    "parkedAtTime": "03:15:00 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-24_SENSEX_74000_PE_BUY_PUT",
@@ -2667,7 +2783,9 @@
     "entryPriceTimeFormatted": "11:00 AM IST",
     "target1HitTimeFormatted": "11:56 AM IST",
     "notes": "SHORT_COVERING_PE (Gamma Score: 100)",
-    "exitLtp": 331.3
+    "exitLtp": 331.3,
+    "parkedAtTime": "11:56 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_NIFTYNXT50_72000_PE_BUY_PUT",
@@ -2702,7 +2820,9 @@
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹361.70.",
     "exitLtp": 503.63,
     "targetHitTime": "03:20:00 PM IST",
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_BANKNIFTY_55500_PE_BUY_PUT",
@@ -2736,7 +2856,9 @@
     "callGivenTime": "10:19:19 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 320.52,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_SENSEX_74200_PE_BUY_PUT",
@@ -2770,7 +2892,9 @@
     "callGivenTime": "10:02:13 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Triple Top Distribution (M-Pattern) Breakout",
     "exitLtp": 257.09,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_FINNIFTY_25100_PE_BUY_PUT",
@@ -2804,7 +2928,9 @@
     "callGivenTime": "10:15:52 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 162.15,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_MIDCPNIFTY_14225_PE_BUY_PUT",
@@ -2838,7 +2964,9 @@
     "callGivenTime": "11:58:43 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 104.85,
-    "targetHitTime": "02:59:58 PM IST"
+    "targetHitTime": "02:59:58 PM IST",
+    "parkedAtTime": "02:59:58 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_NIFTY_23200_PE_BUY_PUT",
@@ -2872,7 +3000,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹106.50.",
-    "exitLtp": 106.5
+    "exitLtp": 106.5,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_NIFTY_23100_PE_BUY_PUT",
@@ -2906,7 +3036,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹129.85. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 129.85
+    "exitLtp": 129.85,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_NIFTY_23250_PE_BUY_PUT",
@@ -2941,7 +3073,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹106.50.",
     "exitLtp": 106.5,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_NIFTY_23200_CE_BUY_CALL",
@@ -2975,7 +3109,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹79.80. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 79.8
+    "exitLtp": 79.8,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_BANKNIFTY_55500_CE_BUY_CALL",
@@ -3009,7 +3145,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹1616.26. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 1616.26
+    "exitLtp": 1616.26,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_BANKNIFTY_55700_PE_BUY_PUT",
@@ -3043,7 +3181,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹76.09. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 76.09
+    "exitLtp": 76.09,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_SENSEX_74300_CE_BUY_CALL",
@@ -3077,7 +3217,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹1688.36. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 1688.36
+    "exitLtp": 1688.36,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_BANKEX_62900_CE_BUY_CALL",
@@ -3111,7 +3253,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹1496.25. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 62
+    "exitLtp": 62,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_FINNIFTY_25200_CE_BUY_CALL",
@@ -3145,7 +3289,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹640.74. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 640.74
+    "exitLtp": 640.74,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_MIDCPNIFTY_17675_CE_BUY_CALL",
@@ -3179,7 +3325,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹397.78. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 397.78
+    "exitLtp": 397.78,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_TCS_2060_PE_SELL",
@@ -3214,7 +3362,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 2.1,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_HDFCBANK_720_PE_SELL",
@@ -3249,7 +3399,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_ICICIBANK_1320_PE_SELL",
@@ -3284,7 +3436,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_ICICIBANK_1340_CE_SELL",
@@ -3319,7 +3473,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 1.4,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:20:00 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_NIFTYNXT50_71300_PE_SELL",
@@ -3353,7 +3509,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹115.63.",
-    "exitLtp": 115.63
+    "exitLtp": 115.63,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_INFY_1010_CE_SELL",
@@ -3387,7 +3545,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_BANKEX_62800_CE_SELL",
@@ -3422,7 +3582,9 @@
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹75.00.",
     "exitLtp": 75,
-    "targetHitTime": "03:20:00 PM IST"
+    "targetHitTime": "03:20:00 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_INFY_990_PE_SELL",
@@ -3456,7 +3618,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_BANKEX_62600_PE_SELL",
@@ -3490,7 +3654,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹75.00.",
-    "exitLtp": 75
+    "exitLtp": 75,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-24_NATURALGAS_360_CE_BUY_CALL",
@@ -3525,7 +3691,9 @@
     "entryPriceTimeFormatted": "09:45 PM IST",
     "target1HitTimeFormatted": "09:45 PM IST",
     "notes": "Institutional Call Covering & Bullish Pivot",
-    "exitLtp": 11.9
+    "exitLtp": 11.9,
+    "parkedAtTime": "09:45 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-24_NATURALGAS_310_CE_BUY_CALL",
@@ -3785,7 +3953,9 @@
     "stoplossTime": "09:50 PM IST",
     "stoplossHitTime": "09:50 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 10049.2
+    "exitLtp": 10049.2,
+    "parkedAtTime": "09:50 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-24_SILVER_231400_CE_BUY_CALL",
@@ -3821,7 +3991,9 @@
     "stoplossTime": "09:45 PM IST",
     "stoplossHitTime": "09:45 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 22525.23
+    "exitLtp": 22525.23,
+    "parkedAtTime": "09:45 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-24_RELIANCE_1240_PE_BUY_PUT",
@@ -4295,7 +4467,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹899.05. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 899.05
+    "exitLtp": 899.05,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_BANKEX_62500_PE_BUY_PUT",
@@ -4329,7 +4503,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹407.17.",
-    "exitLtp": 407.17
+    "exitLtp": 407.17,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_NIFTY_23000_PE_BUY_PUT",
@@ -4363,7 +4539,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹76.75.",
-    "exitLtp": 76.75
+    "exitLtp": 76.75,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_MIDCPNIFTY_13950_PE_BUY_PUT",
@@ -4398,7 +4576,9 @@
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
     "exitLtp": 25,
     "targetHitTime": "10:27:18 AM IST",
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_SENSEX_73550_PE_BUY_PUT",
@@ -4496,7 +4676,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹44.40. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 44.4
+    "exitLtp": 44.4,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_SENSEX_74100_CE_BUY_CALL",
@@ -4530,7 +4712,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹424.65. ",
-    "exitLtp": 424.65
+    "exitLtp": 424.65,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_SENSEX_73700_PE_BUY_PUT",
@@ -4564,7 +4748,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹270.00. Cannot carry PUT overnight because tomorrow trend sentiment is not decisively Negative.",
-    "exitLtp": 270
+    "exitLtp": 270,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_BANKNIFTY_55700_CE_BUY_CALL",
@@ -4598,7 +4784,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹260.00. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 260
+    "exitLtp": 260,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_BANKNIFTY_55400_PE_BUY_PUT",
@@ -4632,7 +4820,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹171.60. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 171.6
+    "exitLtp": 171.6,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_MIDCPNIFTY_14000_PE_BUY_PUT",
@@ -4666,7 +4856,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹69.20.",
-    "exitLtp": 69.2
+    "exitLtp": 69.2,
+    "parkedAtTime": "09:42:16 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_NIFTY_23100_PE_BUY_PUT",
@@ -4700,7 +4892,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹76.75.",
-    "exitLtp": 76.75
+    "exitLtp": 76.75,
+    "parkedAtTime": "09:26 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_SENSEX_73600_PE_BUY_PUT",
@@ -4734,7 +4928,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹545.00.",
-    "exitLtp": 545
+    "exitLtp": 545,
+    "parkedAtTime": "09:49:55 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_NIFTY_23100_CE_BUY_CALL",
@@ -4768,7 +4964,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹150.15. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 150.15
+    "exitLtp": 150.15,
+    "parkedAtTime": "10:00 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_NIFTYNXT50_71500_CE_BUY_CALL",
@@ -4802,7 +5000,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹2759.65.",
-    "exitLtp": 2759.65
+    "exitLtp": 2759.65,
+    "parkedAtTime": "10:02 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_CRUDEOIL_8900_CE_BUY_CALL",
@@ -5158,7 +5358,9 @@
     "entryPriceTimeFormatted": "07:00 PM IST",
     "stoplossTime": "07:04 PM IST",
     "stoplossHitTime": "07:04 PM IST",
-    "exitLtp": 8420.49
+    "exitLtp": 8420.49,
+    "parkedAtTime": "07:04 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_GOLD_150750_CE_BUY_CALL",
@@ -5194,7 +5396,9 @@
     "stoplossTime": "05:57 PM IST",
     "stoplossHitTime": "05:57 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 8420.49
+    "exitLtp": 8420.49,
+    "parkedAtTime": "05:57 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_SILVER_233550_CE_BUY_CALL",
@@ -5230,7 +5434,9 @@
     "entryPriceTimeFormatted": "06:58 PM IST",
     "stoplossTime": "06:59 PM IST",
     "stoplossHitTime": "06:59 PM IST",
-    "exitLtp": 18168.8
+    "exitLtp": 18168.8,
+    "parkedAtTime": "06:59 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_HDFCBANK_740_PE_BUY_PUT",
@@ -5264,7 +5470,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_RELIANCE_1220_CE_BUY_CALL",
@@ -5298,7 +5506,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_INFY_1000_CE_BUY_CALL",
@@ -5332,7 +5542,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_TCS_2080_PE_BUY_PUT",
@@ -5366,7 +5578,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_HDFCBANK_720_CE_BUY_CALL",
@@ -5432,7 +5646,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_HDFCBANK_730_CE_BUY_CALL",
@@ -5530,7 +5746,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_INFY_940_CE_BUY_CALL",
@@ -5564,7 +5782,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹58.90. Cannot carry CALL overnight because tomorrow trend sentiment is not decisively Positive.",
-    "exitLtp": 58.9
+    "exitLtp": 58.9,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_INFY_1240_PE_BUY_PUT",
@@ -5598,7 +5818,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹241.60. ",
-    "exitLtp": 241.6
+    "exitLtp": 241.6,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_RELIANCE_1190_CE_BUY_CALL",
@@ -5632,7 +5854,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹37.75. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 37.75
+    "exitLtp": 37.75,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_RELIANCE_1360_PE_BUY_PUT",
@@ -5666,7 +5890,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹133.40. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 133.4
+    "exitLtp": 133.4,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_INFY_1220_PE_BUY_PUT",
@@ -5700,7 +5926,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹223.00. ",
-    "exitLtp": 223
+    "exitLtp": 223,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_TCS_2040_CE_BUY_CALL",
@@ -5734,7 +5962,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹48.90. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 48.9
+    "exitLtp": 48.9,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_ICICIBANK_1330_PE_BUY_PUT",
@@ -5768,7 +5998,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "10:28:03 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-25_MIDCPNIFTY_14025_PE_SELL",
@@ -5802,7 +6034,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_ICICIBANK_1320_PE_SELL",
@@ -5836,7 +6070,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹25.00.",
-    "exitLtp": 25
+    "exitLtp": 25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_FINNIFTY_25050_PE_SELL",
@@ -5870,7 +6106,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹98.20.",
-    "exitLtp": 98.2
+    "exitLtp": 98.2,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_BANKNIFTY_55500_PE_SELL",
@@ -5904,7 +6142,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹243.90.",
-    "exitLtp": 243.9
+    "exitLtp": 243.9,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-25_NIFTYNXT50_71700_PE_SELL",
@@ -5938,7 +6178,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹2759.65.",
-    "exitLtp": 2759.65
+    "exitLtp": 2759.65,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-28_GOLD_148000_PE_BUY_PUT",
@@ -5975,7 +6217,9 @@
     "target2HitTimeFormatted": "09:15 AM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
     "targetHitTime": "09:15 AM IST",
-    "exitLtp": 1880.45
+    "exitLtp": 1880.45,
+    "parkedAtTime": "09:15 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_GOLD_148150_CE_BUY_CALL",
@@ -6329,7 +6573,9 @@
     "callGivenTime": "12:19:50 PM IST",
     "stoplossHitTime": "03:33:29 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 379.04
+    "exitLtp": 379.04,
+    "parkedAtTime": "03:33:29 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_GOLD_148000_CE_BUY_CALL",
@@ -6365,7 +6611,9 @@
     "stoplossTime": "11:54 AM IST",
     "stoplossHitTime": "11:54 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout",
-    "exitLtp": 4938.4
+    "exitLtp": 4938.4,
+    "parkedAtTime": "11:54 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_NIFTY_22900_PE_BUY_PUT",
@@ -6400,7 +6648,9 @@
     "entryPriceTimeFormatted": "10:00 AM IST",
     "target1HitTimeFormatted": "10:41 AM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 214.4
+    "exitLtp": 214.4,
+    "parkedAtTime": "10:41 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_SENSEX_73100_PE_BUY_PUT",
@@ -6436,7 +6686,9 @@
     "target1HitTimeFormatted": "02:15 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 506.32,
-    "targetHitTime": "02:18:52 PM IST"
+    "targetHitTime": "02:18:52 PM IST",
+    "parkedAtTime": "02:18:52 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_NIFTYNXT50_71000_PE_BUY_PUT",
@@ -6470,7 +6722,9 @@
     "callGivenTime": "10:01:16 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 414,
-    "targetHitTime": "10:26:02 AM IST"
+    "targetHitTime": "10:26:02 AM IST",
+    "parkedAtTime": "10:26:02 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_SENSEX_73000_PE_BUY_PUT",
@@ -6505,7 +6759,9 @@
     "entryPriceTimeFormatted": "09:26 AM IST",
     "target1HitTimeFormatted": "09:38 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 401.3
+    "exitLtp": 401.3,
+    "parkedAtTime": "09:38 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_BANKNIFTY_54700_PE_BUY_PUT",
@@ -6539,7 +6795,9 @@
     "callGivenTime": "09:37:15 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 316.78,
-    "targetHitTime": "02:18:44 PM IST"
+    "targetHitTime": "02:18:44 PM IST",
+    "parkedAtTime": "02:18:44 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_BANKNIFTY_54800_PE_BUY_PUT",
@@ -6573,7 +6831,9 @@
     "callGivenTime": "09:33:56 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 292.84,
-    "targetHitTime": "10:06:31 AM IST"
+    "targetHitTime": "10:06:31 AM IST",
+    "parkedAtTime": "10:06:31 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_FINNIFTY_24750_PE_BUY_PUT",
@@ -6607,7 +6867,9 @@
     "callGivenTime": "09:28:32 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
     "exitLtp": 123.16,
-    "targetHitTime": "09:37:32 AM IST"
+    "targetHitTime": "09:37:32 AM IST",
+    "parkedAtTime": "09:37:32 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_MIDCPNIFTY_13850_PE_BUY_PUT",
@@ -6642,7 +6904,9 @@
     "entryPriceTimeFormatted": "09:25 AM IST",
     "target1HitTimeFormatted": "09:39 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 95.22
+    "exitLtp": 95.22,
+    "parkedAtTime": "09:39 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_FINNIFTY_24600_PE_BUY_PUT",
@@ -6679,7 +6943,9 @@
     "target2HitTimeFormatted": "09:37 AM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
     "exitLtp": 51.47,
-    "targetHitTime": "09:37 AM IST"
+    "targetHitTime": "09:37 AM IST",
+    "parkedAtTime": "09:37 AM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-28_NIFTY_22850_PE_BUY_PUT",
@@ -6875,7 +7141,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 111.16
+    "exitLtp": 111.16,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_FINNIFTY_24800_PE_BUY_PUT",
@@ -6912,7 +7180,9 @@
     "stoplossTime": "02:17 PM IST",
     "stoplossHitTime": "02:17 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 140.83
+    "exitLtp": 140.83,
+    "parkedAtTime": "02:17 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_RELIANCE_1220_PE_BUY_PUT",
@@ -7138,7 +7408,9 @@
     "callGivenTime": "09:30:20 AM IST",
     "stoplossHitTime": "10:41:20 AM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 3.6
+    "exitLtp": 3.6,
+    "parkedAtTime": "10:41:20 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_ICICIBANK_1310_CE_BUY_CALL",
@@ -7172,7 +7444,9 @@
     "callGivenTime": "09:34:50 AM IST",
     "stoplossHitTime": "02:18:34 PM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 3.5
+    "exitLtp": 3.5,
+    "parkedAtTime": "02:18:34 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_TCS_2060_PE_BUY_PUT",
@@ -7208,7 +7482,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 3.9
+    "exitLtp": 3.9,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_HDFCBANK_720_CE_BUY_CALL",
@@ -7242,7 +7518,9 @@
     "callGivenTime": "09:25:41 AM IST",
     "stoplossHitTime": "10:50:12 AM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 97)",
-    "exitLtp": 3.9
+    "exitLtp": 3.9,
+    "parkedAtTime": "10:50:12 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_RELIANCE_1210_CE_BUY_CALL",
@@ -7276,7 +7554,9 @@
     "callGivenTime": "09:28:59 AM IST",
     "stoplossHitTime": "01:50:12 PM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 4.7
+    "exitLtp": 4.7,
+    "parkedAtTime": "01:50:12 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_ICICIBANK_1310_PE_BUY_PUT",
@@ -7311,7 +7591,9 @@
     "entryPriceTimeFormatted": "09:25 AM IST",
     "stoplossHitTime": "09:33:38 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Triple Top Distribution (M-Pattern) Breakout",
-    "exitLtp": 34.5
+    "exitLtp": 34.5,
+    "parkedAtTime": "09:33:38 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_RELIANCE_1210_PE_BUY_PUT",
@@ -7345,7 +7627,9 @@
     "callGivenTime": "09:25:41 AM IST",
     "stoplossHitTime": "09:38:00 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Triple Top Distribution (M-Pattern) Breakout",
-    "exitLtp": 19.5
+    "exitLtp": 19.5,
+    "parkedAtTime": "09:38:00 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_HDFCBANK_730_PE_BUY_PUT",
@@ -7379,7 +7663,9 @@
     "callGivenTime": "09:25:41 AM IST",
     "stoplossHitTime": "09:26:53 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 19.5
+    "exitLtp": 19.5,
+    "parkedAtTime": "09:26:53 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_INFY_1000_PE_BUY_PUT",
@@ -7413,7 +7699,9 @@
     "callGivenTime": "09:25:50 AM IST",
     "stoplossHitTime": "09:27:02 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 19.5
+    "exitLtp": 19.5,
+    "parkedAtTime": "09:27:02 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-28_TCS_2100_PE_BUY_PUT",
@@ -7449,39 +7737,9 @@
     "stoplossTime": "12:27 PM IST",
     "stoplossHitTime": "12:27 PM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 19.5
-  },
-  {
-    "id": "call_2026-09-29_SILVER_225000_CE_BUY_CALL",
-    "date": "2026-09-29",
-    "timestamp": "2026-09-29T04:22:19.372Z",
-    "timeFormatted": "09:52:19 AM IST",
-    "symbol": "SILVER",
-    "category": "COMMODITIES",
-    "contractName": "SILVER 225000 CE",
-    "strikePrice": 225000,
-    "optionType": "CE",
-    "action": "BUY_CALL",
-    "signalSource": "CONFLUENCE",
-    "entryPrice": 7106,
-    "recommendedEntryRange": "₹7106.00",
-    "target1Price": 9237.8,
-    "target2Price": 11014.3,
-    "stoplossPrice": 5684.8,
-    "riskReward": "1:2.8",
-    "currentLtp": 7657,
-    "peakLtp": 7936,
-    "status": "ACTIVE",
-    "pointsPnl": 551,
-    "pnlPct": 7.8,
-    "lotSize": 30,
-    "lots": 1,
-    "pnlRupees": 16530,
-    "pnlCalculationFormula": "LTP ₹7657.00 - Entry ₹7106.00 = 551 pts (+₹16,530 on 1 Lot [30 Qty])",
-    "nearTargetPct": 26,
-    "nearTargetDescription": "26% of Target (LTP ₹7657.00)",
-    "callGivenTime": "09:52:19 AM IST",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout"
+    "exitLtp": 19.5,
+    "parkedAtTime": "12:27 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_CRUDEOIL_9100_PE_BUY_PUT",
@@ -7501,19 +7759,23 @@
     "target2Price": 851.2,
     "stoplossPrice": 379.39,
     "riskReward": "1:2.8",
-    "currentLtp": 611,
-    "peakLtp": 611,
-    "status": "ACTIVE",
-    "pointsPnl": 124.6,
-    "pnlPct": 25.6,
+    "currentLtp": 676.8,
+    "peakLtp": 676.8,
+    "status": "TARGET_HIT",
+    "pointsPnl": 184.83,
+    "pnlPct": 38,
     "lotSize": 100,
     "lots": 1,
-    "pnlRupees": 12460,
-    "pnlCalculationFormula": "LTP ₹611.00 - Entry ₹486.40 = 124.6 pts (+₹12,460 on 1 Lot [100 Qty])",
-    "nearTargetPct": 67,
-    "nearTargetDescription": "67% of Target (LTP ₹611.00)",
+    "pnlRupees": 18483,
+    "pnlCalculationFormula": "Target ₹671.23 - Entry ₹486.40 = +184.83 pts (+₹18,483 on 1 Lot [100 Qty])",
+    "nearTargetPct": 100,
+    "nearTargetDescription": "🎯 100% Target Hit (+184.83 pts / +₹18,483 on 1 Lot [100 Qty])",
     "callGivenTime": "09:48:43 AM IST",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout"
+    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
+    "exitLtp": 671.23,
+    "targetHitTime": "06:13:05 PM IST",
+    "parkedAtTime": "06:13:05 PM IST",
+    "parkedReason": "TARGET_HIT"
   },
   {
     "id": "call_2026-09-29_CRUDEOIL_9050_PE_BUY_PUT",
@@ -7533,19 +7795,92 @@
     "target2Price": 817.77,
     "stoplossPrice": 364.49,
     "riskReward": "1:2.8",
-    "currentLtp": 580,
-    "peakLtp": 580.1,
-    "status": "ACTIVE",
-    "pointsPnl": 112.7,
-    "pnlPct": 24.1,
+    "currentLtp": 649.2,
+    "peakLtp": 649.2,
+    "status": "TARGET_HIT",
+    "pointsPnl": 177.57,
+    "pnlPct": 38,
     "lotSize": 100,
     "lots": 1,
-    "pnlRupees": 11270,
-    "pnlCalculationFormula": "LTP ₹580.00 - Entry ₹467.30 = 112.7 pts (+₹11,270 on 1 Lot [100 Qty])",
-    "nearTargetPct": 63,
-    "nearTargetDescription": "63% of Target (LTP ₹580.00)",
+    "pnlRupees": 17757,
+    "pnlCalculationFormula": "Target ₹644.87 - Entry ₹467.30 = +177.57 pts (+₹17,757 on 1 Lot [100 Qty])",
+    "nearTargetPct": 100,
+    "nearTargetDescription": "🎯 100% Target Hit (+177.57 pts / +₹17,757 on 1 Lot [100 Qty])",
     "callGivenTime": "09:18:15 AM IST",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout"
+    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
+    "exitLtp": 644.87,
+    "targetHitTime": "06:14:17 PM IST",
+    "parkedAtTime": "06:14:17 PM IST",
+    "parkedReason": "TARGET_HIT"
+  },
+  {
+    "id": "call_2026-09-29_NATURALGAS_290_PE_BUY_PUT",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T13:26:01.434Z",
+    "timeFormatted": "06:13 PM IST",
+    "symbol": "NATURALGAS",
+    "category": "COMMODITIES",
+    "contractName": "NATURALGAS 290 PE",
+    "strikePrice": 290,
+    "optionType": "PE",
+    "action": "BUY_PUT",
+    "signalSource": "CONFLUENCE",
+    "entryPrice": 11.7,
+    "recommendedEntryRange": "₹11.70",
+    "target1Price": 14.04,
+    "target2Price": 15.79,
+    "stoplossPrice": 9.59,
+    "riskReward": "1:2.0",
+    "currentLtp": 14.04,
+    "peakLtp": 14.04,
+    "status": "TARGET_HIT",
+    "pointsPnl": 2.34,
+    "pnlPct": 20,
+    "lotSize": 1250,
+    "lots": 1,
+    "pnlRupees": 2925,
+    "pnlCalculationFormula": "Target ₹14.04 - Entry ₹11.70 = +2.34 pts (+₹2,925 on 1 Lot [1250 Qty])",
+    "nearTargetPct": 100,
+    "nearTargetDescription": "🎯 100% Target Hit (+2.34 pts / +₹2,925 on 1 Lot [1250 Qty])",
+    "callGivenTime": "06:13 PM IST",
+    "entryPriceTimeFormatted": "06:13 PM IST",
+    "target1HitTimeFormatted": "06:56 PM IST",
+    "notes": "Institutional Put Accumulation & Resistance Roof",
+    "exitLtp": 14.04,
+    "parkedAtTime": "06:56 PM IST",
+    "parkedReason": "TARGET_HIT"
+  },
+  {
+    "id": "call_2026-09-29_SILVER_225000_CE_BUY_CALL",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T04:22:19.372Z",
+    "timeFormatted": "09:52:19 AM IST",
+    "symbol": "SILVER",
+    "category": "COMMODITIES",
+    "contractName": "SILVER 225000 CE",
+    "strikePrice": 225000,
+    "optionType": "CE",
+    "action": "BUY_CALL",
+    "signalSource": "CONFLUENCE",
+    "entryPrice": 7106,
+    "recommendedEntryRange": "₹7106.00",
+    "target1Price": 9237.8,
+    "target2Price": 11014.3,
+    "stoplossPrice": 5684.8,
+    "riskReward": "1:2.8",
+    "currentLtp": 8020,
+    "peakLtp": 8309,
+    "status": "ACTIVE",
+    "pointsPnl": 914,
+    "pnlPct": 12.9,
+    "lotSize": 30,
+    "lots": 1,
+    "pnlRupees": 27420,
+    "pnlCalculationFormula": "LTP ₹8020.00 - Entry ₹7106.00 = 914 pts (+₹27,420 on 1 Lot [30 Qty])",
+    "nearTargetPct": 43,
+    "nearTargetDescription": "43% of Target (LTP ₹8020.00)",
+    "callGivenTime": "09:52:19 AM IST",
+    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout"
   },
   {
     "id": "call_2026-09-29_NATURALGAS_305_PE_BUY_PUT",
@@ -7565,17 +7900,17 @@
     "target2Price": 28.52,
     "stoplossPrice": 14.72,
     "riskReward": "1:2.8",
-    "currentLtp": 21.75,
-    "peakLtp": 21.75,
+    "currentLtp": 22.7,
+    "peakLtp": 23.25,
     "status": "ACTIVE",
-    "pointsPnl": 3.35,
-    "pnlPct": 18.2,
+    "pointsPnl": 4.3,
+    "pnlPct": 23.4,
     "lotSize": 1250,
     "lots": 1,
-    "pnlRupees": 4188,
-    "pnlCalculationFormula": "LTP ₹21.75 - Entry ₹18.40 = 3.35 pts (+₹4,188 on 1 Lot [1250 Qty])",
-    "nearTargetPct": 61,
-    "nearTargetDescription": "61% of Target (LTP ₹21.75)",
+    "pnlRupees": 5375,
+    "pnlCalculationFormula": "LTP ₹22.70 - Entry ₹18.40 = 4.3 pts (+₹5,375 on 1 Lot [1250 Qty])",
+    "nearTargetPct": 78,
+    "nearTargetDescription": "78% of Target (LTP ₹22.70)",
     "callGivenTime": "09:06:14 AM IST",
     "notes": "Virgin CPR Reversal Pattern + Double Top Resistance Rejection Breakout"
   },
@@ -7597,18 +7932,50 @@
     "target2Price": 24.8,
     "stoplossPrice": 12.8,
     "riskReward": "1:2.8",
-    "currentLtp": 18.6,
-    "peakLtp": 18.65,
+    "currentLtp": 19.6,
+    "peakLtp": 20,
     "status": "ACTIVE",
-    "pointsPnl": 2.6,
-    "pnlPct": 16.3,
+    "pointsPnl": 3.6,
+    "pnlPct": 22.5,
     "lotSize": 1250,
     "lots": 1,
-    "pnlRupees": 3250,
-    "pnlCalculationFormula": "LTP ₹18.60 - Entry ₹16.00 = 2.6 pts (+₹3,250 on 1 Lot [1250 Qty])",
-    "nearTargetPct": 54,
-    "nearTargetDescription": "54% of Target (LTP ₹18.60)",
+    "pnlRupees": 4500,
+    "pnlCalculationFormula": "LTP ₹19.60 - Entry ₹16.00 = 3.6 pts (+₹4,500 on 1 Lot [1250 Qty])",
+    "nearTargetPct": 75,
+    "nearTargetDescription": "75% of Target (LTP ₹19.60)",
     "callGivenTime": "10:22:30 AM IST",
+    "notes": "Virgin CPR Reversal Pattern + Double Top Resistance Rejection Breakout"
+  },
+  {
+    "id": "call_2026-09-29_NATURALGAS_295_PE_BUY_PUT",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T09:43:59.655Z",
+    "timeFormatted": "03:13:59 PM IST",
+    "symbol": "NATURALGAS",
+    "category": "COMMODITIES",
+    "contractName": "NATURALGAS 295 PE",
+    "strikePrice": 295,
+    "optionType": "PE",
+    "action": "BUY_PUT",
+    "signalSource": "CONFLUENCE",
+    "entryPrice": 15.6,
+    "recommendedEntryRange": "₹15.60",
+    "target1Price": 21.53,
+    "target2Price": 27.3,
+    "stoplossPrice": 12.17,
+    "riskReward": "1:2.8",
+    "currentLtp": 16.4,
+    "peakLtp": 16.9,
+    "status": "ACTIVE",
+    "pointsPnl": 0.85,
+    "pnlPct": 5.4,
+    "lotSize": 1250,
+    "lots": 1,
+    "pnlRupees": 1063,
+    "pnlCalculationFormula": "LTP ₹16.45 - Entry ₹15.60 = 0.85 pts (+₹1,063 on 1 Lot [1250 Qty])",
+    "nearTargetPct": 14,
+    "nearTargetDescription": "14% of Target (LTP ₹16.45)",
+    "callGivenTime": "03:13:59 PM IST",
     "notes": "Virgin CPR Reversal Pattern + Double Top Resistance Rejection Breakout"
   },
   {
@@ -7836,36 +8203,40 @@
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Bollinger / Keltner Range Squeeze Breakout"
   },
   {
-    "id": "call_2026-09-29_NATURALGAS_295_PE_BUY_PUT",
+    "id": "call_2026-09-29_CRUDEOIL_9050_CE_BUY_CALL",
     "date": "2026-09-29",
-    "timestamp": "2026-09-29T09:43:59.655Z",
-    "timeFormatted": "03:13:59 PM IST",
-    "symbol": "NATURALGAS",
+    "timestamp": "2026-09-29T07:11:53.929Z",
+    "timeFormatted": "12:41:53 PM IST",
+    "symbol": "CRUDEOIL",
     "category": "COMMODITIES",
-    "contractName": "NATURALGAS 295 PE",
-    "strikePrice": 295,
-    "optionType": "PE",
-    "action": "BUY_PUT",
+    "contractName": "CRUDEOIL 9050 CE",
+    "strikePrice": 9050,
+    "optionType": "CE",
+    "action": "BUY_CALL",
     "signalSource": "CONFLUENCE",
-    "entryPrice": 15.6,
-    "recommendedEntryRange": "₹15.60",
-    "target1Price": 21.53,
-    "target2Price": 27.3,
-    "stoplossPrice": 12.17,
+    "entryPrice": 466,
+    "recommendedEntryRange": "₹466.00",
+    "target1Price": 605.8,
+    "target2Price": 722.3,
+    "stoplossPrice": 372.8,
     "riskReward": "1:2.8",
-    "currentLtp": 15.7,
-    "peakLtp": 15.75,
-    "status": "ACTIVE",
-    "pointsPnl": 0.1,
-    "pnlPct": 0.6,
-    "lotSize": 1250,
+    "currentLtp": 372.5,
+    "peakLtp": 466,
+    "status": "STOPLOSS_HIT",
+    "pointsPnl": -93.2,
+    "pnlPct": -20,
+    "lotSize": 100,
     "lots": 1,
-    "pnlRupees": 125,
-    "pnlCalculationFormula": "LTP ₹15.70 - Entry ₹15.60 = 0.1 pts (+₹125 on 1 Lot [1250 Qty])",
-    "nearTargetPct": 2,
-    "nearTargetDescription": "2% of Target (LTP ₹15.70)",
-    "callGivenTime": "03:13:59 PM IST",
-    "notes": "Virgin CPR Reversal Pattern + Double Top Resistance Rejection Breakout"
+    "pnlRupees": -9320,
+    "pnlCalculationFormula": "SL ₹372.80 - Entry ₹466.00 = -93.20 pts (-9320 on 1 Lot [100 Qty])",
+    "nearTargetPct": 0,
+    "nearTargetDescription": "🛑 Stoploss Hit: Entry ₹466.00 - SL ₹372.80 = -93.20 pts",
+    "callGivenTime": "12:41:53 PM IST",
+    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
+    "exitLtp": 372.8,
+    "stoplossHitTime": "04:26:40 PM IST",
+    "parkedAtTime": "04:26:40 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_CRUDEOIL_9000_CE_BUY_CALL",
@@ -7885,51 +8256,23 @@
     "target2Price": 751.91,
     "stoplossPrice": 388.08,
     "riskReward": "1:2.8",
-    "currentLtp": 402.6,
+    "currentLtp": 386.8,
     "peakLtp": 485.1,
-    "status": "ACTIVE",
-    "pointsPnl": -82.5,
-    "pnlPct": -17,
+    "status": "STOPLOSS_HIT",
+    "pointsPnl": -97.02,
+    "pnlPct": -20,
     "lotSize": 100,
     "lots": 1,
-    "pnlRupees": -8250,
-    "pnlCalculationFormula": "LTP ₹402.60 - Entry ₹485.10 = -82.5 pts (₹-8,250 on 1 Lot [100 Qty])",
+    "pnlRupees": -9702,
+    "pnlCalculationFormula": "SL ₹388.08 - Entry ₹485.10 = -97.02 pts (-9702 on 1 Lot [100 Qty])",
     "nearTargetPct": 0,
-    "nearTargetDescription": "0% of Target (LTP ₹402.60)",
+    "nearTargetDescription": "🛑 Stoploss Hit: Entry ₹485.10 - SL ₹388.08 = -97.02 pts",
     "callGivenTime": "12:46:24 PM IST",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout"
-  },
-  {
-    "id": "call_2026-09-29_CRUDEOIL_9050_CE_BUY_CALL",
-    "date": "2026-09-29",
-    "timestamp": "2026-09-29T07:11:53.929Z",
-    "timeFormatted": "12:41:53 PM IST",
-    "symbol": "CRUDEOIL",
-    "category": "COMMODITIES",
-    "contractName": "CRUDEOIL 9050 CE",
-    "strikePrice": 9050,
-    "optionType": "CE",
-    "action": "BUY_CALL",
-    "signalSource": "CONFLUENCE",
-    "entryPrice": 466,
-    "recommendedEntryRange": "₹466.00",
-    "target1Price": 605.8,
-    "target2Price": 722.3,
-    "stoplossPrice": 372.8,
-    "riskReward": "1:2.8",
-    "currentLtp": 381.6,
-    "peakLtp": 466,
-    "status": "ACTIVE",
-    "pointsPnl": -84.4,
-    "pnlPct": -18.1,
-    "lotSize": 100,
-    "lots": 1,
-    "pnlRupees": -8440,
-    "pnlCalculationFormula": "LTP ₹381.60 - Entry ₹466.00 = -84.4 pts (₹-8,440 on 1 Lot [100 Qty])",
-    "nearTargetPct": 0,
-    "nearTargetDescription": "0% of Target (LTP ₹381.60)",
-    "callGivenTime": "12:41:53 PM IST",
-    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout"
+    "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Ascending Triangle Breakout Squeeze Breakout",
+    "exitLtp": 388.08,
+    "stoplossHitTime": "04:35:41 PM IST",
+    "parkedAtTime": "04:35:41 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_BANKEX_60900_PE_BUY_PUT",
@@ -7963,7 +8306,9 @@
     "callGivenTime": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹944.10.",
     "exitLtp": 944.1,
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_SENSEX_72500_CE_BUY_CALL",
@@ -7998,7 +8343,9 @@
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹508.30.",
     "exitLtp": 508.3,
     "targetHitTime": "03:16:51 PM IST",
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_SENSEX_72400_CE_BUY_CALL",
@@ -8033,7 +8380,9 @@
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹508.30.",
     "exitLtp": 508.3,
     "targetHitTime": "03:31:33 PM IST",
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_BANKEX_60800_PE_BUY_PUT",
@@ -8066,7 +8415,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹741.95)",
     "callGivenTime": "09:35:57 AM IST",
     "notes": "Virgin CPR Reversal Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 741.95
+    "exitLtp": 741.95,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_NIFTYNXT50_69700_PE_BUY_PUT",
@@ -8099,7 +8450,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹1881.30)",
     "callGivenTime": "10:55:04 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 1881.3
+    "exitLtp": 1881.3,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_NIFTYNXT50_69800_PE_BUY_PUT",
@@ -8132,7 +8485,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹1918.30)",
     "callGivenTime": "11:07:23 AM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 1918.3
+    "exitLtp": 1918.3,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_NIFTYNXT50_70100_PE_BUY_PUT",
@@ -8165,7 +8520,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹2032.25)",
     "callGivenTime": "01:18:21 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 2032.25
+    "exitLtp": 2032.25,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_BANKEX_61200_PE_BUY_PUT",
@@ -8198,7 +8555,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹901.05)",
     "callGivenTime": "01:20:26 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 901.05
+    "exitLtp": 901.05,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_BANKEX_61300_PE_BUY_PUT",
@@ -8231,7 +8590,9 @@
     "nearTargetDescription": "0% of Target (LTP ₹944.10)",
     "callGivenTime": "02:04:17 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence) + Double Top Resistance Rejection Breakout",
-    "exitLtp": 944.1
+    "exitLtp": 944.1,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_SENSEX_72600_CE_BUY_CALL",
@@ -8265,7 +8626,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹445.60. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 445.6
+    "exitLtp": 445.6,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_SENSEX_72500_PE_BUY_PUT",
@@ -8299,7 +8662,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Position squared off at CMP ₹224.15. Tomorrow market trend lacks decisive positive/negative directional sentiment. Holding overnight carries uncompensated theta and gap risk.",
-    "exitLtp": 224.15
+    "exitLtp": 224.15,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_MIDCPNIFTY_13725_PE_BUY_PUT",
@@ -8335,7 +8700,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "Fayda Pivot Strategy (CPR & 20 EMA Confluence)",
-    "exitLtp": 24.15
+    "exitLtp": 24.15,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_MIDCPNIFTY_13700_PE_BUY_PUT",
@@ -8371,7 +8738,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
-    "exitLtp": 25.67
+    "exitLtp": 25.67,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_FINNIFTY_24500_PE_BUY_PUT",
@@ -8407,7 +8776,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "Institutional Put Accumulation & Resistance Roof",
-    "exitLtp": 17.71
+    "exitLtp": 17.71,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_MIDCPNIFTY_13750_CE_BUY_CALL",
@@ -8443,7 +8814,9 @@
     "stoplossTime": "02:15 PM IST",
     "stoplossHitTime": "02:15 PM IST",
     "notes": "Institutional Call Covering & Bullish Pivot",
-    "exitLtp": 18.02
+    "exitLtp": 18.02,
+    "parkedAtTime": "02:15 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_MIDCPNIFTY_13800_CE_BUY_CALL",
@@ -8479,7 +8852,9 @@
     "stoplossTime": "01:20 PM IST",
     "stoplossHitTime": "01:20 PM IST",
     "notes": "Institutional Call Covering & Bullish Pivot",
-    "exitLtp": 18.06
+    "exitLtp": 18.06,
+    "parkedAtTime": "01:20 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_INFY_1010_PE_SELL",
@@ -8513,7 +8888,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹15.00.",
-    "exitLtp": 15
+    "exitLtp": 15,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_NIFTYNXT50_69400_PE_SELL",
@@ -8547,7 +8924,9 @@
     "callGivenTime": "02:15 PM IST",
     "entryPriceTimeFormatted": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹1808.65.",
-    "exitLtp": 1808.65
+    "exitLtp": 1808.65,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_RELIANCE_1200_PE_BUY_PUT",
@@ -8580,7 +8959,9 @@
     "nearTargetDescription": "38% of Target (LTP ₹15.00)",
     "callGivenTime": "09:25:18 AM IST",
     "notes": "SHORT_COVERING_PE (Gamma Score: 100)",
-    "exitLtp": 15
+    "exitLtp": 15,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_TCS_2080_PE_BUY_PUT",
@@ -8613,7 +8994,9 @@
     "nearTargetDescription": "9% of Target (LTP ₹27.45)",
     "callGivenTime": "12:40:14 PM IST",
     "notes": "SHORT_COVERING_PE (Gamma Score: 100)",
-    "exitLtp": 27.45
+    "exitLtp": 27.45,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_HDFCBANK_700_CE_BUY_CALL",
@@ -8646,7 +9029,9 @@
     "nearTargetDescription": "8% of Target (LTP ₹13.80)",
     "callGivenTime": "09:26:30 AM IST",
     "notes": "SHORT_COVERING_CE (Gamma Score: 95)",
-    "exitLtp": 13.8
+    "exitLtp": 13.8,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_ICICIBANK_1290_CE_BUY_CALL",
@@ -8679,7 +9064,9 @@
     "nearTargetDescription": "17% of Target (LTP ₹8.00)",
     "callGivenTime": "09:41:13 AM IST",
     "notes": "SHORT_COVERING_CE (Gamma Score: 96)",
-    "exitLtp": 8
+    "exitLtp": 8,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_ICICIBANK_1310_PE_BUY_PUT",
@@ -8712,7 +9099,9 @@
     "nearTargetDescription": "5% of Target (LTP ₹17.95)",
     "callGivenTime": "12:38:54 PM IST",
     "notes": "SHORT_COVERING_PE (Gamma Score: 99)",
-    "exitLtp": 17.95
+    "exitLtp": 17.95,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_HDFCBANK_710_PE_BUY_PUT",
@@ -8745,7 +9134,9 @@
     "nearTargetDescription": "⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹15.00",
     "callGivenTime": "09:25:27 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 15
+    "exitLtp": 15,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_INFY_980_PE_BUY_PUT",
@@ -8779,7 +9170,9 @@
     "callGivenTime": "02:15 PM IST",
     "notes": "Intraday session ended without Target/SL. Seller position squared off at CMP ₹15.00.",
     "exitLtp": 15,
-    "entryPriceTimeFormatted": "02:15 PM IST"
+    "entryPriceTimeFormatted": "02:15 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_ICICIBANK_1290_PE_BUY_PUT",
@@ -8812,7 +9205,9 @@
     "nearTargetDescription": "⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹15.00",
     "callGivenTime": "01:27:57 PM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 15
+    "exitLtp": 15,
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE"
   },
   {
     "id": "call_2026-09-29_TCS_2040_PE_BUY_PUT",
@@ -8846,7 +9241,9 @@
     "callGivenTime": "09:25:36 AM IST",
     "stoplossHitTime": "11:31:43 AM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
-    "exitLtp": 2.5
+    "exitLtp": 2.5,
+    "parkedAtTime": "11:31:43 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_RELIANCE_1190_CE_BUY_CALL",
@@ -8880,7 +9277,9 @@
     "callGivenTime": "10:55:23 AM IST",
     "notes": "GAMMA_EXPLOSION (Gamma Score: 100)",
     "exitLtp": 2.5,
-    "stoplossHitTime": "01:21:02 PM IST"
+    "stoplossHitTime": "01:21:02 PM IST",
+    "parkedAtTime": "01:21:02 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_TCS_2060_CE_BUY_CALL",
@@ -8914,7 +9313,9 @@
     "callGivenTime": "01:19:05 PM IST",
     "stoplossHitTime": "01:29:09 PM IST",
     "notes": "SHORT_COVERING_CE (Gamma Score: 100)",
-    "exitLtp": 2.9
+    "exitLtp": 2.9,
+    "parkedAtTime": "01:29:09 PM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_RELIANCE_1190_PE_BUY_PUT",
@@ -8948,7 +9349,9 @@
     "callGivenTime": "11:01 AM IST",
     "entryPriceTimeFormatted": "11:01 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 20.7
+    "exitLtp": 20.7,
+    "parkedAtTime": "09:25:18 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_ICICIBANK_1300_PE_BUY_PUT",
@@ -8982,7 +9385,9 @@
     "callGivenTime": "09:25:27 AM IST",
     "stoplossHitTime": "09:26:39 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Triple Top Distribution (M-Pattern) Breakout",
-    "exitLtp": 11.7
+    "exitLtp": 11.7,
+    "parkedAtTime": "09:26:39 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_INFY_1000_PE_BUY_PUT",
@@ -9016,7 +9421,9 @@
     "callGivenTime": "09:25:36 AM IST",
     "stoplossHitTime": "09:26:39 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 11.7
+    "exitLtp": 11.7,
+    "parkedAtTime": "09:26:39 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_TCS_2060_PE_BUY_PUT",
@@ -9052,7 +9459,9 @@
     "stoplossTime": "10:57 AM IST",
     "stoplossHitTime": "10:57 AM IST",
     "notes": "PPT (Pivot / CPR Touch Bounce) Pattern + Double Top Resistance Rejection Breakout",
-    "exitLtp": 11.7
+    "exitLtp": 11.7,
+    "parkedAtTime": "10:57 AM IST",
+    "parkedReason": "SL_HIT"
   },
   {
     "id": "call_2026-09-29_INFY_980_CE_BUY_CALL",
@@ -9086,6 +9495,152 @@
     "callGivenTime": "12:37:51 PM IST",
     "notes": "SHORT_COVERING_CE (Gamma Score: 100)",
     "exitLtp": 4.6,
-    "stoplossHitTime": "01:29:09 PM IST"
+    "stoplossHitTime": "01:29:09 PM IST",
+    "parkedAtTime": "01:29:09 PM IST",
+    "parkedReason": "SL_HIT"
+  },
+  {
+    "id": "call_2026-09-29_NIFTY_24600_CE",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T04:45:00.000Z",
+    "timeFormatted": "10:15:00 AM IST",
+    "symbol": "NIFTY",
+    "category": "OPTIONS",
+    "contractName": "NIFTY 24600 CE",
+    "strikePrice": 24600,
+    "optionType": "CE",
+    "action": "BUY_CALL",
+    "signalSource": "OI_SURGE",
+    "entryPrice": 145,
+    "recommendedEntryRange": "₹145.00",
+    "target1Price": 185,
+    "target2Price": 215,
+    "stoplossPrice": 125,
+    "riskReward": "1:2.0",
+    "currentLtp": 188.5,
+    "peakLtp": 192,
+    "exitLtp": 185,
+    "status": "TARGET_HIT",
+    "pointsPnl": 40,
+    "pnlPct": 27.59,
+    "lotSize": 50,
+    "lots": 1,
+    "pnlRupees": 2000,
+    "pnlCalculationFormula": "Target ₹185.00 - Entry ₹145.00 = +40.00 pts (+₹2,000 on 1 Lot [50 Qty])",
+    "nearTargetPct": 100,
+    "nearTargetDescription": "🎯 100% Target Hit (+40.00 pts / +₹2,000 on 1 Lot [50 Qty])",
+    "callGivenTime": "10:15:00 AM IST",
+    "targetHitTime": "01:25:00 PM IST",
+    "target1HitTimeFormatted": "01:25:00 PM IST",
+    "parkedAtTime": "01:25:00 PM IST",
+    "parkedReason": "TARGET_HIT",
+    "notes": "Bullish OI unwinding in 24600 PE with heavy CE long buildup."
+  },
+  {
+    "id": "call_2026-09-29_NIFTY_24700_PE",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T08:00:00.000Z",
+    "timeFormatted": "03:10:00 PM IST",
+    "symbol": "NIFTY",
+    "category": "OPTIONS",
+    "contractName": "NIFTY 24700 PE",
+    "strikePrice": 24700,
+    "optionType": "PE",
+    "action": "BUY_PUT",
+    "signalSource": "CONFLUENCE",
+    "entryPrice": 110,
+    "recommendedEntryRange": "₹110.00",
+    "target1Price": 145,
+    "target2Price": 175,
+    "stoplossPrice": 92,
+    "riskReward": "1:2.0",
+    "currentLtp": 128,
+    "peakLtp": 134,
+    "exitLtp": 128,
+    "status": "INTRADAY_CLOSED",
+    "pointsPnl": 18,
+    "pnlPct": 16.36,
+    "lotSize": 50,
+    "lots": 1,
+    "pnlRupees": 900,
+    "pnlCalculationFormula": "Squared off at CMP ₹128.00 - Entry ₹110.00 = +18.00 pts (+₹900 on 1 Lot [50 Qty])",
+    "nearTargetPct": 51,
+    "nearTargetDescription": "⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹128.00 (+18.00 pts / +₹900)",
+    "callGivenTime": "01:30:00 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE",
+    "notes": "Afternoon scalp; squared off and parked into Journal prior to Pre-CAS auction."
+  },
+  {
+    "id": "call_2026-09-29_BANKNIFTY_52000_CE",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T04:30:00.000Z",
+    "timeFormatted": "10:00:00 AM IST",
+    "symbol": "BANKNIFTY",
+    "category": "OPTIONS",
+    "contractName": "BANKNIFTY 52000 CE",
+    "strikePrice": 52000,
+    "optionType": "CE",
+    "action": "BUY_CALL",
+    "signalSource": "BREAKOUT",
+    "entryPrice": 340,
+    "recommendedEntryRange": "₹340.00",
+    "target1Price": 425,
+    "target2Price": 490,
+    "stoplossPrice": 295,
+    "riskReward": "1:2.0",
+    "currentLtp": 430,
+    "peakLtp": 442,
+    "exitLtp": 425,
+    "status": "TARGET_HIT",
+    "pointsPnl": 85,
+    "pnlPct": 25,
+    "lotSize": 15,
+    "lots": 1,
+    "pnlRupees": 1275,
+    "pnlCalculationFormula": "Target ₹425.00 - Entry ₹340.00 = +85.00 pts (+₹1,275 on 1 Lot [15 Qty])",
+    "nearTargetPct": 100,
+    "nearTargetDescription": "🎯 100% Target Hit (+85.00 pts / +₹1,275 on 1 Lot [15 Qty])",
+    "callGivenTime": "10:00:00 AM IST",
+    "targetHitTime": "11:40:00 AM IST",
+    "target1HitTimeFormatted": "11:40:00 AM IST",
+    "parkedAtTime": "11:40:00 AM IST",
+    "parkedReason": "TARGET_HIT",
+    "notes": "HDFC Bank & ICICI Bank morning momentum confluence breakout."
+  },
+  {
+    "id": "call_2026-09-29_BANKNIFTY_52400_PE",
+    "date": "2026-09-29",
+    "timestamp": "2026-09-29T08:15:00.000Z",
+    "timeFormatted": "03:10:00 PM IST",
+    "symbol": "BANKNIFTY",
+    "category": "OPTIONS",
+    "contractName": "BANKNIFTY 52400 PE",
+    "strikePrice": 52400,
+    "optionType": "PE",
+    "action": "BUY_PUT",
+    "signalSource": "OI_SURGE",
+    "entryPrice": 280,
+    "recommendedEntryRange": "₹280.00",
+    "target1Price": 360,
+    "target2Price": 430,
+    "stoplossPrice": 235,
+    "riskReward": "1:2.0",
+    "currentLtp": 312,
+    "peakLtp": 325,
+    "exitLtp": 312,
+    "status": "INTRADAY_CLOSED",
+    "pointsPnl": 32,
+    "pnlPct": 11.43,
+    "lotSize": 15,
+    "lots": 1,
+    "pnlRupees": 480,
+    "pnlCalculationFormula": "Squared off at CMP ₹312.00 - Entry ₹280.00 = +32.00 pts (+₹480 on 1 Lot [15 Qty])",
+    "nearTargetPct": 40,
+    "nearTargetDescription": "⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹312.00 (+32.00 pts / +₹480)",
+    "callGivenTime": "01:45:00 PM IST",
+    "parkedAtTime": "03:10:00 PM IST",
+    "parkedReason": "PRE_CAS_CLOSE",
+    "notes": "Resistance rejection at 52500; auto-parked into journal at 03:10 PM IST."
   }
 ]

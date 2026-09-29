@@ -1259,6 +1259,8 @@ export interface JournalTradeCall {
   momentumDescription?: string;
   targetHitTime?: string; // IST time when target was reached
   stoplossHitTime?: string;
+  parkedAtTime?: string; // Time when trade was parked into journal (e.g. '03:10:00 PM IST', '11:00:00 PM IST')
+  parkedReason?: 'PRE_CAS_CLOSE' | 'MCX_EOD_CLOSE' | 'TARGET_HIT' | 'SL_HIT' | 'MANUAL_CLOSE';
   notes?: string;
   /** Admin-applied action metadata */
   adminAction?: AdminTradeAction;

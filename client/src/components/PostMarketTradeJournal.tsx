@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useMarket, getApiBase } from '../context/MarketContext';
 import { 
@@ -28,6 +28,8 @@ import {
   BarChart2, 
   Sparkles, 
   ChevronRight,
+  ChevronDown,
+  History,
   Search,
   ArrowUpRight,
   ArrowDownRight,
@@ -109,8 +111,243 @@ const generateClientFallbackReport = (
   ];
 
   const dateDataMap: Record<string, JournalTradeCall[]> = {
-    // Today's ledger starts clean! Closed trades only populate when target hit, stoploss hit, or position closed
-    [todayStr]: [],
+    // Today's ledger: Equity positions parked at 03:10 PM IST (pre-CAS), MCX commodities live till 11:00 PM IST
+    [todayStr]: [
+      {
+        id: `call_${todayStr}_1`,
+        date: todayStr,
+        timestamp: `${todayStr}T04:45:00.000Z`,
+        timeFormatted: '10:15:00 AM IST',
+        symbol: 'NIFTY',
+        category: 'OPTIONS',
+        contractName: 'NIFTY 24600 CE',
+        strikePrice: 24600,
+        optionType: 'CE',
+        action: 'BUY_CALL',
+        signalSource: 'OI_SURGE',
+        entryPrice: 145.00,
+        recommendedEntryRange: '₹145.00',
+        target1Price: 185.00,
+        target2Price: 215.00,
+        stoplossPrice: 125.00,
+        peakLtp: 192.00,
+        exitLtp: 185.00,
+        currentLtp: 188.50,
+        pointsPnl: 40.00,
+        pnlPct: 27.6,
+        status: 'TARGET_HIT',
+        nearTargetPct: 100,
+        nearTargetDescription: '🎯 Target 1 Hit (+40.0 pts / +27.6%)',
+        riskReward: '1:2.0',
+        lotSize: 50,
+        lots: 1,
+        pnlRupees: 2000,
+        targetHitTime: '01:25:00 PM IST',
+        target1HitTimeFormatted: '01:25:00 PM IST',
+        parkedAtTime: '01:25:00 PM IST',
+        parkedReason: 'TARGET_HIT',
+        notes: 'Bullish OI unwinding in 24600 PE with heavy CE long buildup.'
+      },
+      {
+        id: `call_${todayStr}_2`,
+        date: todayStr,
+        timestamp: `${todayStr}T08:00:00.000Z`,
+        timeFormatted: '03:10:00 PM IST',
+        symbol: 'NIFTY',
+        category: 'OPTIONS',
+        contractName: 'NIFTY 24700 PE',
+        strikePrice: 24700,
+        optionType: 'PE',
+        action: 'BUY_PUT',
+        signalSource: 'CONFLUENCE',
+        entryPrice: 110.00,
+        recommendedEntryRange: '₹110.00',
+        target1Price: 145.00,
+        target2Price: 175.00,
+        stoplossPrice: 92.00,
+        peakLtp: 134.00,
+        exitLtp: 128.00,
+        currentLtp: 128.00,
+        pointsPnl: 18.00,
+        pnlPct: 16.4,
+        status: 'INTRADAY_CLOSED',
+        nearTargetPct: 51,
+        nearTargetDescription: '⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹128.00 (+18.0 pts / +₹900)',
+        riskReward: '1:2.0',
+        lotSize: 50,
+        lots: 1,
+        pnlRupees: 900,
+        callGivenTime: '01:30:00 PM IST',
+        parkedAtTime: '03:10:00 PM IST',
+        parkedReason: 'PRE_CAS_CLOSE',
+        notes: 'Pre-CAS 03:10 PM auto square-off and journal parking.'
+      },
+      {
+        id: `call_${todayStr}_3`,
+        date: todayStr,
+        timestamp: `${todayStr}T04:30:00.000Z`,
+        timeFormatted: '10:00:00 AM IST',
+        symbol: 'BANKNIFTY',
+        category: 'OPTIONS',
+        contractName: 'BANKNIFTY 52000 CE',
+        strikePrice: 52000,
+        optionType: 'CE',
+        action: 'BUY_CALL',
+        signalSource: 'BREAKOUT',
+        entryPrice: 340.00,
+        recommendedEntryRange: '₹340.00',
+        target1Price: 425.00,
+        target2Price: 490.00,
+        stoplossPrice: 295.00,
+        peakLtp: 442.00,
+        exitLtp: 425.00,
+        currentLtp: 430.00,
+        pointsPnl: 85.00,
+        pnlPct: 25.0,
+        status: 'TARGET_HIT',
+        nearTargetPct: 100,
+        nearTargetDescription: '🎯 Target 1 Hit (+85.0 pts / +25.0%)',
+        riskReward: '1:2.0',
+        lotSize: 15,
+        lots: 1,
+        pnlRupees: 1275,
+        targetHitTime: '11:40:00 AM IST',
+        target1HitTimeFormatted: '11:40:00 AM IST',
+        parkedAtTime: '11:40:00 AM IST',
+        parkedReason: 'TARGET_HIT',
+        notes: 'HDFC Bank & ICICI Bank morning momentum confluence breakout.'
+      },
+      {
+        id: `call_${todayStr}_4`,
+        date: todayStr,
+        timestamp: `${todayStr}T08:15:00.000Z`,
+        timeFormatted: '03:10:00 PM IST',
+        symbol: 'BANKNIFTY',
+        category: 'OPTIONS',
+        contractName: 'BANKNIFTY 52400 PE',
+        strikePrice: 52400,
+        optionType: 'PE',
+        action: 'BUY_PUT',
+        signalSource: 'OI_SURGE',
+        entryPrice: 280.00,
+        recommendedEntryRange: '₹280.00',
+        target1Price: 360.00,
+        target2Price: 430.00,
+        stoplossPrice: 235.00,
+        peakLtp: 325.00,
+        exitLtp: 312.00,
+        currentLtp: 312.00,
+        pointsPnl: 32.00,
+        pnlPct: 11.4,
+        status: 'INTRADAY_CLOSED',
+        nearTargetPct: 40,
+        nearTargetDescription: '⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹312.00 (+32.0 pts / +₹480)',
+        riskReward: '1:2.0',
+        lotSize: 15,
+        lots: 1,
+        pnlRupees: 480,
+        callGivenTime: '01:45:00 PM IST',
+        parkedAtTime: '03:10:00 PM IST',
+        parkedReason: 'PRE_CAS_CLOSE',
+        notes: 'Resistance rejection at 52500; auto-parked into journal at 03:10 PM IST.'
+      },
+      {
+        id: `call_${todayStr}_5`,
+        date: todayStr,
+        timestamp: `${todayStr}T04:18:00.000Z`,
+        timeFormatted: '09:48:43 AM IST',
+        symbol: 'CRUDEOIL',
+        category: 'COMMODITIES',
+        contractName: 'CRUDEOIL 9100 PE',
+        strikePrice: 9100,
+        optionType: 'PE',
+        action: 'BUY_PUT',
+        signalSource: 'CONFLUENCE',
+        entryPrice: 486.40,
+        recommendedEntryRange: '₹486.40',
+        target1Price: 671.20,
+        target2Price: 851.00,
+        stoplossPrice: 379.00,
+        peakLtp: 676.80,
+        exitLtp: 671.20,
+        currentLtp: 676.80,
+        pointsPnl: 184.80,
+        pnlPct: 38.0,
+        status: 'TARGET_HIT',
+        nearTargetPct: 100,
+        nearTargetDescription: '🎯 100% Target Hit (+184.8 pts / +₹18,480 on 1 Lot [100 Qty])',
+        riskReward: '1:2.8',
+        lotSize: 100,
+        lots: 1,
+        pnlRupees: 18480,
+        targetHitTime: '06:13:05 PM IST',
+        parkedAtTime: '06:13:05 PM IST',
+        parkedReason: 'TARGET_HIT',
+        notes: 'MCX Commodity setup — Target hit during evening commodity session.'
+      },
+      {
+        id: `call_${todayStr}_6`,
+        date: todayStr,
+        timestamp: `${todayStr}T03:36:00.000Z`,
+        timeFormatted: '09:06:14 AM IST',
+        symbol: 'NATURALGAS',
+        category: 'COMMODITIES',
+        contractName: 'NATURALGAS 305 PE',
+        strikePrice: 305,
+        optionType: 'PE',
+        action: 'BUY_PUT',
+        signalSource: 'CONFLUENCE',
+        entryPrice: 14.80,
+        recommendedEntryRange: '₹14.80',
+        target1Price: 20.50,
+        target2Price: 25.00,
+        stoplossPrice: 12.00,
+        peakLtp: 18.90,
+        exitLtp: 18.20,
+        currentLtp: 18.20,
+        pointsPnl: 3.40,
+        pnlPct: 23.0,
+        status: 'ACTIVE',
+        nearTargetPct: 60,
+        nearTargetDescription: '🟢 LIVE on MCX (Trading till 11:00 PM IST)',
+        riskReward: '1:2.0',
+        lotSize: 1250,
+        lots: 1,
+        pnlRupees: 4250,
+        notes: 'MCX Commodity evening session live tracking until 11:00 PM close.'
+      },
+      {
+        id: `call_${todayStr}_7`,
+        date: todayStr,
+        timestamp: `${todayStr}T03:36:00.000Z`,
+        timeFormatted: '09:06:14 AM IST',
+        symbol: 'GOLD',
+        category: 'COMMODITIES',
+        contractName: 'GOLD 146650 CE',
+        strikePrice: 146650,
+        optionType: 'CE',
+        action: 'BUY_CALL',
+        signalSource: 'BREAKOUT',
+        entryPrice: 850.00,
+        recommendedEntryRange: '₹850.00',
+        target1Price: 1200.00,
+        target2Price: 1450.00,
+        stoplossPrice: 680.00,
+        peakLtp: 1040.00,
+        exitLtp: 1010.00,
+        currentLtp: 1010.00,
+        pointsPnl: 160.00,
+        pnlPct: 18.8,
+        status: 'ACTIVE',
+        nearTargetPct: 46,
+        nearTargetDescription: '🟢 LIVE on MCX (Trading till 11:00 PM IST)',
+        riskReward: '1:2.0',
+        lotSize: 100,
+        lots: 1,
+        pnlRupees: 16000,
+        notes: 'Bullish breakout in MCX Gold; active session until 11:00 PM close.'
+      }
+    ],
     [prevDayStr]: [
       {
         id: `call_${prevDayStr}_1`,
@@ -745,6 +982,41 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const historyDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close history dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (historyDropdownRef.current && !historyDropdownRef.current.contains(e.target as Node)) {
+        setIsHistoryOpen(false);
+      }
+    };
+    if (isHistoryOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isHistoryOpen]);
+
+  // Session and market hours helper: Equity closes at 03:30 (pre-CAS 03:10), MCX live until 11:00 PM
+  const sessionStatus = useMemo(() => {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utc + (3600000 * 5.5));
+    const currentMin = ist.getHours() * 60 + ist.getMinutes();
+
+    const isEquityOpen = currentMin >= (9 * 60 + 15) && currentMin < (15 * 60 + 10);
+    const isEquityPreCas = currentMin >= (15 * 60 + 10) && currentMin < (15 * 60 + 30);
+    const isEquityClosed = currentMin >= (15 * 60 + 30) || currentMin < (9 * 60 + 15);
+
+    const isMcxOpen = currentMin >= (9 * 60) && currentMin < (23 * 60); // 09:00 AM - 11:00 PM IST
+    const isMcxClosed = !isMcxOpen;
+
+    return { isEquityOpen, isEquityPreCas, isEquityClosed, isMcxOpen, isMcxClosed };
+  }, []);
+
   // Sync selectedAssetFilter when user switches active symbol in main terminal
   useEffect(() => {
     if (selectedIndex) {
@@ -772,7 +1044,15 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       action: isSell ? 'SELL' : call.action === 'BUY_CALL' ? 'BUY_CALL' : call.action === 'BUY_PUT' ? 'BUY_PUT' : (call.action as any),
       tradingRole: isSell ? 'SELLER' : 'BUYER',
       executionType: isSell ? 'NET_CREDIT' : 'NET_DEBIT',
-      tierLabel: '📖 POST-MARKET TRADE JOURNAL LEDGER',
+      tierLabel: call.parkedReason === 'PRE_CAS_CLOSE'
+        ? `📖 PARKED IN JOURNAL @ ${call.parkedAtTime || '03:10 PM IST'} (PRE-CAS CLOSE)`
+        : call.parkedReason === 'MCX_EOD_CLOSE'
+        ? `📖 PARKED IN JOURNAL @ ${call.parkedAtTime || '11:00 PM IST'} (MCX CLOSE)`
+        : call.parkedAtTime
+        ? `📖 PARKED IN JOURNAL @ ${call.parkedAtTime}`
+        : (call.status === 'ACTIVE' && COMMODITY_SYMBOLS.includes((call.symbol || '').toUpperCase())
+            ? '🟢 LIVE ON MCX COMMODITIES (OPEN TILL 11:00 PM IST)'
+            : '📖 POST-MARKET TRADE JOURNAL LEDGER'),
       sessionName: call.sessionPhase || 'Recorded Trade Call',
       confluenceScore: isTargetHit ? 95 : isNearTarget ? 90 : 88,
       lotSize,
@@ -995,35 +1275,107 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
         {/* Date Dropdown & Controls */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-          {/* Date Selector Dropdown */}
-          <div className="flex items-center space-x-1.5 bg-white dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border rounded-xl px-2.5 py-1.5 shadow-sm">
-            <Calendar className="w-4 h-4 text-accent-cyan" />
-            <select
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                setSearchQuery('');
-              }}
-              className="bg-transparent text-xs font-mono font-bold text-terminal-text focus:outline-none cursor-pointer"
+          {/* Signals History Dropdown Button */}
+          <div className="relative" ref={historyDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(prev => !prev)}
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-terminal-panel hover:bg-slate-100 dark:hover:bg-terminal-border/60 text-terminal-text border border-slate-200 dark:border-terminal-border transition shadow-sm cursor-pointer font-mono text-xs font-bold"
+              title="Open Signals History (Date-wise archive)"
             >
-              {availableDates.map((d) => {
-                const isToday = d === dateInfo.todayStr;
-                const isLatestClosed = d === dateInfo.prevDayStr;
-                let badge = '';
-                if (isToday) {
-                  badge = dateInfo.isPreMarket ? '(Today - Pre-Market, opens 09:15)' : '(Today - Live Session)';
-                } else if (isLatestClosed) {
-                  badge = '(Latest Closed Session)';
-                } else {
-                  badge = '(Closed Session)';
-                }
-                return (
-                  <option key={d} value={d} className="bg-white dark:bg-terminal-card text-terminal-text">
-                    {d} {badge}
-                  </option>
-                );
-              })}
-            </select>
+              <History className="w-4 h-4 text-accent-cyan" />
+              <span>Signals History:</span>
+              <span className="px-2 py-0.5 rounded-md bg-accent-cyan/15 text-accent-cyan font-bold text-[11px]">
+                {selectedDate === dateInfo.todayStr ? `Today (${selectedDate})` : selectedDate}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-terminal-muted transition-transform duration-200 ${isHistoryOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isHistoryOpen && (
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden font-mono p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    <History className="w-3.5 h-3.5 text-accent-cyan" />
+                    <span>Signals History by Date</span>
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+                    {availableDates.length} Sessions
+                  </span>
+                </div>
+
+                {/* Section 1: Today's Session */}
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 px-2 uppercase tracking-wider">Today's Session</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(dateInfo.todayStr);
+                      setSearchQuery('');
+                      setIsHistoryOpen(false);
+                    }}
+                    className={`w-full text-left p-2 rounded-xl transition cursor-pointer flex items-center justify-between text-xs ${
+                      selectedDate === dateInfo.todayStr
+                        ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/40 shadow-xs'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 font-bold">
+                        <span>Today ({dateInfo.todayStr})</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                          TODAY
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Equity: Parked @ 03:10 PM • MCX: Live till 11:00 PM
+                      </div>
+                    </div>
+                    {selectedDate === dateInfo.todayStr && <Check className="w-4 h-4 text-accent-cyan shrink-0" />}
+                  </button>
+                </div>
+
+                {/* Section 2: Historical Dates Archive */}
+                <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div className="text-[10px] font-bold text-slate-400 px-2 uppercase tracking-wider">Archived Sessions (Date-wise)</div>
+                  <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                    {availableDates.filter(d => d !== dateInfo.todayStr).map(d => {
+                      const isSelected = selectedDate === d;
+                      const dateObj = new Date(d);
+                      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dateObj.getDay()] || '';
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDate(d);
+                            setSearchQuery('');
+                            setIsHistoryOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-between text-xs ${
+                            isSelected
+                              ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/40 font-bold'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{d}</span>
+                            <span className="text-[10px] text-slate-400">({dayName})</span>
+                          </div>
+                          {isSelected ? (
+                            <Check className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-400">
+                              Closed
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Copy Summary Button */}
@@ -1065,6 +1417,45 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
       {/* Main Scrollable Body Container */}
       <div className={`flex-1 overflow-y-auto ${isModal ? 'p-3.5 sm:p-5 space-y-4' : 'pt-4 space-y-4'}`}>
+
+        {/* ========================================================================= */}
+        {/* 1A. Market Session & Journal Parking Rule Status Banner                   */}
+        {/* ========================================================================= */}
+        <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-terminal-panel/80 border border-slate-200 dark:border-terminal-border text-xs font-mono flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 shrink-0 text-[11px]">
+              <Clock className="w-3.5 h-3.5 text-accent-cyan" />
+              <span>Session Status:</span>
+            </span>
+
+            {/* Equity Session Indicator */}
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+              sessionStatus.isEquityClosed 
+                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25' 
+                : sessionStatus.isEquityPreCas 
+                ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25 animate-pulse'
+                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+            }`}>
+              <span>NSE/BSE Equity:</span>
+              <strong>{sessionStatus.isEquityClosed ? 'CLOSED (Parked @ 03:10 PM IST)' : sessionStatus.isEquityPreCas ? 'PRE-CAS AUTO-PARK' : 'LIVE'}</strong>
+            </span>
+
+            {/* MCX Commodity Session Indicator */}
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+              sessionStatus.isMcxOpen
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${sessionStatus.isMcxOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span>MCX Commodities:</span>
+              <strong>{sessionStatus.isMcxOpen ? 'LIVE TILL 11:00 PM IST' : 'CLOSED (Parked @ 11:00 PM)'}</strong>
+            </span>
+          </div>
+
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
+            🅿️ Equity parked at 03:10 PM; MCX live until 11:00 PM.
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* 1B. Asset Focus Toolbar: Active Asset & User's Selected Assets            */}
@@ -1732,6 +2123,17 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                             <span>Exit: {formatTradeTime(call.timeFormatted, call.symbol)}</span>
                           </div>
                         )}
+                        {call.parkedAtTime && (
+                          <div className="flex items-center space-x-1 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                            <span>🅿️ Parked: {formatTradeTime(call.parkedAtTime, call.symbol)}</span>
+                          </div>
+                        )}
+                        {!call.parkedAtTime && call.status === 'ACTIVE' && COMMODITY_SYMBOLS.includes((call.symbol || '').toUpperCase()) && (
+                          <div className="flex items-center space-x-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>LIVE (till 11:00 PM)</span>
+                          </div>
+                        )}
                       </div>
                     </td>
 
@@ -1752,6 +2154,21 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                         <span className="font-bold text-terminal-text">
                           {call.contractName}
                         </span>
+                        {call.parkedReason === 'PRE_CAS_CLOSE' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            🅿️ PARKED PRE-CAS
+                          </span>
+                        )}
+                        {call.parkedReason === 'MCX_EOD_CLOSE' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30">
+                            🅿️ PARKED MCX CLOSE
+                          </span>
+                        )}
+                        {!call.parkedAtTime && call.status === 'ACTIVE' && COMMODITY_SYMBOLS.includes((call.symbol || '').toUpperCase()) && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
+                            🟢 LIVE MCX
+                          </span>
+                        )}
                       </div>
                     </td>
 

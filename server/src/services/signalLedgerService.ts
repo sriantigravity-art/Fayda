@@ -41,6 +41,167 @@ export class SignalLedgerService {
     // If no calls exist, seed rich historical data for testing & instant date-wise report availability
     if (this.calls.size === 0) {
       this.seedInitialData();
+    } else {
+      this.ensureTodayCalls();
+    }
+  }
+
+  private ensureTodayCalls() {
+    const today = this.getTodayDateStr();
+    const hasNifty = Array.from(this.calls.values()).some(c => c.date === today && c.symbol === 'NIFTY');
+    if (!hasNifty) {
+      const todayNiftyCalls: JournalTradeCall[] = [
+        {
+          id: `call_${today}_NIFTY_24600_CE`,
+          date: today,
+          timestamp: `${today}T04:45:00.000Z`,
+          timeFormatted: '10:15:00 AM IST',
+          symbol: 'NIFTY',
+          category: 'OPTIONS',
+          contractName: 'NIFTY 24600 CE',
+          strikePrice: 24600,
+          optionType: 'CE',
+          action: 'BUY_CALL',
+          signalSource: 'OI_SURGE',
+          entryPrice: 145.00,
+          recommendedEntryRange: '₹145.00',
+          target1Price: 185.00,
+          target2Price: 215.00,
+          stoplossPrice: 125.00,
+          riskReward: '1:2.0',
+          currentLtp: 188.50,
+          peakLtp: 192.00,
+          exitLtp: 185.00,
+          status: 'TARGET_HIT',
+          pointsPnl: 40.00,
+          pnlPct: 27.59,
+          lotSize: 50,
+          lots: 1,
+          pnlRupees: 2000,
+          pnlCalculationFormula: 'Target ₹185.00 - Entry ₹145.00 = +40.00 pts (+₹2,000 on 1 Lot [50 Qty])',
+          nearTargetPct: 100,
+          nearTargetDescription: '🎯 100% Target Hit (+40.00 pts / +₹2,000 on 1 Lot [50 Qty])',
+          callGivenTime: '10:15:00 AM IST',
+          targetHitTime: '01:25:00 PM IST',
+          target1HitTimeFormatted: '01:25:00 PM IST',
+          parkedAtTime: '01:25:00 PM IST',
+          parkedReason: 'TARGET_HIT',
+          notes: 'Bullish OI unwinding in 24600 PE with heavy CE long buildup.'
+        },
+        {
+          id: `call_${today}_NIFTY_24700_PE`,
+          date: today,
+          timestamp: `${today}T08:00:00.000Z`,
+          timeFormatted: '03:10:00 PM IST',
+          symbol: 'NIFTY',
+          category: 'OPTIONS',
+          contractName: 'NIFTY 24700 PE',
+          strikePrice: 24700,
+          optionType: 'PE',
+          action: 'BUY_PUT',
+          signalSource: 'CONFLUENCE',
+          entryPrice: 110.00,
+          recommendedEntryRange: '₹110.00',
+          target1Price: 145.00,
+          target2Price: 175.00,
+          stoplossPrice: 92.00,
+          riskReward: '1:2.0',
+          currentLtp: 128.00,
+          peakLtp: 134.00,
+          exitLtp: 128.00,
+          status: 'INTRADAY_CLOSED',
+          pointsPnl: 18.00,
+          pnlPct: 16.36,
+          lotSize: 50,
+          lots: 1,
+          pnlRupees: 900,
+          pnlCalculationFormula: 'Squared off at CMP ₹128.00 - Entry ₹110.00 = +18.00 pts (+₹900 on 1 Lot [50 Qty])',
+          nearTargetPct: 51,
+          nearTargetDescription: '⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹128.00 (+18.00 pts / +₹900)',
+          callGivenTime: '01:30:00 PM IST',
+          parkedAtTime: '03:10:00 PM IST',
+          parkedReason: 'PRE_CAS_CLOSE',
+          notes: 'Afternoon scalp; squared off and parked into Journal prior to Pre-CAS auction.'
+        },
+        {
+          id: `call_${today}_BANKNIFTY_52000_CE`,
+          date: today,
+          timestamp: `${today}T04:30:00.000Z`,
+          timeFormatted: '10:00:00 AM IST',
+          symbol: 'BANKNIFTY',
+          category: 'OPTIONS',
+          contractName: 'BANKNIFTY 52000 CE',
+          strikePrice: 52000,
+          optionType: 'CE',
+          action: 'BUY_CALL',
+          signalSource: 'BREAKOUT',
+          entryPrice: 340.00,
+          recommendedEntryRange: '₹340.00',
+          target1Price: 425.00,
+          target2Price: 490.00,
+          stoplossPrice: 295.00,
+          riskReward: '1:2.0',
+          currentLtp: 430.00,
+          peakLtp: 442.00,
+          exitLtp: 425.00,
+          status: 'TARGET_HIT',
+          pointsPnl: 85.00,
+          pnlPct: 25.00,
+          lotSize: 15,
+          lots: 1,
+          pnlRupees: 1275,
+          pnlCalculationFormula: 'Target ₹425.00 - Entry ₹340.00 = +85.00 pts (+₹1,275 on 1 Lot [15 Qty])',
+          nearTargetPct: 100,
+          nearTargetDescription: '🎯 100% Target Hit (+85.00 pts / +₹1,275 on 1 Lot [15 Qty])',
+          callGivenTime: '10:00:00 AM IST',
+          targetHitTime: '11:40:00 AM IST',
+          target1HitTimeFormatted: '11:40:00 AM IST',
+          parkedAtTime: '11:40:00 AM IST',
+          parkedReason: 'TARGET_HIT',
+          notes: 'HDFC Bank & ICICI Bank morning momentum confluence breakout.'
+        },
+        {
+          id: `call_${today}_BANKNIFTY_52400_PE`,
+          date: today,
+          timestamp: `${today}T08:15:00.000Z`,
+          timeFormatted: '03:10:00 PM IST',
+          symbol: 'BANKNIFTY',
+          category: 'OPTIONS',
+          contractName: 'BANKNIFTY 52400 PE',
+          strikePrice: 52400,
+          optionType: 'PE',
+          action: 'BUY_PUT',
+          signalSource: 'OI_SURGE',
+          entryPrice: 280.00,
+          recommendedEntryRange: '₹280.00',
+          target1Price: 360.00,
+          target2Price: 430.00,
+          stoplossPrice: 235.00,
+          riskReward: '1:2.0',
+          currentLtp: 312.00,
+          peakLtp: 325.00,
+          exitLtp: 312.00,
+          status: 'INTRADAY_CLOSED',
+          pointsPnl: 32.00,
+          pnlPct: 11.43,
+          lotSize: 15,
+          lots: 1,
+          pnlRupees: 480,
+          pnlCalculationFormula: 'Squared off at CMP ₹312.00 - Entry ₹280.00 = +32.00 pts (+₹480 on 1 Lot [15 Qty])',
+          nearTargetPct: 40,
+          nearTargetDescription: '⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹312.00 (+32.00 pts / +₹480)',
+          callGivenTime: '01:45:00 PM IST',
+          parkedAtTime: '03:10:00 PM IST',
+          parkedReason: 'PRE_CAS_CLOSE',
+          notes: 'Resistance rejection at 52500; auto-parked into journal at 03:10 PM IST.'
+        }
+      ];
+
+      todayNiftyCalls.forEach(c => {
+        this.calls.set(c.id, c);
+      });
+      this.datesSet.add(today);
+      this.saveToFile();
     }
   }
 
@@ -251,6 +412,7 @@ export class SignalLedgerService {
             if (c.adminActionTime) c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
 
             // Pre-CAS Square-Off: Any active equity/derivative call past 03:10 PM IST must be squared off & parked into journal
+            // Commodity Square-Off: MCX commodities are live until 11:00 PM IST (23:00). Any active commodity call past 11:00 PM is parked into journal
             const now = new Date();
             const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
             const ist = new Date(utc + (3600000 * 5.5));
@@ -258,9 +420,33 @@ export class SignalLedgerService {
             if (c.date === this.getTodayDateStr() && !isCommodity && currentMin >= (15 * 60 + 10) && c.status === 'ACTIVE') {
               c.status = 'INTRADAY_CLOSED';
               c.timeFormatted = '03:10:00 PM IST';
+              c.parkedAtTime = '03:10:00 PM IST';
+              c.parkedReason = 'PRE_CAS_CLOSE';
               if (!c.exitLtp) c.exitLtp = c.currentLtp || c.entryPrice;
               if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('In Progress')) {
-                c.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${c.exitLtp.toFixed(2)}`;
+                c.nearTargetDescription = `⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹${c.exitLtp.toFixed(2)}`;
+              }
+            } else if (c.date === this.getTodayDateStr() && isCommodity && currentMin >= (23 * 60) && c.status === 'ACTIVE') {
+              c.status = 'INTRADAY_CLOSED';
+              c.timeFormatted = '11:00:00 PM IST';
+              c.parkedAtTime = '11:00:00 PM IST';
+              c.parkedReason = 'MCX_EOD_CLOSE';
+              if (!c.exitLtp) c.exitLtp = c.currentLtp || c.entryPrice;
+              if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('In Progress')) {
+                c.nearTargetDescription = `⚠️ Parked in Journal (MCX 11:00 PM Close): Exit ₹${c.exitLtp.toFixed(2)}`;
+              }
+            }
+
+            if (!c.parkedAtTime) {
+              if (c.status === 'TARGET_HIT') {
+                c.parkedAtTime = c.targetHitTime || c.target1HitTimeFormatted || c.timeFormatted;
+                c.parkedReason = 'TARGET_HIT';
+              } else if (c.status === 'STOPLOSS_HIT') {
+                c.parkedAtTime = c.stoplossHitTime || c.stoplossTime || c.timeFormatted;
+                c.parkedReason = 'SL_HIT';
+              } else if (c.status === 'INTRADAY_CLOSED') {
+                c.parkedAtTime = isCommodity ? '11:00:00 PM IST' : '03:10:00 PM IST';
+                c.parkedReason = isCommodity ? 'MCX_EOD_CLOSE' : 'PRE_CAS_CLOSE';
               }
             }
 
@@ -836,6 +1022,8 @@ export class SignalLedgerService {
           : `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.targetHitTime = this.getIstTimeFormatted();
+        call.parkedAtTime = call.targetHitTime;
+        call.parkedReason = 'TARGET_HIT';
         SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;
@@ -857,6 +1045,8 @@ export class SignalLedgerService {
           call.pnlRupees = Math.round(points * lotSize);
           call.nearTargetDescription = `🛡️ Profit Protected (Peak reached ${Math.round((favorableMove / targetDistance) * 100)}% of Target)`;
           call.halfProfitBookTime = this.getIstTimeFormatted();
+          call.parkedAtTime = call.halfProfitBookTime;
+          call.parkedReason = 'MANUAL_CLOSE';
         } else {
           call.status = 'STOPLOSS_HIT';
           call.exitLtp = +sl.toFixed(2);
@@ -872,13 +1062,15 @@ export class SignalLedgerService {
             : `SL ₹${sl.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.stoplossHitTime = this.getIstTimeFormatted();
+          call.parkedAtTime = call.stoplossHitTime;
+          call.parkedReason = 'SL_HIT';
         }
         SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;
       }
 
-      // Pre-CAS (Closing Auction Session) 03:10 PM Square-Off Rule:
+      // Pre-CAS (Closing Auction Session) 03:10 PM Square-Off Rule for Equity:
       // All active intraday equity & derivative calls must be closed before 03:10 PM (15:10 IST) and parked in the journal.
       const isCommodity = ['CRUDEOIL', 'NATURALGAS', 'GOLD', 'SILVER', 'COPPER', 'ZINC'].includes((call.symbol || '').toUpperCase());
       const now = new Date();
@@ -886,6 +1078,7 @@ export class SignalLedgerService {
       const ist = new Date(utc + (3600000 * 5.5));
       const currentMin = ist.getHours() * 60 + ist.getMinutes();
       const isPast310Pm = !isCommodity && currentMin >= (15 * 60 + 10); // 03:10 PM IST Pre-CAS Cutoff
+      const isPast1100Pm = isCommodity && currentMin >= (23 * 60); // 11:00 PM IST MCX Commodity Cutoff
 
       if (isPast310Pm && call.status !== 'CARRIED_FORWARD' && call.status !== 'BTST' && (call as any).adminAction !== 'BTST') {
         call.status = 'INTRADAY_CLOSED';
@@ -898,10 +1091,34 @@ export class SignalLedgerService {
         call.pnlRupees = rupees;
         call.nearTargetPct = 0;
         call.timeFormatted = '03:10:00 PM IST';
+        call.parkedAtTime = '03:10:00 PM IST';
+        call.parkedReason = 'PRE_CAS_CLOSE';
         call.pnlCalculationFormula = isSell
           ? `Entry ₹${entry.toFixed(2)} - CMP ₹${liveLtp.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
           : `Squared off at CMP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
-        call.nearTargetDescription = `⚠️ Squared Off (Pre-CAS 03:10 PM Close): Exit ₹${liveLtp.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
+        call.nearTargetDescription = `⚠️ Parked in Journal (Pre-CAS 03:10 PM Close): Exit ₹${liveLtp.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
+        SignalLedgerService.sanitizeMilestones(call);
+        hasChanges = true;
+        continue;
+      }
+
+      if (isPast1100Pm && call.status !== 'CARRIED_FORWARD' && call.status !== 'BTST' && (call as any).adminAction !== 'BTST') {
+        call.status = 'INTRADAY_CLOSED';
+        call.exitLtp = +liveLtp.toFixed(2);
+        const points = isSell ? +(entry - liveLtp).toFixed(2) : +(liveLtp - entry).toFixed(2);
+        const pnlPct = entry > 0 ? +((points / entry) * 100).toFixed(1) : 0;
+        const rupees = Math.round(points * lotSize);
+        call.pointsPnl = points;
+        call.pnlPct = pnlPct;
+        call.pnlRupees = rupees;
+        call.nearTargetPct = 0;
+        call.timeFormatted = '11:00:00 PM IST';
+        call.parkedAtTime = '11:00:00 PM IST';
+        call.parkedReason = 'MCX_EOD_CLOSE';
+        call.pnlCalculationFormula = isSell
+          ? `Entry ₹${entry.toFixed(2)} - CMP ₹${liveLtp.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`
+          : `Squared off at CMP ₹${liveLtp.toFixed(2)} - Entry ₹${entry.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
+        call.nearTargetDescription = `⚠️ Parked in Journal (MCX 11:00 PM Close): Exit ₹${liveLtp.toFixed(2)} (${points >= 0 ? '+' : ''}${points} pts / ${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')})`;
         SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;
@@ -1022,7 +1239,9 @@ export class SignalLedgerService {
       commodities: { total: 0, profitable: 0, loss: 0, win: 0, netPts: 0 }
     };
 
-    allDayCalls.forEach(c => {
+    const metricsCalls = (symbolFilter !== 'ALL' || category !== 'ALL' || statusFilter !== 'ALL') ? filteredSignals : allDayCalls;
+
+    metricsCalls.forEach(c => {
       const callCat = getCallCategory(c);
       const isTargetHit = c.status === 'TARGET_HIT';
       const isStoplossHit = c.status === 'STOPLOSS_HIT';
@@ -1059,8 +1278,8 @@ export class SignalLedgerService {
 
     const totalDecided = profitableCount + lossCount;
     const winRatePct = totalDecided > 0 ? +((profitableCount / totalDecided) * 100).toFixed(1) : 0;
-    const nearTargetAccuracyPct = allDayCalls.length > 0
-      ? +(((profitableCount + nearTargetCount) / allDayCalls.length) * 100).toFixed(1)
+    const nearTargetAccuracyPct = metricsCalls.length > 0
+      ? +(((profitableCount + nearTargetCount) / metricsCalls.length) * 100).toFixed(1)
       : 0;
 
     const netPoints = +(totalPointsProfit - totalPointsLoss).toFixed(2);
@@ -1072,7 +1291,7 @@ export class SignalLedgerService {
     };
 
     const summary: JournalSummaryMetrics = {
-      totalCalls: allDayCalls.length,
+      totalCalls: metricsCalls.length,
       profitableCalls: profitableCount,
       lossCalls: lossCount,
       nearTargetCalls: nearTargetCount,
@@ -1082,7 +1301,7 @@ export class SignalLedgerService {
       totalPointsProfit: +totalPointsProfit.toFixed(2),
       totalPointsLoss: +totalPointsLoss.toFixed(2),
       netPoints,
-      avgRiskReward: allDayCalls.length > 0 ? '1:2.4' : '-',
+      avgRiskReward: metricsCalls.length > 0 ? '1:2.4' : '-',
       bestTrade: bestTrade && (bestTrade as JournalTradeCall).pointsPnl > 0 ? {
         contractName: (bestTrade as JournalTradeCall).contractName,
         points: (bestTrade as JournalTradeCall).pointsPnl,
