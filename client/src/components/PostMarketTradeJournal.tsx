@@ -9,7 +9,7 @@ import {
   type AssetCategory,
   type IndexSymbol
 } from '../types';
-import { formatTradeTime } from '../utils/formatTime';
+import { formatTradeTime, parseTradeTimeToMinutes, getSanitizedMilestones } from '../utils/formatTime';
 import { 
   Calendar, 
   Filter, 
@@ -764,13 +764,17 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       isEntryTriggered: true,
       actualEntryPrice: call.entryPrice,
       entryPriceTimeFormatted: formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol),
-      target1HitTimeFormatted: call.target1HitTimeFormatted ? formatTradeTime(call.target1HitTimeFormatted, call.symbol) : (isTargetHit ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
-      target2HitTimeFormatted: call.target2HitTimeFormatted 
+      target1HitTimeFormatted: (!isSl && call.target1HitTimeFormatted) 
+        ? formatTradeTime(call.target1HitTimeFormatted, call.symbol) 
+        : (!isSl && isTargetHit ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) : undefined),
+      target2HitTimeFormatted: (!isSl && call.target2HitTimeFormatted) 
         ? formatTradeTime(call.target2HitTimeFormatted, call.symbol) 
-        : (isTargetHit && call.target2Price && (isSell ? ((call.peakLtp && call.peakLtp <= call.target2Price) || (call.currentLtp && call.currentLtp <= call.target2Price)) : (call.peakLtp >= call.target2Price)) 
+        : (!isSl && isTargetHit && call.target2Price && (isSell ? ((call.peakLtp && call.peakLtp <= call.target2Price) || (call.currentLtp && call.currentLtp <= call.target2Price)) : (call.peakLtp >= call.target2Price)) 
             ? formatTradeTime(call.targetHitTime || call.timeFormatted, call.symbol) 
             : undefined),
-      stoplossTimeFormatted: call.stoplossTime ? formatTradeTime(call.stoplossTime, call.symbol) : call.stoplossHitTime ? formatTradeTime(call.stoplossHitTime, call.symbol) : (isSl ? formatTradeTime(call.timeFormatted, call.symbol) : undefined),
+      stoplossTimeFormatted: isSl 
+        ? (call.stoplossTime ? formatTradeTime(call.stoplossTime, call.symbol) : call.stoplossHitTime ? formatTradeTime(call.stoplossHitTime, call.symbol) : formatTradeTime(call.timeFormatted, call.symbol))
+        : undefined,
       bookedTimeFormatted: call.targetHitTime || call.stoplossHitTime || call.timeFormatted,
       elapsedTimeFormatted: `${call.pointsPnl >= 0 ? '+' : ''}${call.pointsPnl.toFixed(2)} pts (${call.pnlPct.toFixed(2)}%)`,
       actionGuidance: isSl 
@@ -1523,26 +1527,27 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                   ? call.pnlRupees 
                   : Math.round(points * totalQty);
 
+                const absPts = Math.abs(points).toFixed(2);
                 const calculationFormula = isSlHit
                   ? (isSell
-                      ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`
-                      : `SL ₹${call.stoplossPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points} pts`)
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = -${absPts} pts`
+                      : `SL ₹${call.stoplossPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = -${absPts} pts`)
                   : isTargetHit
                   ? (isSell
-                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Target ₹${call.target1Price.toFixed(2)} = +${points} pts`
-                      : `Target ₹${call.target1Price.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${points} pts`)
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Target ₹${call.target1Price.toFixed(2)} = +${absPts} pts`
+                      : `Target ₹${call.target1Price.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = +${absPts} pts`)
                   : (isSell
-                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Exit ₹${exitPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts`
-                      : `Exit ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : ''}${points} pts`);
+                      ? `Entry ₹${call.entryPrice.toFixed(2)} - Exit ₹${exitPrice.toFixed(2)} = ${points >= 0 ? '+' : '-'}${absPts} pts`
+                      : `Exit ₹${exitPrice.toFixed(2)} - Entry ₹${call.entryPrice.toFixed(2)} = ${points >= 0 ? '+' : '-'}${absPts} pts`);
 
                 // Near-Target Description & Progress percentage sanitization
                 let displayDescription = call.nearTargetDescription || '';
                 if (isSlHit) {
-                  if (!displayDescription || displayDescription.toLowerCase().includes('active') || displayDescription.toLowerCase().includes('in progress') || displayDescription.toLowerCase().includes('target hit')) {
-                    displayDescription = `🛑 Stoploss Hit: Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = ${points} pts`;
-                  }
+                  displayDescription = `🛑 Stoploss Hit: Entry ₹${call.entryPrice.toFixed(2)} - SL ₹${call.stoplossPrice.toFixed(2)} = -${absPts} pts`;
                 }
                 const displayProgressPct = isSlHit ? 0 : (call.nearTargetPct || 0);
+
+                const { showT1, showT2, showSL, t1Time, t2Time, slTime } = getSanitizedMilestones(call);
 
                 return (
                   <tr 
@@ -1558,19 +1563,19 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                           <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
                           <span>{formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol)}</span>
                         </div>
-                        {call.target1HitTimeFormatted && (
+                        {showT1 && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
                             <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
                             <span>T1: {formatTradeTime(call.target1HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
-                        {call.target2HitTimeFormatted && (
+                        {showT2 && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
                             <Sparkles className="w-2.5 h-2.5 shrink-0" />
                             <span>T2: {formatTradeTime(call.target2HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
-                        {(call.stoplossTime || call.stoplossHitTime) && (
+                        {showSL && (
                           <div className="flex items-center space-x-1 text-[9.5px] text-bear font-bold">
                             <XCircle className="w-2.5 h-2.5 shrink-0" />
                             <span>SL: {formatTradeTime(call.stoplossTime || call.stoplossHitTime, call.symbol)}</span>

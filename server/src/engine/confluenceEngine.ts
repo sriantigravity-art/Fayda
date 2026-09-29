@@ -27,7 +27,7 @@ import {
   OngoingProfitBoxData,
   SurgeEvent
 } from '../types.js';
-import { signalLedgerService } from '../services/signalLedgerService.js';
+import { signalLedgerService, SignalLedgerService } from '../services/signalLedgerService.js';
 import { NseExpiryService } from '../services/nseExpiryService.js';
 
 export class ConfluenceEngine {
@@ -1661,10 +1661,15 @@ export class ConfluenceEngine {
       // Already triggered: keep permanently locked
     } else {
       // Single exact entry price trigger: triggered when market touches or crosses within 1.2% of entryPrice
-      const isPriceAtEntry = Math.abs(params.currentLtp - params.entryPrice) / (params.entryPrice || 1) <= 0.012;
-      const isCrossed = isSeller 
-        ? params.currentLtp >= params.entryPrice 
-        : params.currentLtp <= params.entryPrice;
+      // If price has already breached stoploss, the trade setup is invalid and cannot trigger entry
+      const isAlreadyBreachedSl = isSeller
+        ? params.currentLtp >= params.stoplossPrice
+        : params.currentLtp <= params.stoplossPrice;
+
+      const isPriceAtEntry = !isAlreadyBreachedSl && Math.abs(params.currentLtp - params.entryPrice) / (params.entryPrice || 1) <= 0.012;
+      const isCrossed = !isAlreadyBreachedSl && (isSeller 
+        ? (params.currentLtp >= params.entryPrice && params.currentLtp < params.stoplossPrice)
+        : (params.currentLtp <= params.entryPrice && params.currentLtp > params.stoplossPrice));
 
       if (isPriceAtEntry || isCrossed) {
         isEntryTriggered = true;
@@ -1685,6 +1690,23 @@ export class ConfluenceEngine {
     let halfProfitBookTimeFormatted = existing?.halfProfitBookTimeFormatted;
     let bookedTime = existing?.bookedTime;
     let bookedTimeFormatted = existing?.bookedTimeFormatted;
+
+    // Discard any inherited milestones that occurred before entryPriceTimeFormatted or callGivenTimeFormatted
+    const effectiveEntryStr = entryPriceTimeFormatted || callGivenTimeFormatted;
+    if (effectiveEntryStr) {
+      if (target1HitTimeFormatted && !SignalLedgerService.isChronologicallyValid(effectiveEntryStr, target1HitTimeFormatted)) {
+        target1HitTime = undefined;
+        target1HitTimeFormatted = undefined;
+      }
+      if (target2HitTimeFormatted && !SignalLedgerService.isChronologicallyValid(effectiveEntryStr, target2HitTimeFormatted)) {
+        target2HitTime = undefined;
+        target2HitTimeFormatted = undefined;
+      }
+      if (stoplossTimeFormatted && !SignalLedgerService.isChronologicallyValid(effectiveEntryStr, stoplossTimeFormatted)) {
+        stoplossTime = undefined;
+        stoplossTimeFormatted = undefined;
+      }
+    }
 
     const isBrandNewTip = !existing;
     let milestoneRecordedStatus: 'TARGET_HIT' | 'STOPLOSS_HIT' | null = null;
@@ -1794,9 +1816,9 @@ export class ConfluenceEngine {
           currentLtp: exitLtpForJournal,
           callGivenTimeFormatted,
           entryPriceTimeFormatted,
-          target1HitTimeFormatted,
-          target2HitTimeFormatted,
-          stoplossTimeFormatted,
+          target1HitTimeFormatted: milestoneRecordedStatus === 'STOPLOSS_HIT' ? undefined : target1HitTimeFormatted,
+          target2HitTimeFormatted: milestoneRecordedStatus === 'STOPLOSS_HIT' ? undefined : target2HitTimeFormatted,
+          stoplossTimeFormatted: milestoneRecordedStatus === 'TARGET_HIT' ? undefined : stoplossTimeFormatted,
           status: milestoneRecordedStatus,
           notes: params.strategyTag
         });

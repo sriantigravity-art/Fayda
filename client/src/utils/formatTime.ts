@@ -226,3 +226,101 @@ export const formatISTDate = (dateInput?: string | number | Date | null): string
     year: 'numeric'
   });
 };
+
+export const parseTradeTimeToMinutes = (timeStr?: string | null): number | null => {
+  if (!timeStr) return null;
+  const clean = timeStr.replace(/\s*IST/gi, '').trim();
+  const ampmMatch = clean.match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    let h = parseInt(ampmMatch[1], 10);
+    const m = parseInt(ampmMatch[2], 10);
+    const ampm = ampmMatch[4].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  const hmsMatch = clean.match(/^(\d+):(\d+)(?::(\d+))?$/);
+  if (hmsMatch) {
+    const h = parseInt(hmsMatch[1], 10);
+    const m = parseInt(hmsMatch[2], 10);
+    return h * 60 + m;
+  }
+  return null;
+};
+
+export const isChronologicallyValid = (
+  earlierTime?: string | null,
+  laterTime?: string | null,
+  allowEqual: boolean = true
+): boolean => {
+  if (!earlierTime || !laterTime) return true;
+  const mEarly = parseTradeTimeToMinutes(earlierTime);
+  const mLate = parseTradeTimeToMinutes(laterTime);
+  if (mEarly === null || mLate === null) return true;
+  return allowEqual ? mLate >= mEarly : mLate > mEarly;
+};
+
+export interface CleanMilestones {
+  showT1: boolean;
+  showT2: boolean;
+  showSL: boolean;
+  t1Time?: string;
+  t2Time?: string;
+  slTime?: string;
+}
+
+export const getSanitizedMilestones = (trade?: {
+  status?: string;
+  entryPriceTimeFormatted?: string;
+  callGivenTimeFormatted?: string;
+  callGivenTime?: string;
+  entryTimeFormatted?: string;
+  timeFormatted?: string;
+  target1HitTimeFormatted?: string;
+  target2HitTimeFormatted?: string;
+  stoplossTimeFormatted?: string;
+  stoplossHitTime?: string;
+  stoplossTime?: string;
+} | null): CleanMilestones => {
+  if (!trade) {
+    return { showT1: false, showT2: false, showSL: false };
+  }
+
+  const isSl = trade.status === 'STOPLOSS_HIT' || trade.status === 'SL_HIT' || Boolean(trade.stoplossHitTime || trade.stoplossTime || trade.stoplossTimeFormatted);
+  const isTargetHit = trade.status === 'TARGET1_HIT' || trade.status === 'TARGET2_HIT' || trade.status === 'TARGET_HIT';
+
+  const entryTimeStr = trade.entryPriceTimeFormatted || trade.callGivenTimeFormatted || trade.callGivenTime || trade.entryTimeFormatted || trade.timeFormatted;
+  const entryMins = parseTradeTimeToMinutes(entryTimeStr);
+  const t1Mins = parseTradeTimeToMinutes(trade.target1HitTimeFormatted);
+  const t2Mins = parseTradeTimeToMinutes(trade.target2HitTimeFormatted);
+  const slMins = parseTradeTimeToMinutes(trade.stoplossTimeFormatted || trade.stoplossHitTime || trade.stoplossTime);
+
+  const showT1 = Boolean(
+    trade.target1HitTimeFormatted &&
+    (entryMins === null || t1Mins === null || t1Mins >= entryMins) &&
+    (!isSl || (t1Mins !== null && slMins !== null && t1Mins < slMins))
+  );
+
+  const showT2 = Boolean(
+    trade.target2HitTimeFormatted &&
+    !isSl &&
+    (entryMins === null || t2Mins === null || t2Mins >= entryMins) &&
+    (t1Mins === null || t2Mins === null || t2Mins >= t1Mins)
+  );
+
+  const showSL = Boolean(
+    (trade.stoplossTimeFormatted || trade.stoplossHitTime || trade.stoplossTime) &&
+    isSl &&
+    !isTargetHit &&
+    (entryMins === null || slMins === null || slMins >= entryMins)
+  );
+
+  return {
+    showT1,
+    showT2,
+    showSL,
+    t1Time: showT1 ? trade.target1HitTimeFormatted : undefined,
+    t2Time: showT2 ? trade.target2HitTimeFormatted : undefined,
+    slTime: showSL ? (trade.stoplossTimeFormatted || trade.stoplossHitTime || trade.stoplossTime) : undefined,
+  };
+};

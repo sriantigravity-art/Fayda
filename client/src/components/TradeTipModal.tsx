@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useMarket } from '../context/MarketContext';
 import { ALL_SYMBOLS_CONFIG, type ActiveTradeTipData, type OngoingProfitBoxData, type MarketMomentumRegime } from '../types';
+import { getSanitizedMilestones } from '../utils/formatTime';
 import {
   X,
   Zap,
@@ -568,26 +569,33 @@ Generated via Fayda Trading Terminal`;
                   </span>
                 )}
 
-                {tip.target1HitTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
-                    <Award className="w-3 h-3 text-emerald-500 shrink-0" />
-                    <span className="truncate">🏆 T1 Hit: {tip.target1HitTimeFormatted}</span>
-                  </span>
-                )}
+                {(() => {
+                  const ms = getSanitizedMilestones(tip);
+                  return (
+                    <>
+                      {ms.showT1 && (
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                          <Award className="w-3 h-3 text-emerald-500 shrink-0" />
+                          <span className="truncate">🏆 T1 Hit: {ms.t1Time}</span>
+                        </span>
+                      )}
 
-                {tip.target2HitTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1 shrink-0">
-                    <Sparkles className="w-3 h-3 text-cyan-500 shrink-0" />
-                    <span className="truncate">🚀 T2 Hit: {tip.target2HitTimeFormatted}</span>
-                  </span>
-                )}
+                      {ms.showT2 && (
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1 shrink-0">
+                          <Sparkles className="w-3 h-3 text-cyan-500 shrink-0" />
+                          <span className="truncate">🚀 T2 Hit: {ms.t2Time}</span>
+                        </span>
+                      )}
 
-                {tip.stoplossTimeFormatted && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1 shrink-0">
-                    <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
-                    <span className="truncate">🛑 SL Hit: {tip.stoplossTimeFormatted}</span>
-                  </span>
-                )}
+                      {ms.showSL && (
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1 shrink-0">
+                          <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                          <span className="truncate">🛑 SL Hit: {ms.slTime}</span>
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

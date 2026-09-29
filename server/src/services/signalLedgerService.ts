@@ -9,7 +9,7 @@ import {
   ALL_SYMBOLS_CONFIG 
 } from '../types.js';
 
-class SignalLedgerService {
+export class SignalLedgerService {
   private dataFilePath: string;
   private calls: Map<string, JournalTradeCall> = new Map(); // id -> call
   private datesSet: Set<string> = new Set();
@@ -118,6 +118,84 @@ class SignalLedgerService {
     return null;
   }
 
+  public static isChronologicallyValid(
+    earlierTime?: string | null,
+    laterTime?: string | null,
+    allowEqual: boolean = true
+  ): boolean {
+    if (!earlierTime || !laterTime) return true;
+    const mEarly = SignalLedgerService.parseTimeStringToMinutes(earlierTime);
+    const mLate = SignalLedgerService.parseTimeStringToMinutes(laterTime);
+    if (mEarly === null || mLate === null) return true;
+    return allowEqual ? mLate >= mEarly : mLate > mEarly;
+  }
+
+  public static sanitizeMilestones(c: JournalTradeCall): void {
+    const isSell = Boolean(c.action?.startsWith('SELL') || (c as any).category === 'OPTIONS_SELL');
+    const entryTime = c.entryPriceTimeFormatted || c.callGivenTime || c.timeFormatted;
+
+    // 1. Target 1 cannot be earlier than entry time
+    if (c.target1HitTimeFormatted && entryTime) {
+      if (!SignalLedgerService.isChronologicallyValid(entryTime, c.target1HitTimeFormatted)) {
+        c.target1HitTimeFormatted = undefined;
+      }
+    }
+
+    // 2. Target 2 cannot be earlier than entry time or Target 1
+    if (c.target2HitTimeFormatted) {
+      if (entryTime && !SignalLedgerService.isChronologicallyValid(entryTime, c.target2HitTimeFormatted)) {
+        c.target2HitTimeFormatted = undefined;
+        c.targetHitTime = undefined;
+      } else if (c.target1HitTimeFormatted && !SignalLedgerService.isChronologicallyValid(c.target1HitTimeFormatted, c.target2HitTimeFormatted)) {
+        c.target2HitTimeFormatted = undefined;
+        c.targetHitTime = undefined;
+      }
+    }
+
+    // 3. Stoploss Hit cannot be earlier than entry time
+    if (c.stoplossHitTime && entryTime) {
+      if (!SignalLedgerService.isChronologicallyValid(entryTime, c.stoplossHitTime)) {
+        c.stoplossHitTime = undefined;
+        c.stoplossTime = undefined;
+      }
+    }
+
+    // 4. Status Exclusivity
+    if (c.status === 'STOPLOSS_HIT' || !!c.stoplossHitTime) {
+      c.status = 'STOPLOSS_HIT';
+      c.nearTargetPct = 0;
+      c.target2HitTimeFormatted = undefined;
+      c.targetHitTime = undefined;
+
+      // Target 1 is only retained if it genuinely occurred strictly before SL
+      if (c.target1HitTimeFormatted && c.stoplossHitTime) {
+        if (!SignalLedgerService.isChronologicallyValid(c.target1HitTimeFormatted, c.stoplossHitTime, false)) {
+          c.target1HitTimeFormatted = undefined;
+        }
+      } else {
+        c.target1HitTimeFormatted = undefined;
+      }
+
+      // Strictly calculate correct SL points: |stoplossPrice - entryPrice|
+      if (c.entryPrice && c.stoplossPrice) {
+        const pts = isSell 
+          ? +(c.entryPrice - c.stoplossPrice).toFixed(2)
+          : +(c.stoplossPrice - c.entryPrice).toFixed(2);
+        const absPts = Math.abs(pts);
+        c.pointsPnl = pts;
+        const lotSize = c.lotSize || 50;
+        c.pnlRupees = Math.round(pts * lotSize);
+        c.pnlCalculationFormula = isSell
+          ? `Entry ₹${c.entryPrice.toFixed(2)} - SL ₹${c.stoplossPrice.toFixed(2)} = -${absPts.toFixed(2)} pts (${c.pnlRupees} on 1 Lot [${lotSize} Qty])`
+          : `SL ₹${c.stoplossPrice.toFixed(2)} - Entry ₹${c.entryPrice.toFixed(2)} = -${absPts.toFixed(2)} pts (${c.pnlRupees} on 1 Lot [${lotSize} Qty])`;
+        c.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${c.entryPrice.toFixed(2)} - SL ₹${c.stoplossPrice.toFixed(2)} = -${absPts.toFixed(2)} pts`;
+      }
+    } else if (c.status === 'TARGET_HIT') {
+      c.stoplossHitTime = undefined;
+      c.stoplossTime = undefined;
+    }
+  }
+
   private loadFromFile() {
     try {
       if (fs.existsSync(this.dataFilePath)) {
@@ -159,14 +237,7 @@ class SignalLedgerService {
             if (c.halfProfitBookTime) c.halfProfitBookTime = SignalLedgerService.sanitizeTradeTime(c.halfProfitBookTime, isCommodity, '03:10:00 PM IST');
             if (c.adminActionTime) c.adminActionTime = SignalLedgerService.sanitizeTradeTime(c.adminActionTime, isCommodity, '03:30:00 PM IST');
 
-            if (c.status === 'STOPLOSS_HIT' || !!c.stoplossHitTime) {
-              c.status = 'STOPLOSS_HIT';
-              c.nearTargetPct = 0;
-              if (!c.nearTargetDescription || c.nearTargetDescription.includes('Active') || c.nearTargetDescription.includes('Target Hit') || c.nearTargetDescription.includes('In Progress')) {
-                const pts = c.pointsPnl !== undefined ? c.pointsPnl : (c.stoplossPrice && c.entryPrice ? +(c.stoplossPrice - c.entryPrice).toFixed(2) : 0);
-                c.nearTargetDescription = `🛑 Stoploss Hit: Entry ₹${(c.entryPrice || 0).toFixed(2)} - SL ₹${(c.stoplossPrice || 0).toFixed(2)} = ${pts} pts`;
-              }
-            }
+            SignalLedgerService.sanitizeMilestones(c);
           });
 
           // Group by date
@@ -447,6 +518,7 @@ class SignalLedgerService {
         if (signal.target1HitTimeFormatted) existing.target1HitTimeFormatted = signal.target1HitTimeFormatted;
         if (signal.target2HitTimeFormatted) existing.target2HitTimeFormatted = signal.target2HitTimeFormatted;
         if (signal.stoplossTimeFormatted) existing.stoplossHitTime = signal.stoplossTimeFormatted;
+        SignalLedgerService.sanitizeMilestones(existing);
         return existing;
       }
     }
@@ -510,6 +582,7 @@ class SignalLedgerService {
       notes: signal.notes
     };
 
+    SignalLedgerService.sanitizeMilestones(newCall);
     this.calls.set(id, newCall);
     this.datesSet.add(today);
     this.saveToFile();
@@ -656,6 +729,7 @@ class SignalLedgerService {
           }
         }
       }
+      SignalLedgerService.sanitizeMilestones(call);
       this.saveToFile();
     }
     return call;
@@ -735,6 +809,7 @@ class SignalLedgerService {
           : `Target ₹${target.toFixed(2)} - Entry ₹${entry.toFixed(2)} = +${points} pts (+₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.nearTargetDescription = `🎯 100% Target Hit (+${points} pts / +₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
         call.targetHitTime = this.getIstTimeFormatted();
+        SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;
       }
@@ -771,6 +846,7 @@ class SignalLedgerService {
           call.nearTargetDescription = `🛑 Stoploss Hit: ${points} pts (${rupees >= 0 ? '+' : ''}₹${rupees.toLocaleString('en-IN')} on 1 Lot [${lotSize} Qty])`;
           call.stoplossHitTime = this.getIstTimeFormatted();
         }
+        SignalLedgerService.sanitizeMilestones(call);
         hasChanges = true;
         continue;
       }

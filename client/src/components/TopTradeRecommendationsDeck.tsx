@@ -4,7 +4,7 @@ import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { ALL_SYMBOLS_CONFIG, type UnifiedSmartTip, type HeroZeroSignal, type SurgeEvent } from '../types';
 import { isMarketOpenForSymbol } from '../utils/lastClosedData';
-import { getISTComponents } from '../utils/formatTime';
+import { getISTComponents, getSanitizedMilestones } from '../utils/formatTime';
 import { ConfluenceChecklist } from './ConfluenceChecklist';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
 import { TradePayoffSimulator } from './TradePayoffSimulator';
@@ -604,9 +604,20 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
       const entryPriceTimeFormatted = mRecord.isEntryTriggered
         ? (mRecord.entryPriceTimeFormatted || rawItem.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.rawTip?.entryTimeFormatted)
         : (rawItem.entryPriceTimeFormatted || rawItem.entryTimeFormatted || rawItem.rawTip?.entryPriceTimeFormatted || rawItem.rawTip?.entryTimeFormatted);
-      const target1HitTimeFormatted = mRecord.target1HitTimeFormatted || rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
-      const target2HitTimeFormatted = mRecord.target2HitTimeFormatted || rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
-      const stoplossTimeFormatted = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const rawTarget1HitTime = mRecord.target1HitTimeFormatted || rawItem.target1HitTimeFormatted || rawItem.rawTip?.target1HitTimeFormatted || (finalStatus === 'TARGET1_HIT' || finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const rawTarget2HitTime = mRecord.target2HitTimeFormatted || rawItem.target2HitTimeFormatted || rawItem.rawTip?.target2HitTimeFormatted || (finalStatus === 'TARGET2_HIT' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+      const rawStoplossTime = mRecord.stoplossTimeFormatted || rawItem.stoplossTimeFormatted || rawItem.rawTip?.stoplossTimeFormatted || (finalStatus === 'STOPLOSS_HIT' || finalStatus === 'SL_HIT' || finalStatus === 'EXPIRED' ? rawItem.bookedTimeFormatted || rawItem.rawTip?.bookedTimeFormatted : undefined);
+
+      const deckMs = getSanitizedMilestones({
+        status: finalStatus,
+        entryPriceTimeFormatted,
+        target1HitTimeFormatted: rawTarget1HitTime,
+        target2HitTimeFormatted: rawTarget2HitTime,
+        stoplossTimeFormatted: rawStoplossTime
+      });
+      const target1HitTimeFormatted = deckMs.t1Time;
+      const target2HitTimeFormatted = deckMs.t2Time;
+      const stoplossTimeFormatted = deckMs.slTime;
       const marketRegime = rawItem.marketRegime || rawItem.rawTip?.marketRegime;
       const explanations = rawItem.explanations || rawItem.rawTip?.explanations;
       const actionBadge = isContractExpired 

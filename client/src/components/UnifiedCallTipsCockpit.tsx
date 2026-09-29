@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMarket } from '../context/MarketContext';
 import { useTerminalMode } from '../context/TerminalModeContext';
 import { RiskCalculatorModal } from './RiskCalculatorModal';
+import { getSanitizedMilestones } from '../utils/formatTime';
 import { 
   Zap, 
   ShieldCheck, 
@@ -704,26 +705,31 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       </span>
                     )}
 
-                    {topCallTrade.target1HitTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                        <Award className="w-2.5 h-2.5 text-emerald-400" />
-                        <span>T1 Hit: {topCallTrade.target1HitTimeFormatted}</span>
-                      </span>
-                    )}
-
-                    {topCallTrade.target2HitTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
-                        <span>T2 Hit: {topCallTrade.target2HitTimeFormatted}</span>
-                      </span>
-                    )}
-
-                    {topCallTrade.stoplossTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
-                        <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
-                        <span>SL Hit: {topCallTrade.stoplossTimeFormatted}</span>
-                      </span>
-                    )}
+                    {(() => {
+                      const ms = getSanitizedMilestones(topCallTrade);
+                      return (
+                        <>
+                          {ms.showT1 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              <Award className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>T1 Hit: {ms.t1Time}</span>
+                            </span>
+                          )}
+                          {ms.showT2 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                              <span>T2 Hit: {ms.t2Time}</span>
+                            </span>
+                          )}
+                          {ms.showSL && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                              <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
+                              <span>SL Hit: {ms.slTime}</span>
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {(topCallTrade.status === 'TARGET1_HIT' || topCallTrade.status === 'TARGET2_HIT' || topCallTrade.status === 'SL_HIT') && topCallTrade.bookedTimeFormatted && topCallTrade.bookedTimeFormatted !== (topCallTrade.callGivenTimeFormatted || topCallTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
@@ -942,26 +948,31 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
                       </span>
                     )}
 
-                    {topPutTrade.target1HitTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                        <Award className="w-2.5 h-2.5 text-emerald-400" />
-                        <span>T1 Hit: {topPutTrade.target1HitTimeFormatted}</span>
-                      </span>
-                    )}
-
-                    {topPutTrade.target2HitTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
-                        <span>T2 Hit: {topPutTrade.target2HitTimeFormatted}</span>
-                      </span>
-                    )}
-
-                    {topPutTrade.stoplossTimeFormatted && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
-                        <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
-                        <span>SL Hit: {topPutTrade.stoplossTimeFormatted}</span>
-                      </span>
-                    )}
+                    {(() => {
+                      const ms = getSanitizedMilestones(topPutTrade);
+                      return (
+                        <>
+                          {ms.showT1 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              <Award className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>T1 Hit: {ms.t1Time}</span>
+                            </span>
+                          )}
+                          {ms.showT2 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                              <span>T2 Hit: {ms.t2Time}</span>
+                            </span>
+                          )}
+                          {ms.showSL && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                              <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
+                              <span>SL Hit: {ms.slTime}</span>
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {(topPutTrade.status === 'TARGET1_HIT' || topPutTrade.status === 'TARGET2_HIT' || topPutTrade.status === 'SL_HIT') && topPutTrade.bookedTimeFormatted && topPutTrade.bookedTimeFormatted !== (topPutTrade.callGivenTimeFormatted || topPutTrade.entryTimeFormatted) && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 ${
