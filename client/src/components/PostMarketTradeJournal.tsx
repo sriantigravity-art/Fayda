@@ -93,7 +93,13 @@ export const getJournalCallCategory = (c: { category?: string; symbol?: string; 
 };
 
 // Client-side fallback report generator for instant loading and resilience
-const generateClientFallbackReport = (dateStr?: string, category: AssetCategory = 'ALL', status: string = 'ALL'): JournalReportResponse => {
+const generateClientFallbackReport = (
+  dateStr?: string, 
+  category: AssetCategory = 'ALL', 
+  status: string = 'ALL',
+  symbolFilter: string = 'ALL',
+  selectedSymbolsList: string[] = []
+): JournalReportResponse => {
   const { todayStr, prevDayStr, pastTradingDays, isPreMarket } = getRecentTradingDays();
   const targetDate = dateStr || (isPreMarket ? prevDayStr : todayStr);
   
@@ -562,7 +568,17 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
   };
 
   // Strictly retrieve calls for target date only (do not fallback to other dates)
-  const rawCalls: JournalTradeCall[] = dateDataMap[targetDate] || [];
+  let rawCalls: JournalTradeCall[] = dateDataMap[targetDate] || [];
+
+  if (symbolFilter && symbolFilter !== 'ALL') {
+    if (symbolFilter === 'MY_SELECTED_ASSETS') {
+      const allowed = (selectedSymbolsList || []).map(s => s.toUpperCase());
+      rawCalls = rawCalls.filter(c => allowed.includes((c.symbol || '').toUpperCase()));
+    } else {
+      const allowed = symbolFilter.split(',').map(s => s.trim().toUpperCase());
+      rawCalls = rawCalls.filter(c => allowed.includes((c.symbol || '').toUpperCase()));
+    }
+  }
 
   const filtered = rawCalls.filter(c => {
     const callCat = getJournalCallCategory(c);
@@ -704,7 +720,7 @@ const generateClientFallbackReport = (dateStr?: string, category: AssetCategory 
 };
 
 export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClose }) => {
-  const { openTradeTipModal } = useMarket();
+  const { openTradeTipModal, selectedIndex, visibleIndices } = useMarket();
   const dateInfo = useMemo(() => getRecentTradingDays(), []);
   // If pre-market (before 09:15 AM), default selected date to the latest completed trading session
   const initialDate = dateInfo.isPreMarket ? dateInfo.prevDayStr : dateInfo.todayStr;
@@ -715,17 +731,26 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   ]);
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROFIT' | 'LOSS' | 'NEAR_TARGET' | 'ACTIVE'>('ALL');
+  // Default asset filter strictly to the active user's selectedIndex
+  const [selectedAssetFilter, setSelectedAssetFilter] = useState<string>(() => selectedIndex || 'NIFTY');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const PAGE_SIZE = 25;
   
-  // Instant initial data with pre-market awareness
+  // Instant initial data with pre-market awareness and asset filtering
   const [report, setReport] = useState<JournalReportResponse>(() => 
-    generateClientFallbackReport(initialDate, 'ALL', 'ALL')
+    generateClientFallbackReport(initialDate, 'ALL', 'ALL', selectedIndex || 'NIFTY', visibleIndices || [])
   );
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Sync selectedAssetFilter when user switches active symbol in main terminal
+  useEffect(() => {
+    if (selectedIndex) {
+      setSelectedAssetFilter(selectedIndex);
+    }
+  }, [selectedIndex]);
 
   const handleOpenTradeDetail = (call: JournalTradeCall) => {
     if (!call) return;
@@ -820,7 +845,7 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
     fetchDates();
   }, []);
 
-  // Fetch Report whenever date, category, or status changes
+  // Fetch Report whenever date, category, status, or asset filter changes
   const fetchReport = async () => {
     setIsLoading(true);
     setError(null);
@@ -830,6 +855,15 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       if (selectedDate) params.set('date', selectedDate);
       if (selectedCategory !== 'ALL') params.set('category', selectedCategory);
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (selectedAssetFilter && selectedAssetFilter !== 'ALL') {
+        if (selectedAssetFilter === 'MY_SELECTED_ASSETS') {
+          if (visibleIndices && visibleIndices.length > 0) {
+            params.set('symbol', visibleIndices.join(','));
+          }
+        } else {
+          params.set('symbol', selectedAssetFilter);
+        }
+      }
 
       const res = await fetch(`${apiBase}/api/journal/report?${params.toString()}`);
       if (res.ok) {
@@ -842,11 +876,11 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
         }
       } else {
         // Fallback to client data if backend endpoint is unavailable
-        setReport(generateClientFallbackReport(selectedDate, selectedCategory, statusFilter));
+        setReport(generateClientFallbackReport(selectedDate, selectedCategory, statusFilter, selectedAssetFilter, visibleIndices || []));
       }
     } catch {
       // Offline fallback
-      setReport(generateClientFallbackReport(selectedDate, selectedCategory, statusFilter));
+      setReport(generateClientFallbackReport(selectedDate, selectedCategory, statusFilter, selectedAssetFilter, visibleIndices || []));
     } finally {
       setIsLoading(false);
     }
@@ -855,12 +889,24 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
   useEffect(() => {
     fetchReport();
     setCurrentPage(1);
-  }, [selectedDate, selectedCategory, statusFilter]);
+  }, [selectedDate, selectedCategory, statusFilter, selectedAssetFilter]);
 
-  // Client-side text search & category filter
+  // Client-side text search, category & asset filter
   const displayedSignals = useMemo(() => {
     if (!report?.signals) return [];
     let list = report.signals;
+
+    // Filter by Asset / Symbol
+    if (selectedAssetFilter && selectedAssetFilter !== 'ALL') {
+      if (selectedAssetFilter === 'MY_SELECTED_ASSETS') {
+        const allowed = (visibleIndices || []).map(s => s.toUpperCase());
+        list = list.filter(c => allowed.includes((c.symbol || '').toUpperCase()));
+      } else {
+        const allowed = selectedAssetFilter.split(',').map(s => s.trim().toUpperCase());
+        list = list.filter(c => allowed.includes((c.symbol || '').toUpperCase()));
+      }
+    }
+
     if (selectedCategory !== 'ALL') {
       list = list.filter(c => {
         const cat = getJournalCallCategory(c);
@@ -868,6 +914,17 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
         return cat === selectedCategory;
       });
     }
+
+    if (statusFilter !== 'ALL') {
+      list = list.filter(c => {
+        if (statusFilter === 'PROFIT') return c.status === 'TARGET_HIT';
+        if (statusFilter === 'LOSS') return c.status === 'STOPLOSS_HIT' || c.status === 'SL_HIT';
+        if (statusFilter === 'NEAR_TARGET') return c.status === 'NEAR_TARGET' || c.nearTargetPct >= 80;
+        if (statusFilter === 'ACTIVE') return c.status === 'ACTIVE';
+        return true;
+      });
+    }
+
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(s => 
@@ -877,7 +934,7 @@ export const PostMarketTradeJournal: React.FC<Props> = ({ isModal = false, onClo
       s.signalSource.toLowerCase().includes(q) ||
       s.timeFormatted.toLowerCase().includes(q)
     );
-  }, [report?.signals, searchQuery, selectedCategory]);
+  }, [report?.signals, searchQuery, selectedCategory, statusFilter, selectedAssetFilter, visibleIndices]);
 
   const totalPages = Math.max(1, Math.ceil(displayedSignals.length / PAGE_SIZE));
   const paginatedSignals = useMemo(() => {
@@ -1008,6 +1065,94 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
       {/* Main Scrollable Body Container */}
       <div className={`flex-1 overflow-y-auto ${isModal ? 'p-3.5 sm:p-5 space-y-4' : 'pt-4 space-y-4'}`}>
+
+        {/* ========================================================================= */}
+        {/* 1B. Asset Focus Toolbar: Active Asset & User's Selected Assets            */}
+        {/* ========================================================================= */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl bg-slate-100/90 dark:bg-terminal-panel/90 border border-slate-200 dark:border-terminal-border text-xs font-mono">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+            <span className="font-bold text-terminal-muted flex items-center gap-1 shrink-0 text-[11px] mr-1">
+              <Filter className="w-3.5 h-3.5 text-accent-cyan" />
+              <span>Asset:</span>
+            </span>
+
+            {/* Active User Asset Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAssetFilter(selectedIndex);
+                setSearchQuery('');
+              }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 text-xs ${
+                selectedAssetFilter === selectedIndex
+                  ? 'bg-accent-cyan text-slate-950 font-black shadow-sm ring-1 ring-accent-cyan'
+                  : 'bg-white dark:bg-terminal-card text-terminal-muted hover:text-terminal-text border border-slate-200 dark:border-terminal-border'
+              }`}
+              title={`Show journal records for active selected asset ${selectedIndex}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Active: {selectedIndex}</span>
+            </button>
+
+            {/* My Tracked / Selected Assets Pill */}
+            {visibleIndices && visibleIndices.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAssetFilter('MY_SELECTED_ASSETS');
+                  setSearchQuery('');
+                }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 shrink-0 text-xs ${
+                  selectedAssetFilter === 'MY_SELECTED_ASSETS'
+                    ? 'bg-purple-500 text-white font-black shadow-sm ring-1 ring-purple-400'
+                    : 'bg-white dark:bg-terminal-card text-terminal-muted hover:text-terminal-text border border-slate-200 dark:border-terminal-border'
+                }`}
+                title="Show journal for all assets in your active selection list"
+              >
+                <span>📌 My Tracked Assets ({visibleIndices.length})</span>
+              </button>
+            )}
+
+            {/* Individual Assets from user's selection */}
+            {visibleIndices && visibleIndices.filter(sym => sym !== selectedIndex).map(sym => (
+              <button
+                key={sym}
+                type="button"
+                onClick={() => {
+                  setSelectedAssetFilter(sym);
+                  setSearchQuery('');
+                }}
+                className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer shrink-0 text-xs ${
+                  selectedAssetFilter === sym
+                    ? 'bg-accent-sky text-slate-950 font-black shadow-sm'
+                    : 'bg-white dark:bg-terminal-card text-terminal-muted hover:text-terminal-text border border-slate-200 dark:border-terminal-border'
+                }`}
+              >
+                {sym}
+              </button>
+            ))}
+
+            {/* All Assets Option */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAssetFilter('ALL');
+                setSearchQuery('');
+              }}
+              className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer shrink-0 text-xs ${
+                selectedAssetFilter === 'ALL'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'bg-white dark:bg-terminal-card text-terminal-muted hover:text-terminal-text border border-slate-200 dark:border-terminal-border'
+              }`}
+            >
+              All Assets
+            </button>
+          </div>
+
+          <div className="text-[11px] font-mono text-terminal-muted shrink-0 hidden sm:block">
+            Journal Asset Focus: <strong className="text-accent-cyan font-bold">{selectedAssetFilter === 'MY_SELECTED_ASSETS' ? `Tracked (${visibleIndices.join(', ')})` : selectedAssetFilter}</strong>
+          </div>
+        </div>
 
       {/* ========================================================================= */}
       {/* 2. Top Summary KPI Cards (Win Rate, Points Profit/Loss, Near-Target Acc)  */}

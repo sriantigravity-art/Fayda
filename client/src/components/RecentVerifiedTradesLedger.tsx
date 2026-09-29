@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Award, Calendar, CheckCircle2, XCircle, TrendingUp, ShieldAlert, BarChart3, Filter } from 'lucide-react';
+import { useMarket } from '../context/MarketContext';
 
 export interface VerifiedTradeRecord {
   id: string;
@@ -803,9 +804,29 @@ const LAST_WEEK_TRADES: VerifiedTradeRecord[] = [
   }
 ];
 
+const mapSymbolToAssetFilter = (symbol?: string): AssetFilterType => {
+  const s = (symbol || '').toUpperCase();
+  if (s.includes('BANKNIFTY')) return 'BANKNIFTY';
+  if (s.includes('NIFTY')) return 'NIFTY';
+  if (s.includes('SENSEX')) return 'SENSEX';
+  if (['CRUDEOIL', 'GOLD', 'NATURALGAS', 'NATGAS', 'SILVER', 'COPPER', 'MCX'].some(k => s.includes(k))) return 'MCX';
+  return 'ALL';
+};
+
 export const RecentVerifiedTradesLedger: React.FC = () => {
-  const [assetFilter, setAssetFilter] = useState<AssetFilterType>('ALL');
+  const { selectedIndex } = useMarket();
+  const [assetFilter, setAssetFilter] = useState<AssetFilterType>(() => mapSymbolToAssetFilter(selectedIndex));
   const [dayFilter, setDayFilter] = useState<DayFilterType>('ALL_WEEK');
+
+  // Automatically update asset filter when active user changes selectedIndex
+  useEffect(() => {
+    if (selectedIndex) {
+      const mapped = mapSymbolToAssetFilter(selectedIndex);
+      if (mapped !== 'ALL') {
+        setAssetFilter(mapped);
+      }
+    }
+  }, [selectedIndex]);
 
   // Days list for dynamic tabs
   const daysList: { id: DayFilterType; label: string; dateStr: string }[] = [

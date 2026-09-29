@@ -991,7 +991,10 @@ export class SignalLedgerService {
         if (category === 'STOCKS' && callCat !== 'STOCKS') return false;
         if (category === 'COMMODITIES' && callCat !== 'COMMODITIES') return false;
       }
-      if (symbolFilter !== 'ALL' && c.symbol !== symbolFilter) return false;
+      if (symbolFilter !== 'ALL') {
+        const allowedSymbols = symbolFilter.split(',').map(s => s.trim().toUpperCase());
+        if (!allowedSymbols.includes((c.symbol || '').toUpperCase())) return false;
+      }
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'PROFIT' && c.status !== 'TARGET_HIT') return false;
         if (statusFilter === 'LOSS' && c.status !== 'STOPLOSS_HIT') return false;

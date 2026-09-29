@@ -60,14 +60,27 @@ export const HighlightSignalTicker: React.FC = () => {
 
   const isLiveNseMarket = isNseMarketHours();
 
-  // Determine symbols to scan based on active market hours
+  // User asset focus filter: strictly show active asset signals only vs all tracked assets
+  const [tickerScope, setTickerScope] = useState<'ACTIVE_ONLY' | 'ALL_SELECTED'>('ACTIVE_ONLY');
+
+  // Reset active tip index when user switches active symbol or scope
+  useEffect(() => {
+    setActiveTipIndex(0);
+    setSecondsLeft(7);
+  }, [selectedIndex, tickerScope]);
+
+  // Determine symbols to scan based on active market hours and user selection
   const symbolsToScan = React.useMemo(() => {
-    // Keep user's visible indices so they see carry forward setups for their tracked symbols (Nifty, BankNifty, etc.)
-    if (visibleIndices && visibleIndices.length > 0) {
-      return visibleIndices;
+    if (tickerScope === 'ACTIVE_ONLY') {
+      return [selectedIndex];
     }
-    return ALL_SYMBOLS_CONFIG.slice(0, 5).map(c => c.symbol as IndexSymbol);
-  }, [visibleIndices]);
+    // ALL_SELECTED: Put selectedIndex first, followed by remaining visibleIndices
+    if (visibleIndices && visibleIndices.length > 0) {
+      const rest = visibleIndices.filter(s => s !== selectedIndex);
+      return [selectedIndex, ...rest];
+    }
+    return [selectedIndex];
+  }, [tickerScope, selectedIndex, visibleIndices]);
 
   // Build list of active setups across eligible open symbols
   const activeSetups = React.useMemo(() => {
@@ -592,6 +605,18 @@ export const HighlightSignalTicker: React.FC = () => {
               <Zap className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 animate-pulse" />
               <span>7s FLASH</span>
             </span>
+            <button
+              type="button"
+              onClick={() => setTickerScope(prev => prev === 'ACTIVE_ONLY' ? 'ALL_SELECTED' : 'ACTIVE_ONLY')}
+              className={`px-1.5 py-0.2 rounded text-[8px] font-mono font-bold border transition cursor-pointer ${
+                tickerScope === 'ACTIVE_ONLY'
+                  ? 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/40'
+                  : 'bg-terminal-card text-terminal-muted border-terminal-border'
+              }`}
+              title="Switch between active symbol and all tracked assets"
+            >
+              {tickerScope === 'ACTIVE_ONLY' ? selectedIndex : `Tracked (${symbolsToScan.length})`}
+            </button>
             <span className="text-[8.5px] font-mono text-slate-600 dark:text-slate-400 font-bold">
               {safeIndex + 1}/{activeSetups.length}
             </span>
@@ -651,6 +676,21 @@ export const HighlightSignalTicker: React.FC = () => {
               {safeIndex + 1} of {activeSetups.length}
             </span>
           </div>
+
+          {/* Active Asset Scope Pill Toggle */}
+          <button
+            type="button"
+            onClick={() => setTickerScope(prev => prev === 'ACTIVE_ONLY' ? 'ALL_SELECTED' : 'ACTIVE_ONLY')}
+            className={`px-2 py-0.5 rounded-lg text-[9.5px] font-mono font-bold transition flex items-center gap-1 cursor-pointer shrink-0 border ${
+              tickerScope === 'ACTIVE_ONLY'
+                ? 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/40 shadow-sm'
+                : 'bg-terminal-card text-terminal-muted hover:text-terminal-text border-terminal-border'
+            }`}
+            title="Toggle between active selected asset signals and all tracked assets"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${tickerScope === 'ACTIVE_ONLY' ? 'bg-accent-cyan animate-pulse' : 'bg-slate-500'}`} />
+            <span>{tickerScope === 'ACTIVE_ONLY' ? `Active: ${selectedIndex}` : `Tracked (${symbolsToScan.length})`}</span>
+          </button>
 
           {/* Quick Prev Tip Button */}
           <button

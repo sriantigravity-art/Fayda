@@ -43,11 +43,15 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     setSelectedIndex,
     currentIndexState, 
     indices,
+    visibleIndices,
     selectedSurges,
     openStrikeChartModal
   } = useMarket();
   const { isBeginner } = useTerminalMode();
   const { metadata: personaMetadata } = useTradingPersona();
+
+  // Scope filter: default to showing only assets selected by active user ('SELECTED') vs all market assets ('ALL')
+  const [assetScope, setAssetScope] = useState<'SELECTED' | 'ALL'>('SELECTED');
 
   const [activeTab, setActiveTab] = useState<'BUYERS' | 'SELLERS' | 'GAMMA'>('BUYERS');
 
@@ -82,9 +86,13 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     }
   };
 
-  // Filter assets based on category and search
+  // Filter assets based on active user selection, category and search
   const filteredAssets = useMemo(() => {
-    return ALL_SYMBOLS_CONFIG.filter(item => {
+    const baseList = assetScope === 'SELECTED'
+      ? ALL_SYMBOLS_CONFIG.filter(item => (visibleIndices && visibleIndices.includes(item.symbol as any)) || item.symbol === selectedIndex)
+      : ALL_SYMBOLS_CONFIG;
+
+    return baseList.filter(item => {
       if (assetCategory !== 'ALL' && item.category !== assetCategory) return false;
       if (assetSearchQuery.trim()) {
         const q = assetSearchQuery.toLowerCase().trim();
@@ -92,7 +100,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       }
       return true;
     });
-  }, [assetCategory, assetSearchQuery]);
+  }, [assetScope, visibleIndices, selectedIndex, assetCategory, assetSearchQuery]);
 
   // Keep selected tab centered in view
   useEffect(() => {
@@ -685,35 +693,66 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
 
       {/* ── 1.1 ASSET TABS BAR: SELECT ASSET FOR LIVE QUANTUM SIGNALS ── */}
       <div className="px-4 sm:px-6 py-2.5 bg-terminal-panel/40 border-b border-terminal-border/70 space-y-2">
-        {/* Top filter row: Category pills + Search */}
+        {/* Top filter row: Scope toggle + Category pills + Search */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-          <div className="flex items-center space-x-1 p-1 bg-terminal-bg/80 border border-terminal-border rounded-xl overflow-x-auto no-scrollbar">
-            <span className="px-2 text-[10px] text-terminal-muted uppercase font-bold flex items-center gap-1">
-              <span>Assets:</span>
-            </span>
-            {(['ALL', 'INDICES', 'COMMODITIES', 'NIFTY50_STOCKS'] as const).map(cat => {
-              const label = cat === 'ALL' ? 'All Assets' : cat === 'INDICES' ? 'Indices' : cat === 'COMMODITIES' ? 'Commodities' : 'F&O Stocks';
-              const count = cat === 'ALL' ? ALL_SYMBOLS_CONFIG.length : ALL_SYMBOLS_CONFIG.filter(c => c.category === cat).length;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setAssetCategory(cat)}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer text-[11px] whitespace-nowrap ${
-                    assetCategory === cat
-                      ? 'bg-accent-cyan text-slate-950 shadow-sm font-black'
-                      : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
-                  }`}
-                >
-                  <span>{label}</span>
-                  <span className={`text-[9px] px-1 py-0.2 rounded-full ${
-                    assetCategory === cat ? 'bg-slate-950/20 text-slate-900' : 'bg-terminal-panel text-terminal-muted'
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Active User Selected Assets vs All Assets Scope Toggle */}
+            <div className="flex items-center space-x-1 p-1 bg-terminal-bg/90 border border-terminal-border rounded-xl shrink-0">
+              <button
+                type="button"
+                onClick={() => setAssetScope('SELECTED')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer text-[11px] whitespace-nowrap ${
+                  assetScope === 'SELECTED'
+                    ? 'bg-gradient-to-r from-sky-500/20 to-accent-cyan/20 text-accent-cyan border border-accent-cyan/40 shadow-sm font-black'
+                    : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                }`}
+                title="Show only the assets you have selected in your active workspace"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>My Selected ({(visibleIndices || []).length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssetScope('ALL')}
+                className={`px-2 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer text-[11px] whitespace-nowrap ${
+                  assetScope === 'ALL'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm font-black'
+                    : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                }`}
+                title="Show all market assets"
+              >
+                <span>All ({ALL_SYMBOLS_CONFIG.length})</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-1 p-1 bg-terminal-bg/80 border border-terminal-border rounded-xl overflow-x-auto no-scrollbar">
+              <span className="px-2 text-[10px] text-terminal-muted uppercase font-bold flex items-center gap-1">
+                <span>Category:</span>
+              </span>
+              {(['ALL', 'INDICES', 'COMMODITIES', 'NIFTY50_STOCKS'] as const).map(cat => {
+                const label = cat === 'ALL' ? 'All' : cat === 'INDICES' ? 'Indices' : cat === 'COMMODITIES' ? 'Commodities' : 'F&O Stocks';
+                const count = cat === 'ALL' ? ALL_SYMBOLS_CONFIG.length : ALL_SYMBOLS_CONFIG.filter(c => c.category === cat).length;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setAssetCategory(cat)}
+                    className={`px-2 py-1 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer text-[11px] whitespace-nowrap ${
+                      assetCategory === cat
+                        ? 'bg-accent-cyan text-slate-950 shadow-sm font-black'
+                        : 'text-terminal-muted hover:text-terminal-text hover:bg-terminal-panel'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className={`text-[9px] px-1 py-0.2 rounded-full ${
+                      assetCategory === cat ? 'bg-slate-950/20 text-slate-900' : 'bg-terminal-panel text-terminal-muted'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Quick search input & Left/Right Scroll Arrows */}
