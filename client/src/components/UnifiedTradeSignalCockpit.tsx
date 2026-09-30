@@ -131,6 +131,12 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       return { hasSignal: false, spot };
     }
 
+    // Strict 87%+ Quantum institutional filter: do not show active signal badge if score < 87%
+    const score = hero.quantumScore || hero.confluenceScore || 0;
+    if (score < 87) {
+      return { hasSignal: false, spot };
+    }
+
     return {
       hasSignal: true,
       spot,
@@ -142,7 +148,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       isSlHit,
       isSquareOff,
       isCarriedForward,
-      quantumScore: hero.quantumScore || hero.confluenceScore
+      quantumScore: score
     };
   };
 
@@ -158,9 +164,13 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
            a.includes('TARGET') || a.includes('SL_HIT') || a.includes('SQUARE_OFF');
   };
 
-  // Helper to prioritize fresh active signals: show active signals only, never completed/squared-off ones as hero
+  // Helper to prioritize fresh active signals: show active signals only with 87% or 87%+ Quantum score
   const getBestTip = (candidates: (UnifiedSmartTip | null | undefined)[]): UnifiedSmartTip | null => {
-    const valid = candidates.filter((t): t is UnifiedSmartTip => Boolean(t && t.action !== 'STANDBY' && t.status !== 'EXPIRED'));
+    const valid = candidates.filter((t): t is UnifiedSmartTip => {
+      if (!t || t.action === 'STANDBY' || t.status === 'EXPIRED') return false;
+      const score = t.quantumScore ?? t.confluenceScore ?? 0;
+      return score >= 87;
+    });
     // 1. Pick first active (non-completed) signal if available
     const active = valid.find(t => !isCompletedTrade(t));
     if (active) return active;
@@ -226,6 +236,12 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
         if ((c.tip.currentLtp > 0 && c.tip.currentLtp < 2.0) || (c.tip.entryPrice > 0 && c.tip.entryPrice < 2.0)) return;
         if (isPast3Pm && ((c.tip.currentLtp > 0 && c.tip.currentLtp <= 5.0) || (c.tip.entryPrice > 0 && c.tip.entryPrice <= 5.0))) return;
       }
+
+      // ── STRICT 87%+ QUANTUM SCORE FILTER ──────────────────
+      // Institutional rule: Show ONLY signals with 87 or 87+ % Quantum score. Delete / drop any tips below 87%.
+      const score = c.tip.quantumScore || c.tip.confluenceScore || 0;
+      if (score < 87) return;
+
       const key = `${c.tip.contractSymbol || ''}_${c.tip.action}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -243,7 +259,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           action: c.tip.action,
           contractSymbol: c.tip.contractSymbol,
           ltp: c.tip.currentLtp,
-          score: c.tip.quantumScore || c.tip.confluenceScore || 89,
+          score,
           status: c.tip.status,
           isCall,
           isPut,
@@ -306,7 +322,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     // If user clicked a specific strike price from the active strikes bar, prioritize it!
     if (selectedStrikeTipId) {
       const custom = assetSignalStrikes.find(s => s.tip.id === selectedStrikeTipId)?.tip;
-      if (custom) return custom;
+      if (custom && ((custom.quantumScore ?? custom.confluenceScore ?? 0) >= 87)) return custom;
     }
 
     if (activeTab === 'BUYERS') {
@@ -350,6 +366,8 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       tipsPackage.gammaTrade
     ].filter((t): t is UnifiedSmartTip => {
       if (!t || t.id === heroId || t.action === 'STANDBY' || t.status === 'EXPIRED') return false;
+      const score = t.quantumScore ?? t.confluenceScore ?? 0;
+      if (score < 87) return false;
       const isBuyer = t.tradingRole !== 'SELLER';
       if (isBuyer) {
         if ((t.currentLtp > 0 && t.currentLtp < 2.0) || (t.entryPrice > 0 && t.entryPrice < 2.0)) return false;
@@ -1113,9 +1131,9 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           <div className="p-2.5 rounded-lg border border-dashed border-terminal-border/80 bg-terminal-bg/40 flex items-center justify-between text-xs text-terminal-muted font-mono">
             <span className="flex items-center gap-2">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>No direct strike signals active for {selectedIndex} in current session. Engine in capital preservation mode.</span>
+              <span>No direct strike signals with ≥87% Quantum active for {selectedIndex} in current session. Engine in capital preservation mode.</span>
             </span>
-            <span className="text-[10px] text-sky-400">Monitoring 10 Confluence Factors</span>
+            <span className="text-[10px] text-sky-400">Strict 87%+ Quantum Filter</span>
           </div>
         )}
       </div>

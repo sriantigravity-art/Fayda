@@ -48,11 +48,13 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
     return ALL_SYMBOLS_CONFIG.find(c => c.symbol === selectedIndex) || { lot: 65, step: 50 };
   }, [selectedIndex]);
 
-  // Primary hero tip from the unified cockpit
   const heroTip = useMemo(() => {
     const pkg = currentIndexState?.unifiedTipsPackage;
     if (!pkg) return null;
-    return pkg.primaryTrade || pkg.topCallTrade || pkg.topPutTrade || null;
+    const candidates = [pkg.primaryTrade, pkg.topCallTrade, pkg.topPutTrade].filter(
+      (t): t is NonNullable<typeof t> => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 87)
+    );
+    return candidates[0] || null;
   }, [currentIndexState]);
 
   // Available strikes list from current state

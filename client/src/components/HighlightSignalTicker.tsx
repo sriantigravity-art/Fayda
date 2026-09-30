@@ -123,8 +123,8 @@ export const HighlightSignalTicker: React.FC = () => {
         if (tip.status === 'TARGET1_HIT' || tip.status === 'TARGET2_HIT' || tip.status === 'TARGET_HIT' || tip.actionabilityStatus === 'TARGET_HIT') return false;
         if (tip.status === 'INTRADAY_CLOSED' || tip.actionabilityStatus === 'SQUARE_OFF') return false;
         if (tip.stoplossPrice && tip.currentLtp && tip.currentLtp <= tip.stoplossPrice) return false;
-        // User directive: show tips only above 88% score
-        if ((tip.confluenceScore ?? tip.quantumScore ?? 0) < 88) return false;
+        // User directive: show tips only with 87% or 87%+ Quantum / confluence score
+        if ((tip.quantumScore ?? tip.confluenceScore ?? 0) < 87) return false;
         if (!isPkgOffMarket) return true; // live market — show all active
         // Off-market: only researched carry-forward tips
         return (tip.isCarriedForward === true || tip.status === 'CARRIED_FORWARD');

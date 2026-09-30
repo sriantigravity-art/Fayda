@@ -408,11 +408,11 @@ export const TopTradeRecommendationsDeck: React.FC = React.memo(() => {
         return; // Purge distorted tip where live price completely jumped
       }
 
-      // ── STRICT 88% MINIMUM CONFLUENCE FILTER ───────────────────────────────
-      // User directive: show only tips above 88% confluence. Filter out weak/counter-trend setups.
-      const tipConfluence = rawItem.confluenceScore ?? rawItem.rawTip?.confluenceScore ?? 0;
-      if (tipConfluence < 88) {
-        return; // Exclude setups below 88%
+      // ── STRICT 87%+ MINIMUM QUANTUM / CONFLUENCE FILTER ───────────────────────────────
+      // User directive: show only signals with 87% or 87%+ Quantum / confluence score. Filter out other setups.
+      const tipScore = rawItem.rawTip?.quantumScore ?? rawItem.confluenceScore ?? rawItem.rawTip?.confluenceScore ?? 0;
+      if (tipScore < 87) {
+        return; // Exclude setups below 87%
       }
 
       const isContractExpired = Boolean(

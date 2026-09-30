@@ -1415,14 +1415,14 @@ export class ConfluenceEngine {
                 };
             }
         }
-        // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 88%)
+        // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 87%)
         const score = tip.quantumScore || tip.confluenceScore || 0;
-        if (score < 88) {
+        if (score < 87) {
             return {
                 qualifiesForBtst: false,
                 marketTrendSentiment,
-                btstRationale: `Confluence (${score}%) Below 88% Institutional Threshold`,
-                squareOffReason: `Mathematical confluence score (${score}%) is below the strict 88% institutional threshold required for researched BTST/STBT setups.`
+                btstRationale: `Confluence (${score}%) Below 87% Institutional Threshold`,
+                squareOffReason: `Mathematical confluence score (${score}%) is below the strict 87% institutional threshold required for researched BTST/STBT setups.`
             };
         }
         // 6. Gate 5: Drawdown & Stoploss Check
@@ -2042,10 +2042,11 @@ export class ConfluenceEngine {
         // • If a carry-forward (BTST / STBT) trade was given on the last trading day, it is shown at open!
         // • New live high-conviction intraday trades start to generate & show once market settles after 09:25 AM IST.
         if (isBefore925Am) {
-            const activeCarry = carriedForwardTrades.find(t => t.status === 'CARRIED_FORWARD' ||
+            const activeCarry = carriedForwardTrades.find(t => (t.status === 'CARRIED_FORWARD' ||
                 t.status === 'TARGET1_HIT' ||
                 t.status === 'TARGET2_HIT' ||
-                t.isCarriedForward);
+                t.isCarriedForward) &&
+                ((t.quantumScore ?? t.confluenceScore ?? 0) >= 87));
             return {
                 currentSession: sessionInfo.session,
                 currentSessionName: sessionInfo.sessionName,
@@ -4410,34 +4411,43 @@ export class ConfluenceEngine {
                     directiveText = `⚡ SYSTEM ADVISORY: ACTIVE IN ZONE | Entry Range: ${t.entryRange} | SL: ₹${t.stoplossPrice.toFixed(1)} | Target: ₹${t.target1Price.toFixed(1)}.`;
                 }
             }
+            let enriched;
             if (t.quantumScore && t.unifiedSignalThesis) {
-                return {
+                enriched = {
                     ...t,
                     lifecycleDirective: directive,
                     lifecycleDirectiveText: directiveText
                 };
             }
-            const q = ConfluenceEngine.computeQuantumMetrics({
-                symbol,
-                strikePrice: t.strikePrice,
-                optionType: t.optionType,
-                confluenceScore: t.confluenceScore,
-                isBreakout: patternBreakout?.activePattern?.status === 'CONFIRMED_BREAKOUT' || patternBreakout?.predictedBreakout?.direction !== 'RANGEBOUND',
-                hasVirginCpr: cprData?.expectedDayType === 'TRENDING_DAY' || cprData?.cprWidthCategory === 'NARROW_CPR',
-                recentSurges,
-                technicalIndicators,
-                momentumRegime: momentumInfo.regime
-            });
-            return {
-                ...t,
-                quantumScore: q.quantumScore,
-                surgeVelocityScore: q.surgeVelocityScore,
-                surgeConfirmationLevel: q.surgeConfirmationLevel,
-                surgeDetails: q.surgeDetails,
-                unifiedSignalThesis: t.unifiedSignalThesis || q.unifiedSignalThesis,
-                lifecycleDirective: directive,
-                lifecycleDirectiveText: directiveText
-            };
+            else {
+                const q = ConfluenceEngine.computeQuantumMetrics({
+                    symbol,
+                    strikePrice: t.strikePrice,
+                    optionType: t.optionType,
+                    confluenceScore: t.confluenceScore,
+                    isBreakout: patternBreakout?.activePattern?.status === 'CONFIRMED_BREAKOUT' || patternBreakout?.predictedBreakout?.direction !== 'RANGEBOUND',
+                    hasVirginCpr: cprData?.expectedDayType === 'TRENDING_DAY' || cprData?.cprWidthCategory === 'NARROW_CPR',
+                    recentSurges,
+                    technicalIndicators,
+                    momentumRegime: momentumInfo.regime
+                });
+                enriched = {
+                    ...t,
+                    quantumScore: q.quantumScore,
+                    surgeVelocityScore: q.surgeVelocityScore,
+                    surgeConfirmationLevel: q.surgeConfirmationLevel,
+                    surgeDetails: q.surgeDetails,
+                    unifiedSignalThesis: t.unifiedSignalThesis || q.unifiedSignalThesis,
+                    lifecycleDirective: directive,
+                    lifecycleDirectiveText: directiveText
+                };
+            }
+            // Institutional Risk Directive: Only show signals with 87% or 87%+ Quantum score. Delete / drop any tips below 87%.
+            const finalScore = enriched.quantumScore ?? enriched.confluenceScore ?? 0;
+            if (finalScore < 87) {
+                return null;
+            }
+            return enriched;
         };
         primaryTrade = enrichTrade(primaryTrade);
         topCallTrade = enrichTrade(topCallTrade);
@@ -4463,11 +4473,11 @@ export class ConfluenceEngine {
             activeContractSymbols.add(normalizeSym(topSellerNeutralTrade.contractSymbol));
         if (hedgedSpreadTrade)
             activeContractSymbols.add(normalizeSym(hedgedSpreadTrade.contractSymbol));
-        if (gammaTrade && gammaTrade.action !== 'STANDBY')
+        if (gammaTrade && gammaTrade.action !== 'STANDBY' && gammaTrade.contractSymbol)
             activeContractSymbols.add(normalizeSym(gammaTrade.contractSymbol));
         const deduplicatedCarriedForward = carriedForwardTrades
             .map(t => enrichTrade(t))
-            .filter(t => !activeContractSymbols.has(normalizeSym(t.contractSymbol)));
+            .filter((t) => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 87 && !activeContractSymbols.has(normalizeSym(t.contractSymbol))));
         return {
             currentSession: sessionInfo.session,
             currentSessionName: sessionInfo.sessionName,
