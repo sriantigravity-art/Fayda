@@ -131,9 +131,9 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
       return { hasSignal: false, spot };
     }
 
-    // Strict 87%+ Quantum institutional filter: do not show active signal badge if score < 87%
+    // Strict 82%+ Quantum institutional filter: do not show active signal badge if score < 82%
     const score = hero.quantumScore || hero.confluenceScore || 0;
-    if (score < 87) {
+    if (score < 82) {
       return { hasSignal: false, spot };
     }
 
@@ -164,12 +164,12 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
            a.includes('TARGET') || a.includes('SL_HIT') || a.includes('SQUARE_OFF');
   };
 
-  // Helper to prioritize fresh active signals: show active signals only with 87% or 87%+ Quantum score
+  // Helper to prioritize fresh active signals: show active signals only with 82% or 82%+ Quantum score
   const getBestTip = (candidates: (UnifiedSmartTip | null | undefined)[]): UnifiedSmartTip | null => {
     const valid = candidates.filter((t): t is UnifiedSmartTip => {
       if (!t || t.action === 'STANDBY' || t.status === 'EXPIRED') return false;
       const score = t.quantumScore ?? t.confluenceScore ?? 0;
-      return score >= 87;
+      return score >= 82;
     });
     // 1. Pick first active (non-completed) signal if available
     const active = valid.find(t => !isCompletedTrade(t));
@@ -237,10 +237,10 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
         if (isPast3Pm && ((c.tip.currentLtp > 0 && c.tip.currentLtp <= 5.0) || (c.tip.entryPrice > 0 && c.tip.entryPrice <= 5.0))) return;
       }
 
-      // ── STRICT 87%+ QUANTUM SCORE FILTER ──────────────────
-      // Institutional rule: Show ONLY signals with 87 or 87+ % Quantum score. Delete / drop any tips below 87%.
+      // ── STRICT 82%+ QUANTUM SCORE FILTER ──────────────────
+      // Institutional rule: Show ONLY signals with 82 or 82+ % Quantum score. Delete / drop any tips below 82%.
       const score = c.tip.quantumScore || c.tip.confluenceScore || 0;
-      if (score < 87) return;
+      if (score < 82) return;
 
       const key = `${c.tip.contractSymbol || ''}_${c.tip.action}`;
       if (!seen.has(key)) {
@@ -322,7 +322,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     // If user clicked a specific strike price from the active strikes bar, prioritize it!
     if (selectedStrikeTipId) {
       const custom = assetSignalStrikes.find(s => s.tip.id === selectedStrikeTipId)?.tip;
-      if (custom && ((custom.quantumScore ?? custom.confluenceScore ?? 0) >= 87)) return custom;
+      if (custom && ((custom.quantumScore ?? custom.confluenceScore ?? 0) >= 82)) return custom;
     }
 
     if (activeTab === 'BUYERS') {
@@ -367,7 +367,7 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
     ].filter((t): t is UnifiedSmartTip => {
       if (!t || t.id === heroId || t.action === 'STANDBY' || t.status === 'EXPIRED') return false;
       const score = t.quantumScore ?? t.confluenceScore ?? 0;
-      if (score < 87) return false;
+      if (score < 82) return false;
       const isBuyer = t.tradingRole !== 'SELLER';
       if (isBuyer) {
         if ((t.currentLtp > 0 && t.currentLtp < 2.0) || (t.entryPrice > 0 && t.entryPrice < 2.0)) return false;
@@ -1131,9 +1131,9 @@ export const UnifiedTradeSignalCockpit: React.FC = () => {
           <div className="p-2.5 rounded-lg border border-dashed border-terminal-border/80 bg-terminal-bg/40 flex items-center justify-between text-xs text-terminal-muted font-mono">
             <span className="flex items-center gap-2">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>No direct strike signals with ≥87% Quantum active for {selectedIndex} in current session. Engine in capital preservation mode.</span>
+              <span>No direct strike signals with ≥82% Quantum active for {selectedIndex} in current session. Engine in capital preservation mode.</span>
             </span>
-            <span className="text-[10px] text-sky-400">Strict 87%+ Quantum Filter</span>
+            <span className="text-[10px] text-sky-400">Strict 82%+ Quantum Filter</span>
           </div>
         )}
       </div>

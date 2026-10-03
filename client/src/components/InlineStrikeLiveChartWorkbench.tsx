@@ -52,7 +52,7 @@ export const InlineStrikeLiveChartWorkbench: React.FC = () => {
     const pkg = currentIndexState?.unifiedTipsPackage;
     if (!pkg) return null;
     const candidates = [pkg.primaryTrade, pkg.topCallTrade, pkg.topPutTrade].filter(
-      (t): t is NonNullable<typeof t> => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 87)
+      (t): t is NonNullable<typeof t> => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 82)
     );
     return candidates[0] || null;
   }, [currentIndexState]);

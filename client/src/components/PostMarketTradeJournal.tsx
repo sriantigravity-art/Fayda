@@ -1246,7 +1246,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
 
   const content = (
     <div className={`bg-white dark:bg-terminal-card border border-slate-200 dark:border-terminal-border rounded-2xl text-terminal-text font-sans shadow-2xl select-none flex flex-col ${
-      isModal ? 'w-full max-w-6xl max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200' : 'p-3 sm:p-5'
+      isModal ? 'w-full max-w-[98vw] xl:max-w-[1540px] 2xl:max-w-[1700px] max-h-[94vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200' : 'p-3 sm:p-5'
     }`}>
       {/* ========================================================================= */}
       {/* 1. Header Toolbar: Title, Date Selector Dropdown, Refresh & Copy Buttons */}
@@ -2008,21 +2008,21 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto my-2 rounded-xl border border-slate-200 dark:border-terminal-border/80 shadow-sm">
+        <div className="my-2 rounded-xl border border-slate-200 dark:border-terminal-border/80 shadow-sm overflow-x-auto xl:overflow-x-hidden">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-slate-100 dark:bg-terminal-panel text-terminal-muted text-[10px] uppercase font-bold border-b border-slate-200 dark:border-terminal-border">
+            <thead className="bg-slate-100 dark:bg-terminal-panel text-terminal-muted text-[10px] uppercase font-bold border-b border-slate-200 dark:border-terminal-border select-none">
               <tr>
-                <th className="py-2.5 px-3">Time</th>
-                <th className="py-2.5 px-3">Asset / Strike</th>
-                <th className="py-2.5 px-3">Signal Source</th>
-                <th className="py-2.5 px-3 text-center">1 Lot Size</th>
-                <th className="py-2.5 px-3 text-right">Perfect Entry</th>
-                <th className="py-2.5 px-3 text-right">Target 1</th>
-                <th className="py-2.5 px-3 text-right">Stop Loss</th>
-                <th className="py-2.5 px-3 text-right">Peak LTP</th>
-                <th className="py-2.5 px-3 text-right">Exit / LTP</th>
-                <th className="py-2.5 px-3">Near-Target Progress</th>
-                <th className="py-2.5 px-3 text-right">P&L / Outcome (Booked)</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Time</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Asset / Strike</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Source</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Lot</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Entry</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Target 1</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Stop Loss</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Peak LTP</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Exit / LTP</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Progress</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">P&L / Outcome</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-terminal-border/50 bg-white dark:bg-terminal-card/80">
@@ -2083,6 +2083,19 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                 }
                 const displayProgressPct = isSlHit ? 0 : (call.nearTargetPct || 0);
 
+                let shortDescription = displayDescription;
+                if (displayDescription.includes('Pre-CAS Close') || displayDescription.includes('Pre-CAS')) {
+                  shortDescription = '⚠️ Pre-CAS Close';
+                } else if (displayDescription.includes('Stoploss Hit') || isSlHit) {
+                  shortDescription = '🛑 SL Hit';
+                } else if (displayDescription.includes('Target Hit') || isTargetHit) {
+                  shortDescription = '🎯 Target 1 Hit';
+                } else if (displayDescription.includes('Active') || displayDescription.includes('In Progress')) {
+                  shortDescription = '⚡ Active';
+                } else if (displayDescription.length > 20) {
+                  shortDescription = displayDescription.slice(0, 20) + '…';
+                }
+
                 const { showT1, showT2, showSL, t1Time, t2Time, slTime } = getSanitizedMilestones(call);
 
                 return (
@@ -2093,132 +2106,135 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                     title={`Click to open full trade setup modal for ${call.contractName}`}
                   >
                     {/* Time & Milestones */}
-                    <td className="py-3 px-3 whitespace-nowrap text-[11px]">
-                      <div className="flex flex-col space-y-1">
+                    <td className="py-2.5 px-2 whitespace-nowrap text-[10.5px]">
+                      <div className="flex flex-col space-y-0.5">
                         <div className="flex items-center space-x-1 font-bold text-terminal-text">
                           <Clock className="w-3 h-3 text-accent-cyan shrink-0" />
                           <span>{formatTradeTime(call.entryPriceTimeFormatted || call.timeFormatted, call.symbol)}</span>
                         </div>
                         {showT1 && (
-                          <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
+                          <div className="flex items-center space-x-1 text-[9px] text-bull font-bold">
                             <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
                             <span>T1: {formatTradeTime(call.target1HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
                         {showT2 && (
-                          <div className="flex items-center space-x-1 text-[9.5px] text-bull font-bold">
+                          <div className="flex items-center space-x-1 text-[9px] text-bull font-bold">
                             <Sparkles className="w-2.5 h-2.5 shrink-0" />
                             <span>T2: {formatTradeTime(call.target2HitTimeFormatted, call.symbol)}</span>
                           </div>
                         )}
                         {showSL && (
-                          <div className="flex items-center space-x-1 text-[9.5px] text-bear font-bold">
+                          <div className="flex items-center space-x-1 text-[9px] text-bear font-bold">
                             <XCircle className="w-2.5 h-2.5 shrink-0" />
                             <span>SL: {formatTradeTime(call.stoplossTime || call.stoplossHitTime, call.symbol)}</span>
                           </div>
                         )}
                         {(call.status === 'INTRADAY_CLOSED' || call.status === 'SQUARE_OFF') && (
-                          <div className="flex items-center space-x-1 text-[9.5px] text-amber font-bold">
+                          <div className="flex items-center space-x-1 text-[9px] text-amber font-bold">
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
                             <span>Exit: {formatTradeTime(call.timeFormatted, call.symbol)}</span>
                           </div>
                         )}
                         {call.parkedAtTime && (
-                          <div className="flex items-center space-x-1 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                          <div className="flex items-center space-x-1 text-[8.5px] font-bold text-amber-600 dark:text-amber-400">
                             <span>🅿️ Parked: {formatTradeTime(call.parkedAtTime, call.symbol)}</span>
                           </div>
                         )}
                         {!call.parkedAtTime && call.status === 'ACTIVE' && COMMODITY_SYMBOLS.includes((call.symbol || '').toUpperCase()) && (
-                          <div className="flex items-center space-x-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <div className="flex items-center space-x-1 text-[8.5px] font-bold text-emerald-600 dark:text-emerald-400">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>LIVE (till 11:00 PM)</span>
+                            <span>LIVE (till 11 PM)</span>
                           </div>
                         )}
                       </div>
                     </td>
 
                     {/* Asset & Contract */}
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
+                      <div className="flex items-center space-x-1.5">
                         {isSell ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
                             SELL {call.optionType || ''}
                           </span>
                         ) : (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
+                          <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black shrink-0 ${
                             isBull ? 'bg-bull/15 text-bull border border-bull/30' : 'bg-bear/15 text-bear border border-bear/30'
                           }`}>
                             {call.action === 'BUY_CALL' ? 'CALL' : call.action === 'BUY_PUT' ? 'PUT' : call.action}
                           </span>
                         )}
-                        <span className="font-bold text-terminal-text">
+                        <span className="font-bold text-terminal-text text-xs">
                           {call.contractName}
                         </span>
                         {call.parkedReason === 'PRE_CAS_CLOSE' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                            🅿️ PARKED PRE-CAS
+                          <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                            🅿️ PRE-CAS
                           </span>
                         )}
                         {call.parkedReason === 'MCX_EOD_CLOSE' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30">
-                            🅿️ PARKED MCX CLOSE
+                          <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30 shrink-0">
+                            🅿️ MCX EOD
                           </span>
                         )}
                         {!call.parkedAtTime && call.status === 'ACTIVE' && COMMODITY_SYMBOLS.includes((call.symbol || '').toUpperCase()) && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
-                            🟢 LIVE MCX
+                          <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 animate-pulse shrink-0">
+                            🟢 LIVE
                           </span>
                         )}
                       </div>
                     </td>
 
                     {/* Signal Engine Source */}
-                    <td className="py-3 px-3 whitespace-nowrap text-[11px] text-terminal-muted">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-terminal-muted font-semibold">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap text-[10px] text-terminal-muted">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-terminal-panel border border-slate-200 dark:border-terminal-border text-terminal-muted font-semibold">
                         {call.signalSource}
                       </span>
                     </td>
 
                     {/* 1 Lot Size */}
-                    <td className="py-3 px-3 text-center whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded bg-sky-50 dark:bg-accent-sky/10 border border-sky-200 dark:border-accent-sky/30 text-accent-sky font-bold text-xs">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                      <span className="px-1.5 py-0.5 rounded bg-sky-50 dark:bg-accent-sky/10 border border-sky-200 dark:border-accent-sky/30 text-accent-sky font-bold text-[11px]">
                         {totalQty}
                       </span>
                     </td>
 
                     {/* Entry Level */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <span className="font-bold text-terminal-text">₹{call.entryPrice.toFixed(2)}</span>
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                      <span className="font-bold text-terminal-text text-[11px]">₹{call.entryPrice.toFixed(2)}</span>
                     </td>
 
                     {/* Target 1 */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <span className="font-bold text-bull">₹{call.target1Price.toFixed(2)}</span>
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                      <span className="font-bold text-bull text-[11px]">₹{call.target1Price.toFixed(2)}</span>
                     </td>
 
                     {/* Stop Loss */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <span className="font-bold text-bear">₹{call.stoplossPrice.toFixed(2)}</span>
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                      <span className="font-bold text-bear text-[11px]">₹{call.stoplossPrice.toFixed(2)}</span>
                     </td>
 
                     {/* Peak LTP reached during trade */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap font-bold text-accent-cyan">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-accent-cyan text-[11px]">
                       ₹{call.peakLtp.toFixed(2)}
                     </td>
 
                     {/* Exit / Current LTP */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap font-bold text-terminal-text">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-terminal-text text-[11px]">
                       ₹{exitPrice.toFixed(2)}
                     </td>
 
                     {/* Near-Target Progress Bar & Explanation */}
-                    <td className="py-3 px-3 min-w-[190px]">
+                    <td className="py-2.5 px-2 w-32 max-w-[140px]">
                       <div className="flex flex-col space-y-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className={isTargetHit ? 'text-bull font-bold' : isNearTarget ? 'text-amber-800 dark:text-amber font-bold' : isSlHit ? 'text-bear font-bold' : 'text-terminal-muted'}>
-                            {displayDescription}
+                        <div className="flex items-center justify-between text-[10px] gap-1">
+                          <span 
+                            className={`truncate font-bold ${isTargetHit ? 'text-bull' : isNearTarget ? 'text-amber-800 dark:text-amber font-bold' : isSlHit ? 'text-bear font-bold' : 'text-terminal-muted'}`}
+                            title={displayDescription}
+                          >
+                            {shortDescription}
                           </span>
-                          <span className="font-bold tabular-nums">
+                          <span className="font-bold tabular-nums shrink-0">
                             {displayProgressPct}%
                           </span>
                         </div>
@@ -2235,16 +2251,16 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                     </td>
 
                     {/* P&L / Outcome Badge */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
                       <div className="flex flex-col items-end space-y-0.5">
                         {isTargetHit ? (
-                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bull/20 text-bull border border-bull/50 font-black shadow-sm text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-bull/20 text-bull border border-bull/50 font-black shadow-sm text-[10px]">
+                            <CheckCircle2 className="w-3 h-3 shrink-0" />
                             <span>+₹{Math.abs(pnlRupees).toLocaleString('en-IN')} (+{points} pts)</span>
                           </span>
                         ) : isSlHit ? (
-                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-bear/20 text-bear border border-bear/50 font-black text-[11px]">
-                            <XCircle className="w-3.5 h-3.5" />
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-bear/20 text-bear border border-bear/50 font-black text-[10px]">
+                            <XCircle className="w-3 h-3 shrink-0" />
                             <span>-₹{Math.abs(pnlRupees).toLocaleString('en-IN')} ({points} pts)</span>
                           </span>
                         ) : (
@@ -2254,7 +2270,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
                             <span>{points >= 0 ? '+' : ''}₹{pnlRupees.toLocaleString('en-IN')} ({points >= 0 ? '+' : ''}{points} pts)</span>
                           </span>
                         )}
-                        <span className="text-[9px] text-terminal-muted font-mono tracking-tight">
+                        <span className="text-[8.5px] text-terminal-muted font-mono tracking-tight truncate max-w-[150px]" title={calculationFormula}>
                           {calculationFormula} ({lots} Lot)
                         </span>
                       </div>
@@ -2313,7 +2329,7 @@ ${summary.bestTrade ? `• Best Trade: ${summary.bestTrade.contractName} (+${sum
     return createPortal(
       <div 
         onClick={onClose}
-        className="fixed inset-0 z-[120000] flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto"
+        className="fixed inset-0 z-[120000] flex items-start sm:items-center justify-center p-1 sm:p-2.5 md:p-3 bg-black/80 backdrop-blur-md overflow-y-auto"
       >
         <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center my-auto">
           {content}

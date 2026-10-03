@@ -85,7 +85,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (!pkg.topCallTrade.stoplossPrice || !pkg.topCallTrade.currentLtp || pkg.topCallTrade.currentLtp > pkg.topCallTrade.stoplossPrice) &&
     pkg.topCallTrade.entryPrice >= minCockpitCutoff && 
     Math.abs(pkg.topCallTrade.pnlPct || 0) < 350 && 
-    ((pkg.topCallTrade.quantumScore ?? pkg.topCallTrade.confluenceScore ?? 0) >= 87)
+    ((pkg.topCallTrade.quantumScore ?? pkg.topCallTrade.confluenceScore ?? 0) >= 82)
   );
   const isPkgPutValid = Boolean(
     isSettled &&
@@ -96,7 +96,7 @@ export const UnifiedCallTipsCockpit: React.FC = React.memo(() => {
     (!pkg.topPutTrade.stoplossPrice || !pkg.topPutTrade.currentLtp || pkg.topPutTrade.currentLtp > pkg.topPutTrade.stoplossPrice) &&
     pkg.topPutTrade.entryPrice >= minCockpitCutoff && 
     Math.abs(pkg.topPutTrade.pnlPct || 0) < 350 && 
-    ((pkg.topPutTrade.quantumScore ?? pkg.topPutTrade.confluenceScore ?? 0) >= 87)
+    ((pkg.topPutTrade.quantumScore ?? pkg.topPutTrade.confluenceScore ?? 0) >= 82)
   );
 
   let topCallTrade = isPkgCallValid ? pkg?.topCallTrade : null;

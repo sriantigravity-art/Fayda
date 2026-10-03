@@ -1578,14 +1578,14 @@ export class ConfluenceEngine {
       }
     }
 
-    // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 87%)
+    // 5. Gate 4: "Study hard and give only perfect tips" -> High Confluence Score (>= 82%)
     const score = tip.quantumScore || tip.confluenceScore || 0;
-    if (score < 87) {
+    if (score < 82) {
       return {
         qualifiesForBtst: false,
         marketTrendSentiment,
-        btstRationale: `Confluence (${score}%) Below 87% Institutional Threshold`,
-        squareOffReason: `Mathematical confluence score (${score}%) is below the strict 87% institutional threshold required for researched BTST/STBT setups.`
+        btstRationale: `Confluence (${score}%) Below 82% Institutional Threshold`,
+        squareOffReason: `Mathematical confluence score (${score}%) is below the strict 82% institutional threshold required for researched BTST/STBT setups.`
       };
     }
 
@@ -2307,7 +2307,7 @@ export class ConfluenceEngine {
         t.status === 'TARGET1_HIT' || 
         t.status === 'TARGET2_HIT' ||
         t.isCarriedForward) &&
-        ((t.quantumScore ?? t.confluenceScore ?? 0) >= 87)
+        ((t.quantumScore ?? t.confluenceScore ?? 0) >= 82)
       );
       return {
         currentSession: sessionInfo.session,
@@ -4830,9 +4830,9 @@ export class ConfluenceEngine {
         };
       }
 
-      // Institutional Risk Directive: Only show signals with 87% or 87%+ Quantum score. Delete / drop any tips below 87%.
+      // Institutional Risk Directive: Only show signals with 82% or 82%+ Quantum score. Delete / drop any tips below 82%.
       const finalScore = enriched.quantumScore ?? enriched.confluenceScore ?? 0;
-      if (finalScore < 87) {
+      if (finalScore < 82) {
         return null;
       }
       return enriched;
@@ -4860,7 +4860,7 @@ export class ConfluenceEngine {
 
     const deduplicatedCarriedForward = carriedForwardTrades
       .map(t => enrichTrade(t))
-      .filter((t): t is UnifiedSmartTip => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 87 && !activeContractSymbols.has(normalizeSym(t.contractSymbol))));
+      .filter((t): t is UnifiedSmartTip => Boolean(t && (t.quantumScore ?? t.confluenceScore ?? 0) >= 82 && !activeContractSymbols.has(normalizeSym(t.contractSymbol))));
 
     return {
       currentSession: sessionInfo.session,
